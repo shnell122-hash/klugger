@@ -42,7 +42,7 @@ def get_case(case_id):
     row = query("SELECT * FROM cases WHERE case_id=%s", (case_id,))
     if not row:
         return jsonify({"error": "Caso no encontrado"}), 404
-    return jsonify(row)
+    return jsonify({"case": row})
 
 
 @cases_bp.route('/api/cases/<case_id>', methods=['PUT', 'PATCH'])
