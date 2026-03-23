@@ -174,7 +174,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   <!-- Center: Chat -->
   <div id="chat-panel">
     <div id="chat-header">
-      <h2 id="chat-case-title">Selecciona un expediente para comenzar</h2>
+      <h2 id="chat-case-title">VILAR Legal OS v59</h2>
       <div style="display:flex;gap:6px">
         <button class="btn btn-ghost btn-sm" onclick="clearHistory()">Limpiar historial</button>
       </div>
@@ -184,7 +184,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
         <div class="msg-avatar">AI</div>
         <div>
           <div class="msg-bubble">
-            Bienvenido a VILAR Legal OS v59. Selecciona o crea un expediente, sube documentos y úsalos como contexto para el análisis jurídico con Claude.
+            Bienvenido a VILAR Legal OS v59. Sube documentos y úsalos como contexto para el análisis jurídico con Claude.
           </div>
         </div>
       </div>
@@ -567,7 +567,6 @@ async function loadChatHistory() {
 
 async function sendMessage(e) {
   e.preventDefault();
-  if (!currentCase) { toast('Selecciona un expediente primero', 'error'); return; }
   const inp = document.getElementById('chat-input');
   const text = inp.value.trim();
   if (!text) return;
@@ -589,7 +588,7 @@ async function sendMessage(e) {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
-        case_id: currentCase.case_id,
+        case_id: currentCase ? currentCase.case_id : '',
         message: text,
         context_artifact_ids: [...ctxIds],
         history: chatHistory.slice(-20)
