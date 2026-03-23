@@ -1,0 +1,170 @@
+"""
+Tool router — ejecuta las herramientas de Claude y retorna resultados.
+"""
+import os, uuid
+from tools.db import query, execute
+from tools.jotform_tools import export_case_to_jotform
+
+
+def handle_tool(tool_name: str, inputs: dict, case_id: str = None) -> dict:
+    """Despacha tool calls de Claude al handler correspondiente."""
+    handlers = {
+        'save_artifact':    _save_artifact,
+        'create_case':      _create_case,
+        'search_precedents':_search_precedents,
+        'validate_document':_validate_document,
+        'export_to_jotform':_export_to_jotform,
+    }
+    handler = handlers.get(tool_name)
+    if not handler:
+        return {"error": f"Tool desconocida: {tool_name}"}
+
+    # Inyectar case_id si no viene en inputs pero lo tenemos del contexto
+    if case_id and 'case_id' not in inputs:
+        inputs = {**inputs, 'case_id': case_id}
+
+    try:
+        return handler(inputs)
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def _save_artifact(inputs: dict) -> dict:
+    required = ['case_id', 'artifact_name', 'artifact_type', 'content']
+    for f in required:
+        if not inputs.get(f):
+            return {"error": f"{f} requerido"}
+
+    art_id = str(uuid.uuid4())
+    content = inputs['content']
+    execute(
+        """INSERT INTO system_artifacts
+           (artifact_id, case_id, artifact_name, artifact_type, content,
+            mime_type, file_size_bytes, source)
+           VALUES (%s,%s,%s,%s,%s,'text/markdown',%s,'system')""",
+        (
+            art_id,
+            inputs['case_id'],
+            inputs['artifact_name'],
+            inputs['artifact_type'],
+            content,
+            len(content.encode()),
+        )
+    )
+    return {
+        "status": "saved",
+        "artifact_id": art_id,
+        "artifact_name": inputs['artifact_name'],
+        "artifact_type": inputs['artifact_type'],
+    }
+
+
+def _create_case(inputs: dict) -> dict:
+    if not inputs.get('case_name'):
+        return {"error": "case_name requerido"}
+
+    cid = str(uuid.uuid4())
+    execute(
+        "INSERT INTO cases (case_id, case_name, matter_type, status) VALUES (%s,%s,%s,'active')",
+        (cid, inputs['case_name'], inputs.get('matter_type', 'general'))
+    )
+    return {"status": "created", "case_id": cid, "case_name": inputs['case_name']}
+
+
+def _search_precedents(inputs: dict) -> dict:
+    q = inputs.get('query', '').strip()
+    if not q:
+        return {"error": "query requerido"}
+
+    # Búsqueda en system_artifacts como base de precedentes internos
+    rows = query(
+        """SELECT artifact_id, case_id, artifact_name, artifact_type,
+                  LEFT(content, 500) AS snippet, created_at
+           FROM system_artifacts
+           WHERE MATCH(content) AGAINST (%s IN BOOLEAN MODE)
+              OR artifact_name LIKE %s
+           ORDER BY created_at DESC
+           LIMIT 10""",
+        (q, f"%{q}%"), many=True
+    )
+    # Si no hay FTS, fallback a LIKE
+    if rows is None:
+        rows = query(
+            """SELECT artifact_id, case_id, artifact_name, artifact_type,
+                      LEFT(content, 500) AS snippet, created_at
+               FROM system_artifacts
+               WHERE artifact_name LIKE %s OR content LIKE %s
+               ORDER BY created_at DESC
+               LIMIT 10""",
+            (f"%{q}%", f"%{q}%"), many=True
+        )
+
+    return {
+        "query": q,
+        "results": rows or [],
+        "count": len(rows) if rows else 0,
+        "note": "Resultados de precedentes internos del sistema."
+    }
+
+
+def _validate_document(inputs: dict) -> dict:
+    artifact_id   = inputs.get('artifact_id', '')
+    document_type = inputs.get('document_type', '')
+
+    if not artifact_id or not document_type:
+        return {"error": "artifact_id y document_type requeridos"}
+
+    row = query(
+        "SELECT content, artifact_type, artifact_name FROM system_artifacts WHERE artifact_id=%s",
+        (artifact_id,)
+    )
+    if not row:
+        return {"error": "Artefacto no encontrado"}
+
+    content = row.get('content', '')
+    issues  = []
+    warnings = []
+
+    # Validaciones básicas por tipo
+    if 'contrato' in document_type.lower():
+        if 'PRIMERA' not in content.upper() and 'CLÁUSULA' not in content.upper() and 'Cláusula' not in content:
+            issues.append("No se encontraron cláusulas numeradas")
+        if 'firma' not in content.lower() and 'FIRMA' not in content:
+            warnings.append("No se detectó sección de firmas")
+        if 'fecha' not in content.lower():
+            warnings.append("No se detectó fecha del documento")
+
+    if 'poder' in document_type.lower():
+        if 'OTORGA' not in content.upper() and 'otorga' not in content:
+            issues.append("No se encontró declaración de otorgamiento")
+        if 'notari' not in content.lower():
+            warnings.append("Considerar protocolización ante Notario Público")
+
+    status = "válido" if not issues else "con_observaciones"
+    return {
+        "artifact_id": artifact_id,
+        "document_type": document_type,
+        "status": status,
+        "issues": issues,
+        "warnings": warnings,
+        "chars": len(content),
+    }
+
+
+def _export_to_jotform(inputs: dict) -> dict:
+    case_id = inputs.get('case_id', '')
+    if not case_id:
+        return {"error": "case_id requerido"}
+
+    row = query("SELECT * FROM cases WHERE case_id=%s", (case_id,))
+    if not row:
+        return {"error": "Caso no encontrado"}
+
+    row['notes'] = inputs.get('notes', '')
+    export_case_to_jotform(case_id, row)
+
+    return {
+        "status": "export_iniciado",
+        "case_id": case_id,
+        "note": "Exportación enviada en background. Verificar en JotForm en unos segundos."
+    }
