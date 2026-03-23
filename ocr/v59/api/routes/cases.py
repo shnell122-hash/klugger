@@ -14,7 +14,7 @@ def list_cases():
         "FROM cases ORDER BY updated_at DESC LIMIT 100",
         many=True
     )
-    return jsonify(rows or [])
+    return jsonify({"cases": rows or []})
 
 
 @cases_bp.route('/api/cases', methods=['POST'])

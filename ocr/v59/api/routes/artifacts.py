@@ -48,7 +48,7 @@ def list_artifacts_by_case(case_id):
         results.extend(rows or [])
 
     results.sort(key=lambda x: str(x.get('created_at', '')), reverse=True)
-    return jsonify(results[:limit])
+    return jsonify({"artifacts": results[:limit]})
 
 
 @artifacts_bp.route('/api/artifacts/file/<artifact_id>', methods=['GET'])
@@ -127,7 +127,7 @@ def list_artifacts():
 
     # Ordenar mezclados por fecha
     results.sort(key=lambda x: str(x.get('created_at', '')), reverse=True)
-    return jsonify(results[:limit])
+    return jsonify({"artifacts": results[:limit]})
 
 
 @artifacts_bp.route('/api/v1/artifacts/<artifact_id>', methods=['GET'])
