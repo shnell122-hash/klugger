@@ -1,8 +1,80 @@
+import os
 import uuid
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_file
 from tools.db import query, execute
 
 artifacts_bp = Blueprint('artifacts', __name__)
+
+
+@artifacts_bp.route('/api/artifacts/<case_id>', methods=['GET'])
+def list_artifacts_by_case(case_id):
+    """Frontend-compatible: case_id as path param."""
+    src_filter    = request.args.get('type', 'all')
+    artifact_type = request.args.get('artifact_type', '')
+    limit         = min(int(request.args.get('limit', 60)), 200)
+    results = []
+
+    if src_filter in ('all', 'user'):
+        rows = query(
+            """SELECT artifact_id, case_id, filename AS name, mime_type,
+                      file_size_bytes, checksum_sha256,
+                      CHAR_LENGTH(extracted_text) AS text_len,
+                      uploaded_at AS created_at,
+                      'user' AS source, NULL AS artifact_type
+               FROM user_artifacts
+               WHERE case_id=%s
+               ORDER BY uploaded_at DESC
+               LIMIT %s""",
+            (case_id, limit), many=True
+        )
+        results.extend(rows or [])
+
+    if src_filter in ('all', 'system'):
+        atype_clause = "AND artifact_type=%s" if artifact_type else ""
+        params = [case_id]
+        if artifact_type:
+            params.append(artifact_type)
+        params.append(limit)
+        rows = query(
+            f"""SELECT artifact_id, case_id, artifact_name AS name, artifact_type,
+                       mime_type, file_size_bytes,
+                       created_at, 'system' AS source
+                FROM system_artifacts
+                WHERE case_id=%s {atype_clause}
+                ORDER BY created_at DESC
+                LIMIT %s""",
+            params, many=True
+        )
+        results.extend(rows or [])
+
+    results.sort(key=lambda x: str(x.get('created_at', '')), reverse=True)
+    return jsonify(results[:limit])
+
+
+@artifacts_bp.route('/api/artifacts/file/<artifact_id>', methods=['GET'])
+def serve_artifact_file(artifact_id):
+    row = query("SELECT file_path, mime_type, filename FROM user_artifacts WHERE artifact_id=%s", (artifact_id,))
+    if not row or not os.path.exists(row['file_path']):
+        return jsonify({"error": "Archivo no encontrado"}), 404
+    return send_file(row['file_path'], mimetype=row['mime_type'],
+                     download_name=row['filename'], as_attachment=False)
+
+
+@artifacts_bp.route('/api/artifacts/<artifact_id>/text', methods=['GET'])
+def get_artifact_text(artifact_id):
+    row = query("SELECT extracted_text FROM user_artifacts WHERE artifact_id=%s", (artifact_id,))
+    if not row:
+        row = query("SELECT content AS extracted_text FROM system_artifacts WHERE artifact_id=%s", (artifact_id,))
+    if not row:
+        return jsonify({"error": "Artefacto no encontrado"}), 404
+    return jsonify({"text": row.get('extracted_text', '')})
+
+
+@artifacts_bp.route('/api/artifacts/<artifact_id>', methods=['DELETE'])
+def delete_artifact_compat(artifact_id):
+    execute("DELETE FROM system_artifacts WHERE artifact_id=%s", (artifact_id,))
+    execute("DELETE FROM user_artifacts WHERE artifact_id=%s", (artifact_id,))
+    return jsonify({"status": "deleted"})
 
 
 @artifacts_bp.route('/api/v1/artifacts', methods=['GET'])

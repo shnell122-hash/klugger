@@ -15,13 +15,12 @@ ALLOWED_MIME = {
     'application/msword',
 }
 
+@upload_bp.route('/api/upload', methods=['POST'])
 @upload_bp.route('/api/v1/upload', methods=['POST'])
 def upload():
-    case_id = request.form.get('case_id')
-    if not case_id:
-        return jsonify({"error": "case_id requerido"}), 400
+    case_id = request.form.get('case_id', '')
 
-    files = request.files.getlist('files')
+    files = request.files.getlist('files') or request.files.getlist('file')
     if not files:
         return jsonify({"error": "No se recibieron archivos"}), 400
 
@@ -62,7 +61,7 @@ def upload():
             # Guardar en cache
             execute(
                 "INSERT INTO extraction_cache (checksum_sha256, mime_type, extracted_text) "
-                "VALUES (%s, %s %s) ON DUPLICATE KEY UPDATE extracted_text=VALUES(extracted_text)",
+                "VALUES (%s, %s, %s) ON DUPLICATE KEY UPDATE extracted_text=VALUES(extracted_text)",
                 (sha, mime, text)
             )
 

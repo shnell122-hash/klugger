@@ -5,6 +5,7 @@ from tools.db import query, execute
 cases_bp = Blueprint('cases', __name__)
 
 
+@cases_bp.route('/api/cases', methods=['GET'])
 @cases_bp.route('/api/v1/cases', methods=['GET'])
 @cases_bp.route('/api/v1/matters', methods=['GET'])
 def list_cases():
@@ -16,6 +17,7 @@ def list_cases():
     return jsonify(rows or [])
 
 
+@cases_bp.route('/api/cases', methods=['POST'])
 @cases_bp.route('/api/v1/cases', methods=['POST'])
 @cases_bp.route('/api/v1/matters', methods=['POST'])
 def create_case():
@@ -33,6 +35,7 @@ def create_case():
     return jsonify({"case_id": cid, "case_name": name, "matter_type": mtype, "status": "active"}), 201
 
 
+@cases_bp.route('/api/cases/<case_id>', methods=['GET'])
 @cases_bp.route('/api/v1/cases/<case_id>', methods=['GET'])
 @cases_bp.route('/api/v1/matters/<case_id>', methods=['GET'])
 def get_case(case_id):
@@ -42,6 +45,7 @@ def get_case(case_id):
     return jsonify(row)
 
 
+@cases_bp.route('/api/cases/<case_id>', methods=['PUT', 'PATCH'])
 @cases_bp.route('/api/v1/cases/<case_id>', methods=['PUT', 'PATCH'])
 def update_case(case_id):
     body = request.get_json(force=True, silent=True) or {}
@@ -61,6 +65,7 @@ def update_case(case_id):
     return jsonify({"status": "updated"})
 
 
+@cases_bp.route('/api/cases/<case_id>', methods=['DELETE'])
 @cases_bp.route('/api/v1/cases/<case_id>', methods=['DELETE'])
 def delete_case(case_id):
     execute("DELETE FROM cases WHERE case_id=%s", (case_id,))

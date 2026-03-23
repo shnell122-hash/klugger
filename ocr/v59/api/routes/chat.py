@@ -133,6 +133,129 @@ def _get_specific_context(case_id: str, artifact_ids: list) -> str:
     return "\n".join(parts)
 
 
+@chat_bp.route('/api/chat/history/<case_id>', methods=['GET'])
+def get_chat_history(case_id):
+    rows = query(
+        "SELECT role, content, created_at FROM chat_history WHERE case_id=%s ORDER BY created_at ASC LIMIT 100",
+        (case_id,), many=True
+    )
+    return jsonify({"history": rows or []})
+
+
+@chat_bp.route('/api/chat/history/<case_id>', methods=['DELETE'])
+def clear_chat_history(case_id):
+    execute("DELETE FROM chat_history WHERE case_id=%s", (case_id,))
+    return jsonify({"status": "cleared"})
+
+
+@chat_bp.route('/api/chat', methods=['POST'])
+def chat():
+    """Non-streaming endpoint compatible with the frontend."""
+    body = request.get_json(force=True, silent=True) or {}
+    message      = body.get('message', '').strip()
+    history      = body.get('history', [])[-22:]
+    case_id      = body.get('case_id', '')
+    artifact_type = body.get('artifact_type', 'analysis')
+    selected_ids = body.get('context_artifact_ids', body.get('selected_artifacts', []))
+
+    if not message:
+        return jsonify({"error": "message requerido"}), 400
+
+    if selected_ids:
+        case_context = _get_specific_context(case_id, selected_ids)
+    elif case_id:
+        case_context = _get_case_context(case_id)
+    else:
+        case_context = ""
+
+    art_template = ARTIFACT_TEMPLATES.get(artifact_type, ARTIFACT_TEMPLATES["analysis"])
+    max_tokens   = MAX_TOKENS_BY_TYPE.get(artifact_type, 4096)
+
+    long_types = {'contract', 'brief', 'html'}
+    length_rule = (
+        "**REGLA DE LONGITUD:** Para este artefacto NO hay límite de longitud. "
+        "Entregar el documento COMPLETO sin cortar ni resumir."
+        if artifact_type in long_types else
+        "**REGLA DE LONGITUD:** Ser conciso pero exhaustivo."
+    )
+
+    system = (
+        f"{SOUL}\n\n"
+        f"{length_rule}\n\n"
+        f"**TIPO DE ARTEFACTO ACTIVO:** {artifact_type}\n"
+        f"{art_template}\n"
+        f"{case_context}"
+    )
+
+    messages = []
+    for h in history:
+        role = h.get('role', 'user')
+        if role not in ('user', 'assistant'):
+            continue
+        messages.append({"role": role, "content": h.get('content', '')})
+    messages.append({"role": "user", "content": message})
+
+    client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
+
+    try:
+        full_text = ""
+        tool_results = []
+
+        with client.messages.stream(
+            model="claude-opus-4-6",
+            max_tokens=max_tokens,
+            system=system,
+            tools=TOOL_DEFS,
+            messages=messages,
+        ) as stream:
+            tool_calls_pending = {}
+            for event in stream:
+                if not hasattr(event, 'type'):
+                    continue
+                et = event.type
+                if et == 'content_block_start':
+                    cb = getattr(event, 'content_block', None)
+                    if cb and cb.type == 'tool_use':
+                        tool_calls_pending[cb.id] = {'name': cb.name, 'input_str': ''}
+                elif et == 'content_block_delta':
+                    delta = getattr(event, 'delta', None)
+                    if delta:
+                        if delta.type == 'text_delta':
+                            full_text += delta.text
+                        elif delta.type == 'input_json_delta':
+                            for tc in tool_calls_pending.values():
+                                if not tc.get('done'):
+                                    tc['input_str'] += delta.partial_json
+                                    break
+
+            for tool_id, tc in tool_calls_pending.items():
+                try:
+                    inp = json.loads(tc['input_str']) if tc['input_str'] else {}
+                except Exception:
+                    inp = {}
+                result = handle_tool(tc['name'], inp, case_id)
+                tool_results.append({'tool': tc['name'], 'result': result})
+
+        if case_id:
+            try:
+                execute("INSERT INTO chat_history (case_id, role, content) VALUES (%s,'user',%s)", (case_id, message))
+                execute("INSERT INTO chat_history (case_id, role, content) VALUES (%s,'assistant',%s)", (case_id, full_text))
+            except Exception:
+                pass
+
+        resp = {"response": full_text}
+        if tool_results:
+            resp["tool_results"] = tool_results
+        return jsonify(resp)
+
+    except anthropic.APIError as e:
+        return jsonify({"error": f"API Error: {str(e)}"}), 502
+    except Exception:
+        err = traceback.format_exc()
+        print(err)
+        return jsonify({"error": "Error interno del servidor"}), 500
+
+
 @chat_bp.route('/api/v1/chat/stream', methods=['POST'])
 def chat_stream():
     body = request.get_json(force=True, silent=True) or {}
