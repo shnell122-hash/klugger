@@ -310,6 +310,8 @@ async function selectCase(id) {
   try {
     const r = await fetch(`${API}/cases/${id}`);
     const data = await r.json();
+    if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+    if (!data.case) throw new Error('Respuesta inesperada del servidor');
     currentCase = data.case;
     document.getElementById('chat-case-title').textContent = currentCase.case_name;
     ctxIds.clear();
@@ -318,7 +320,8 @@ async function selectCase(id) {
     await loadArtifacts();
     await loadChatHistory();
   } catch(e) {
-    toast('Error al cargar expediente', 'error');
+    console.error('selectCase:', e);
+    toast('Error al cargar expediente: ' + e.message, 'error');
   }
 }
 
