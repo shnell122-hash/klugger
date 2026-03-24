@@ -11,8 +11,8 @@ module.exports = {
     autorestart: true,
     max_restarts: 10,
     restart_delay: 3000,
-    error_file: '/var/log/pm2/vilar-legal-os-v59-error.log',
-    out_file:   '/var/log/pm2/vilar-legal-os-v59-out.log',
+    error_file: '/home/german/.pm2/logs/vilar-legal-os-v59-error.log',
+    out_file:   '/home/german/.pm2/logs/vilar-legal-os-v59-out.log',
     log_date_format: 'YYYY-MM-DD HH:mm:ss',
   }]
 };
