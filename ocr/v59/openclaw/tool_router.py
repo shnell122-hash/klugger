@@ -9,6 +9,7 @@ from tools.jotform_tools import export_case_to_jotform
 def handle_tool(tool_name: str, inputs: dict, case_id: str = None) -> dict:
     """Despacha tool calls de Claude al handler correspondiente."""
     handlers = {
+        'generate_image':   _generate_image,
         'save_artifact':    _save_artifact,
         'create_case':      _create_case,
         'search_precedents':_search_precedents,
@@ -148,6 +149,111 @@ def _validate_document(inputs: dict) -> dict:
         "issues": issues,
         "warnings": warnings,
         "chars": len(content),
+    }
+
+
+def _generate_image(inputs: dict) -> dict:
+    """Genera imágenes con Flux.1 vía fal.ai y las guarda en el expediente."""
+    import requests, base64 as b64
+
+    fal_key = os.getenv('FAL_KEY', '')
+    if not fal_key:
+        return {"error": "FAL_KEY no configurado. Pide al administrador que lo configure en el servidor."}
+
+    case_id = inputs.get('case_id', '').strip()
+    prompt  = inputs.get('prompt', '').strip()
+    count   = min(max(int(inputs.get('count', 2)), 1), 4)
+    aspect  = inputs.get('aspect', 'portrait')
+
+    if not case_id or not prompt:
+        return {"error": "case_id y prompt son requeridos"}
+
+    sizes = {
+        'portrait':  {'width': 768,  'height': 1024},
+        'landscape': {'width': 1024, 'height': 768},
+        'square':    {'width': 1024, 'height': 1024},
+    }
+    size = sizes.get(aspect, sizes['portrait'])
+
+    style_suffix = (
+        "shot on a smartphone, candid documentary photo, natural lighting, "
+        "slightly imperfect framing, photorealistic, no text overlays"
+    )
+    negative = (
+        "painting, illustration, cartoon, render, cgi, watermark, logo, text, "
+        "signature, border, frame, artistic, stylized"
+    )
+
+    payload = {
+        'prompt':              f"{prompt}, {style_suffix}",
+        'negative_prompt':     negative,
+        'num_images':          count,
+        'image_size':          size,
+        'num_inference_steps': 28,
+        'guidance_scale':      3.5,
+        'enable_safety_checker': True,
+        'output_format':       'jpeg',
+    }
+    headers = {
+        'Authorization': f'Key {fal_key}',
+        'Content-Type':  'application/json',
+    }
+
+    try:
+        resp = requests.post(
+            'https://fal.run/fal-ai/flux/dev',
+            json=payload, headers=headers, timeout=120
+        )
+        resp.raise_for_status()
+        fal_data = resp.json()
+    except requests.exceptions.HTTPError as e:
+        return {"error": f"fal.ai HTTP {e.response.status_code}: {e.response.text[:200]}"}
+    except Exception as e:
+        return {"error": f"Error llamando fal.ai: {str(e)}"}
+
+    images_out = fal_data.get('images', [])
+    if not images_out:
+        return {"error": "fal.ai no devolvió imágenes"}
+
+    saved = []
+    for img_info in images_out:
+        img_url = img_info.get('url', '')
+        if not img_url:
+            continue
+        try:
+            dl = requests.get(img_url, timeout=30)
+            dl.raise_for_status()
+            img_bytes = dl.content
+        except Exception:
+            continue
+
+        artifact_id = str(uuid.uuid4())
+        filename    = f"capacitacion_{artifact_id[:8]}.jpg"
+        execute(
+            """INSERT INTO user_artifacts
+               (artifact_id, case_id, filename, mime_type, file_size_bytes,
+                raw_data, extracted_text, uploaded_at)
+               VALUES (%s, %s, %s, 'image/jpeg', %s, %s, %s, NOW())""",
+            (artifact_id, case_id, filename, len(img_bytes),
+             img_bytes, f'[Imagen generada — capacitación] {prompt}')
+        )
+        saved.append({
+            'artifact_id': artifact_id,
+            'filename':    filename,
+            'view_url':    f'/OCR/v59/api/artifacts/file/{artifact_id}',
+        })
+
+    if not saved:
+        return {"error": "No se pudo guardar ninguna imagen"}
+
+    return {
+        "status": "generated",
+        "count":  len(saved),
+        "images": saved,
+        "message": (
+            f"Se generaron {len(saved)} imagen(es) de capacitación y se guardaron en el expediente. "
+            f"Puedes verlas en la pestaña **Subidos** de la barra lateral."
+        ),
     }
 
 

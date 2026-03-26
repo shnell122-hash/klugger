@@ -1,5 +1,34 @@
 [
   {
+    "name": "generate_image",
+    "description": "Genera imágenes fotorrealistas de ejemplo para material de capacitación de clientes. Úsalo cuando el usuario pida imágenes de cómo debe verse una entrega, operación, producto, camión, material, etc. Las imágenes se guardan automáticamente en el expediente.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "description": "ID del expediente donde guardar las imágenes"
+        },
+        "prompt": {
+          "type": "string",
+          "description": "Descripción detallada de la escena. Ej: 'camión de carga blanco descargando cajas de cartón en patio de bodega industrial, trabajador con chaleco naranja supervisando'"
+        },
+        "count": {
+          "type": "integer",
+          "description": "Número de imágenes a generar (1-4). Default: 2",
+          "default": 2
+        },
+        "aspect": {
+          "type": "string",
+          "enum": ["portrait", "landscape", "square"],
+          "description": "Orientación: portrait (celular vertical), landscape (horizontal), square (cuadrada). Default: portrait",
+          "default": "portrait"
+        }
+      },
+      "required": ["case_id", "prompt"]
+    }
+  },
+  {
     "name": "save_artifact",
     "description": "Guardar un artefacto generado (contrato, análisis, brief, checklist, html) en el expediente del caso. Usar siempre que se genere un documento significativo.",
     "input_schema": {

@@ -213,6 +213,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
       <button class="btn btn-ghost btn-sm" style="flex:1" onclick="selectAllArtifacts()">Todos al ctx</button>
       <button class="btn btn-ghost btn-sm" style="flex:1" onclick="clearContext()">Limpiar ctx</button>
     </div>
+    <div style="padding:6px 10px 10px;border-top:1px solid var(--border);flex-shrink:0">
+      <button class="btn btn-sm" style="width:100%;background:var(--accent2)" onclick="openImagenModal()">📷 Generar imagen</button>
+    </div>
   </div>
 
   <!-- Center: Chat -->
@@ -294,6 +297,49 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 
 <!-- Toast -->
 <div id="toast"></div>
+
+<!-- Modal: generar imagen -->
+<div class="modal-overlay hidden" id="imagen-modal">
+  <div class="modal" style="width:520px">
+    <h3>📷 Generar imágenes de capacitación</h3>
+    <p style="font-size:.78rem;color:var(--muted);margin-bottom:14px">
+      Genera fotos de ejemplo estilo celular para mostrar a clientes cómo documentar entregas u operaciones.
+    </p>
+    <div class="form-row">
+      <label>Descripción de la escena *</label>
+      <textarea id="img-prompt" rows="3"
+        placeholder="Ej: camión de carga blanco descargando cajas de cartón en patio de bodega industrial, trabajador con chaleco naranja firmando albarán de entrega"></textarea>
+    </div>
+    <div style="display:flex;gap:10px">
+      <div class="form-row" style="flex:1">
+        <label>Cantidad</label>
+        <select id="img-count">
+          <option value="1">1 imagen</option>
+          <option value="2" selected>2 imágenes</option>
+          <option value="3">3 imágenes</option>
+          <option value="4">4 imágenes</option>
+        </select>
+      </div>
+      <div class="form-row" style="flex:1">
+        <label>Orientación</label>
+        <select id="img-aspect">
+          <option value="portrait" selected>Vertical (celular)</option>
+          <option value="landscape">Horizontal</option>
+          <option value="square">Cuadrada</option>
+        </select>
+      </div>
+    </div>
+    <div id="imagen-previews" style="display:none;margin-top:10px">
+      <div style="font-size:.75rem;color:var(--muted);margin-bottom:6px">Imágenes generadas:</div>
+      <div id="imagen-grid" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+    </div>
+    <div id="imagen-status" style="font-size:.78rem;color:var(--muted);margin-top:8px;min-height:18px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('imagen-modal')">Cerrar</button>
+      <button class="btn" style="background:var(--accent2)" id="imagen-generate-btn" onclick="generateImages()">Generar</button>
+    </div>
+  </div>
+</div>
 
 <!-- Upload progress -->
 <div id="upload-progress">
@@ -864,6 +910,64 @@ function mdToHtml(s) {
 }
 
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+// ── Image generation ──────────────────────────────────────
+function openImagenModal() {
+  if (!currentCase) { toast('Selecciona un expediente primero', 'error'); return; }
+  document.getElementById('imagen-previews').style.display = 'none';
+  document.getElementById('imagen-grid').innerHTML = '';
+  document.getElementById('imagen-status').textContent = '';
+  document.getElementById('img-prompt').value = '';
+  document.getElementById('imagen-modal').classList.remove('hidden');
+}
+
+async function generateImages() {
+  const prompt = document.getElementById('img-prompt').value.trim();
+  if (!prompt) { toast('Describe la escena primero', 'error'); return; }
+
+  const btn = document.getElementById('imagen-generate-btn');
+  const status = document.getElementById('imagen-status');
+  btn.disabled = true;
+  btn.textContent = 'Generando…';
+  status.textContent = 'Llamando a Flux.1 — esto tarda 10-30 segundos…';
+
+  const count  = parseInt(document.getElementById('img-count').value);
+  const aspect = document.getElementById('img-aspect').value;
+
+  try {
+    const r = await fetch(`${API}/imagen/generate`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ case_id: currentCase.case_id, prompt, count, aspect })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+
+    const grid = document.getElementById('imagen-grid');
+    grid.innerHTML = '';
+    (data.images || []).forEach(img => {
+      const a = document.createElement('a');
+      a.href   = img.url;
+      a.target = '_blank';
+      const el = document.createElement('img');
+      el.src   = img.url;
+      el.style.cssText = 'width:120px;height:160px;object-fit:cover;border-radius:6px;cursor:pointer;border:1px solid var(--border)';
+      el.onclick = e => { e.preventDefault(); viewArtifact(img.artifact_id); closeSidebar(); };
+      grid.appendChild(el);
+    });
+    document.getElementById('imagen-previews').style.display = 'block';
+    status.textContent = `${data.count} imagen(es) guardadas en el expediente.`;
+    await loadArtifacts();
+    switchArtifactTab('user');
+    toast(`${data.count} imagen(es) generadas`, 'success');
+  } catch(e) {
+    status.textContent = `Error: ${e.message}`;
+    toast(e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Generar';
+  }
+}
 
 let toastTimer;
 function toast(msg, type = 'info') {
