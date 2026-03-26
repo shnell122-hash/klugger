@@ -11,6 +11,18 @@
   --accent:#4f8ef7;--accent2:#7c5cbf;--green:#34d399;--red:#f87171;
   --yellow:#fbbf24;--text:#e2e8f0;--muted:#6b7280;--hover:#202840;
 }
+[data-theme="light"]{
+  --bg:#f8fafc;--sidebar:#ffffff;--panel:#f1f5f9;--border:#e2e8f0;
+  --accent:#2563eb;--accent2:#7c3aed;--green:#059669;--red:#dc2626;
+  --yellow:#d97706;--text:#1e293b;--muted:#64748b;--hover:#e8edf5;
+}
+@media(prefers-color-scheme:light){
+  :root:not([data-theme="dark"]){
+    --bg:#f8fafc;--sidebar:#ffffff;--panel:#f1f5f9;--border:#e2e8f0;
+    --accent:#2563eb;--accent2:#7c3aed;--green:#059669;--red:#dc2626;
+    --yellow:#d97706;--text:#1e293b;--muted:#64748b;--hover:#e8edf5;
+  }
+}
 body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column}
 
 /* ── Header ── */
@@ -125,16 +137,35 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 
-/* ── Responsive: hide viewer on narrow screens ── */
+/* ── Sidebar toggle button (mobile only) ── */
+#sidebar-toggle{display:none;align-items:center;justify-content:center;background:none;border:1px solid var(--border);border-radius:6px;width:32px;height:32px;cursor:pointer;color:var(--text);font-size:1.1rem;flex-shrink:0}
+/* ── Sidebar backdrop (mobile) ── */
+#sidebar-backdrop{display:none;position:fixed;inset:0;background:#0006;z-index:49}
+/* ── Theme toggle ── */
+#theme-btn{font-size:.9rem;padding:5px 9px}
+
+/* ── Responsive ── */
 @media(max-width:900px){#viewer-panel{display:none}}
-@media(max-width:640px){#sidebar{width:220px}}
+@media(max-width:640px){
+  #sidebar-toggle{display:flex}
+  #sidebar{position:fixed;top:0;bottom:0;left:0;z-index:50;width:300px!important;min-width:unset;max-width:unset;transform:translateX(-100%);transition:transform .25s ease;resize:none}
+  #sidebar.open{transform:translateX(0)}
+  #sidebar-backdrop.show{display:block}
+  #header{padding:8px 12px;gap:6px;flex-wrap:nowrap}
+  #case-selector select{max-width:130px;font-size:.76rem}
+  .btn-sm{padding:4px 8px;font-size:.74rem}
+  #header h1{font-size:.95rem}
+  #header h1 span{display:none}
+  .msg-bubble{max-width:90%}
+}
 </style>
 </head>
 <body>
 
 <!-- Header -->
 <div id="header">
-  <div style="display:flex;align-items:center;gap:12px">
+  <div style="display:flex;align-items:center;gap:10px">
+    <button id="sidebar-toggle" onclick="toggleSidebar()" title="Archivos">☰</button>
     <div id="health-dot" title="API status"></div>
     <h1>VILAR Legal OS <span>v59</span></h1>
   </div>
@@ -143,8 +174,12 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
       <option value="">— Seleccionar expediente —</option>
     </select>
     <button class="btn btn-sm" onclick="openNewCaseModal()">+ Expediente</button>
+    <button class="btn btn-ghost btn-sm" id="theme-btn" onclick="toggleTheme()" title="Cambiar tema">☀</button>
   </div>
 </div>
+
+<!-- Sidebar backdrop (mobile) -->
+<div id="sidebar-backdrop" onclick="closeSidebar()"></div>
 
 <!-- Main -->
 <div id="main">
@@ -266,8 +301,38 @@ let ctxIds = new Set();        // artifact IDs selected for context
 let artifactTab = 'user';
 let chatHistory = [];
 
+// ── Theme ─────────────────────────────────────────────────
+function _resolvedTheme() {
+  const saved = localStorage.getItem('theme');
+  if (saved) return saved;
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
+function _applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('theme-btn');
+  if (btn) btn.textContent = theme === 'light' ? '🌙' : '☀';
+}
+function toggleTheme() {
+  const next = _resolvedTheme() === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('theme', next);
+  _applyTheme(next);
+}
+
+// ── Sidebar mobile ────────────────────────────────────────
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const bd = document.getElementById('sidebar-backdrop');
+  const open = sb.classList.toggle('open');
+  bd.classList.toggle('show', open);
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-backdrop').classList.remove('show');
+}
+
 // ── Init ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  _applyTheme(_resolvedTheme());
   healthCheck();
   loadCases();
   setupUpload();
@@ -575,6 +640,7 @@ async function sendMessage(e) {
   if (!text) return;
   inp.value = '';
   inp.style.height = 'auto';
+  closeSidebar();
 
   appendMessage('user', text);
   chatHistory.push({role:'user', content: text});
@@ -603,7 +669,7 @@ async function sendMessage(e) {
     const reply = data.response || data.message || '(sin respuesta)';
     appendMessage('assistant', reply);
     chatHistory.push({role:'assistant', content: reply});
-    if (data.artifact_id) {
+    if (data.artifact_id || data.artifact_saved) {
       await loadArtifacts();
       toast('Análisis guardado como artefacto', 'info');
     }
