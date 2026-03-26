@@ -2,11 +2,10 @@
 Claude Vision — extracción de texto con caché por SHA256.
 Pipeline: Claude Vision directo (Tesseract ELIMINADO permanentemente).
 """
-import os, base64, hashlib
+import os, base64
 import anthropic
 
 VISION_MODEL = "claude-opus-4-6"
-MAX_PAGES_PDF = 20  # páginas máximas a extraer por llamada
 
 _client = None
 
@@ -40,12 +39,12 @@ def extract_text(file_path: str, mime_type: str, raw_bytes: bytes = None) -> str
     if mime_type == 'application/pdf':
         return _extract_from_pdf(client, raw_bytes)
 
-    # DOCX / DOC — intentar convertir a texto plano primero
+    # DOCX / DOC — python-docx primero
     if mime_type in (
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'application/msword',
     ):
-        return _extract_from_docx(client, raw_bytes, mime_type)
+        return _extract_from_docx(raw_bytes)
 
     return ''
 
@@ -116,39 +115,27 @@ def _extract_from_pdf(client, raw_bytes: bytes) -> str:
         return ''
 
 
-def _extract_from_docx(client, raw_bytes: bytes, mime_type: str) -> str:
-    """Intenta extraer texto de DOCX usando python-docx, si falla usa Claude con base64."""
+def _extract_from_docx(raw_bytes: bytes) -> str:
+    """Extrae texto de DOCX usando python-docx (párrafos + tablas)."""
     try:
         import io
         from docx import Document
         doc = Document(io.BytesIO(raw_bytes))
-        text = '\n'.join(p.text for p in doc.paragraphs if p.text.strip())
-        if text.strip():
-            return text
-    except Exception:
-        pass
+        parts = []
 
-    # Fallback: enviar como archivo base64 a Claude
-    b64 = base64.standard_b64encode(raw_bytes).decode()
-    try:
-        resp = client.messages.create(
-            model=VISION_MODEL,
-            max_tokens=4096,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": (
-                            f"El siguiente es un archivo DOCX codificado en base64: {b64[:1000]}...\n"
-                            "No puedo enviarlo directamente. Por favor indica que el usuario "
-                            "convierta el archivo a PDF para mejor extracción."
-                        ),
-                    },
-                ],
-            }],
-        )
-        return f"[DOCX — conversión recomendada a PDF para extracción completa]\n{resp.content[0].text if resp.content else ''}"
+        # Párrafos
+        for p in doc.paragraphs:
+            if p.text.strip():
+                parts.append(p.text)
+
+        # Tablas
+        for table in doc.tables:
+            for row in table.rows:
+                cells = [cell.text.strip() for cell in row.cells if cell.text.strip()]
+                if cells:
+                    parts.append(' | '.join(cells))
+
+        return '\n'.join(parts)
     except Exception as e:
         print(f"[claude_vision] error DOCX: {e}")
         return ''

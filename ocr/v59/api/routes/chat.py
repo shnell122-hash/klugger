@@ -60,6 +60,28 @@ MAX_TOKENS_BY_TYPE = {
 }
 
 
+def _get_case_info(case_id: str) -> str:
+    """Obtiene info del caso activo para incluir en el system prompt."""
+    if not case_id:
+        return ""
+    row = query(
+        "SELECT case_name, matter_type, status FROM cases WHERE case_id=%s",
+        (case_id,)
+    )
+    if not row:
+        return ""
+    return (
+        f"\n\n**EXPEDIENTE ACTIVO (YA EXISTE — NO CREAR NUEVO):**\n"
+        f"- ID: {case_id}\n"
+        f"- Nombre: {row['case_name']}\n"
+        f"- Materia: {row.get('matter_type', '')}\n"
+        f"- Estado: {row.get('status', '')}\n"
+        f"REGLA: El expediente ya está creado y seleccionado. "
+        f"NUNCA llamar a `create_case` para este caso. "
+        f"Proceder directamente con el análisis o tarea solicitada."
+    )
+
+
 def _get_case_context(case_id: str) -> str:
     """Obtiene contexto de documentos del caso. Filtra texto vacío (fix CERO INVENCIÓN)."""
     rows = query(
@@ -133,6 +155,74 @@ def _get_specific_context(case_id: str, artifact_ids: list) -> str:
     return "\n".join(parts)
 
 
+def _run_agentic_loop(client, model, max_tokens, system, init_messages, case_id, max_iterations=5):
+    """
+    Ejecuta el loop agéntico completo:
+    1. Llama a Claude
+    2. Si hay tool calls, ejecuta las tools y alimenta los resultados de vuelta
+    3. Repite hasta que no haya más tool calls o se alcance max_iterations
+    Retorna (texto_final, lista_tool_results)
+    """
+    messages = list(init_messages)
+    final_text = ""
+    all_tool_results = []
+
+    for _ in range(max_iterations):
+        text_this_round = ""
+
+        with client.messages.stream(
+            model=model,
+            max_tokens=max_tokens,
+            system=system,
+            tools=TOOL_DEFS,
+            messages=messages,
+        ) as stream:
+            for event in stream:
+                if (hasattr(event, 'type')
+                        and event.type == 'content_block_delta'
+                        and hasattr(event, 'delta')
+                        and getattr(event.delta, 'type', None) == 'text_delta'):
+                    text_this_round += event.delta.text
+            final_msg = stream.get_final_message()
+
+        final_text += text_this_round
+
+        # Si no hay tool calls, terminamos
+        if final_msg.stop_reason != 'tool_use':
+            break
+
+        # Construir el turno del asistente con todos los content blocks
+        assistant_content = []
+        for b in final_msg.content:
+            if b.type == 'text':
+                assistant_content.append({"type": "text", "text": b.text})
+            elif b.type == 'tool_use':
+                assistant_content.append({
+                    "type": "tool_use",
+                    "id": b.id,
+                    "name": b.name,
+                    "input": dict(b.input),
+                })
+
+        # Ejecutar cada tool y recolectar resultados
+        tool_result_content = []
+        for b in final_msg.content:
+            if b.type != 'tool_use':
+                continue
+            result = handle_tool(b.name, dict(b.input), case_id)
+            all_tool_results.append({"tool": b.name, "result": result})
+            tool_result_content.append({
+                "type": "tool_result",
+                "tool_use_id": b.id,
+                "content": json.dumps(result, ensure_ascii=False),
+            })
+
+        messages.append({"role": "assistant", "content": assistant_content})
+        messages.append({"role": "user", "content": tool_result_content})
+
+    return final_text, all_tool_results
+
+
 @chat_bp.route('/api/chat/history/<case_id>', methods=['GET'])
 def get_chat_history(case_id):
     rows = query(
@@ -150,13 +240,13 @@ def clear_chat_history(case_id):
 
 @chat_bp.route('/api/chat', methods=['POST'])
 def chat():
-    """Non-streaming endpoint compatible with the frontend."""
+    """Main chat endpoint with full agentic loop support."""
     body = request.get_json(force=True, silent=True) or {}
-    message      = body.get('message', '').strip()
-    history      = body.get('history', [])[-22:]
-    case_id      = body.get('case_id', '')
+    message       = body.get('message', '').strip()
+    history       = body.get('history', [])[-22:]
+    case_id       = body.get('case_id', '')
     artifact_type = body.get('artifact_type', 'analysis')
-    selected_ids = body.get('context_artifact_ids', body.get('selected_artifacts', []))
+    selected_ids  = body.get('context_artifact_ids', body.get('selected_artifacts', []))
 
     if not message:
         return jsonify({"error": "message requerido"}), 400
@@ -168,6 +258,7 @@ def chat():
     else:
         case_context = ""
 
+    case_info    = _get_case_info(case_id)
     art_template = ARTIFACT_TEMPLATES.get(artifact_type, ARTIFACT_TEMPLATES["analysis"])
     max_tokens   = MAX_TOKENS_BY_TYPE.get(artifact_type, 4096)
 
@@ -181,6 +272,7 @@ def chat():
 
     system = (
         f"{SOUL}\n\n"
+        f"{case_info}\n\n"
         f"{length_rule}\n\n"
         f"**TIPO DE ARTEFACTO ACTIVO:** {artifact_type}\n"
         f"{art_template}\n"
@@ -198,54 +290,37 @@ def chat():
     client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
 
     try:
-        full_text = ""
-        tool_results = []
-
-        with client.messages.stream(
+        full_text, tool_results = _run_agentic_loop(
+            client=client,
             model="claude-opus-4-6",
             max_tokens=max_tokens,
             system=system,
-            tools=TOOL_DEFS,
-            messages=messages,
-        ) as stream:
-            tool_calls_pending = {}
-            for event in stream:
-                if not hasattr(event, 'type'):
-                    continue
-                et = event.type
-                if et == 'content_block_start':
-                    cb = getattr(event, 'content_block', None)
-                    if cb and cb.type == 'tool_use':
-                        tool_calls_pending[cb.id] = {'name': cb.name, 'input_str': ''}
-                elif et == 'content_block_delta':
-                    delta = getattr(event, 'delta', None)
-                    if delta:
-                        if delta.type == 'text_delta':
-                            full_text += delta.text
-                        elif delta.type == 'input_json_delta':
-                            for tc in tool_calls_pending.values():
-                                if not tc.get('done'):
-                                    tc['input_str'] += delta.partial_json
-                                    break
+            init_messages=messages,
+            case_id=case_id,
+        )
 
-            for tool_id, tc in tool_calls_pending.items():
-                try:
-                    inp = json.loads(tc['input_str']) if tc['input_str'] else {}
-                except Exception:
-                    inp = {}
-                result = handle_tool(tc['name'], inp, case_id)
-                tool_results.append({'tool': tc['name'], 'result': result})
-
-        if case_id:
+        if case_id and full_text:
             try:
-                execute("INSERT INTO chat_history (case_id, role, content) VALUES (%s,'user',%s)", (case_id, message))
-                execute("INSERT INTO chat_history (case_id, role, content) VALUES (%s,'assistant',%s)", (case_id, full_text))
+                execute(
+                    "INSERT INTO chat_history (case_id, role, content) VALUES (%s,'user',%s)",
+                    (case_id, message)
+                )
+                execute(
+                    "INSERT INTO chat_history (case_id, role, content) VALUES (%s,'assistant',%s)",
+                    (case_id, full_text)
+                )
             except Exception:
                 pass
+
+        # Recargar artefactos si se guardó alguno
+        saved = any(r.get('tool') == 'save_artifact' and r.get('result', {}).get('status') == 'saved'
+                    for r in tool_results)
 
         resp = {"response": full_text}
         if tool_results:
             resp["tool_results"] = tool_results
+        if saved:
+            resp["artifact_saved"] = True
         return jsonify(resp)
 
     except anthropic.APIError as e:
@@ -259,16 +334,15 @@ def chat():
 @chat_bp.route('/api/v1/chat/stream', methods=['POST'])
 def chat_stream():
     body = request.get_json(force=True, silent=True) or {}
-    message      = body.get('message', '').strip()
-    history      = body.get('history', [])[-22:]
-    case_id      = body.get('case_id', '')
+    message       = body.get('message', '').strip()
+    history       = body.get('history', [])[-22:]
+    case_id       = body.get('case_id', '')
     artifact_type = body.get('artifact_type', 'analysis')
-    selected_ids = body.get('selected_artifacts', [])
+    selected_ids  = body.get('selected_artifacts', [])
 
     if not message:
         return jsonify({"error": "message requerido"}), 400
 
-    # Contexto de documentos
     if selected_ids:
         case_context = _get_specific_context(case_id, selected_ids)
     elif case_id:
@@ -276,6 +350,7 @@ def chat_stream():
     else:
         case_context = ""
 
+    case_info    = _get_case_info(case_id)
     art_template = ARTIFACT_TEMPLATES.get(artifact_type, ARTIFACT_TEMPLATES["analysis"])
     max_tokens   = MAX_TOKENS_BY_TYPE.get(artifact_type, 4096)
 
@@ -289,13 +364,13 @@ def chat_stream():
 
     system = (
         f"{SOUL}\n\n"
+        f"{case_info}\n\n"
         f"{length_rule}\n\n"
         f"**TIPO DE ARTEFACTO ACTIVO:** {artifact_type}\n"
         f"{art_template}\n"
         f"{case_context}"
     )
 
-    # Construir mensajes para Anthropic
     messages = []
     for h in history:
         role = h.get('role', 'user')
@@ -307,59 +382,57 @@ def chat_stream():
     client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
 
     def generate():
-        tool_calls_pending = {}
-        full_response_text = ""
-
         try:
-            with client.messages.stream(
-                model="claude-opus-4-6",
-                max_tokens=max_tokens,
-                system=system,
-                tools=TOOL_DEFS,
-                messages=messages,
-            ) as stream:
-                for event in stream:
-                    if hasattr(event, 'type'):
-                        et = event.type
+            current_messages = list(messages)
+            for _ in range(5):
+                text_this_round = ""
 
-                        if et == 'content_block_start':
-                            cb = getattr(event, 'content_block', None)
-                            if cb and cb.type == 'tool_use':
-                                tool_calls_pending[cb.id] = {
-                                    'name': cb.name,
-                                    'input_str': ''
-                                }
+                with client.messages.stream(
+                    model="claude-opus-4-6",
+                    max_tokens=max_tokens,
+                    system=system,
+                    tools=TOOL_DEFS,
+                    messages=current_messages,
+                ) as stream:
+                    for event in stream:
+                        if (hasattr(event, 'type')
+                                and event.type == 'content_block_delta'
+                                and hasattr(event, 'delta')
+                                and getattr(event.delta, 'type', None) == 'text_delta'):
+                            chunk = event.delta.text
+                            text_this_round += chunk
+                            yield f"data: {json.dumps({'type': 'text', 'text': chunk})}\n\n"
+                    final_msg = stream.get_final_message()
 
-                        elif et == 'content_block_delta':
-                            delta = getattr(event, 'delta', None)
-                            if delta:
-                                if delta.type == 'text_delta':
-                                    chunk = delta.text
-                                    full_response_text += chunk
-                                    yield f"data: {json.dumps({'type': 'text', 'text': chunk})}\n\n"
-                                elif delta.type == 'input_json_delta':
-                                    # Acumular input de tool
-                                    cb_id = getattr(event, 'index', None)
-                                    # Buscar tool activo
-                                    for tid, tc in tool_calls_pending.items():
-                                        if not tc.get('done'):
-                                            tc['input_str'] += delta.partial_json
-                                            break
+                if final_msg.stop_reason != 'tool_use':
+                    break
 
-                        elif et == 'content_block_stop':
-                            pass
+                assistant_content = []
+                for b in final_msg.content:
+                    if b.type == 'text':
+                        assistant_content.append({"type": "text", "text": b.text})
+                    elif b.type == 'tool_use':
+                        assistant_content.append({
+                            "type": "tool_use",
+                            "id": b.id,
+                            "name": b.name,
+                            "input": dict(b.input),
+                        })
 
-                        elif et == 'message_stop':
-                            pass
+                tool_result_content = []
+                for b in final_msg.content:
+                    if b.type != 'tool_use':
+                        continue
+                    result = handle_tool(b.name, dict(b.input), case_id)
+                    yield f"data: {json.dumps({'type': 'tool_result', 'tool': b.name, 'result': result})}\n\n"
+                    tool_result_content.append({
+                        "type": "tool_result",
+                        "tool_use_id": b.id,
+                        "content": json.dumps(result, ensure_ascii=False),
+                    })
 
-                # Ejecutar tool calls si los hay
-                for tool_id, tc in tool_calls_pending.items():
-                    try:
-                        inp = json.loads(tc['input_str']) if tc['input_str'] else {}
-                    except Exception:
-                        inp = {}
-                    tool_result = handle_tool(tc['name'], inp, case_id)
-                    yield f"data: {json.dumps({'type': 'tool_result', 'tool': tc['name'], 'result': tool_result})}\n\n"
+                current_messages.append({"role": "assistant", "content": assistant_content})
+                current_messages.append({"role": "user", "content": tool_result_content})
 
         except anthropic.APIError as e:
             yield f"data: {json.dumps({'type': 'error', 'text': f'API Error: {str(e)}'})}\n\n"
