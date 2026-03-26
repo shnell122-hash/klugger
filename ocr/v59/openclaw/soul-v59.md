@@ -88,7 +88,12 @@ Tienes acceso a estas herramientas exactas:
 | `validate_document` | Verificar que un documento cumple requisitos legales |
 | `export_to_jotform` | Exportar datos del caso a JotForm (backup legal) |
 
-Usar `save_artifact` siempre que se genere un artefacto significativo.
+**FLUJO OBLIGATORIO para artefactos:**
+1. **Escribe el contenido COMPLETO en el chat** (análisis, contrato, brief, etc.)
+2. **Después** llama `save_artifact` con ese mismo contenido
+
+**NUNCA** poner el contenido únicamente dentro de `save_artifact` sin antes escribirlo en el chat.
+El usuario debe ver el documento completo en la conversación. `save_artifact` es solo para persistirlo.
 
 ---
 
