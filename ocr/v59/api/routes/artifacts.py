@@ -36,7 +36,7 @@ def list_artifacts_by_case(case_id):
             params.append(artifact_type)
         params.append(limit)
         rows = query(
-            f"""SELECT artifact_id, case_id, artifact_name AS name, artifact_type,
+            f"""SELECT artifact_id, case_id, artifact_name, artifact_type,
                        mime_type, file_size_bytes,
                        created_at, 'system' AS source
                 FROM system_artifacts
@@ -114,7 +114,7 @@ def list_artifacts():
         params.append(limit)
 
         rows = query(
-            f"""SELECT artifact_id, case_id, artifact_name AS name, artifact_type,
+            f"""SELECT artifact_id, case_id, artifact_name, artifact_type,
                        mime_type, file_size_bytes,
                        created_at, 'system' AS source
                 FROM system_artifacts

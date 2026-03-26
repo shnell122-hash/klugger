@@ -87,6 +87,10 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .msg.assistant .msg-avatar{background:var(--accent2)}
 .msg.user .msg-avatar{background:var(--accent)}
 .msg-time{font-size:.65rem;color:var(--muted);margin-top:4px;display:block}
+.msg-actions{display:flex;gap:6px;margin-top:6px}
+.copy-btn{background:none;border:1px solid var(--border);color:var(--muted);border-radius:5px;padding:2px 8px;font-size:.68rem;cursor:pointer;transition:all .15s}
+.copy-btn:hover{border-color:var(--accent);color:var(--accent)}
+.copy-btn.copied{border-color:var(--green);color:var(--green)}
 .thinking{display:flex;gap:4px;padding:10px 14px;background:var(--panel);border:1px solid var(--border);border-radius:10px;width:fit-content}
 .thinking span{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:bounce 1.2s infinite}
 .thinking span:nth-child(2){animation-delay:.2s}
@@ -457,8 +461,8 @@ function renderArtifacts() {
       <input type="checkbox" class="artifact-cb" ${inCtx ? 'checked' : ''} onchange="toggleCtx('${a.artifact_id}',this.checked)">
       <div class="artifact-icon ${iconClass(a)}">${iconEmoji(a)}</div>
       <div class="artifact-info" onclick="viewArtifact('${a.artifact_id}')" style="cursor:pointer">
-        <div class="artifact-name" title="${esc(a.filename||a.artifact_name||'')}">
-          ${esc(a.filename||a.artifact_name||'Archivo')}
+        <div class="artifact-name" title="${esc(a.filename||a.artifact_name||a.name||'')}">
+          ${esc(a.filename||a.artifact_name||a.name||'Archivo')}
         </div>
         <div class="artifact-meta">${a.mime_type||''} · ${fmtSize(a.file_size_bytes)}</div>
       </div>
@@ -676,7 +680,8 @@ async function sendMessage(e) {
     chatHistory.push({role:'assistant', content: reply});
     if (data.artifact_id || data.artifact_saved) {
       await loadArtifacts();
-      toast('Análisis guardado como artefacto', 'info');
+      switchArtifactTab('system');
+      toast('Artefacto guardado — ver tab Generados', 'info');
     }
     scrollChat();
   } catch(err) {
@@ -692,13 +697,38 @@ function appendMessage(role, content, ts) {
   div.className = `msg ${role}`;
   const time = ts ? new Date(ts).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'}) :
     new Date().toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'});
+  const copyBtn = role === 'assistant'
+    ? `<div class="msg-actions"><button class="copy-btn" onclick="copyMsg(this,${JSON.stringify(content)})">Copiar</button></div>`
+    : '';
   div.innerHTML = `
     <div class="msg-avatar">${role === 'user' ? 'Tú' : 'AI'}</div>
     <div>
       <div class="msg-bubble">${role === 'assistant' ? mdToHtml(content) : esc(content)}</div>
       <span class="msg-time">${time}</span>
+      ${copyBtn}
     </div>`;
   msgs.appendChild(div);
+}
+
+function copyMsg(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✓ Copiado';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copiar'; btn.classList.remove('copied'); }, 2000);
+  }).catch(() => {
+    // Fallback para iOS Safari
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent = '✓ Copiado';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copiar'; btn.classList.remove('copied'); }, 2000);
+  });
 }
 
 function scrollChat() {
