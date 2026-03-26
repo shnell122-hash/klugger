@@ -466,8 +466,11 @@ function renderArtifacts() {
         </div>
         <div class="artifact-meta">${a.mime_type||''} · ${fmtSize(a.file_size_bytes)}</div>
       </div>
-      <button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.8rem"
-        onclick="deleteArtifact('${a.artifact_id}')" title="Eliminar">✕</button>
+      <div style="display:flex;gap:2px;flex-shrink:0">
+        ${a.source === 'system' ? `<button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 3px" onclick="downloadArtifact('${a.artifact_id}','docx')" title="Descargar Word">⬇</button>` : ''}
+        <button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.8rem;padding:2px 3px"
+          onclick="deleteArtifact('${a.artifact_id}')" title="Eliminar">✕</button>
+      </div>
     </div>`;
   }).join('');
   updateCtxCounter();
@@ -537,16 +540,36 @@ async function viewArtifact(id) {
   const vc = document.getElementById('viewer-content');
   vc.className = '';
   const name = a.filename || a.artifact_name || 'Archivo';
-  const header = `<div class="viewer-filename"><span>${esc(name)}</span><span>${fmtSize(a.file_size_bytes)}</span></div>`;
 
   if (a.mime_type && a.mime_type.includes('image')) {
+    const header = `<div class="viewer-filename"><span>${esc(name)}</span><span>${fmtSize(a.file_size_bytes)}</span></div>`;
     vc.innerHTML = header + `<img src="${API}/artifacts/file/${id}" alt="${esc(name)}">`;
     return;
   }
-  if (a.source === 'system' && a.content) {
-    vc.innerHTML = header + esc(a.content);
+
+  if (a.source === 'system') {
+    const dlBtns = `<div style="display:flex;gap:4px;flex-shrink:0">
+      <button class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','md')" title="Descargar Markdown">MD</button>
+      <button class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','html')" title="Descargar HTML">HTML</button>
+      <button class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','docx')" title="Descargar Word">Word</button>
+    </div>`;
+    const header = `<div class="viewer-filename">${esc(name)}${dlBtns}</div>`;
+    const content = a.content || '';
+    if (content) {
+      vc.innerHTML = header + `<div style="white-space:normal">${mdToHtml(content)}</div>`;
+    } else {
+      try {
+        const r = await fetch(`${API}/artifacts/${id}/text`);
+        const d = await r.json();
+        vc.innerHTML = header + `<div style="white-space:normal">${mdToHtml(d.text || '(Sin contenido)')}</div>`;
+      } catch {
+        vc.innerHTML = header + '(No disponible)';
+      }
+    }
     return;
   }
+
+  const header = `<div class="viewer-filename"><span>${esc(name)}</span><span>${fmtSize(a.file_size_bytes)}</span></div>`;
   if (a.extracted_text) {
     vc.innerHTML = header + esc(a.extracted_text);
     return;
@@ -559,6 +582,10 @@ async function viewArtifact(id) {
   } catch {
     vc.innerHTML = header + '(No disponible)';
   }
+}
+
+function downloadArtifact(id, fmt) {
+  window.open(`${API}/artifacts/${id}/download?fmt=${fmt}`, '_blank');
 }
 
 async function deleteArtifact(id) {
@@ -691,15 +718,22 @@ async function sendMessage(e) {
   }
 }
 
+// ── Message store (para copy seguro) ─────────────────────
+const _msgStore = new Map();
+let _msgCounter = 0;
+
 function appendMessage(role, content, ts) {
   const msgs = document.getElementById('chat-messages');
   const div = document.createElement('div');
   div.className = `msg ${role}`;
   const time = ts ? new Date(ts).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'}) :
     new Date().toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'});
-  const copyBtn = role === 'assistant'
-    ? `<div class="msg-actions"><button class="copy-btn" onclick="copyMsg(this,${JSON.stringify(content)})">Copiar</button></div>`
-    : '';
+  let copyBtn = '';
+  if (role === 'assistant') {
+    const mid = 'msg-' + (++_msgCounter);
+    _msgStore.set(mid, content);
+    copyBtn = `<div class="msg-actions"><button class="copy-btn" data-mid="${mid}" onclick="copyMsg(this)">Copiar</button></div>`;
+  }
   div.innerHTML = `
     <div class="msg-avatar">${role === 'user' ? 'Tú' : 'AI'}</div>
     <div>
@@ -710,25 +744,31 @@ function appendMessage(role, content, ts) {
   msgs.appendChild(div);
 }
 
-function copyMsg(btn, text) {
-  navigator.clipboard.writeText(text).then(() => {
+function copyMsg(btn) {
+  const text = _msgStore.get(btn.dataset.mid) || btn.closest('.msg').querySelector('.msg-bubble').innerText;
+  const finish = () => {
     btn.textContent = '✓ Copiado';
     btn.classList.add('copied');
     setTimeout(() => { btn.textContent = 'Copiar'; btn.classList.remove('copied'); }, 2000);
-  }).catch(() => {
-    // Fallback para iOS Safari
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    btn.textContent = '✓ Copiado';
-    btn.classList.add('copied');
-    setTimeout(() => { btn.textContent = 'Copiar'; btn.classList.remove('copied'); }, 2000);
-  });
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(finish).catch(() => _fallbackCopy(text, finish));
+  } else {
+    _fallbackCopy(text, finish);
+  }
+}
+
+function _fallbackCopy(text, cb) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  ta.setSelectionRange(0, 99999);
+  try { document.execCommand('copy'); cb(); } catch(e) { toast('No se pudo copiar', 'error'); }
+  document.body.removeChild(ta);
 }
 
 function scrollChat() {
@@ -755,11 +795,72 @@ function esc(s) {
 }
 
 function mdToHtml(s) {
-  // Very minimal markdown: bold, code, newlines
-  return esc(s)
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/`([^`]+)`/g, '<code style="background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.82em">$1</code>')
-    .replace(/\n/g, '<br>');
+  const e = t => String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const lines = s.split('\n');
+  let html = '';
+  let inList = false, listType = '';
+
+  const closeList = () => {
+    if (inList) { html += listType === 'ul' ? '</ul>' : '</ol>'; inList = false; listType = ''; }
+  };
+
+  const inlineFormat = t => e(t)
+    .replace(/\*\*\*(.+?)\*\*\*/g,'<strong><em>$1</em></strong>')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/`([^`]+)`/g,'<code style="background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.82em">$1</code>');
+
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+
+    // Fenced code block
+    if (l.startsWith('```')) {
+      closeList();
+      let code = '';
+      i++;
+      while (i < lines.length && !lines[i].startsWith('```')) { code += e(lines[i]) + '\n'; i++; }
+      html += `<pre style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;overflow-x:auto;font-size:.78rem;margin:6px 0"><code>${code}</code></pre>`;
+      continue;
+    }
+
+    // Headers
+    const hm = l.match(/^(#{1,4})\s+(.+)/);
+    if (hm) { closeList(); const n=hm[1].length; const sz=['1.05rem','1rem','.95rem','.9rem'][n-1]; html+=`<div style="font-size:${sz};font-weight:700;margin:10px 0 4px;color:var(--text)">${inlineFormat(hm[2])}</div>`; continue; }
+
+    // HR
+    if (/^---+$/.test(l.trim())) { closeList(); html += '<hr style="border:none;border-top:1px solid var(--border);margin:10px 0">'; continue; }
+
+    // Table row
+    if (l.includes('|') && l.trim().startsWith('|')) {
+      closeList();
+      if (/^\|[\s\-|]+\|$/.test(l.trim())) continue; // separator row
+      const cells = l.trim().replace(/^\||\|$/g,'').split('|').map(c=>c.trim());
+      html += `<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);font-size:.82rem">${cells.map(c=>`<span style="flex:1">${inlineFormat(c)}</span>`).join('')}</div>`;
+      continue;
+    }
+
+    // Unordered list
+    const ulm = l.match(/^(\s*)[*\-+]\s+(.+)/);
+    if (ulm) {
+      if (!inList || listType !== 'ul') { closeList(); html += '<ul style="margin:4px 0 4px 16px;padding:0">'; inList=true; listType='ul'; }
+      html += `<li style="margin:2px 0;font-size:.84rem">${inlineFormat(ulm[2])}</li>`;
+      continue;
+    }
+
+    // Ordered list
+    const olm = l.match(/^\d+\.\s+(.+)/);
+    if (olm) {
+      if (!inList || listType !== 'ol') { closeList(); html += '<ol style="margin:4px 0 4px 16px;padding:0">'; inList=true; listType='ol'; }
+      html += `<li style="margin:2px 0;font-size:.84rem">${inlineFormat(olm[1])}</li>`;
+      continue;
+    }
+
+    closeList();
+    if (l.trim() === '') { html += '<br>'; }
+    else { html += `<span style="display:block;margin:1px 0">${inlineFormat(l)}</span>`; }
+  }
+  closeList();
+  return html;
 }
 
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }

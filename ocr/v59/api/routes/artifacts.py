@@ -1,6 +1,7 @@
 import os
+import io
 import uuid
-from flask import Blueprint, request, jsonify, send_file
+from flask import Blueprint, request, jsonify, send_file, Response
 from tools.db import query, execute
 
 artifacts_bp = Blueprint('artifacts', __name__)
@@ -150,6 +151,81 @@ def delete_artifact(artifact_id):
     execute("DELETE FROM system_artifacts WHERE artifact_id=%s", (artifact_id,))
     execute("DELETE FROM user_artifacts WHERE artifact_id=%s", (artifact_id,))
     return jsonify({"status": "deleted"})
+
+
+@artifacts_bp.route('/api/artifacts/<artifact_id>/download', methods=['GET'])
+@artifacts_bp.route('/api/v1/artifacts/<artifact_id>/download', methods=['GET'])
+def download_artifact(artifact_id):
+    """Descarga un artefacto como .md, .html o .docx según el parámetro fmt."""
+    fmt = request.args.get('fmt', 'md')
+
+    row = query("SELECT artifact_name, artifact_type, content FROM system_artifacts WHERE artifact_id=%s", (artifact_id,))
+    if not row:
+        return jsonify({"error": "Artefacto no encontrado"}), 404
+
+    content = row.get('content', '')
+    name    = row.get('artifact_name', 'documento').replace(' ', '_')
+
+    if fmt == 'html':
+        # Envolver en HTML completo con estilos básicos para impresión
+        html_body = content.replace('\n', '<br>') if not content.strip().startswith('<') else content
+        html = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>{name}</title>
+<style>body{{font-family:Arial,sans-serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.6}}
+h1,h2,h3{{color:#1a202c}}table{{border-collapse:collapse;width:100%}}
+td,th{{border:1px solid #ccc;padding:8px}}@media print{{body{{margin:0}}}}</style>
+</head><body>{html_body}</body></html>"""
+        return Response(
+            html,
+            mimetype='text/html',
+            headers={'Content-Disposition': f'attachment; filename="{name}.html"'}
+        )
+
+    if fmt == 'docx':
+        try:
+            from docx import Document
+            from docx.shared import Pt
+            doc = Document()
+            doc.add_heading(name, 0)
+            for line in content.split('\n'):
+                stripped = line.strip()
+                if stripped.startswith('# '):
+                    doc.add_heading(stripped[2:], level=1)
+                elif stripped.startswith('## '):
+                    doc.add_heading(stripped[3:], level=2)
+                elif stripped.startswith('### '):
+                    doc.add_heading(stripped[4:], level=3)
+                elif stripped.startswith('- ') or stripped.startswith('* '):
+                    doc.add_paragraph(stripped[2:], style='List Bullet')
+                elif stripped == '---':
+                    doc.add_paragraph('─' * 40)
+                elif stripped:
+                    p = doc.add_paragraph()
+                    # Bold markers
+                    parts = stripped.split('**')
+                    for idx, part in enumerate(parts):
+                        run = p.add_run(part)
+                        run.bold = (idx % 2 == 1)
+                else:
+                    doc.add_paragraph('')
+            buf = io.BytesIO()
+            doc.save(buf)
+            buf.seek(0)
+            return send_file(
+                buf,
+                mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                as_attachment=True,
+                download_name=f'{name}.docx'
+            )
+        except Exception as e:
+            return jsonify({"error": f"Error generando DOCX: {str(e)}"}), 500
+
+    # Default: markdown
+    return Response(
+        content,
+        mimetype='text/markdown',
+        headers={'Content-Disposition': f'attachment; filename="{name}.md"'}
+    )
 
 
 @artifacts_bp.route('/api/v1/artifacts/save', methods=['POST'])
