@@ -23,7 +23,8 @@
     --yellow:#d97706;--text:#1e293b;--muted:#64748b;--hover:#e8edf5;
   }
 }
-body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column}
+html{height:-webkit-fill-available}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;height:100dvh;overflow:hidden;display:flex;flex-direction:column;min-height:-webkit-fill-available}
 
 /* ── Header ── */
 #header{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;background:var(--sidebar);border-bottom:1px solid var(--border);flex-shrink:0;z-index:10}
@@ -148,15 +149,19 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 @media(max-width:900px){#viewer-panel{display:none}}
 @media(max-width:640px){
   #sidebar-toggle{display:flex}
-  #sidebar{position:fixed;top:0;bottom:0;left:0;z-index:50;width:300px!important;min-width:unset;max-width:unset;transform:translateX(-100%);transition:transform .25s ease;resize:none}
+  #sidebar{position:fixed;top:0;bottom:0;left:0;z-index:50;width:85vw!important;max-width:320px;min-width:unset;transform:translateX(-100%);transition:transform .25s ease;resize:none}
   #sidebar.open{transform:translateX(0)}
   #sidebar-backdrop.show{display:block}
-  #header{padding:8px 12px;gap:6px;flex-wrap:nowrap}
-  #case-selector select{max-width:130px;font-size:.76rem}
-  .btn-sm{padding:4px 8px;font-size:.74rem}
-  #header h1{font-size:.95rem}
+  #header{padding:6px 10px;gap:4px;flex-wrap:nowrap;min-height:unset}
+  #header h1{font-size:.78rem;white-space:nowrap;letter-spacing:0}
   #header h1 span{display:none}
-  .msg-bubble{max-width:90%}
+  #case-selector{gap:4px;min-width:0;overflow:hidden}
+  #case-selector select{max-width:110px;font-size:.72rem;padding:3px 6px}
+  .btn-sm{padding:3px 7px;font-size:.72rem;white-space:nowrap}
+  #theme-btn{padding:3px 7px;font-size:.82rem}
+  .msg-bubble{max-width:88%}
+  #chat-input-area{padding:8px 10px}
+  #chat-messages{padding:10px}
 }
 </style>
 </head>
