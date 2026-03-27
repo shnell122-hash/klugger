@@ -1,4 +1,4 @@
-import os, uuid, requests
+import os, uuid, hashlib, requests
 from flask import Blueprint, request, jsonify
 from tools.db import execute
 
@@ -82,16 +82,17 @@ def generate_image():
         artifact_id = str(uuid.uuid4())
         filename    = f"capacitacion_{artifact_id[:8]}.jpg"
         file_path   = os.path.join(UPLOAD_DIR, f"{artifact_id}.jpg")
+        sha256      = hashlib.sha256(img_bytes).hexdigest()
         with open(file_path, 'wb') as fh:
             fh.write(img_bytes)
 
         execute(
             """INSERT INTO user_artifacts
                (artifact_id, case_id, filename, mime_type, file_path,
-                file_size_bytes, extracted_text, uploaded_at)
-               VALUES (%s, %s, %s, 'image/jpeg', %s, %s, %s, NOW())""",
+                file_size_bytes, checksum_sha256, extracted_text, uploaded_at)
+               VALUES (%s, %s, %s, 'image/jpeg', %s, %s, %s, %s, NOW())""",
             (artifact_id, case_id, filename, file_path,
-             len(img_bytes), f'[Imagen generada — capacitación] {prompt}')
+             len(img_bytes), sha256, f'[Imagen generada — capacitación] {prompt}')
         )
         saved.append({
             'artifact_id': artifact_id,
