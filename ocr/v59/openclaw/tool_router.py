@@ -9,12 +9,14 @@ from tools.jotform_tools import export_case_to_jotform
 def handle_tool(tool_name: str, inputs: dict, case_id: str = None) -> dict:
     """Despacha tool calls de Claude al handler correspondiente."""
     handlers = {
-        'generate_image':   _generate_image,
-        'save_artifact':    _save_artifact,
-        'create_case':      _create_case,
-        'search_precedents':_search_precedents,
-        'validate_document':_validate_document,
-        'export_to_jotform':_export_to_jotform,
+        'generate_image':     _generate_image,
+        'save_artifact':      _save_artifact,
+        'create_case':        _create_case,
+        'search_precedents':  _search_precedents,
+        'validate_document':  _validate_document,
+        'export_to_jotform':  _export_to_jotform,
+        'list_case_contents': _list_case_contents,
+        'save_session_notes': _save_session_notes,
     }
     handler = handlers.get(tool_name)
     if not handler:
@@ -264,6 +266,93 @@ def _generate_image(inputs: dict) -> dict:
             f"Puedes verlas en la pestaña **Subidos** de la barra lateral."
         ),
     }
+
+
+def _list_case_contents(inputs: dict) -> dict:
+    cid = inputs.get('case_id', '').strip()
+    if not cid:
+        return {"error": "case_id requerido"}
+
+    user_files = query(
+        """SELECT filename, mime_type, file_size_bytes,
+                  CHAR_LENGTH(COALESCE(extracted_text,'')) AS text_len,
+                  uploaded_at
+           FROM user_artifacts
+           WHERE case_id=%s AND COALESCE(source,'') != 'system'
+           ORDER BY uploaded_at ASC""",
+        (cid,), many=True
+    ) or []
+
+    gen_arts = query(
+        """SELECT artifact_id, artifact_name, artifact_type,
+                  file_size_bytes, created_at
+           FROM system_artifacts
+           WHERE case_id=%s AND COALESCE(artifact_type,'') != 'session_notes'
+           ORDER BY created_at ASC""",
+        (cid,), many=True
+    ) or []
+
+    img_row = query(
+        "SELECT COUNT(*) AS cnt FROM user_artifacts WHERE case_id=%s AND source='system'",
+        (cid,)
+    )
+    img_count = (img_row or {}).get('cnt', 0)
+
+    notes_row = query(
+        """SELECT content, created_at FROM system_artifacts
+           WHERE case_id=%s AND artifact_type='session_notes'
+           ORDER BY created_at DESC LIMIT 1""",
+        (cid,)
+    )
+
+    return {
+        "uploaded_files": [
+            {
+                "filename": r["filename"],
+                "type": r["mime_type"],
+                "size_kb": round((r.get("file_size_bytes") or 0) / 1024, 1),
+                "has_text": (r.get("text_len") or 0) > 100,
+                "text_chars": r.get("text_len") or 0,
+                "uploaded_at": str(r.get("uploaded_at", "")),
+            }
+            for r in user_files
+        ],
+        "generated_artifacts": [
+            {
+                "artifact_id": r["artifact_id"],
+                "name": r["artifact_name"],
+                "type": r["artifact_type"],
+                "created_at": str(r.get("created_at", "")),
+            }
+            for r in gen_arts
+        ],
+        "generated_images_count": img_count,
+        "session_notes": notes_row["content"] if notes_row else None,
+        "session_notes_date": str(notes_row["created_at"]) if notes_row else None,
+        "totals": {
+            "uploaded": len(user_files),
+            "artifacts": len(gen_arts),
+            "images": img_count,
+        },
+    }
+
+
+def _save_session_notes(inputs: dict) -> dict:
+    cid   = inputs.get('case_id', '').strip()
+    notes = inputs.get('notes', '').strip()
+    if not cid or not notes:
+        return {"error": "case_id y notes son requeridos"}
+
+    art_id = str(uuid.uuid4())
+    execute(
+        """INSERT INTO system_artifacts
+           (artifact_id, case_id, artifact_name, artifact_type, content,
+            mime_type, file_size_bytes, source)
+           VALUES (%s,%s,'Notas de sesión','session_notes',%s,'text/plain',%s,'system')""",
+        (art_id, cid, notes, len(notes.encode()))
+    )
+    return {"status": "saved", "artifact_id": art_id,
+            "message": "Notas guardadas. La próxima sesión las recibirá automáticamente."}
 
 
 def _export_to_jotform(inputs: dict) -> dict:

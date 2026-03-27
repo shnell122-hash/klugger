@@ -147,6 +147,7 @@ Si el caso es en otra jurisdicción, adaptarse según los documentos.
 
 ## 11. TAREAS MASIVAS Y EJECUCIÓN AUTÓNOMA
 
+
 ### 11.1 Detección de tarea masiva
 Cuando el usuario solicite 3 o más documentos, imágenes o artefactos en una sola instrucción,
 se activa el **MODO EJECUCIÓN MASIVA**.
@@ -183,6 +184,40 @@ Si al terminar un turno quedan entregables pendientes, el último token del mens
 
 Máximo 10 continuaciones automáticas por tarea. Al completar todos los entregables, terminar con:
 > ✅ Tarea masiva completada — [N] artefactos generados.
+
+---
+
+---
+
+## 12. CONTINUIDAD Y MEMORIA DE SESIÓN
+
+### 12.1 Inventario automático
+Al inicio de cada mensaje recibirás un bloque `<case_inventory>` con:
+- Todos los documentos subidos al expediente
+- Todos los artefactos ya generados (nombre, tipo, fecha)
+- Notas de la sesión anterior (si existen)
+
+**LEE ESTE BLOQUE ANTES DE RESPONDER.** Nunca asumas que el expediente está vacío.
+
+### 12.2 Al inicio de una tarea masiva
+SIEMPRE llama `list_case_contents` para obtener el inventario completo con IDs antes de ejecutar. Esto te permite:
+- Evitar regenerar artefactos que ya existen
+- Retomar trabajo pendiente de sesiones anteriores
+- Confirmar exactamente qué documentos fuente están disponibles
+
+### 12.3 Al terminar una tarea incompleta
+Si no puedes completar todos los entregables y NO puedes auto-continuar (§11.3), llama `save_session_notes` con:
+```
+COMPLETADOS: [lista exacta con nombres]
+PENDIENTES: [lista exacta con nombres]
+PRÓXIMO PASO: [instrucción precisa — qué generar, con qué documentos, en qué formato]
+```
+
+### 12.4 Al retomar trabajo
+Si `<case_inventory>` muestra notas de sesión anterior:
+1. Informa brevemente: "Retomando sesión anterior: [resumen de 1 línea]"
+2. Ejecuta directamente el próximo paso sin pedir re-instrucciones
+3. No repitas trabajo ya completado
 
 ---
 

@@ -159,9 +159,86 @@ def _get_specific_context(case_id: str, artifact_ids: list) -> str:
     return "\n".join(parts)
 
 
-def _make_system(text: str) -> list:
-    """Envuelve el system prompt en un bloque con prompt caching habilitado."""
-    return [{"type": "text", "text": text, "cache_control": {"type": "ephemeral"}}]
+def _make_system(soul: str, dynamic: str) -> list:
+    """
+    Dos bloques: SOUL con prompt caching (estático, se reutiliza entre llamadas)
+    + contexto dinámico sin cache (inventario, documentos, etc.)
+    """
+    return [
+        {"type": "text", "text": soul, "cache_control": {"type": "ephemeral"}},
+        {"type": "text", "text": dynamic},
+    ]
+
+
+def _get_case_inventory(case_id: str) -> str:
+    """
+    Genera un inventario compacto del expediente para inyectar en cada system prompt.
+    Claude siempre sabrá qué existe sin necesidad de llamar list_case_contents.
+    """
+    if not case_id:
+        return ""
+    try:
+        user_files = query(
+            """SELECT filename, mime_type, file_size_bytes,
+                      CHAR_LENGTH(COALESCE(extracted_text,'')) AS text_len
+               FROM user_artifacts
+               WHERE case_id=%s AND COALESCE(source,'') != 'system'
+               ORDER BY uploaded_at ASC""",
+            (case_id,), many=True
+        ) or []
+
+        gen_arts = query(
+            """SELECT artifact_name, artifact_type, created_at
+               FROM system_artifacts
+               WHERE case_id=%s AND COALESCE(artifact_type,'') != 'session_notes'
+               ORDER BY created_at ASC""",
+            (case_id,), many=True
+        ) or []
+
+        img_row = query(
+            "SELECT COUNT(*) AS cnt FROM user_artifacts WHERE case_id=%s AND source='system'",
+            (case_id,)
+        )
+        img_cnt = (img_row or {}).get('cnt', 0)
+
+        notes_row = query(
+            """SELECT content, created_at FROM system_artifacts
+               WHERE case_id=%s AND artifact_type='session_notes'
+               ORDER BY created_at DESC LIMIT 1""",
+            (case_id,)
+        )
+
+        lines = ["<case_inventory>"]
+
+        if user_files:
+            lines.append(f"\nDOCUMENTOS SUBIDOS ({len(user_files)}):")
+            for f in user_files:
+                kb = round((f.get('file_size_bytes') or 0) / 1024)
+                txt = "texto ✅" if (f.get('text_len') or 0) > 100 else "sin texto ⚠️"
+                lines.append(f"  - {f['filename']} ({kb} KB, {txt})")
+        else:
+            lines.append("\nDOCUMENTOS SUBIDOS: Ninguno")
+
+        if gen_arts:
+            lines.append(f"\nARTEFACTOS GENERADOS ({len(gen_arts)}):")
+            for a in gen_arts:
+                dt = str(a.get('created_at', ''))[:16]
+                lines.append(f"  - {a['artifact_name']} [{a['artifact_type']}] — {dt}")
+        else:
+            lines.append("\nARTEFACTOS GENERADOS: Ninguno aún")
+
+        if img_cnt:
+            lines.append(f"\nIMÁGENES GENERADAS: {img_cnt}")
+
+        if notes_row:
+            dt = str(notes_row.get('created_at', ''))[:16]
+            lines.append(f"\nNOTAS DE SESIÓN ANTERIOR ({dt}):")
+            lines.append(notes_row['content'])
+
+        lines.append("</case_inventory>")
+        return "\n".join(lines)
+    except Exception:
+        return ""
 
 
 def _run_agentic_loop(client, model, max_tokens, system, init_messages, case_id, max_iterations=5):
@@ -291,14 +368,16 @@ def chat():
         "**REGLA DE LONGITUD:** Ser conciso pero exhaustivo."
     )
 
-    system = (
-        f"{SOUL}\n\n"
+    case_inventory = _get_case_inventory(case_id)
+    dynamic = (
+        f"{case_inventory}\n\n"
         f"{case_info}\n\n"
         f"{length_rule}\n\n"
         f"**TIPO DE ARTEFACTO ACTIVO:** {artifact_type}\n"
         f"{art_template}\n"
         f"{case_context}"
     )
+    system_blocks = _make_system(SOUL, dynamic)
 
     messages = []
     for h in history:
@@ -317,7 +396,7 @@ def chat():
             client=client,
             model="claude-opus-4-6",
             max_tokens=max_tokens,
-            system=_make_system(system),
+            system=system_blocks,
             init_messages=messages,
             case_id=case_id,
         )
@@ -386,14 +465,16 @@ def chat_stream():
         "**REGLA DE LONGITUD:** Ser conciso pero exhaustivo."
     )
 
-    system = (
-        f"{SOUL}\n\n"
+    case_inventory = _get_case_inventory(case_id)
+    dynamic = (
+        f"{case_inventory}\n\n"
         f"{case_info}\n\n"
         f"{length_rule}\n\n"
         f"**TIPO DE ARTEFACTO ACTIVO:** {artifact_type}\n"
         f"{art_template}\n"
         f"{case_context}"
     )
+    system_blocks = _make_system(SOUL, dynamic)
 
     messages = []
     for h in history:
@@ -404,7 +485,6 @@ def chat_stream():
     messages.append({"role": "user", "content": message})
 
     client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
-    system_blocks = _make_system(system)
     q: queue.Queue = queue.Queue()   # ilimitado — worker escribe, SSE lee
     t_start = time.time()
     log.info('chat_stream start | case=%s type=%s', case_id, artifact_type)

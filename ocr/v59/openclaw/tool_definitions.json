@@ -147,5 +147,28 @@
       },
       "required": ["case_id"]
     }
+  },
+  {
+    "name": "list_case_contents",
+    "description": "Obtiene inventario detallado del expediente: documentos subidos, artefactos ya generados, imágenes, notas de sesión anterior. Úsala SIEMPRE al inicio de tareas masivas para saber qué existe y evitar duplicados, y para retomar trabajo de sesiones previas.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "case_id": {"type": "string", "description": "ID del expediente"}
+      },
+      "required": ["case_id"]
+    }
+  },
+  {
+    "name": "save_session_notes",
+    "description": "Guarda notas de continuidad para que la próxima sesión sepa exactamente qué se hizo y qué falta. Úsala al terminar una tarea masiva incompleta.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "case_id": {"type": "string", "description": "ID del expediente"},
+        "notes":   {"type": "string", "description": "Estado: qué se completó, qué falta, próximos pasos exactos con referencias a documentos fuente"}
+      },
+      "required": ["case_id", "notes"]
+    }
   }
 ]
