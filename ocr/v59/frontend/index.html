@@ -205,6 +205,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 @media(max-width:640px){
   #sidebar-toggle{display:flex}
   #sidebar-user-bar{display:flex!important}
+  #header-dashboard-btn,#theme-btn,#user-info{display:none!important}
   #sidebar{position:fixed;top:0;bottom:0;left:0;z-index:50;width:85vw!important;max-width:320px;min-width:unset;transform:translateX(-100%);transition:transform .25s ease;resize:none}
   #sidebar.open{transform:translateX(0)}
   #sidebar-backdrop.show{display:block}
@@ -221,6 +222,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 }
 </style>
 </head>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <body>
 
 <!-- Header -->
@@ -235,7 +237,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
       <option value="">— Seleccionar expediente —</option>
     </select>
     <button class="btn btn-sm" onclick="openNewCaseModal()">+ Expediente</button>
-    <button class="btn btn-ghost btn-sm" onclick="openDashboard()" title="Dashboard de costos">📊</button>
+    <button id="header-dashboard-btn" class="btn btn-ghost btn-sm" onclick="openDashboard()" title="Dashboard de costos">📊</button>
     <button class="btn btn-ghost btn-sm" id="theme-btn" onclick="toggleTheme()" title="Cambiar tema">☀</button>
     <div id="user-info">
       <img id="user-avatar" src="" alt="" style="display:none" onclick="confirmLogout()">
@@ -255,6 +257,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
     <div id="sidebar-user-bar" style="display:none;padding:10px 14px;border-bottom:1px solid var(--border);gap:8px;align-items:center;flex-wrap:wrap">
       <span id="sidebar-user-name" style="font-size:.8rem;color:var(--muted);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
       <button class="btn btn-ghost btn-sm" onclick="openDashboard();closeSidebar()" style="font-size:.75rem">📊 Costos</button>
+      <button class="btn btn-ghost btn-sm" onclick="toggleTheme()" style="font-size:.75rem" id="sidebar-theme-btn">☀ Tema</button>
       <button class="btn btn-ghost btn-sm" onclick="confirmLogout()" style="font-size:.75rem">↩ Salir</button>
     </div>
     <div id="sidebar-header">
@@ -551,56 +554,197 @@ window.fetch = async function(...args) {
 };
 
 // ── Dashboard ─────────────────────────────────────────────
+let _dashCharts = [];
+function _destroyDashCharts() { _dashCharts.forEach(c=>c.destroy()); _dashCharts=[]; }
+
 async function openDashboard() {
   document.getElementById('dashboard-modal').classList.remove('hidden');
   const el = document.getElementById('dashboard-content');
-  el.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px">Cargando...</div>';
+  el.innerHTML = '<div style="text-align:center;color:var(--muted);padding:40px">Cargando...</div>';
+  _destroyDashCharts();
   try {
     const r = await fetch(`${API}/dashboard/costs`);
     const d = await r.json();
-    if (d.role === 'admin') {
-      const fmtUSD = v => `$${(+v).toFixed(4)} USD`;
-      const fmtTok = v => Number(v).toLocaleString();
-      let rows = (d.rows || []).map(r => `
-        <tr>
-          <td style="padding:8px 10px;font-size:.8rem">${esc(r.name)}</td>
-          <td style="padding:8px 10px;font-size:.75rem;color:var(--muted)">${esc(r.email)}</td>
-          <td style="padding:8px 10px;font-size:.78rem;text-align:right">${fmtTok(r.total_input)}</td>
-          <td style="padding:8px 10px;font-size:.78rem;text-align:right">${fmtTok(r.total_output)}</td>
-          <td style="padding:8px 10px;font-size:.8rem;text-align:right;color:var(--accent);font-weight:600">${fmtUSD(r.total_usd)}</td>
-        </tr>`).join('');
-      el.innerHTML = `
-        <div style="margin-bottom:14px;padding:14px;background:var(--hover);border-radius:10px;border:1px solid var(--border)">
-          <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Total acumulado (real)</div>
-          <div style="font-size:1.5rem;font-weight:700;color:var(--accent)">${fmtUSD(d.grand_total_usd)}</div>
-          <div style="font-size:.76rem;color:var(--muted);margin-top:4px">
-            In: ${fmtTok(d.grand_input_tokens)} · Out: ${fmtTok(d.grand_output_tokens)} · Cache: ${fmtTok(d.grand_cache_tokens)} tokens
-          </div>
-        </div>
-        <table style="width:100%;border-collapse:collapse;font-family:inherit">
-          <thead>
-            <tr style="border-bottom:1px solid var(--border)">
-              <th style="padding:6px 10px;font-size:.72rem;color:var(--muted);text-align:left;text-transform:uppercase">Usuario</th>
-              <th style="padding:6px 10px;font-size:.72rem;color:var(--muted);text-align:left;text-transform:uppercase">Correo</th>
-              <th style="padding:6px 10px;font-size:.72rem;color:var(--muted);text-align:right;text-transform:uppercase">Tokens In</th>
-              <th style="padding:6px 10px;font-size:.72rem;color:var(--muted);text-align:right;text-transform:uppercase">Tokens Out</th>
-              <th style="padding:6px 10px;font-size:.72rem;color:var(--muted);text-align:right;text-transform:uppercase">Costo USD</th>
-            </tr>
-          </thead>
-          <tbody>${rows || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Sin datos aún</td></tr>'}</tbody>
-        </table>`;
-    } else {
-      const mxn = (+d.cost_mxn).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2});
-      el.innerHTML = `
-        <div style="text-align:center;padding:24px">
-          <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px">Tu consumo estimado</div>
-          <div style="font-size:2.4rem;font-weight:700;color:var(--accent)">$${mxn}</div>
-          <div style="font-size:.8rem;color:var(--muted);margin-top:8px">MXN (incluye servicio de IA)</div>
-        </div>`;
-    }
+    if (d.role === 'admin') { _renderAdminDash(el, d); }
+    else { _renderUserDash(el, d); }
   } catch (err) {
-    el.innerHTML = `<div style="color:var(--red);padding:16px">Error al cargar: ${esc(err.message)}</div>`;
+    el.innerHTML = `<div style="color:var(--red);padding:16px">Error: ${esc(err.message)}</div>`;
   }
+}
+
+function _statCard(label, value, sub='', color='var(--accent)') {
+  return `<div style="background:var(--hover);border:1px solid var(--border);border-radius:12px;padding:16px 18px;min-width:0">
+    <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:6px">${label}</div>
+    <div style="font-size:1.45rem;font-weight:700;color:${color};line-height:1.1">${value}</div>
+    ${sub ? `<div style="font-size:.72rem;color:var(--muted);margin-top:4px">${sub}</div>` : ''}
+  </div>`;
+}
+
+function _fmtUSD(v) { return `$${(+v).toFixed(4)}`; }
+function _fmtMXN(v) { return `$${(+v).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})}`; }
+function _fmtTok(v) { const n=+v; return n>=1e6?`${(n/1e6).toFixed(2)}M`:n>=1e3?`${(n/1e3).toFixed(1)}k`:String(n); }
+
+function _renderAdminDash(el, d) {
+  const t = d.totals || {};
+  const rows = d.rows || [];
+  const ts   = d.time_series || [];
+  const bm   = d.by_model || [];
+  const keys = d.api_keys || {};
+
+  const statCards = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px">
+      ${_statCard('Costo real', `${_fmtUSD(t.cost_usd||0)} USD`, `${_fmtTok(t.input_tokens||0)} in · ${_fmtTok(t.output_tokens||0)} out · ${_fmtTok(t.cache_tokens||0)} cache`)}
+      ${_statCard('Precio cliente', `${_fmtUSD(t.revenue_usd||0)} USD`, '×3.5 markup')}
+      ${_statCard('Precio cliente', `${_fmtMXN(t.revenue_mxn||0)} MXN`, 'a 18.5 MXN/USD')}
+      ${_statCard('Margen', `${(+(t.margin_pct||0)).toFixed(1)}%`, `Utilidad: ${_fmtUSD(t.profit_usd||0)} USD`, '#4caf82')}
+    </div>`;
+
+  const tableRows = rows.length ? rows.map(r=>`
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:8px 10px;font-size:.8rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.name)}</td>
+      <td style="padding:8px 10px;font-size:.72rem;color:var(--muted);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.email)}</td>
+      <td style="padding:8px 10px;font-size:.74rem;text-align:right;color:var(--muted)">${_fmtTok(r.total_input)}</td>
+      <td style="padding:8px 10px;font-size:.74rem;text-align:right;color:var(--muted)">${_fmtTok(r.total_output)}</td>
+      <td style="padding:8px 10px;font-size:.78rem;text-align:right">${_fmtUSD(r.cost_usd)} USD</td>
+      <td style="padding:8px 10px;font-size:.78rem;text-align:right;color:var(--accent);font-weight:600">${_fmtMXN(r.price_mxn)}</td>
+    </tr>`).join('') :
+    '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Sin datos aún</td></tr>';
+
+  const userTable = `
+    <div style="margin-bottom:24px">
+      <div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px">Por usuario</div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-family:inherit;white-space:nowrap">
+          <thead><tr style="border-bottom:2px solid var(--border)">
+            <th style="padding:6px 10px;font-size:.68rem;color:var(--muted);text-align:left">Usuario</th>
+            <th style="padding:6px 10px;font-size:.68rem;color:var(--muted);text-align:left">Correo</th>
+            <th style="padding:6px 10px;font-size:.68rem;color:var(--muted);text-align:right">Tok.In</th>
+            <th style="padding:6px 10px;font-size:.68rem;color:var(--muted);text-align:right">Tok.Out</th>
+            <th style="padding:6px 10px;font-size:.68rem;color:var(--muted);text-align:right">Costo real</th>
+            <th style="padding:6px 10px;font-size:.68rem;color:var(--muted);text-align:right">Precio MXN</th>
+          </tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+    </div>`;
+
+  const modelRows = bm.map(m=>`
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:6px 10px;font-size:.76rem">${esc(m.model)}</td>
+      <td style="padding:6px 10px;font-size:.74rem;text-align:right;color:var(--muted)">${_fmtTok(m.input_tokens)} / ${_fmtTok(m.output_tokens)}</td>
+      <td style="padding:6px 10px;font-size:.76rem;text-align:right;color:var(--accent);font-weight:600">${_fmtUSD(m.cost_usd)} USD</td>
+    </tr>`).join('') || '<tr><td colspan="3" style="padding:12px;text-align:center;color:var(--muted)">Sin datos</td></tr>';
+
+  const modelTable = `
+    <div style="margin-bottom:24px">
+      <div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px">Por modelo / API</div>
+      <table style="width:100%;border-collapse:collapse;font-family:inherit">
+        <thead><tr style="border-bottom:2px solid var(--border)">
+          <th style="padding:6px 10px;font-size:.68rem;color:var(--muted);text-align:left">Modelo</th>
+          <th style="padding:6px 10px;font-size:.68rem;color:var(--muted);text-align:right">Tokens in/out</th>
+          <th style="padding:6px 10px;font-size:.68rem;color:var(--muted);text-align:right">Costo USD</th>
+        </tr></thead>
+        <tbody>${modelRows}</tbody>
+      </table>
+    </div>`;
+
+  const keyRows = Object.entries(keys).map(([k,v])=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--hover);border-radius:8px;margin-bottom:6px;font-size:.75rem">
+      <span style="color:var(--muted);min-width:150px">${esc(k)}</span>
+      <code style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.73rem">${esc(v)}</code>
+    </div>`).join('');
+
+  const apiSection = `
+    <div style="margin-bottom:24px">
+      <div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px">API Keys (masked)</div>
+      ${keyRows}
+    </div>`;
+
+  // Charts
+  const chartsSection = `
+    <div style="margin-bottom:24px">
+      <div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:14px;text-transform:uppercase;letter-spacing:.6px">Gráficas</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
+        <div style="background:var(--hover);border:1px solid var(--border);border-radius:12px;padding:14px">
+          <div style="font-size:.72rem;color:var(--muted);margin-bottom:10px">Costo por usuario (USD)</div>
+          <canvas id="chart-users" height="180"></canvas>
+        </div>
+        <div style="background:var(--hover);border:1px solid var(--border);border-radius:12px;padding:14px">
+          <div style="font-size:.72rem;color:var(--muted);margin-bottom:10px">Costo diario — últimos 30 días (USD)</div>
+          <canvas id="chart-time" height="180"></canvas>
+        </div>
+      </div>
+    </div>`;
+
+  el.innerHTML = statCards + userTable + modelTable + chartsSection + apiSection;
+
+  // Bar chart — users
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#c47a5a';
+  const ctx1 = document.getElementById('chart-users')?.getContext('2d');
+  if (ctx1 && rows.length) {
+    _dashCharts.push(new Chart(ctx1, {
+      type: 'bar',
+      data: {
+        labels: rows.map(r=>r.name),
+        datasets: [{
+          label: 'Costo USD',
+          data: rows.map(r=>+(r.cost_usd||0).toFixed(4)),
+          backgroundColor: accent + 'cc',
+          borderRadius: 6,
+        }]
+      },
+      options: { plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,ticks:{callback:v=>'$'+v}}}, responsive:true, maintainAspectRatio:true }
+    }));
+  }
+
+  // Line chart — time series
+  const ctx2 = document.getElementById('chart-time')?.getContext('2d');
+  if (ctx2 && ts.length) {
+    _dashCharts.push(new Chart(ctx2, {
+      type: 'line',
+      data: {
+        labels: ts.map(t=>t.day),
+        datasets: [{
+          label: 'USD/día',
+          data: ts.map(t=>+(t.cost_usd||0).toFixed(4)),
+          borderColor: accent,
+          backgroundColor: accent + '22',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 3,
+        }]
+      },
+      options: { plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,ticks:{callback:v=>'$'+v}}}, responsive:true, maintainAspectRatio:true }
+    }));
+  }
+}
+
+function _renderUserDash(el, d) {
+  const mxn = _fmtMXN(d.cost_mxn||0);
+  const tok = `${_fmtTok(d.input_tokens||0)} in · ${_fmtTok(d.output_tokens||0)} out`;
+  const cases = (d.by_case||[]);
+  const caseRows = cases.length ? cases.map(c=>`
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:8px 10px;font-size:.8rem">${esc(c.case_name)}</td>
+      <td style="padding:8px 10px;font-size:.74rem;text-align:right;color:var(--muted)">${_fmtTok(c.tokens)}</td>
+      <td style="padding:8px 10px;font-size:.8rem;text-align:right;color:var(--accent);font-weight:600">${_fmtMXN(c.cost_mxn)}</td>
+    </tr>`).join('') :
+    '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:24px">Sin datos aún</td></tr>';
+
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:24px">
+      ${_statCard('Tu consumo (MXN)', mxn, 'incluye servicio IA')}
+      ${_statCard('Tokens usados', _fmtTok((d.input_tokens||0)+(d.output_tokens||0)), tok)}
+    </div>
+    <div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px">Por expediente</div>
+    <table style="width:100%;border-collapse:collapse;font-family:inherit">
+      <thead><tr style="border-bottom:2px solid var(--border)">
+        <th style="padding:6px 10px;font-size:.68rem;color:var(--muted);text-align:left">Expediente</th>
+        <th style="padding:6px 10px;font-size:.68rem;color:var(--muted);text-align:right">Tokens</th>
+        <th style="padding:6px 10px;font-size:.68rem;color:var(--muted);text-align:right">Costo MXN</th>
+      </tr></thead>
+      <tbody>${caseRows}</tbody>
+    </table>`;
 }
 
 // ── Init ─────────────────────────────────────────────────
@@ -1470,14 +1614,15 @@ document.querySelectorAll('.modal-overlay').forEach(o => {
 </div>
 
 <!-- Dashboard modal -->
-<div class="modal-overlay hidden" id="dashboard-modal">
-  <div class="modal" style="width:640px;max-width:96vw">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
-      <h3 style="font-size:1rem;color:var(--accent)">📊 Dashboard de costos</h3>
+<div class="modal-overlay hidden" id="dashboard-modal" style="padding:0;align-items:stretch;justify-content:flex-end">
+  <div onclick="closeModal('dashboard-modal')" style="position:absolute;inset:0"></div>
+  <div style="position:relative;width:min(860px,100vw);height:100vh;overflow-y:auto;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--panel);z-index:10">
+      <h3 style="font-size:1rem;color:var(--accent);font-weight:600">📊 Dashboard de costos</h3>
       <button class="btn btn-ghost btn-sm" onclick="closeModal('dashboard-modal')">✕</button>
     </div>
-    <div id="dashboard-content">
-      <div style="text-align:center;color:var(--muted);padding:20px">Cargando...</div>
+    <div id="dashboard-content" style="padding:20px;flex:1">
+      <div style="text-align:center;color:var(--muted);padding:40px">Cargando...</div>
     </div>
   </div>
 </div>
