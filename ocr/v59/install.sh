@@ -74,7 +74,18 @@ info "Instalando dependencias Python..."
     anthropic \
     mysql-connector-python \
     requests \
-    python-docx
+    python-docx \
+    yt-dlp \
+    openai
+
+# ffmpeg (sistema — requerido para transcripción de audio)
+if ! command -v ffmpeg &>/dev/null; then
+    info "Instalando ffmpeg..."
+    apt-get install -y -q ffmpeg && ok "ffmpeg instalado" \
+        || warn "ffmpeg no pudo instalarse — instálalo manualmente: apt install ffmpeg"
+else
+    ok "ffmpeg ya disponible"
+fi
 ok "Dependencias instaladas"
 
 # ── 5. .env ──────────────────────────────────────────────────
