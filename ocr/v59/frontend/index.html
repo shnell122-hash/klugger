@@ -204,6 +204,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 #mobile-viewer-content img{max-width:100%;border-radius:6px;margin:4px 0}
 @media(max-width:640px){
   #sidebar-toggle{display:flex}
+  #sidebar-user-bar{display:flex!important}
   #sidebar{position:fixed;top:0;bottom:0;left:0;z-index:50;width:85vw!important;max-width:320px;min-width:unset;transform:translateX(-100%);transition:transform .25s ease;resize:none}
   #sidebar.open{transform:translateX(0)}
   #sidebar-backdrop.show{display:block}
@@ -251,6 +252,11 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 
   <!-- Left sidebar: Artifacts -->
   <div id="sidebar">
+    <div id="sidebar-user-bar" style="display:none;padding:10px 14px;border-bottom:1px solid var(--border);gap:8px;align-items:center;flex-wrap:wrap">
+      <span id="sidebar-user-name" style="font-size:.8rem;color:var(--muted);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      <button class="btn btn-ghost btn-sm" onclick="openDashboard();closeSidebar()" style="font-size:.75rem">📊 Costos</button>
+      <button class="btn btn-ghost btn-sm" onclick="confirmLogout()" style="font-size:.75rem">↩ Salir</button>
+    </div>
     <div id="sidebar-header">
       <h2>Archivos</h2>
       <span id="ctx-counter">0 en contexto</span>
@@ -516,6 +522,8 @@ function _setUserUI(user) {
   if (user.picture) { av.src = user.picture; av.style.display = 'block'; }
   nm.textContent = user.name || user.email;
   nm.style.display = 'inline';
+  const sbn = document.getElementById('sidebar-user-name');
+  if (sbn) sbn.textContent = user.name || user.email;
 }
 
 async function checkAuth() {
