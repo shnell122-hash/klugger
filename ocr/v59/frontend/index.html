@@ -157,7 +157,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 #theme-btn{font-size:.9rem;padding:5px 9px}
 
 /* ── Responsive ── */
-@media(max-width:900px){#viewer-panel{display:none}}
+@media(max-width:900px){
+  #viewer-panel{display:none}
+  #viewer-panel.mobile-open{display:flex;position:fixed;inset:0;z-index:60;width:100%!important;min-width:unset;flex-direction:column}
+  #viewer-close-mobile{display:flex!important}
+}
 @media(max-width:640px){
   #sidebar-toggle{display:flex}
   #sidebar{position:fixed;top:0;bottom:0;left:0;z-index:50;width:85vw!important;max-width:320px;min-width:unset;transform:translateX(-100%);transition:transform .25s ease;resize:none}
@@ -219,6 +223,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
     <div id="artifact-actions">
       <button class="btn btn-ghost btn-sm" style="flex:1" onclick="selectAllArtifacts()">Todos al ctx</button>
       <button class="btn btn-ghost btn-sm" style="flex:1" onclick="clearContext()">Limpiar ctx</button>
+      <button class="btn btn-ghost btn-sm" style="flex:1" onclick="downloadZip()" title="Descargar todos los artefactos generados en ZIP">⬇ ZIP</button>
     </div>
     <div style="padding:6px 10px 10px;border-top:1px solid var(--border);flex-shrink:0;display:flex;flex-direction:column;gap:5px">
       <button class="btn btn-sm" style="width:100%;background:var(--accent2)" onclick="openImagenModal()">📷 Generar imagen</button>
@@ -257,7 +262,10 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   <div id="viewer-panel">
     <div id="viewer-header">
       <h2>Visor</h2>
-      <button class="btn btn-ghost btn-sm" onclick="clearViewer()">✕</button>
+      <div style="display:flex;gap:4px;align-items:center">
+        <button id="viewer-close-mobile" class="btn btn-ghost btn-sm" style="display:none" onclick="clearViewer()">✕ Cerrar</button>
+        <button class="btn btn-ghost btn-sm" onclick="clearViewer()">✕</button>
+      </div>
     </div>
     <div id="viewer-content" class="empty">Selecciona un archivo para visualizarlo</div>
   </div>
@@ -629,6 +637,7 @@ async function viewArtifact(id) {
   const all = [...artifacts.user, ...artifacts.system];
   const a = all.find(x => x.artifact_id === id);
   if (!a) return;
+  if (window.innerWidth <= 900) document.getElementById('viewer-panel').classList.add('mobile-open');
   const vc = document.getElementById('viewer-content');
   vc.className = '';
   const name = a.filename || a.artifact_name || 'Archivo';
@@ -687,6 +696,11 @@ function downloadArtifact(id, fmt) {
   }
 }
 
+function downloadZip() {
+  if (!currentCase) { toast('Selecciona un expediente primero', 'error'); return; }
+  window.open(`${API}/artifacts/${currentCase.case_id}/zip`, '_blank');
+}
+
 async function deleteArtifact(id) {
   if (!confirm('¿Eliminar este archivo?')) return;
   try {
@@ -702,6 +716,7 @@ async function deleteArtifact(id) {
 }
 
 function clearViewer() {
+  document.getElementById('viewer-panel').classList.remove('mobile-open');
   const vc = document.getElementById('viewer-content');
   vc.className = 'empty';
   vc.textContent = 'Selecciona un archivo para visualizarlo';

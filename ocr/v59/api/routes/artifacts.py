@@ -1,6 +1,7 @@
 import os
 import io
 import uuid
+import zipfile
 from flask import Blueprint, request, jsonify, send_file, Response
 from tools.db import query, execute
 
@@ -264,6 +265,52 @@ td,th{{border:1px solid #ccc;padding:8px}}@media print{{body{{margin:0}}}}</styl
         mimetype='text/markdown',
         headers={'Content-Disposition': f'attachment; filename="{name}.md"'}
     )
+
+
+@artifacts_bp.route('/api/artifacts/<case_id>/zip', methods=['GET'])
+def download_case_zip(case_id):
+    """Descarga todos los artefactos generados del expediente en un ZIP."""
+    buf = io.BytesIO()
+    used_names = {}
+
+    def unique_name(name):
+        if name not in used_names:
+            used_names[name] = 1
+            return name
+        used_names[name] += 1
+        base, ext = os.path.splitext(name)
+        return f"{base}_{used_names[name]}{ext}"
+
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        # Artefactos de texto generados por Claude
+        rows = query(
+            """SELECT artifact_name, artifact_type, content
+               FROM system_artifacts
+               WHERE case_id=%s AND COALESCE(artifact_type,'') != 'session_notes'
+               ORDER BY created_at ASC""",
+            (case_id,), many=True
+        ) or []
+        for r in rows:
+            safe = (r.get('artifact_name') or 'documento').replace('/', '_').replace('\\', '_')
+            fname = unique_name(f"{safe}.md")
+            zf.writestr(fname, r.get('content') or '')
+
+        # Imágenes y archivos generados por IA (user_artifacts source='system')
+        img_rows = query(
+            "SELECT file_path, filename FROM user_artifacts WHERE case_id=%s AND source='system' ORDER BY uploaded_at ASC",
+            (case_id,), many=True
+        ) or []
+        for r in img_rows:
+            fp = r.get('file_path', '')
+            if fp and os.path.exists(fp):
+                fname = unique_name(r.get('filename') or os.path.basename(fp))
+                zf.write(fp, fname)
+
+    buf.seek(0)
+    case_row = query("SELECT case_name FROM cases WHERE case_id=%s", (case_id,))
+    case_name = (case_row or {}).get('case_name', case_id)
+    zip_name = f"{case_name.replace(' ', '_')}.zip"
+    return send_file(buf, mimetype='application/zip', as_attachment=True, download_name=zip_name)
 
 
 @artifacts_bp.route('/api/v1/artifacts/save', methods=['POST'])
