@@ -23,6 +23,12 @@ UPLOAD_DIR = os.path.abspath(
 )
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+# Usar siempre el yt-dlp del venv; fallback al del PATH si no existe
+_VENV_YTDLP = os.path.abspath(
+    os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'venv', 'bin', 'yt-dlp')
+)
+YTDLP_BIN = _VENV_YTDLP if os.path.isfile(_VENV_YTDLP) else 'yt-dlp'
+
 CHUNK_SEC  = 1500   # 25 minutos por chunk → ~9.6 MB a 32kbps
 AUDIO_KBPS = '32k'  # mono speech: mínima tasa que Whisper acepta bien
 AUDIO_HZ   = '16000'
@@ -48,9 +54,10 @@ def start_transcription():
         return jsonify(error='OPENAI_API_KEY no configurado en el servidor'), 503
 
     # Verificar dependencias
-    for cmd in ('yt-dlp', 'ffmpeg'):
-        if subprocess.run(['which', cmd], capture_output=True).returncode != 0:
-            return jsonify(error=f'"{cmd}" no está instalado en el servidor'), 503
+    if not os.path.isfile(YTDLP_BIN) and subprocess.run(['which', 'yt-dlp'], capture_output=True).returncode != 0:
+        return jsonify(error='"yt-dlp" no está instalado en el servidor'), 503
+    if subprocess.run(['which', 'ffmpeg'], capture_output=True).returncode != 0:
+        return jsonify(error='"ffmpeg" no está instalado en el servidor'), 503
 
     job_id = str(uuid.uuid4())
     _jobs[job_id] = {
@@ -89,7 +96,7 @@ def _ytdlp_args(extra: list) -> list:
     - cookies file si YTDLP_COOKIES_FILE está configurado en .env
     """
     args = [
-        'yt-dlp', '--no-playlist',
+        YTDLP_BIN, '--no-playlist',
         '--extractor-args', 'youtube:player_client=android,web',
     ]
     cookies = os.getenv('YTDLP_COOKIES_FILE', '').strip()
