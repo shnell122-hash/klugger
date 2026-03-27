@@ -810,6 +810,7 @@ async function sendMessage(e) {
   let fullText = '';
   let currentTextEl = null;
   let hasText = false;
+  let hasError = false;
   let artifactSaved = false;
   let badgeCount = 0;
 
@@ -896,17 +897,20 @@ async function sendMessage(e) {
           scrollChat();
 
         } else if (evt.type === 'error') {
-          bubble.innerHTML = `<span style="color:var(--red)">${esc(evt.text)}</span>`;
+          hasError = true;
+          bubble.innerHTML = `<span style="color:var(--red)">⚠️ ${esc(evt.text)}</span>`;
         }
       }
     }
 
-    // Render final completo con markdown
-    bubble.innerHTML = mdToHtml(fullText) ||
-      '<span style="color:var(--muted)">(sin respuesta)</span>';
+    // Render final completo con markdown (solo si no hubo error)
+    if (!hasError) {
+      bubble.innerHTML = mdToHtml(fullText) ||
+        '<span style="color:var(--muted)">(sin respuesta)</span>';
+      streamDiv.querySelector('.msg-time').insertAdjacentHTML('afterend',
+        `<div class="msg-actions"><button class="copy-btn" data-mid="${mid}" onclick="copyMsg(this)">Copiar</button></div>`);
+    }
     _msgStore.set(mid, fullText);
-    streamDiv.querySelector('.msg-time').insertAdjacentHTML('afterend',
-      `<div class="msg-actions"><button class="copy-btn" data-mid="${mid}" onclick="copyMsg(this)">Copiar</button></div>`);
     chatHistory.push({role:'assistant', content: fullText});
 
     if (artifactSaved) {
@@ -1004,6 +1008,7 @@ function esc(s) {
 }
 
 function mdToHtml(s) {
+  if (!s || !s.trim()) return '';
   const e = t => String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const lines = s.split('\n');
   let html = '';
