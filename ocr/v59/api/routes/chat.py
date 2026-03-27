@@ -8,6 +8,9 @@ from openclaw.tool_router import handle_tool
 chat_bp = Blueprint('chat', __name__)
 log = logging.getLogger('chat')
 
+# Señal que Claude emite al final de un turno masivo para auto-continuar
+_AUTO_CONTINUE = '↩️ Continúo'
+
 SOUL_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)),
                          '..', 'openclaw', 'soul-v59.md')
 with open(SOUL_PATH, 'r', encoding='utf-8') as _f:
@@ -418,7 +421,7 @@ def chat_stream():
 
         try:
             current_messages = list(messages)
-            for iteration in range(5):
+            for iteration in range(15):   # 15 = 5 tool-use + hasta 10 auto-continuaciones
                 text_this_round = ""
                 t_round = time.time()
 
@@ -451,7 +454,15 @@ def chat_stream():
                          time.time() - t_round)
 
                 if final_msg.stop_reason != 'tool_use':
-                    break
+                    # Detectar señal de auto-continuación (tareas masivas §11)
+                    if _AUTO_CONTINUE in text_this_round:
+                        log.info('auto-continue detected at iteration %d', iteration)
+                        current_messages.append({"role": "assistant", "content": text_this_round})
+                        current_messages.append({"role": "user",
+                                                 "content": "Continúa con los entregables pendientes."})
+                        q.put(('auto_continue', None))
+                        continue   # siguiente iteración sin esperar al usuario
+                    break          # fin normal
 
                 assistant_content = []
                 for b in final_msg.content:
@@ -467,6 +478,7 @@ def chat_stream():
                 for b in final_msg.content:
                     if b.type != 'tool_use':
                         continue
+                    q.put(('tool_start', b.name))   # avisa al frontend antes de ejecutar
                     t_tool = time.time()
                     result = handle_tool(b.name, dict(b.input), case_id)
                     log.info('tool %s %.2fs', b.name, time.time() - t_tool)
@@ -523,8 +535,12 @@ def chat_stream():
                 break
             elif type_ == 'text':
                 yield f"data: {json.dumps({'type': 'text', 'text': data})}\n\n"
+            elif type_ == 'tool_start':
+                yield f"data: {json.dumps({'type': 'tool_start', 'tool': data})}\n\n"
             elif type_ == 'tool_result':
                 yield f"data: {json.dumps({'type': 'tool_result', 'tool': data['tool'], 'result': data['result']})}\n\n"
+            elif type_ == 'auto_continue':
+                yield f"data: {json.dumps({'type': 'auto_continue'})}\n\n"
 
     return Response(
         stream_with_context(generate()),

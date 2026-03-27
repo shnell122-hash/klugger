@@ -137,6 +137,13 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .progress-bar-wrap{background:var(--bg);border-radius:4px;height:6px;margin-top:6px;overflow:hidden}
 .progress-bar{height:100%;background:var(--accent);width:0;transition:width .3s;border-radius:4px}
 
+/* ── Action badges (tool progress) ── */
+.action-badge{display:inline-flex;align-items:center;gap:5px;border-radius:4px;padding:3px 9px;font-size:.71rem;margin:4px 0;white-space:nowrap;transition:all .2s}
+.action-badge.running{background:var(--hover);border:1px solid var(--accent);color:var(--accent)}
+.action-badge.done{background:var(--hover);border:1px solid var(--green);color:var(--green)}
+.auto-continue-pill{display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--accent);margin:8px 0;padding:5px 0;border-top:1px dashed var(--border);border-bottom:1px dashed var(--border)}
+.st{white-space:pre-wrap;word-wrap:break-word}
+
 /* ── Scrollbar ── */
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -761,6 +768,15 @@ async function loadChatHistory() {
   }
 }
 
+const TOOL_LABELS = {
+  'save_artifact':    '💾 Guardando artefacto',
+  'generate_image':   '🎨 Generando imagen',
+  'create_case':      '📁 Creando expediente',
+  'search_precedents':'🔍 Buscando precedentes',
+  'validate_document':'✅ Validando documento',
+  'export_to_jotform':'📤 Exportando a JotForm',
+};
+
 async function sendMessage(e) {
   e.preventDefault();
   const inp = document.getElementById('chat-input');
@@ -774,41 +790,142 @@ async function sendMessage(e) {
   chatHistory.push({role:'user', content: text});
   scrollChat();
 
-  const thinking = document.createElement('div');
-  thinking.className = 'msg assistant';
-  thinking.innerHTML = '<div class="msg-avatar">AI</div><div class="thinking"><span></span><span></span><span></span></div>';
-  document.getElementById('chat-messages').appendChild(thinking);
+  // Crear burbuja de streaming
+  const msgs = document.getElementById('chat-messages');
+  const streamDiv = document.createElement('div');
+  streamDiv.className = 'msg assistant';
+  const mid = 'msg-' + (++_msgCounter);
+  streamDiv.innerHTML = `
+    <div class="msg-avatar">AI</div>
+    <div style="flex:1;min-width:0">
+      <div class="msg-bubble" id="stream-bubble-${mid}">
+        <div class="thinking"><span></span><span></span><span></span></div>
+      </div>
+      <span class="msg-time">${new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}</span>
+    </div>`;
+  msgs.appendChild(streamDiv);
   scrollChat();
 
+  const bubble = document.getElementById(`stream-bubble-${mid}`);
+  let fullText = '';
+  let currentTextEl = null;
+  let hasText = false;
+  let artifactSaved = false;
+  let badgeCount = 0;
+
+  function ensureText() {
+    if (!currentTextEl) {
+      currentTextEl = document.createElement('div');
+      currentTextEl.className = 'st';
+      bubble.appendChild(currentTextEl);
+    }
+    return currentTextEl;
+  }
+
   try {
-    const r = await fetch(`${API}/chat`, {
+    const res = await fetch(`${API}/v1/chat/stream`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         case_id: currentCase ? currentCase.case_id : '',
         message: text,
-        context_artifact_ids: [...ctxIds],
+        selected_artifacts: [...ctxIds],
         history: chatHistory.slice(-20)
       })
     });
-    const data = await r.json();
-    thinking.remove();
-    if (!r.ok) throw new Error(data.error || 'Error');
-    const reply = data.response || data.message || '(sin respuesta)';
-    appendMessage('assistant', reply);
-    chatHistory.push({role:'assistant', content: reply});
-    if (data.artifact_id || data.artifact_saved) {
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+
+    outer: while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, {stream: true});
+
+      const parts = buf.split('\n\n');
+      buf = parts.pop();
+
+      for (const part of parts) {
+        const line = part.trim();
+        if (!line.startsWith('data: ')) continue;
+        const payload = line.slice(6).trim();
+        if (payload === '[DONE]') break outer;
+
+        let evt;
+        try { evt = JSON.parse(payload); } catch { continue; }
+
+        if (evt.type === 'text') {
+          if (!hasText) { bubble.innerHTML = ''; hasText = true; currentTextEl = null; _currentSectionText = ''; }
+          fullText += evt.text;
+          _currentSectionText += evt.text;
+          ensureText().innerHTML = mdToHtml(_currentSectionText);
+          scrollChat();
+
+        } else if (evt.type === 'tool_start') {
+          // Freeze current text section
+          currentTextEl = null;
+          _currentSectionText = '';
+          const badge = document.createElement('div');
+          badge.className = 'action-badge running';
+          badge.id = `badge-${mid}-${badgeCount++}`;
+          badge.dataset.tool = evt.tool;
+          badge.textContent = (TOOL_LABELS[evt.tool] || `⚙️ ${evt.tool}`) + '...';
+          bubble.appendChild(badge);
+          scrollChat();
+
+        } else if (evt.type === 'tool_result') {
+          const badge = bubble.querySelector(`.action-badge[data-tool="${evt.tool}"].running`);
+          if (badge) { badge.className = 'action-badge done'; badge.textContent = (TOOL_LABELS[evt.tool] || `⚙️ ${evt.tool}`) + ' ✓'; }
+          if (evt.tool === 'save_artifact' || evt.tool === 'generate_image') artifactSaved = true;
+          currentTextEl = null;
+          _currentSectionText = '';
+
+        } else if (evt.type === 'auto_continue') {
+          currentTextEl = null;
+          _currentSectionText = '';
+          const pill = document.createElement('div');
+          pill.className = 'auto-continue-pill';
+          pill.textContent = '↩️ Continuando automáticamente...';
+          bubble.appendChild(pill);
+          scrollChat();
+
+        } else if (evt.type === 'error') {
+          bubble.innerHTML = `<span style="color:var(--red)">${esc(evt.text)}</span>`;
+        }
+      }
+    }
+
+    // Render final completo con markdown
+    bubble.innerHTML = mdToHtml(fullText) ||
+      '<span style="color:var(--muted)">(sin respuesta)</span>';
+    _msgStore.set(mid, fullText);
+    streamDiv.querySelector('.msg-time').insertAdjacentHTML('afterend',
+      `<div class="msg-actions"><button class="copy-btn" data-mid="${mid}" onclick="copyMsg(this)">Copiar</button></div>`);
+    chatHistory.push({role:'assistant', content: fullText});
+
+    if (artifactSaved) {
       await loadArtifacts();
       switchArtifactTab('system');
-      toast('Artefacto guardado — ver tab Generados', 'info');
+      toast('Artefactos guardados — ver tab Generados', 'info');
     }
     scrollChat();
+
   } catch(err) {
-    thinking.remove();
-    appendMessage('assistant', `Error: ${err.message}`);
+    bubble.innerHTML = `<span style="color:var(--red)">Error: ${esc(err.message)}</span>`;
     scrollChat();
+  } finally {
+    _currentSectionText = '';
   }
 }
+
+// Texto acumulado de la sección actual de streaming
+let _currentSectionText = '';
 
 // ── Message store (para copy seguro) ─────────────────────
 const _msgStore = new Map();
