@@ -82,13 +82,29 @@ def _upd(job_id, status, progress, message):
         _jobs[job_id].update(status=status, progress=progress, message=message)
 
 
+def _ytdlp_args(extra: list) -> list:
+    """
+    Construye los args base de yt-dlp con:
+    - cliente Android (evita detección de bot en YouTube sin cookies)
+    - cookies file si YTDLP_COOKIES_FILE está configurado en .env
+    """
+    args = [
+        'yt-dlp', '--no-playlist',
+        '--extractor-args', 'youtube:player_client=android,web',
+    ]
+    cookies = os.getenv('YTDLP_COOKIES_FILE', '').strip()
+    if cookies and os.path.isfile(cookies):
+        args += ['--cookies', cookies]
+    return args + extra
+
+
 def _run_transcription(job_id, case_id, url, language, openai_key):
     tmp = tempfile.mkdtemp(prefix='vilar_tx_')
     try:
         # ── 1. Obtener título ────────────────────────────────────────────
         _upd(job_id, 'downloading', 3, 'Obteniendo información del video...')
         title_proc = subprocess.run(
-            ['yt-dlp', '--no-playlist', '--get-title', url],
+            _ytdlp_args(['--get-title', url]),
             capture_output=True, text=True, timeout=60
         )
         video_title = title_proc.stdout.strip()[:120] or 'Video'
@@ -98,17 +114,29 @@ def _run_transcription(job_id, case_id, url, language, openai_key):
              f'Descargando audio: {video_title}...')
         raw_out = os.path.join(tmp, 'raw.%(ext)s')
         dl = subprocess.run(
-            ['yt-dlp', '--no-playlist',
-             '-x',                          # solo audio
-             '--audio-format', 'mp3',
-             '--audio-quality', '5',        # VBR ~130 kbps — luego recomprimimos
-             '-o', raw_out, url],
-            capture_output=True, text=True, timeout=1800  # 30 min max
+            _ytdlp_args([
+                '-x',                    # solo audio
+                '--audio-format', 'mp3',
+                '--audio-quality', '5',  # VBR ~130 kbps — recomprimimos después
+                '-o', raw_out, url,
+            ]),
+            capture_output=True, text=True, timeout=1800
         )
         if dl.returncode != 0:
-            raise RuntimeError(
-                f'yt-dlp falló (código {dl.returncode}):\n{dl.stderr[-600:]}'
-            )
+            stderr = dl.stderr or ''
+            # Mensaje de error accionable para el usuario
+            if 'Sign in to confirm' in stderr or 'bot' in stderr.lower():
+                raise RuntimeError(
+                    'YouTube bloqueó la descarga por detección de bot.\n\n'
+                    'Solución: configura YTDLP_COOKIES_FILE en el .env del servidor:\n'
+                    '1. Instala la extensión "Get cookies.txt LOCALLY" en Chrome/Firefox\n'
+                    '2. Navega a youtube.com con tu cuenta iniciada\n'
+                    '3. Exporta las cookies como cookies.txt\n'
+                    '4. Sube el archivo al servidor: /var/www/catalogos/OCR/v59/youtube_cookies.txt\n'
+                    '5. Agrega al .env: YTDLP_COOKIES_FILE=/var/www/catalogos/OCR/v59/youtube_cookies.txt\n'
+                    '6. Reinicia: pm2 restart vilar-legal-os-v59'
+                )
+            raise RuntimeError(f'yt-dlp falló (código {dl.returncode}):\n{stderr[-500:]}')
 
         raw_files = list(Path(tmp).glob('raw.*'))
         if not raw_files:
