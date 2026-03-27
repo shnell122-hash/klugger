@@ -205,6 +205,42 @@ def download_artifact(artifact_id):
     content = row.get('content', '')
     name    = row.get('artifact_name', 'documento').replace(' ', '_')
 
+    if fmt == 'pdf':
+        try:
+            import markdown as md_lib
+            from weasyprint import HTML as WH
+            # Markdown → HTML completo
+            html_body = md_lib.markdown(content, extensions=['tables', 'fenced_code'])
+            html = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>{name}</title>
+<style>
+  @page {{margin:2cm}}
+  body{{font-family:Arial,sans-serif;font-size:11pt;line-height:1.6;color:#111}}
+  h1{{font-size:18pt;border-bottom:2px solid #c47a5a;padding-bottom:4pt;color:#1a202c}}
+  h2{{font-size:14pt;color:#2d3748;margin-top:16pt}}
+  h3{{font-size:12pt;color:#4a5568}}
+  table{{border-collapse:collapse;width:100%;margin:10pt 0}}
+  td,th{{border:1px solid #ccc;padding:6pt 8pt;font-size:10pt}}
+  th{{background:#f5f0eb;font-weight:bold}}
+  tr:nth-child(even){{background:#faf6f1}}
+  code{{background:#f0ede8;padding:1pt 4pt;border-radius:3pt;font-size:9.5pt}}
+  pre{{background:#f0ede8;padding:10pt;border-radius:5pt;overflow-x:auto}}
+  ul,ol{{margin:6pt 0;padding-left:20pt}}
+  strong{{color:#1a202c}}
+  hr{{border:none;border-top:1px solid #ddd;margin:14pt 0}}
+</style>
+</head><body>{html_body}</body></html>"""
+            pdf_bytes = WH(string=html).write_pdf()
+            return Response(
+                pdf_bytes,
+                mimetype='application/pdf',
+                headers={'Content-Disposition': f'attachment; filename="{name}.pdf"'}
+            )
+        except ImportError:
+            return jsonify({"error": "weasyprint no instalado. Ejecuta: pip install weasyprint markdown"}), 500
+        except Exception as e:
+            return jsonify({"error": f"Error generando PDF: {str(e)}"}), 500
+
     if fmt == 'html':
         # Envolver en HTML completo con estilos básicos para impresión
         html_body = content.replace('\n', '<br>') if not content.strip().startswith('<') else content

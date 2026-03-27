@@ -967,6 +967,7 @@ async function viewArtifact(id) {
 
   if (a.source === 'system') {
     const dlBtns = `<div style="display:flex;gap:4px;flex-shrink:0">
+      <button class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','pdf')" title="Descargar PDF">PDF</button>
       <button class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','md')" title="Descargar Markdown">MD</button>
       <button class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','html')" title="Descargar HTML">HTML</button>
       <button class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','docx')" title="Descargar Word">Word</button>
