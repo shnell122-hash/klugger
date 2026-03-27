@@ -241,8 +241,8 @@ def _generate_image(inputs: dict) -> dict:
         execute(
             """INSERT INTO user_artifacts
                (artifact_id, case_id, filename, mime_type, file_path,
-                file_size_bytes, checksum_sha256, extracted_text, uploaded_at)
-               VALUES (%s, %s, %s, 'image/jpeg', %s, %s, %s, %s, NOW())""",
+                file_size_bytes, checksum_sha256, extracted_text, source, uploaded_at)
+               VALUES (%s, %s, %s, 'image/jpeg', %s, %s, %s, %s, 'system', NOW())""",
             (artifact_id, case_id, filename, file_path,
              len(img_bytes), sha256, f'[Imagen generada — capacitación] {prompt}')
         )

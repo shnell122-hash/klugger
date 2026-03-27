@@ -588,8 +588,9 @@ async function viewArtifact(id) {
   const name = a.filename || a.artifact_name || 'Archivo';
 
   if (a.mime_type && a.mime_type.includes('image')) {
-    const header = `<div class="viewer-filename"><span>${esc(name)}</span><span>${fmtSize(a.file_size_bytes)}</span></div>`;
-    vc.innerHTML = header + `<img src="${API}/artifacts/file/${id}" alt="${esc(name)}">`;
+    const dlBtn = `<a class="btn btn-ghost btn-sm" href="${API}/artifacts/file/${id}" download="${esc(name)}" title="Descargar imagen">⬇ JPG</a>`;
+    const header = `<div class="viewer-filename"><span>${esc(name)}</span>${dlBtn}</div>`;
+    vc.innerHTML = header + `<img src="${API}/artifacts/file/${id}" alt="${esc(name)}" style="max-width:100%;border-radius:6px;margin-top:6px">`;
     return;
   }
 
@@ -631,7 +632,13 @@ async function viewArtifact(id) {
 }
 
 function downloadArtifact(id, fmt) {
-  window.open(`${API}/artifacts/${id}/download?fmt=${fmt}`, '_blank');
+  const all = [...artifacts.user, ...artifacts.system];
+  const a = all.find(x => x.artifact_id === id);
+  if (a && a.mime_type && a.mime_type.includes('image')) {
+    window.open(`${API}/artifacts/file/${id}`, '_blank');
+  } else {
+    window.open(`${API}/artifacts/${id}/download?fmt=${fmt}`, '_blank');
+  }
 }
 
 async function deleteArtifact(id) {
@@ -958,7 +965,7 @@ async function generateImages() {
     document.getElementById('imagen-previews').style.display = 'block';
     status.textContent = `${data.count} imagen(es) guardadas en el expediente.`;
     await loadArtifacts();
-    switchArtifactTab('user');
+    switchArtifactTab('system');
     toast(`${data.count} imagen(es) generadas`, 'success');
   } catch(e) {
     status.textContent = `Error: ${e.message}`;

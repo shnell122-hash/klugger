@@ -23,7 +23,7 @@ def list_artifacts_by_case(case_id):
                       uploaded_at AS created_at,
                       'user' AS source, NULL AS artifact_type
                FROM user_artifacts
-               WHERE case_id=%s
+               WHERE case_id=%s AND COALESCE(source,'user')='user'
                ORDER BY uploaded_at DESC
                LIMIT %s""",
             (case_id, limit), many=True
@@ -31,6 +31,19 @@ def list_artifacts_by_case(case_id):
         results.extend(rows or [])
 
     if src_filter in ('all', 'system'):
+        # Imágenes generadas por IA (guardadas en user_artifacts con source='system')
+        rows = query(
+            """SELECT artifact_id, case_id, filename AS artifact_name,
+                      'image' AS artifact_type, mime_type, file_size_bytes,
+                      uploaded_at AS created_at, 'system' AS source
+               FROM user_artifacts
+               WHERE case_id=%s AND source='system'
+               ORDER BY uploaded_at DESC
+               LIMIT %s""",
+            (case_id, limit), many=True
+        )
+        results.extend(rows or [])
+
         atype_clause = "AND artifact_type=%s" if artifact_type else ""
         params = [case_id]
         if artifact_type:
@@ -90,7 +103,7 @@ def list_artifacts():
 
     results = []
 
-    # --- user_artifacts ---
+    # --- user_artifacts (subidos por usuario) ---
     if src_filter in ('all', 'user'):
         rows = query(
             """SELECT artifact_id, case_id, filename AS name, mime_type,
@@ -99,15 +112,27 @@ def list_artifacts():
                       uploaded_at AS created_at,
                       'user' AS source, NULL AS artifact_type
                FROM user_artifacts
-               WHERE case_id=%s
+               WHERE case_id=%s AND COALESCE(source,'user')='user'
                ORDER BY uploaded_at DESC
                LIMIT %s""",
             (case_id, limit), many=True
         )
         results.extend(rows or [])
 
-    # --- system_artifacts ---
+    # --- system_artifacts + imágenes generadas ---
     if src_filter in ('all', 'system'):
+        rows = query(
+            """SELECT artifact_id, case_id, filename AS artifact_name,
+                      'image' AS artifact_type, mime_type, file_size_bytes,
+                      uploaded_at AS created_at, 'system' AS source
+               FROM user_artifacts
+               WHERE case_id=%s AND source='system'
+               ORDER BY uploaded_at DESC
+               LIMIT %s""",
+            (case_id, limit), many=True
+        )
+        results.extend(rows or [])
+
         atype_clause = "AND artifact_type=%s" if artifact_type else ""
         params = [case_id]
         if artifact_type:
@@ -158,6 +183,19 @@ def delete_artifact(artifact_id):
 def download_artifact(artifact_id):
     """Descarga un artefacto como .md, .html o .docx según el parámetro fmt."""
     fmt = request.args.get('fmt', 'md')
+
+    # Imágenes generadas (guardadas en user_artifacts con source='system')
+    img_row = query(
+        "SELECT file_path, mime_type, filename FROM user_artifacts WHERE artifact_id=%s AND source='system'",
+        (artifact_id,)
+    )
+    if img_row and img_row.get('file_path') and os.path.exists(img_row['file_path']):
+        return send_file(
+            img_row['file_path'],
+            mimetype=img_row['mime_type'],
+            as_attachment=True,
+            download_name=img_row['filename']
+        )
 
     row = query("SELECT artifact_name, artifact_type, content FROM system_artifacts WHERE artifact_id=%s", (artifact_id,))
     if not row:
