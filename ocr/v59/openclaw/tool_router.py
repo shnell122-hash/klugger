@@ -154,7 +154,7 @@ def _validate_document(inputs: dict) -> dict:
 
 def _generate_image(inputs: dict) -> dict:
     """Genera imágenes con Flux.1 vía fal.ai y las guarda en el expediente."""
-    import requests, base64 as b64
+    import requests
 
     fal_key = os.getenv('FAL_KEY', '')
     if not fal_key:
@@ -174,6 +174,9 @@ def _generate_image(inputs: dict) -> dict:
         'square':    {'width': 1024, 'height': 1024},
     }
     size = sizes.get(aspect, sizes['portrait'])
+
+    upload_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
+    os.makedirs(upload_dir, exist_ok=True)
 
     style_suffix = (
         "shot on a smartphone, candid documentary photo, natural lighting, "
@@ -229,13 +232,17 @@ def _generate_image(inputs: dict) -> dict:
 
         artifact_id = str(uuid.uuid4())
         filename    = f"capacitacion_{artifact_id[:8]}.jpg"
+        file_path   = os.path.join(upload_dir, f"{artifact_id}.jpg")
+        with open(file_path, 'wb') as fh:
+            fh.write(img_bytes)
+
         execute(
             """INSERT INTO user_artifacts
-               (artifact_id, case_id, filename, mime_type, file_size_bytes,
-                raw_data, extracted_text, uploaded_at)
+               (artifact_id, case_id, filename, mime_type, file_path,
+                file_size_bytes, extracted_text, uploaded_at)
                VALUES (%s, %s, %s, 'image/jpeg', %s, %s, %s, NOW())""",
-            (artifact_id, case_id, filename, len(img_bytes),
-             img_bytes, f'[Imagen generada — capacitación] {prompt}')
+            (artifact_id, case_id, filename, file_path,
+             len(img_bytes), f'[Imagen generada — capacitación] {prompt}')
         )
         saved.append({
             'artifact_id': artifact_id,

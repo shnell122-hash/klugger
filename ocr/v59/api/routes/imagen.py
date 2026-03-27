@@ -1,18 +1,17 @@
-import os, io, uuid, base64, requests
+import os, uuid, requests
 from flask import Blueprint, request, jsonify
-from tools.db import execute, query
+from tools.db import execute
 
 imagen_bp = Blueprint('imagen', __name__)
 
-FAL_KEY  = os.getenv('FAL_KEY', '')
-FAL_URL  = 'https://fal.run/fal-ai/flux/dev'
+FAL_URL   = 'https://fal.run/fal-ai/flux/dev'
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'uploads')
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# Estilo base que simula foto de celular en contexto de entrega/logística
 _STYLE_SUFFIX = (
     "shot on a smartphone, candid photo, natural lighting, slightly imperfect framing, "
     "documentary style, realistic, no text overlays, photorealistic"
 )
-
 _NEGATIVE = (
     "painting, illustration, drawing, cartoon, render, cgi, watermark, logo, text, "
     "signature, border, frame, artistic, stylized, blurry beyond natural"
@@ -21,22 +20,15 @@ _NEGATIVE = (
 
 @imagen_bp.route('/api/imagen/generate', methods=['POST'])
 def generate_image():
-    """
-    Genera imágenes de ejemplo para material de capacitación de clientes.
-    Body JSON:
-      case_id   : str  (requerido)
-      prompt    : str  (descripción de la escena)
-      count     : int  (1-4, default 1)
-      aspect    : str  "portrait" | "landscape" | "square" (default portrait)
-    """
-    if not FAL_KEY:
+    fal_key = os.getenv('FAL_KEY', '')
+    if not fal_key:
         return jsonify(error='FAL_KEY no configurado en el servidor'), 503
 
-    body     = request.get_json(force=True) or {}
-    case_id  = body.get('case_id', '').strip()
-    prompt   = body.get('prompt', '').strip()
-    count    = min(max(int(body.get('count', 1)), 1), 4)
-    aspect   = body.get('aspect', 'portrait')
+    body    = request.get_json(force=True) or {}
+    case_id = body.get('case_id', '').strip()
+    prompt  = body.get('prompt', '').strip()
+    count   = min(max(int(body.get('count', 1)), 1), 4)
+    aspect  = body.get('aspect', 'portrait')
 
     if not case_id:
         return jsonify(error='case_id requerido'), 400
@@ -44,27 +36,22 @@ def generate_image():
         return jsonify(error='prompt requerido'), 400
 
     sizes = {
-        'portrait':  {'width': 768, 'height': 1024},
+        'portrait':  {'width': 768,  'height': 1024},
         'landscape': {'width': 1024, 'height': 768},
         'square':    {'width': 1024, 'height': 1024},
     }
     size = sizes.get(aspect, sizes['portrait'])
 
-    full_prompt = f"{prompt}, {_STYLE_SUFFIX}"
-
-    headers = {
-        'Authorization': f'Key {FAL_KEY}',
-        'Content-Type':  'application/json',
-    }
+    headers = {'Authorization': f'Key {fal_key}', 'Content-Type': 'application/json'}
     payload = {
-        'prompt':             full_prompt,
-        'negative_prompt':    _NEGATIVE,
-        'num_images':         count,
-        'image_size':         size,
+        'prompt':              f"{prompt}, {_STYLE_SUFFIX}",
+        'negative_prompt':     _NEGATIVE,
+        'num_images':          count,
+        'image_size':          size,
         'num_inference_steps': 28,
-        'guidance_scale':     3.5,
+        'guidance_scale':      3.5,
         'enable_safety_checker': True,
-        'output_format':      'jpeg',
+        'output_format':       'jpeg',
     }
 
     try:
@@ -81,30 +68,30 @@ def generate_image():
         return jsonify(error='fal.ai no devolvió imágenes'), 502
 
     saved = []
-    for idx, img_info in enumerate(images_out):
+    for img_info in images_out:
         img_url = img_info.get('url', '')
         if not img_url:
             continue
-        # Descargar la imagen desde la URL temporal de fal.ai
         try:
             dl = requests.get(img_url, timeout=30)
             dl.raise_for_status()
             img_bytes = dl.content
-        except Exception as e:
+        except Exception:
             continue
 
         artifact_id = str(uuid.uuid4())
         filename    = f"capacitacion_{artifact_id[:8]}.jpg"
-        size_bytes  = len(img_bytes)
-        img_b64     = base64.b64encode(img_bytes).decode()
+        file_path   = os.path.join(UPLOAD_DIR, f"{artifact_id}.jpg")
+        with open(file_path, 'wb') as fh:
+            fh.write(img_bytes)
 
         execute(
             """INSERT INTO user_artifacts
-               (artifact_id, case_id, filename, mime_type, file_size_bytes,
-                raw_data, extracted_text, uploaded_at)
+               (artifact_id, case_id, filename, mime_type, file_path,
+                file_size_bytes, extracted_text, uploaded_at)
                VALUES (%s, %s, %s, 'image/jpeg', %s, %s, %s, NOW())""",
-            (artifact_id, case_id, filename, size_bytes,
-             img_bytes, f'[Imagen generada por IA — capacitación] {prompt}')
+            (artifact_id, case_id, filename, file_path,
+             len(img_bytes), f'[Imagen generada — capacitación] {prompt}')
         )
         saved.append({
             'artifact_id': artifact_id,
