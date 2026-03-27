@@ -1,4 +1,4 @@
-import os, uuid, secrets, logging
+import os, uuid, secrets, logging, time
 from functools import wraps
 from urllib.parse import urlencode
 import requests
@@ -14,6 +14,10 @@ GOOGLE_REDIRECT_URI  = os.getenv(
     'GOOGLE_REDIRECT_URI',
     'https://ocr.ruby.lease/OCR/v59/api/auth/google/callback'
 )
+
+# OAuth state stored server-side (avoids browser cookie issues during OAuth redirect)
+_OAUTH_STATES: dict = {}   # state_token -> created_at (epoch)
+_STATE_TTL = 600           # 10 minutes
 
 # vilarkptl@gmail.com → admin (all cases + real USD + tokens)
 ADMIN_EMAILS = {'vilarkptl@gmail.com'}
@@ -60,7 +64,13 @@ def require_login(f):
 @auth_bp.route('/api/auth/google')
 def google_login():
     state = secrets.token_urlsafe(32)
-    session['oauth_state'] = state
+    # Store state server-side — no browser cookie needed for this step
+    _OAUTH_STATES[state] = time.time()
+    # Purge expired states
+    cutoff = time.time() - _STATE_TTL
+    for k in [k for k, v in _OAUTH_STATES.items() if v < cutoff]:
+        del _OAUTH_STATES[k]
+    log.info('google_login: state=%s client_id=%s...', state[:8], GOOGLE_CLIENT_ID[:20])
     params = {
         'client_id':     GOOGLE_CLIENT_ID,
         'redirect_uri':  GOOGLE_REDIRECT_URI,
@@ -79,12 +89,11 @@ def google_callback():
     if err:
         return redirect(f"/OCR/v59/?auth_error={err}")
 
-    got_state      = request.args.get('state', '')
-    expected_state = session.pop('oauth_state', None)
-    if got_state != expected_state:
-        log.warning('state_mismatch got=%s expected=%s session_keys=%s',
-                    got_state[:8] if got_state else '', expected_state, list(session.keys()))
+    got_state = request.args.get('state', '')
+    if got_state not in _OAUTH_STATES:
+        log.warning('state_mismatch got=%s known_states=%d', got_state[:8], len(_OAUTH_STATES))
         return redirect("/OCR/v59/?auth_error=state_mismatch")
+    del _OAUTH_STATES[got_state]
 
     code = request.args.get('code', '')
     if not code:

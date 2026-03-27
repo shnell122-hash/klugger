@@ -10,6 +10,7 @@ logging.basicConfig(
 from datetime import timedelta
 from flask import Flask
 from flask_cors import CORS
+from flask_session import Session
 from dotenv import load_dotenv
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -26,16 +27,24 @@ from routes.dashboard  import dashboard_bp
 
 app = Flask(__name__)
 # Trust Apache reverse-proxy headers (X-Forwarded-Proto, X-Forwarded-Host)
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_prefix=1)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
-# Session config — fall back to built-in default even if env var is empty
+# Secret key (needed even with filesystem sessions for CSRF protection)
 _secret = (os.getenv('FLASK_SECRET_KEY') or '').strip()
 app.secret_key = _secret or 'vilar-legal-os-v59-change-me'
+
+# Server-side filesystem sessions — only a session ID goes in the browser cookie,
+# no signing/encoding issues, works reliably behind Apache proxy
+app.config['SESSION_TYPE']             = 'filesystem'
+app.config['SESSION_FILE_DIR']         = '/tmp/vilar-v59-sessions'
+app.config['SESSION_PERMANENT']        = True
+app.config['SESSION_USE_SIGNER']       = True   # signs the session ID cookie
 app.config['SESSION_COOKIE_HTTPONLY']  = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE']   = False   # Apache terminates TLS; Flask sees plain HTTP
+app.config['SESSION_COOKIE_SECURE']   = False   # Apache terminates TLS
 app.config['SESSION_COOKIE_PATH']     = '/'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
+Session(app)
 
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
