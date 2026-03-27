@@ -4,49 +4,87 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VILAR Legal OS v59</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0f1117;--sidebar:#161b27;--panel:#1a2035;--border:#2a3352;
-  --accent:#4f8ef7;--accent2:#7c5cbf;--green:#34d399;--red:#f87171;
-  --yellow:#fbbf24;--text:#e2e8f0;--muted:#6b7280;--hover:#202840;
+  --bg:#0d0e1a;
+  --panel:#141526;
+  --sidebar:#10111f;
+  --border:rgba(255,255,255,0.08);
+  --accent:#c47a5a;
+  --accent2:#8b5cf6;
+  --green:#34d399;
+  --red:#f87171;
+  --yellow:#fbbf24;
+  --text:#ede8e0;
+  --muted:#7a7480;
+  --hover:rgba(255,255,255,0.05);
+  --glass:rgba(20,21,38,0.75);
+  --glass-border:rgba(255,255,255,0.10);
+  --shadow:0 4px 24px rgba(0,0,0,0.45);
+  --user-bubble:rgba(196,122,90,0.18);
 }
 [data-theme="light"]{
-  --bg:#f8fafc;--sidebar:#ffffff;--panel:#f1f5f9;--border:#e2e8f0;
-  --accent:#2563eb;--accent2:#7c3aed;--green:#059669;--red:#dc2626;
-  --yellow:#d97706;--text:#1e293b;--muted:#64748b;--hover:#e8edf5;
+  --bg:#f5f0eb;
+  --panel:#fffcf8;
+  --sidebar:#faf6f1;
+  --border:rgba(0,0,0,0.09);
+  --accent:#b5622a;
+  --accent2:#7c3aed;
+  --green:#059669;
+  --red:#dc2626;
+  --yellow:#d97706;
+  --text:#2c1a0e;
+  --muted:#8a7060;
+  --hover:rgba(0,0,0,0.04);
+  --glass:rgba(255,252,248,0.80);
+  --glass-border:rgba(0,0,0,0.08);
+  --shadow:0 4px 24px rgba(0,0,0,0.12);
+  --user-bubble:rgba(181,98,42,0.14);
 }
 @media(prefers-color-scheme:light){
   :root:not([data-theme="dark"]){
-    --bg:#f8fafc;--sidebar:#ffffff;--panel:#f1f5f9;--border:#e2e8f0;
-    --accent:#2563eb;--accent2:#7c3aed;--green:#059669;--red:#dc2626;
-    --yellow:#d97706;--text:#1e293b;--muted:#64748b;--hover:#e8edf5;
+    --bg:#f5f0eb;--panel:#fffcf8;--sidebar:#faf6f1;--border:rgba(0,0,0,0.09);
+    --accent:#b5622a;--accent2:#7c3aed;--green:#059669;--red:#dc2626;
+    --yellow:#d97706;--text:#2c1a0e;--muted:#8a7060;--hover:rgba(0,0,0,0.04);
+    --glass:rgba(255,252,248,0.80);--glass-border:rgba(0,0,0,0.08);
+    --shadow:0 4px 24px rgba(0,0,0,0.12);--user-bubble:rgba(181,98,42,0.14);
   }
 }
 html{height:-webkit-fill-available}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;height:100dvh;overflow:hidden;display:flex;flex-direction:column;min-height:-webkit-fill-available}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);height:100vh;height:100dvh;overflow:hidden;display:flex;flex-direction:column;min-height:-webkit-fill-available;
+  background-image:radial-gradient(ellipse at 15% 10%, rgba(196,122,90,0.08) 0%, transparent 55%),
+                   radial-gradient(ellipse at 85% 85%, rgba(139,92,246,0.06) 0%, transparent 55%);
+}
 
 /* ── Header ── */
-#header{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;background:var(--sidebar);border-bottom:1px solid var(--border);flex-shrink:0;z-index:10}
-#header h1{font-size:1.1rem;font-weight:700;letter-spacing:.5px;color:var(--accent)}
-#header h1 span{color:var(--muted);font-weight:400;font-size:.85rem;margin-left:8px}
+#header{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;background:var(--glass);backdrop-filter:blur(14px) saturate(160%);-webkit-backdrop-filter:blur(14px) saturate(160%);border-bottom:1px solid var(--glass-border);flex-shrink:0;z-index:10}
+#header h1{font-size:1.05rem;font-weight:700;letter-spacing:.3px;color:var(--accent)}
+#header h1 span{color:var(--muted);font-weight:400;font-size:.82rem;margin-left:8px}
 #case-selector{display:flex;align-items:center;gap:8px}
-#case-selector select{background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:.85rem;cursor:pointer}
-.btn{background:var(--accent);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:.82rem;cursor:pointer;font-weight:600;transition:opacity .15s}
-.btn:hover{opacity:.85}
-.btn-sm{padding:4px 10px;font-size:.78rem}
+#case-selector select{background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:.83rem;cursor:pointer;font-family:inherit}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:.82rem;cursor:pointer;font-weight:600;transition:all .15s;letter-spacing:.2px}
+.btn:hover{opacity:.88;transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn-sm{padding:4px 10px;font-size:.76rem}
 .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--muted)}
-.btn-ghost:hover{border-color:var(--accent);color:var(--accent);opacity:1}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent);opacity:1;background:rgba(196,122,90,0.06)}
 .btn-danger{background:var(--red)}
-#health-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0}
+#health-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0}
 #health-dot.ok{background:var(--green)}
 #health-dot.err{background:var(--red)}
+/* user avatar in header */
+#user-avatar{width:28px;height:28px;border-radius:50%;object-fit:cover;cursor:pointer;border:2px solid var(--border)}
+#user-info{display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--muted)}
 
 /* ── Main layout ── */
 #main{display:flex;flex:1;overflow:hidden}
 
 /* ── Left sidebar — Artifacts ── */
-#sidebar{width:300px;min-width:240px;max-width:400px;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;resize:horizontal;overflow:hidden}
+#sidebar{width:300px;min-width:240px;max-width:400px;background:var(--glass);backdrop-filter:blur(14px) saturate(150%);-webkit-backdrop-filter:blur(14px) saturate(150%);border-right:1px solid var(--glass-border);display:flex;flex-direction:column;resize:horizontal;overflow:hidden}
 #sidebar-header{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 #sidebar-header h2{font-size:.82rem;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
 #artifact-tabs{display:flex;gap:4px;padding:8px 10px;flex-shrink:0;border-bottom:1px solid var(--border)}
@@ -75,17 +113,17 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 
 /* ── Center — Chat ── */
 #chat-panel{flex:1;display:flex;flex-direction:column;min-width:0}
-#chat-header{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:var(--panel)}
+#chat-header{padding:10px 16px;border-bottom:1px solid var(--glass-border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
 #chat-header h2{font-size:.85rem;font-weight:600;color:var(--text)}
 #chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px}
 .msg{display:flex;gap:10px;max-width:100%}
 .msg.user{flex-direction:row-reverse}
 .msg-bubble{padding:10px 14px;border-radius:10px;font-size:.85rem;line-height:1.55;max-width:75%;word-wrap:break-word;white-space:pre-wrap}
-.msg.assistant .msg-bubble{background:var(--panel);border:1px solid var(--border)}
-.msg.user .msg-bubble{background:var(--accent);color:#fff}
-.msg-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;flex-shrink:0;margin-top:2px}
-.msg.assistant .msg-avatar{background:var(--accent2)}
-.msg.user .msg-avatar{background:var(--accent)}
+.msg.assistant .msg-bubble{background:var(--glass);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid var(--glass-border);box-shadow:var(--shadow)}
+.msg.user .msg-bubble{background:var(--user-bubble);border:1px solid rgba(196,122,90,0.25);color:var(--text)}
+.msg-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;flex-shrink:0;margin-top:2px}
+.msg.assistant .msg-avatar{background:linear-gradient(135deg,var(--accent2),var(--accent));color:#fff}
+.msg.user .msg-avatar{background:var(--accent);color:#fff}
 .msg-time{font-size:.65rem;color:var(--muted);margin-top:4px;display:block}
 .msg-actions{display:flex;gap:6px;margin-top:6px}
 .copy-btn{background:none;border:1px solid var(--border);color:var(--muted);border-radius:5px;padding:2px 8px;font-size:.68rem;cursor:pointer;transition:all .15s}
@@ -96,7 +134,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .thinking span:nth-child(2){animation-delay:.2s}
 .thinking span:nth-child(3){animation-delay:.4s}
 @keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-8px)}}
-#chat-input-area{padding:12px 16px;border-top:1px solid var(--border);background:var(--panel);flex-shrink:0}
+#chat-input-area{padding:12px 16px;border-top:1px solid var(--glass-border);background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);flex-shrink:0}
 #ctx-chips{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;min-height:0}
 .ctx-chip{background:var(--accent);color:#fff;border-radius:4px;padding:2px 8px;font-size:.7rem;display:flex;align-items:center;gap:4px;cursor:default}
 .ctx-chip button{background:none;border:none;color:#fff;cursor:pointer;font-size:.8rem;line-height:1;padding:0}
@@ -106,7 +144,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 #send-btn{padding:9px 16px;font-size:.85rem}
 
 /* ── Right panel — Viewer ── */
-#viewer-panel{width:380px;min-width:280px;background:var(--sidebar);border-left:1px solid var(--border);display:flex;flex-direction:column}
+#viewer-panel{width:380px;min-width:280px;background:var(--glass);backdrop-filter:blur(14px) saturate(150%);-webkit-backdrop-filter:blur(14px) saturate(150%);border-left:1px solid var(--glass-border);display:flex;flex-direction:column}
 #viewer-header{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 #viewer-header h2{font-size:.82rem;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
 #viewer-content{flex:1;overflow-y:auto;padding:14px;font-size:.78rem;line-height:1.6;white-space:pre-wrap;word-wrap:break-word}
@@ -115,9 +153,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .viewer-filename{font-size:.7rem;color:var(--accent);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
 
 /* ── Modal ── */
-.modal-overlay{position:fixed;inset:0;background:#0009;z-index:100;display:flex;align-items:center;justify-content:center}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:100;display:flex;align-items:center;justify-content:center}
 .modal-overlay.hidden{display:none}
-.modal{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:24px;width:480px;max-width:90vw;max-height:85vh;overflow-y:auto}
+.modal{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--glass-border);border-radius:16px;padding:24px;width:480px;max-width:90vw;max-height:85vh;overflow-y:auto;box-shadow:var(--shadow)}
 .modal h3{font-size:1rem;margin-bottom:16px;color:var(--accent)}
 .form-row{margin-bottom:12px}
 .form-row label{display:block;font-size:.78rem;color:var(--muted);margin-bottom:4px}
@@ -196,7 +234,12 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
       <option value="">— Seleccionar expediente —</option>
     </select>
     <button class="btn btn-sm" onclick="openNewCaseModal()">+ Expediente</button>
+    <button class="btn btn-ghost btn-sm" onclick="openDashboard()" title="Dashboard de costos">📊</button>
     <button class="btn btn-ghost btn-sm" id="theme-btn" onclick="toggleTheme()" title="Cambiar tema">☀</button>
+    <div id="user-info">
+      <img id="user-avatar" src="" alt="" style="display:none" onclick="confirmLogout()">
+      <span id="user-name-label" style="display:none"></span>
+    </div>
   </div>
 </div>
 
@@ -438,9 +481,125 @@ function closeSidebar() {
   document.getElementById('sidebar-backdrop').classList.remove('show');
 }
 
+// ── Auth ──────────────────────────────────────────────────
+let currentUser = null;
+
+function loginWithGoogle() {
+  window.location.href = `${API}/auth/google`;
+}
+
+async function confirmLogout() {
+  if (!confirm(`¿Cerrar sesión (${currentUser?.email})?`)) return;
+  await fetch(`${API}/auth/logout`, {method:'POST'});
+  currentUser = null;
+  showAuthOverlay();
+}
+
+function showAuthOverlay() {
+  const params = new URLSearchParams(window.location.search);
+  const err = params.get('auth_error');
+  if (err) {
+    const el = document.getElementById('auth-error-msg');
+    el.style.display = 'block';
+    el.textContent = `Error de autenticación: ${err}`;
+  }
+  document.getElementById('auth-overlay').style.display = 'flex';
+}
+
+function hideAuthOverlay() {
+  document.getElementById('auth-overlay').style.display = 'none';
+}
+
+function _setUserUI(user) {
+  const av = document.getElementById('user-avatar');
+  const nm = document.getElementById('user-name-label');
+  if (user.picture) { av.src = user.picture; av.style.display = 'block'; }
+  nm.textContent = user.name || user.email;
+  nm.style.display = 'inline';
+}
+
+async function checkAuth() {
+  try {
+    const r = await fetch(`${API}/auth/me`);
+    if (r.status === 401) { showAuthOverlay(); return false; }
+    currentUser = await r.json();
+    _setUserUI(currentUser);
+    hideAuthOverlay();
+    return true;
+  } catch {
+    showAuthOverlay();
+    return false;
+  }
+}
+
+// Interceptar 401 globales para redirigir al login
+const _origFetch = window.fetch;
+window.fetch = async function(...args) {
+  const r = await _origFetch(...args);
+  if (r.status === 401 && !args[0]?.toString().includes('/auth/')) {
+    showAuthOverlay();
+  }
+  return r;
+};
+
+// ── Dashboard ─────────────────────────────────────────────
+async function openDashboard() {
+  document.getElementById('dashboard-modal').classList.remove('hidden');
+  const el = document.getElementById('dashboard-content');
+  el.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px">Cargando...</div>';
+  try {
+    const r = await fetch(`${API}/dashboard/costs`);
+    const d = await r.json();
+    if (d.role === 'admin') {
+      const fmtUSD = v => `$${(+v).toFixed(4)} USD`;
+      const fmtTok = v => Number(v).toLocaleString();
+      let rows = (d.rows || []).map(r => `
+        <tr>
+          <td style="padding:8px 10px;font-size:.8rem">${esc(r.name)}</td>
+          <td style="padding:8px 10px;font-size:.75rem;color:var(--muted)">${esc(r.email)}</td>
+          <td style="padding:8px 10px;font-size:.78rem;text-align:right">${fmtTok(r.total_input)}</td>
+          <td style="padding:8px 10px;font-size:.78rem;text-align:right">${fmtTok(r.total_output)}</td>
+          <td style="padding:8px 10px;font-size:.8rem;text-align:right;color:var(--accent);font-weight:600">${fmtUSD(r.total_usd)}</td>
+        </tr>`).join('');
+      el.innerHTML = `
+        <div style="margin-bottom:14px;padding:14px;background:var(--hover);border-radius:10px;border:1px solid var(--border)">
+          <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Total acumulado (real)</div>
+          <div style="font-size:1.5rem;font-weight:700;color:var(--accent)">${fmtUSD(d.grand_total_usd)}</div>
+          <div style="font-size:.76rem;color:var(--muted);margin-top:4px">
+            In: ${fmtTok(d.grand_input_tokens)} · Out: ${fmtTok(d.grand_output_tokens)} · Cache: ${fmtTok(d.grand_cache_tokens)} tokens
+          </div>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-family:inherit">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border)">
+              <th style="padding:6px 10px;font-size:.72rem;color:var(--muted);text-align:left;text-transform:uppercase">Usuario</th>
+              <th style="padding:6px 10px;font-size:.72rem;color:var(--muted);text-align:left;text-transform:uppercase">Correo</th>
+              <th style="padding:6px 10px;font-size:.72rem;color:var(--muted);text-align:right;text-transform:uppercase">Tokens In</th>
+              <th style="padding:6px 10px;font-size:.72rem;color:var(--muted);text-align:right;text-transform:uppercase">Tokens Out</th>
+              <th style="padding:6px 10px;font-size:.72rem;color:var(--muted);text-align:right;text-transform:uppercase">Costo USD</th>
+            </tr>
+          </thead>
+          <tbody>${rows || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Sin datos aún</td></tr>'}</tbody>
+        </table>`;
+    } else {
+      const mxn = (+d.cost_mxn).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2});
+      el.innerHTML = `
+        <div style="text-align:center;padding:24px">
+          <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px">Tu consumo estimado</div>
+          <div style="font-size:2.4rem;font-weight:700;color:var(--accent)">$${mxn}</div>
+          <div style="font-size:.8rem;color:var(--muted);margin-top:8px">MXN (incluye servicio de IA)</div>
+        </div>`;
+    }
+  } catch (err) {
+    el.innerHTML = `<div style="color:var(--red);padding:16px">Error al cargar: ${esc(err.message)}</div>`;
+  }
+}
+
 // ── Init ─────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   _applyTheme(_resolvedTheme());
+  const authed = await checkAuth();
+  if (!authed) return;
   healthCheck();
   loadCases();
   setupUpload();
@@ -1274,6 +1433,47 @@ document.querySelectorAll('.modal-overlay').forEach(o => {
   o.addEventListener('click', e => { if (e.target === o) o.classList.add('hidden'); });
 });
 </script>
+<!-- Auth overlay -->
+<div id="auth-overlay" style="display:none;position:fixed;inset:0;z-index:500;background:var(--bg);
+  background-image:radial-gradient(ellipse at 20% 20%, rgba(196,122,90,0.12) 0%, transparent 55%),
+                   radial-gradient(ellipse at 80% 80%, rgba(139,92,246,0.08) 0%, transparent 55%);
+  display:none;flex-direction:column;align-items:center;justify-content:center;gap:28px">
+  <div style="text-align:center">
+    <div style="font-size:2rem;margin-bottom:8px">⚖️</div>
+    <h1 style="font-size:1.6rem;font-weight:700;color:var(--accent);letter-spacing:.3px">VILAR Legal OS</h1>
+    <p style="color:var(--muted);font-size:.88rem;margin-top:6px">Plataforma de análisis jurídico con IA</p>
+  </div>
+  <div style="background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    border:1px solid var(--glass-border);border-radius:20px;padding:36px 44px;
+    box-shadow:var(--shadow);text-align:center;max-width:380px;width:90vw">
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:24px;line-height:1.6">
+      Inicia sesión con tu cuenta de Google para acceder a tus expedientes.
+    </p>
+    <button onclick="loginWithGoogle()" style="display:inline-flex;align-items:center;gap:12px;
+      background:#fff;color:#3c4043;border:1px solid #dadce0;border-radius:10px;
+      padding:12px 24px;font-size:.9rem;font-weight:500;cursor:pointer;font-family:inherit;
+      transition:box-shadow .15s;width:100%;justify-content:center">
+      <img src="https://www.google.com/favicon.ico" width="18" height="18" alt="">
+      Continuar con Google
+    </button>
+    <div id="auth-error-msg" style="display:none;margin-top:14px;color:var(--red);font-size:.78rem"></div>
+  </div>
+  <p style="font-size:.72rem;color:var(--muted)">v59 · Solo usuarios autorizados</p>
+</div>
+
+<!-- Dashboard modal -->
+<div class="modal-overlay hidden" id="dashboard-modal">
+  <div class="modal" style="width:640px;max-width:96vw">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <h3 style="font-size:1rem;color:var(--accent)">📊 Dashboard de costos</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('dashboard-modal')">✕</button>
+    </div>
+    <div id="dashboard-content">
+      <div style="text-align:center;color:var(--muted);padding:20px">Cargando...</div>
+    </div>
+  </div>
+</div>
+
 <!-- Mobile viewer modal (direct child of body to avoid iOS overflow:hidden issues) -->
 <div id="mobile-viewer">
   <div id="mobile-viewer-header">

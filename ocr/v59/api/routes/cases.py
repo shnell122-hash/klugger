@@ -1,52 +1,74 @@
 import uuid
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, session
 from tools.db import query, execute
+from routes.auth import require_login
 
 cases_bp = Blueprint('cases', __name__)
+
+
+def _is_admin():
+    return session.get('user_role') == 'admin'
 
 
 @cases_bp.route('/api/cases', methods=['GET'])
 @cases_bp.route('/api/v1/cases', methods=['GET'])
 @cases_bp.route('/api/v1/matters', methods=['GET'])
+@require_login
 def list_cases():
-    rows = query(
-        "SELECT case_id, case_name, matter_type, status, created_at, updated_at "
-        "FROM cases ORDER BY updated_at DESC LIMIT 100",
-        many=True
-    )
+    if _is_admin():
+        rows = query(
+            "SELECT case_id, case_name, matter_type, status, created_at, updated_at, owner_email "
+            "FROM cases ORDER BY updated_at DESC LIMIT 100",
+            many=True
+        )
+    else:
+        email = session.get('user_email', '')
+        rows = query(
+            "SELECT case_id, case_name, matter_type, status, created_at, updated_at, owner_email "
+            "FROM cases WHERE owner_email=%s ORDER BY updated_at DESC LIMIT 100",
+            (email,), many=True
+        )
     return jsonify({"cases": rows or []})
 
 
 @cases_bp.route('/api/cases', methods=['POST'])
 @cases_bp.route('/api/v1/cases', methods=['POST'])
 @cases_bp.route('/api/v1/matters', methods=['POST'])
+@require_login
 def create_case():
-    body = request.get_json(force=True, silent=True) or {}
+    body  = request.get_json(force=True, silent=True) or {}
     name  = body.get('case_name', '').strip()
     mtype = body.get('matter_type', 'general').strip()
     if not name:
         return jsonify({"error": "case_name requerido"}), 400
 
-    cid = str(uuid.uuid4())
+    email = session.get('user_email', '')
+    cid   = str(uuid.uuid4())
     execute(
-        "INSERT INTO cases (case_id, case_name, matter_type, status) VALUES (%s,%s,%s,'active')",
-        (cid, name, mtype)
+        "INSERT INTO cases (case_id, case_name, matter_type, status, owner_email) "
+        "VALUES (%s,%s,%s,'active',%s)",
+        (cid, name, mtype, email)
     )
-    return jsonify({"case_id": cid, "case_name": name, "matter_type": mtype, "status": "active"}), 201
+    return jsonify({"case_id": cid, "case_name": name, "matter_type": mtype,
+                    "status": "active", "owner_email": email}), 201
 
 
 @cases_bp.route('/api/cases/<case_id>', methods=['GET'])
 @cases_bp.route('/api/v1/cases/<case_id>', methods=['GET'])
 @cases_bp.route('/api/v1/matters/<case_id>', methods=['GET'])
+@require_login
 def get_case(case_id):
     row = query("SELECT * FROM cases WHERE case_id=%s", (case_id,))
     if not row:
         return jsonify({"error": "Caso no encontrado"}), 404
+    if not _is_admin() and row.get('owner_email') != session.get('user_email'):
+        return jsonify({"error": "Sin acceso"}), 403
     return jsonify({"case": row})
 
 
 @cases_bp.route('/api/cases/<case_id>', methods=['PUT', 'PATCH'])
 @cases_bp.route('/api/v1/cases/<case_id>', methods=['PUT', 'PATCH'])
+@require_login
 def update_case(case_id):
     body = request.get_json(force=True, silent=True) or {}
     name   = body.get('case_name')
@@ -67,6 +89,7 @@ def update_case(case_id):
 
 @cases_bp.route('/api/cases/<case_id>', methods=['DELETE'])
 @cases_bp.route('/api/v1/cases/<case_id>', methods=['DELETE'])
+@require_login
 def delete_case(case_id):
     execute("DELETE FROM cases WHERE case_id=%s", (case_id,))
     return jsonify({"status": "deleted"})

@@ -1,15 +1,42 @@
-import os, json, traceback, threading, queue, time, logging
-from flask import Blueprint, request, Response, stream_with_context, jsonify
+import os, json, traceback, threading, queue, time, logging, uuid
+from flask import Blueprint, request, Response, stream_with_context, jsonify, session
 import anthropic
 
 from tools.db import query, execute
 from openclaw.tool_router import handle_tool
+from routes.auth import require_login
 
 chat_bp = Blueprint('chat', __name__)
 log = logging.getLogger('chat')
 
 # Señal que Claude emite al final de un turno masivo para auto-continuar
 _AUTO_CONTINUE = '↩️ Continúo'
+
+# Precios por token (claude-opus-4-6)
+_PRICE_INPUT      = 15.0  / 1_000_000   # $15 / MTok
+_PRICE_OUTPUT     = 75.0  / 1_000_000   # $75 / MTok
+_PRICE_CACHE_READ = 1.5   / 1_000_000   # $1.5 / MTok
+
+
+def _log_usage(user_id, case_id, model, usage):
+    """Registra uso de tokens + costo estimado en api_usage."""
+    if not user_id:
+        return
+    try:
+        inp   = getattr(usage, 'input_tokens', 0) or 0
+        out   = getattr(usage, 'output_tokens', 0) or 0
+        cache = getattr(usage, 'cache_read_input_tokens', 0) or 0
+        cost  = inp * _PRICE_INPUT + out * _PRICE_OUTPUT + cache * _PRICE_CACHE_READ
+        execute(
+            """INSERT INTO api_usage
+               (usage_id, user_id, case_id, model,
+                input_tokens, output_tokens, cache_read_tokens, cost_usd)
+               VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (str(uuid.uuid4()), user_id, case_id or None, model,
+             inp, out, cache, round(cost, 8))
+        )
+    except Exception as e:
+        log.warning('_log_usage failed: %s', e)
 
 SOUL_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)),
                          '..', 'openclaw', 'soul-v59.md')
@@ -241,7 +268,7 @@ def _get_case_inventory(case_id: str) -> str:
         return ""
 
 
-def _run_agentic_loop(client, model, max_tokens, system, init_messages, case_id, max_iterations=5):
+def _run_agentic_loop(client, model, max_tokens, system, init_messages, case_id, user_id=None, max_iterations=5):
     """
     Ejecuta el loop agéntico completo:
     1. Llama a Claude
@@ -279,6 +306,7 @@ def _run_agentic_loop(client, model, max_tokens, system, init_messages, case_id,
                  iteration, final_msg.stop_reason,
                  u.input_tokens, cached, u.output_tokens,
                  time.time() - t_round)
+        _log_usage(user_id, case_id, model, u)
 
         final_text += text_this_round
 
@@ -337,6 +365,7 @@ def clear_chat_history(case_id):
 
 
 @chat_bp.route('/api/chat', methods=['POST'])
+@require_login
 def chat():
     """Main chat endpoint with full agentic loop support."""
     body = request.get_json(force=True, silent=True) or {}
@@ -345,6 +374,7 @@ def chat():
     case_id       = body.get('case_id', '')
     artifact_type = body.get('artifact_type', 'analysis')
     selected_ids  = body.get('context_artifact_ids', body.get('selected_artifacts', []))
+    user_id       = session.get('user_id')
 
     if not message:
         return jsonify({"error": "message requerido"}), 400
@@ -399,6 +429,7 @@ def chat():
             system=system_blocks,
             init_messages=messages,
             case_id=case_id,
+            user_id=user_id,
         )
 
         log.info('chat done | %.2fs | words=%d', time.time() - t0, len(full_text.split()))
@@ -435,6 +466,7 @@ def chat():
 
 
 @chat_bp.route('/api/v1/chat/stream', methods=['POST'])
+@require_login
 def chat_stream():
     body = request.get_json(force=True, silent=True) or {}
     message       = body.get('message', '').strip()
@@ -442,6 +474,7 @@ def chat_stream():
     case_id       = body.get('case_id', '')
     artifact_type = body.get('artifact_type', 'analysis')
     selected_ids  = body.get('selected_artifacts', [])
+    user_id       = session.get('user_id')
 
     if not message:
         return jsonify({"error": "message requerido"}), 400
@@ -532,6 +565,7 @@ def chat_stream():
                          iteration, final_msg.stop_reason,
                          u.input_tokens, cached, u.output_tokens,
                          time.time() - t_round)
+                _log_usage(user_id, case_id, 'claude-opus-4-6', u)
 
                 if final_msg.stop_reason != 'tool_use':
                     # Detectar señal de auto-continuación (tareas masivas §11)
