@@ -1,4 +1,4 @@
-import os, json, traceback
+import os, json, traceback, threading, queue, time, logging
 from flask import Blueprint, request, Response, stream_with_context, jsonify
 import anthropic
 
@@ -6,6 +6,7 @@ from tools.db import query, execute
 from openclaw.tool_router import handle_tool
 
 chat_bp = Blueprint('chat', __name__)
+log = logging.getLogger('chat')
 
 SOUL_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)),
                          '..', 'openclaw', 'soul-v59.md')
@@ -155,6 +156,11 @@ def _get_specific_context(case_id: str, artifact_ids: list) -> str:
     return "\n".join(parts)
 
 
+def _make_system(text: str) -> list:
+    """Envuelve el system prompt en un bloque con prompt caching habilitado."""
+    return [{"type": "text", "text": text, "cache_control": {"type": "ephemeral"}}]
+
+
 def _run_agentic_loop(client, model, max_tokens, system, init_messages, case_id, max_iterations=5):
     """
     Ejecuta el loop agéntico completo:
@@ -166,9 +172,11 @@ def _run_agentic_loop(client, model, max_tokens, system, init_messages, case_id,
     messages = list(init_messages)
     final_text = ""
     all_tool_results = []
+    t0 = time.time()
 
-    for _ in range(max_iterations):
+    for iteration in range(max_iterations):
         text_this_round = ""
+        t_round = time.time()
 
         with client.messages.stream(
             model=model,
@@ -184,6 +192,13 @@ def _run_agentic_loop(client, model, max_tokens, system, init_messages, case_id,
                         and getattr(event.delta, 'type', None) == 'text_delta'):
                     text_this_round += event.delta.text
             final_msg = stream.get_final_message()
+
+        u = final_msg.usage
+        cached = getattr(u, 'cache_read_input_tokens', 0)
+        log.info('loop round=%d stop=%s in=%.0f cached=%.0f out=%.0f elapsed=%.2fs',
+                 iteration, final_msg.stop_reason,
+                 u.input_tokens, cached, u.output_tokens,
+                 time.time() - t_round)
 
         final_text += text_this_round
 
@@ -209,7 +224,9 @@ def _run_agentic_loop(client, model, max_tokens, system, init_messages, case_id,
         for b in final_msg.content:
             if b.type != 'tool_use':
                 continue
+            t_tool = time.time()
             result = handle_tool(b.name, dict(b.input), case_id)
+            log.info('tool %s took %.2fs', b.name, time.time() - t_tool)
             all_tool_results.append({"tool": b.name, "result": result})
             tool_result_content.append({
                 "type": "tool_result",
@@ -220,6 +237,7 @@ def _run_agentic_loop(client, model, max_tokens, system, init_messages, case_id,
         messages.append({"role": "assistant", "content": assistant_content})
         messages.append({"role": "user", "content": tool_result_content})
 
+    log.info('agentic_loop done total=%.2fs words=%d', time.time() - t0, len(final_text.split()))
     return final_text, all_tool_results
 
 
@@ -289,16 +307,19 @@ def chat():
 
     client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
 
+    t0 = time.time()
+    log.info('chat start | case=%s type=%s', case_id, artifact_type)
     try:
         full_text, tool_results = _run_agentic_loop(
             client=client,
             model="claude-opus-4-6",
             max_tokens=max_tokens,
-            system=system,
+            system=_make_system(system),
             init_messages=messages,
             case_id=case_id,
         )
 
+        log.info('chat done | %.2fs | words=%d', time.time() - t0, len(full_text.split()))
         if case_id and full_text:
             try:
                 execute(
@@ -309,8 +330,8 @@ def chat():
                     "INSERT INTO chat_history (case_id, role, content) VALUES (%s,'assistant',%s)",
                     (case_id, full_text)
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                log.error('chat_history save failed: %s', e)
 
         # Recargar artefactos si se guardó alguno
         saved = any(r.get('tool') == 'save_artifact' and r.get('result', {}).get('status') == 'saved'
@@ -380,17 +401,31 @@ def chat_stream():
     messages.append({"role": "user", "content": message})
 
     client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
+    system_blocks = _make_system(system)
+    q: queue.Queue = queue.Queue()   # ilimitado — worker escribe, SSE lee
+    t_start = time.time()
+    log.info('chat_stream start | case=%s type=%s', case_id, artifact_type)
 
-    def generate():
+    def worker():
+        """
+        Corre el loop agéntico en un hilo independiente.
+        Pone eventos en `q` para que el SSE los sirva.
+        Guarda en chat_history en el bloque `finally`,
+        independientemente de si el cliente sigue conectado.
+        """
+        accumulated: list[str] = []
+        t_first = [None]
+
         try:
             current_messages = list(messages)
-            for _ in range(5):
+            for iteration in range(5):
                 text_this_round = ""
+                t_round = time.time()
 
                 with client.messages.stream(
                     model="claude-opus-4-6",
                     max_tokens=max_tokens,
-                    system=system,
+                    system=system_blocks,
                     tools=TOOL_DEFS,
                     messages=current_messages,
                 ) as stream:
@@ -400,9 +435,20 @@ def chat_stream():
                                 and hasattr(event, 'delta')
                                 and getattr(event.delta, 'type', None) == 'text_delta'):
                             chunk = event.delta.text
+                            if t_first[0] is None:
+                                t_first[0] = time.time()
+                                log.info('first token %.2fs', t_first[0] - t_start)
                             text_this_round += chunk
-                            yield f"data: {json.dumps({'type': 'text', 'text': chunk})}\n\n"
+                            accumulated.append(chunk)
+                            q.put(('text', chunk))
                     final_msg = stream.get_final_message()
+
+                u = final_msg.usage
+                cached = getattr(u, 'cache_read_input_tokens', 0)
+                log.info('stream round=%d stop=%s in=%.0f cached=%.0f out=%.0f %.2fs',
+                         iteration, final_msg.stop_reason,
+                         u.input_tokens, cached, u.output_tokens,
+                         time.time() - t_round)
 
                 if final_msg.stop_reason != 'tool_use':
                     break
@@ -413,18 +459,18 @@ def chat_stream():
                         assistant_content.append({"type": "text", "text": b.text})
                     elif b.type == 'tool_use':
                         assistant_content.append({
-                            "type": "tool_use",
-                            "id": b.id,
-                            "name": b.name,
-                            "input": dict(b.input),
+                            "type": "tool_use", "id": b.id,
+                            "name": b.name, "input": dict(b.input),
                         })
 
                 tool_result_content = []
                 for b in final_msg.content:
                     if b.type != 'tool_use':
                         continue
+                    t_tool = time.time()
                     result = handle_tool(b.name, dict(b.input), case_id)
-                    yield f"data: {json.dumps({'type': 'tool_result', 'tool': b.name, 'result': result})}\n\n"
+                    log.info('tool %s %.2fs', b.name, time.time() - t_tool)
+                    q.put(('tool_result', {'tool': b.name, 'result': result}))
                     tool_result_content.append({
                         "type": "tool_result",
                         "tool_use_id": b.id,
@@ -435,13 +481,50 @@ def chat_stream():
                 current_messages.append({"role": "user", "content": tool_result_content})
 
         except anthropic.APIError as e:
-            yield f"data: {json.dumps({'type': 'error', 'text': f'API Error: {str(e)}'})}\n\n"
+            q.put(('error', f'API Error: {str(e)}'))
         except Exception:
             err = traceback.format_exc()
-            yield f"data: {json.dumps({'type': 'error', 'text': 'Error interno del servidor'})}\n\n"
-            print(err)
+            log.error('chat_stream worker:\n%s', err)
+            q.put(('error', 'Error interno del servidor'))
+        finally:
+            full_text = ''.join(accumulated)
+            # Guardar en DB siempre, aunque el cliente haya cerrado el tab
+            if case_id and full_text:
+                try:
+                    execute(
+                        "INSERT INTO chat_history (case_id, role, content) VALUES (%s,'user',%s)",
+                        (case_id, message)
+                    )
+                    execute(
+                        "INSERT INTO chat_history (case_id, role, content) VALUES (%s,'assistant',%s)",
+                        (case_id, full_text)
+                    )
+                    log.info('chat_history saved | words=%d | total=%.2fs',
+                             len(full_text.split()), time.time() - t_start)
+                except Exception as e:
+                    log.error('chat_history save failed: %s', e)
+            q.put(('done', None))
 
-        yield "data: [DONE]\n\n"
+    threading.Thread(target=worker, daemon=True).start()
+
+    def generate():
+        while True:
+            try:
+                type_, data = q.get(timeout=180)  # 3 min máximo entre eventos
+            except queue.Empty:
+                yield f"data: {json.dumps({'type': 'error', 'text': 'Timeout: sin respuesta en 3 minutos'})}\n\n"
+                break
+            if type_ == 'done':
+                yield "data: [DONE]\n\n"
+                break
+            elif type_ == 'error':
+                yield f"data: {json.dumps({'type': 'error', 'text': str(data)})}\n\n"
+                yield "data: [DONE]\n\n"
+                break
+            elif type_ == 'text':
+                yield f"data: {json.dumps({'type': 'text', 'text': data})}\n\n"
+            elif type_ == 'tool_result':
+                yield f"data: {json.dumps({'type': 'tool_result', 'tool': data['tool'], 'result': data['result']})}\n\n"
 
     return Response(
         stream_with_context(generate()),
