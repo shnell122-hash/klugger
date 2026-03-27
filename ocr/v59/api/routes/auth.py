@@ -10,7 +10,7 @@ log = logging.getLogger('auth')
 
 GOOGLE_CLIENT_ID     = '159215313260-v84tnd2m9r7tgg9b8efgqij6cpk1svnh.apps.googleusercontent.com'
 GOOGLE_CLIENT_SECRET = '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'
-GOOGLE_REDIRECT_URI  = os.getenv('GOOGLE_REDIRECT_URI', 'https://ocr.ruby.lease/OCR/v59/frontend/api/auth/google/callback')
+GOOGLE_REDIRECT_URI  = os.getenv('GOOGLE_REDIRECT_URI', 'https://ocr.ruby.lease/OCR/v59/api/auth/google/callback')
 
 # OAuth state stored server-side (avoids browser cookie issues during OAuth redirect)
 _OAUTH_STATES: dict = {}   # state_token -> created_at (epoch)
