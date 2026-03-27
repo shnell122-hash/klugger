@@ -11,6 +11,7 @@ from datetime import timedelta
 from flask import Flask
 from flask_cors import CORS
 from dotenv import load_dotenv
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
@@ -24,12 +25,16 @@ from routes.auth       import auth_bp, init_tables
 from routes.dashboard  import dashboard_bp
 
 app = Flask(__name__)
+# Trust Apache reverse-proxy headers (X-Forwarded-Proto, X-Forwarded-Host)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_prefix=1)
 
-# Session config
-app.secret_key = os.getenv('FLASK_SECRET_KEY', 'vilar-legal-os-v59-change-me')
+# Session config — fall back to built-in default even if env var is empty
+_secret = (os.getenv('FLASK_SECRET_KEY') or '').strip()
+app.secret_key = _secret or 'vilar-legal-os-v59-change-me'
 app.config['SESSION_COOKIE_HTTPONLY']  = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE']   = os.getenv('SESSION_COOKIE_SECURE', 'false').lower() == 'true'
+app.config['SESSION_COOKIE_SECURE']   = False   # Apache terminates TLS; Flask sees plain HTTP
+app.config['SESSION_COOKIE_PATH']     = '/'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 
 CORS(app, resources={r"/api/*": {"origins": "*"}})

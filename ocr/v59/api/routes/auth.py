@@ -79,7 +79,11 @@ def google_callback():
     if err:
         return redirect(f"/OCR/v59/?auth_error={err}")
 
-    if request.args.get('state', '') != session.pop('oauth_state', None):
+    got_state      = request.args.get('state', '')
+    expected_state = session.pop('oauth_state', None)
+    if got_state != expected_state:
+        log.warning('state_mismatch got=%s expected=%s session_keys=%s',
+                    got_state[:8] if got_state else '', expected_state, list(session.keys()))
         return redirect("/OCR/v59/?auth_error=state_mismatch")
 
     code = request.args.get('code', '')
@@ -138,7 +142,7 @@ def google_callback():
     session['user_name']  = name
     session['user_pic']   = picture
     session['user_role']  = role
-    log.info('login ok: %s (%s)', email, role)
+    log.info('login ok: %s (%s) user_id=%s session_keys=%s', email, role, user_id, list(session.keys()))
     return redirect('/OCR/v59/')
 
 
