@@ -270,9 +270,9 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
     <div id="artifact-list"></div>
     <label id="upload-drop" for="upload-input">
       <div>📎 Arrastra archivos o haz clic</div>
-      <div style="font-size:.68rem;margin-top:3px">PDF · JPG · PNG · DOCX · TXT</div>
+      <div style="font-size:.68rem;margin-top:3px">PDF · JPG · PNG · DOCX · TXT · ZIP</div>
     </label>
-    <input type="file" id="upload-input" multiple accept=".pdf,.jpg,.jpeg,.png,.docx,.txt,.doc">
+    <input type="file" id="upload-input" multiple accept=".pdf,.jpg,.jpeg,.png,.docx,.txt,.doc,.zip">
     <div id="artifact-actions">
       <button class="btn btn-ghost btn-sm" style="flex:1" onclick="selectAllArtifacts()">Todos al ctx</button>
       <button class="btn btn-ghost btn-sm" style="flex:1" onclick="clearContext()">Limpiar ctx</button>
@@ -1054,29 +1054,36 @@ function setupUpload() {
 async function uploadFiles(files) {
   if (!currentCase) { toast('Selecciona un expediente primero', 'error'); return; }
   const prog = document.getElementById('upload-progress');
-  const bar = document.getElementById('upload-bar');
-  const txt = document.getElementById('upload-progress-text');
+  const bar  = document.getElementById('upload-bar');
+  const txt  = document.getElementById('upload-progress-text');
   prog.style.display = 'block';
-  let done = 0;
-  for (const file of files) {
-    txt.textContent = `Subiendo ${file.name}…`;
-    bar.style.width = Math.round((done / files.length) * 100) + '%';
-    const fd = new FormData();
-    fd.append('file', file);
-    fd.append('case_id', currentCase.case_id);
-    try {
-      const r = await fetch(`${API}/upload`, {method:'POST', body: fd});
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || 'Error');
-    } catch(e) {
-      toast(`Error: ${e.message}`, 'error');
+  bar.style.width = '30%';
+  const n = files.length;
+  txt.textContent = n === 1 ? `Subiendo ${files[0].name}…` : `Subiendo ${n} archivos…`;
+
+  // Enviar todos en un solo request (mucho más rápido que N requests)
+  const fd = new FormData();
+  fd.append('case_id', currentCase.case_id);
+  for (const f of files) fd.append('files', f);
+
+  let ok = 0, errs = [];
+  try {
+    bar.style.width = '60%';
+    const r = await fetch(`${API}/upload`, {method:'POST', body: fd});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+    for (const res of (d.results || [])) {
+      if (res.status === 'ok') ok++;
+      else if (res.error) errs.push(`${res.filename}: ${res.error}`);
     }
-    done++;
+  } catch(e) {
+    toast(`Error al subir: ${e.message}`, 'error');
   }
   bar.style.width = '100%';
-  setTimeout(() => { prog.style.display = 'none'; bar.style.width = '0'; }, 800);
+  setTimeout(() => { prog.style.display = 'none'; bar.style.width = '0'; }, 700);
   await loadArtifacts();
-  toast(`${done} archivo(s) subido(s)`, 'success');
+  if (ok)   toast(`${ok} archivo(s) subido(s)`, 'success');
+  if (errs.length) errs.forEach(e => toast(e, 'error'));
 }
 
 // ── Chat ──────────────────────────────────────────────────
@@ -1099,12 +1106,17 @@ async function loadChatHistory() {
 }
 
 const TOOL_LABELS = {
-  'save_artifact':    '💾 Guardando artefacto',
-  'generate_image':   '🎨 Generando imagen',
-  'create_case':      '📁 Creando expediente',
-  'search_precedents':'🔍 Buscando precedentes',
-  'validate_document':'✅ Validando documento',
-  'export_to_jotform':'📤 Exportando a JotForm',
+  'save_artifact':     '💾 Guardando artefacto',
+  'generate_image':    '🎨 Generando imagen',
+  'create_case':       '📁 Creando expediente',
+  'search_precedents': '🔍 Buscando precedentes',
+  'validate_document': '✅ Validando documento',
+  'export_to_jotform': '📤 Exportando a JotForm',
+  'list_case_contents':'📂 Revisando expediente',
+  'save_session_notes':'📝 Guardando notas',
+  'read_file':         '📄 Leyendo documento',
+  'bash':              '⚙️ Ejecutando comando',
+  'search':            '🔍 Buscando información',
 };
 
 async function sendMessage(e) {
@@ -1251,12 +1263,37 @@ async function sendMessage(e) {
     scrollChat();
 
   } catch(err) {
-    bubble.innerHTML = `<span style="color:var(--red)">Error: ${esc(err.message)}</span>`;
+    // iOS Safari mata la conexión cuando la app va a background → "Load failed"
+    const isNetworkAbort = /load failed|network|aborted|failed to fetch/i.test(err.message);
+    if (isNetworkAbort && fullText) {
+      // Ya había texto parcial — renderizarlo y marcar como interrumpido
+      bubble.innerHTML = mdToHtml(fullText) +
+        '<div style="font-size:.7rem;color:var(--muted);margin-top:6px">⚠️ Conexión interrumpida — respuesta parcial</div>';
+      _msgStore.set(mid, fullText);
+      chatHistory.push({role:'assistant', content: fullText});
+    } else if (isNetworkAbort) {
+      bubble.innerHTML = '<span style="color:var(--muted)">⚠️ Conexión interrumpida. Recargando historial…</span>';
+      setTimeout(() => loadChatHistory(), 1500);
+    } else {
+      bubble.innerHTML = `<span style="color:var(--red)">Error: ${esc(err.message)}</span>`;
+    }
     scrollChat();
   } finally {
     _currentSectionText = '';
   }
 }
+
+// Recuperar historial al volver a la página (iOS background kill)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && currentCase) {
+    // Si el último mensaje muestra un error de red, recargar historial
+    const bubbles = document.querySelectorAll('.msg-bubble');
+    const last = bubbles[bubbles.length - 1];
+    if (last && (last.textContent.includes('Conexión interrumpida') || last.textContent.includes('Load failed'))) {
+      setTimeout(() => loadChatHistory(), 800);
+    }
+  }
+});
 
 // Texto acumulado de la sección actual de streaming
 let _currentSectionText = '';
