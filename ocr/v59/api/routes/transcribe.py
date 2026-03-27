@@ -11,10 +11,12 @@ Flujo:
   7. Job en memoria para polling de progreso desde el frontend
 """
 
-import os, uuid, hashlib, subprocess, tempfile, threading, shutil
+import os, uuid, hashlib, subprocess, tempfile, threading, shutil, logging
 from pathlib import Path
 from flask import Blueprint, request, jsonify
 from tools.db import execute
+
+log = logging.getLogger('transcribe')
 
 transcribe_bp = Blueprint('transcribe', __name__)
 
@@ -107,18 +109,22 @@ def _ytdlp_args(extra: list) -> list:
 
 def _run_transcription(job_id, case_id, url, language, openai_key):
     tmp = tempfile.mkdtemp(prefix='vilar_tx_')
+    log.info('[%s] Iniciando transcripción | case=%s url=%s', job_id[:8], case_id, url)
     try:
         # ── 1. Obtener título ────────────────────────────────────────────
         _upd(job_id, 'downloading', 3, 'Obteniendo información del video...')
+        log.info('[%s] Obteniendo título...', job_id[:8])
         title_proc = subprocess.run(
             _ytdlp_args(['--get-title', url]),
             capture_output=True, text=True, timeout=60
         )
         video_title = title_proc.stdout.strip()[:120] or 'Video'
+        log.info('[%s] Título: %s', job_id[:8], video_title)
 
         # ── 2. Descargar audio ───────────────────────────────────────────
         _upd(job_id, 'downloading', 8,
              f'Descargando audio: {video_title}...')
+        log.info('[%s] Descargando audio...', job_id[:8])
         raw_out = os.path.join(tmp, 'raw.%(ext)s')
         dl = subprocess.run(
             _ytdlp_args([
@@ -131,6 +137,7 @@ def _run_transcription(job_id, case_id, url, language, openai_key):
         )
         if dl.returncode != 0:
             stderr = dl.stderr or ''
+            log.error('[%s] yt-dlp error (code %d): %s', job_id[:8], dl.returncode, stderr[-300:])
             # Mensaje de error accionable para el usuario
             if 'Sign in to confirm' in stderr or 'bot' in stderr.lower():
                 raise RuntimeError(
@@ -149,9 +156,12 @@ def _run_transcription(job_id, case_id, url, language, openai_key):
         if not raw_files:
             raise RuntimeError('yt-dlp no generó archivo de audio')
         raw_path = str(raw_files[0])
+        log.info('[%s] Audio descargado: %s (%.1f MB)', job_id[:8], raw_path,
+                 os.path.getsize(raw_path) / 1_048_576)
 
         # ── 3. Convertir a MP3 mono 32kbps 16kHz ────────────────────────
         _upd(job_id, 'processing', 25, 'Convirtiendo y comprimiendo audio...')
+        log.info('[%s] Convirtiendo a MP3 mono 32kbps...', job_id[:8])
         converted = os.path.join(tmp, 'converted.mp3')
         subprocess.run(
             ['ffmpeg', '-y', '-i', raw_path,
@@ -161,9 +171,12 @@ def _run_transcription(job_id, case_id, url, language, openai_key):
              converted],
             capture_output=True, timeout=600, check=True
         )
+        log.info('[%s] Conversión lista: %.1f MB', job_id[:8],
+                 os.path.getsize(converted) / 1_048_576)
 
         # ── 4. Dividir en chunks de 25 min ───────────────────────────────
         _upd(job_id, 'processing', 35, 'Dividiendo en segmentos...')
+        log.info('[%s] Dividiendo en chunks de %d seg...', job_id[:8], CHUNK_SEC)
         chunks_pat = os.path.join(tmp, 'chunk_%04d.mp3')
         subprocess.run(
             ['ffmpeg', '-y', '-i', converted,
@@ -180,6 +193,7 @@ def _run_transcription(job_id, case_id, url, language, openai_key):
             chunk_files = [Path(converted)]
 
         total = len(chunk_files)
+        log.info('[%s] %d chunk(s) detectados', job_id[:8], total)
         _upd(job_id, 'transcribing', 38,
              f'{total} segmento(s) detectado(s). Transcribiendo con Whisper...')
 
@@ -192,6 +206,8 @@ def _run_transcription(job_id, case_id, url, language, openai_key):
             pct = 38 + int(50 * (i / total))
             _upd(job_id, 'transcribing', pct,
                  f'Segmento {i + 1}/{total} — Whisper procesando...')
+            log.info('[%s] Whisper chunk %d/%d (%.1f MB)...', job_id[:8], i + 1, total,
+                     os.path.getsize(str(chunk_path)) / 1_048_576)
 
             offset_sec = i * CHUNK_SEC
             h  = offset_sec // 3600
@@ -206,12 +222,15 @@ def _run_transcription(job_id, case_id, url, language, openai_key):
                     response_format='text',
                 )
             chunk_text = (resp if isinstance(resp, str) else getattr(resp, 'text', str(resp))).strip()
+            log.info('[%s] Chunk %d/%d listo: %d palabras', job_id[:8], i + 1, total,
+                     len(chunk_text.split()))
             transcript_parts.append(f'{ts}\n{chunk_text}')
 
         full_transcript = '\n\n'.join(transcript_parts)
 
         # ── 6. Guardar audio completo en uploads/ ────────────────────────
         _upd(job_id, 'saving', 90, 'Guardando audio en expediente...')
+        log.info('[%s] Guardando audio y transcripción en DB...', job_id[:8])
         audio_art_id = str(uuid.uuid4())
         audio_dest   = os.path.join(UPLOAD_DIR, f'{audio_art_id}.mp3')
         shutil.copy2(converted, audio_dest)
@@ -256,6 +275,7 @@ def _run_transcription(job_id, case_id, url, language, openai_key):
         )
 
         word_count = len(full_transcript.split())
+        log.info('[%s] COMPLETADO — %d palabras en %d segmento(s)', job_id[:8], word_count, total)
         _jobs[job_id].update(
             status='done', progress=100,
             message=f'Listo — {word_count:,} palabras transcritas en {total} segmento(s)',
@@ -269,9 +289,12 @@ def _run_transcription(job_id, case_id, url, language, openai_key):
     except subprocess.CalledProcessError as e:
         err = (e.stderr or b'').decode('utf-8', errors='replace')[-400:] if isinstance(e.stderr, bytes) \
               else str(e.stderr or '')[-400:]
+        log.error('[%s] CalledProcessError: %s', job_id[:8], err or str(e))
         _jobs[job_id].update(status='error', progress=0,
                              error=f'Error de procesamiento: {err or str(e)}')
     except Exception as e:
+        log.error('[%s] Exception: %s', job_id[:8], str(e), exc_info=True)
         _jobs[job_id].update(status='error', progress=0, error=str(e))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
+        log.info('[%s] Directorio temporal limpiado', job_id[:8])
