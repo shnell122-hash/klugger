@@ -463,9 +463,7 @@ let chatHistory = [];
 
 // ── Theme ─────────────────────────────────────────────────
 function _resolvedTheme() {
-  const saved = localStorage.getItem('theme');
-  if (saved) return saved;
-  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  return localStorage.getItem('theme') || 'light';
 }
 function _applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
