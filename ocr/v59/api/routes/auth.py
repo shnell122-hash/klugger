@@ -10,7 +10,7 @@ log = logging.getLogger('auth')
 
 GOOGLE_CLIENT_ID     = '159215313260-v84tnd2m9r7tgg9b8efgqij6cpk1svnh.apps.googleusercontent.com'
 GOOGLE_CLIENT_SECRET = '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'
-GOOGLE_REDIRECT_URI  = os.getenv('GOOGLE_REDIRECT_URI', 'https://ocr.ruby.lease/OCR/v59/api/auth/google/callback')
+GOOGLE_REDIRECT_URI  = os.getenv('GOOGLE_REDIRECT_URI', 'https://ocr.ruby.lease/OCR/v59/frontend/api/auth/google/callback')
 
 # OAuth state stored server-side (avoids browser cookie issues during OAuth redirect)
 _OAUTH_STATES: dict = {}   # state_token -> created_at (epoch)
@@ -84,17 +84,17 @@ def google_login():
 def google_callback():
     err = request.args.get('error')
     if err:
-        return redirect(f"/OCR/v59/?auth_error={err}")
+        return redirect(f"/OCR/v59/frontend/?auth_error={err}")
 
     got_state = request.args.get('state', '')
     if got_state not in _OAUTH_STATES:
         log.warning('state_mismatch got=%s known_states=%d', got_state[:8], len(_OAUTH_STATES))
-        return redirect("/OCR/v59/?auth_error=state_mismatch")
+        return redirect("/OCR/v59/frontend/?auth_error=state_mismatch")
     del _OAUTH_STATES[got_state]
 
     code = request.args.get('code', '')
     if not code:
-        return redirect("/OCR/v59/?auth_error=no_code")
+        return redirect("/OCR/v59/frontend/?auth_error=no_code")
 
     # Intercambiar código por token
     try:
@@ -109,7 +109,7 @@ def google_callback():
         access_token = token_resp.json().get('access_token', '')
     except Exception as e:
         log.error('token exchange failed: %s', e)
-        return redirect("/OCR/v59/?auth_error=token_exchange")
+        return redirect("/OCR/v59/frontend/?auth_error=token_exchange")
 
     # Obtener datos del usuario
     try:
@@ -121,11 +121,11 @@ def google_callback():
         info = user_resp.json()
     except Exception as e:
         log.error('userinfo failed: %s', e)
-        return redirect("/OCR/v59/?auth_error=userinfo")
+        return redirect("/OCR/v59/frontend/?auth_error=userinfo")
 
     email = info.get('email', '').lower()
     if not email:
-        return redirect("/OCR/v59/?auth_error=no_email")
+        return redirect("/OCR/v59/frontend/?auth_error=no_email")
 
     name    = info.get('name', '')
     picture = info.get('picture', '')
@@ -149,7 +149,7 @@ def google_callback():
     session['user_pic']   = picture
     session['user_role']  = role
     log.info('login ok: %s (%s) user_id=%s session_keys=%s', email, role, user_id, list(session.keys()))
-    return redirect('/OCR/v59/')
+    return redirect('/OCR/v59/frontend/')
 
 
 @auth_bp.route('/api/auth/logout', methods=['POST'])
