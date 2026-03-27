@@ -213,8 +213,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
       <button class="btn btn-ghost btn-sm" style="flex:1" onclick="selectAllArtifacts()">Todos al ctx</button>
       <button class="btn btn-ghost btn-sm" style="flex:1" onclick="clearContext()">Limpiar ctx</button>
     </div>
-    <div style="padding:6px 10px 10px;border-top:1px solid var(--border);flex-shrink:0">
+    <div style="padding:6px 10px 10px;border-top:1px solid var(--border);flex-shrink:0;display:flex;flex-direction:column;gap:5px">
       <button class="btn btn-sm" style="width:100%;background:var(--accent2)" onclick="openImagenModal()">📷 Generar imagen</button>
+      <button class="btn btn-sm" style="width:100%;background:var(--green);color:#000" onclick="openTranscribeModal()">🎙 Transcribir video</button>
     </div>
   </div>
 
@@ -297,6 +298,44 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 
 <!-- Toast -->
 <div id="toast"></div>
+
+<!-- Modal: transcribir video -->
+<div class="modal-overlay hidden" id="transcribe-modal">
+  <div class="modal" style="width:540px">
+    <h3>🎙 Transcribir video / audio</h3>
+    <p style="font-size:.78rem;color:var(--muted);margin-bottom:14px">
+      YouTube · TikTok · Vimeo · Google Drive (público) · y más.<br>
+      Audiencias de hasta 3+ horas. El audio se guarda en el expediente.
+    </p>
+    <div class="form-row">
+      <label>URL del video *</label>
+      <input type="url" id="tx-url" placeholder="https://www.youtube.com/watch?v=...">
+    </div>
+    <div class="form-row">
+      <label>Idioma del audio</label>
+      <select id="tx-lang">
+        <option value="es" selected>Español</option>
+        <option value="en">English</option>
+        <option value="auto">Auto-detectar</option>
+        <option value="fr">Français</option>
+        <option value="pt">Português</option>
+      </select>
+    </div>
+    <div id="tx-progress-wrap" style="display:none;margin-top:10px">
+      <div id="tx-status" style="font-size:.78rem;color:var(--muted);margin-bottom:6px">Iniciando...</div>
+      <div style="background:var(--bg);border-radius:4px;height:8px;overflow:hidden">
+        <div id="tx-bar" style="height:100%;background:var(--green);width:0;transition:width .4s;border-radius:4px"></div>
+      </div>
+      <div id="tx-pct" style="font-size:.7rem;color:var(--muted);text-align:right;margin-top:3px">0%</div>
+    </div>
+    <div id="tx-result" style="display:none;margin-top:10px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;font-size:.75rem;line-height:1.5;max-height:160px;overflow-y:auto;white-space:pre-wrap"></div>
+    <div id="tx-error" style="display:none;margin-top:8px;color:var(--red);font-size:.78rem"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('transcribe-modal')">Cerrar</button>
+      <button class="btn" style="background:var(--green);color:#000" id="tx-btn" onclick="startTranscription()">Transcribir</button>
+    </div>
+  </div>
+</div>
 
 <!-- Modal: generar imagen -->
 <div class="modal-overlay hidden" id="imagen-modal">
@@ -917,6 +956,93 @@ function mdToHtml(s) {
 }
 
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+// ── Video transcription ───────────────────────────────────
+let _txPollTimer = null;
+
+function openTranscribeModal() {
+  if (!currentCase) { toast('Selecciona un expediente primero', 'error'); return; }
+  document.getElementById('tx-url').value = '';
+  document.getElementById('tx-progress-wrap').style.display = 'none';
+  document.getElementById('tx-result').style.display = 'none';
+  document.getElementById('tx-error').style.display = 'none';
+  document.getElementById('tx-bar').style.width = '0';
+  document.getElementById('tx-btn').disabled = false;
+  document.getElementById('tx-btn').textContent = 'Transcribir';
+  document.getElementById('transcribe-modal').classList.remove('hidden');
+}
+
+async function startTranscription() {
+  const url  = document.getElementById('tx-url').value.trim();
+  const lang = document.getElementById('tx-lang').value;
+  if (!url) { toast('Pega la URL del video primero', 'error'); return; }
+
+  const btn = document.getElementById('tx-btn');
+  btn.disabled = true;
+  btn.textContent = 'Procesando...';
+  document.getElementById('tx-error').style.display = 'none';
+  document.getElementById('tx-result').style.display = 'none';
+  document.getElementById('tx-progress-wrap').style.display = 'block';
+  _txSetProgress(3, 'Iniciando...');
+
+  try {
+    const r = await fetch(`${API}/transcribe`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ case_id: currentCase.case_id, url, language: lang })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+    _txPoll(d.job_id);
+  } catch(e) {
+    _txError(e.message);
+    btn.disabled = false;
+    btn.textContent = 'Transcribir';
+  }
+}
+
+function _txSetProgress(pct, msg) {
+  document.getElementById('tx-bar').style.width = pct + '%';
+  document.getElementById('tx-pct').textContent = pct + '%';
+  document.getElementById('tx-status').textContent = msg;
+}
+
+function _txError(msg) {
+  const el = document.getElementById('tx-error');
+  el.textContent = 'Error: ' + msg;
+  el.style.display = 'block';
+  _txSetProgress(0, 'Error');
+  document.getElementById('tx-btn').disabled = false;
+  document.getElementById('tx-btn').textContent = 'Reintentar';
+  if (_txPollTimer) { clearTimeout(_txPollTimer); _txPollTimer = null; }
+}
+
+function _txPoll(jobId) {
+  _txPollTimer = setTimeout(async () => {
+    try {
+      const r = await fetch(`${API}/transcribe/${jobId}`);
+      const d = await r.json();
+      _txSetProgress(d.progress || 0, d.message || '...');
+
+      if (d.status === 'done') {
+        const resultEl = document.getElementById('tx-result');
+        resultEl.textContent = `✓ ${d.message}\n\nTítulo: ${d.title || ''}\nSegmentos: ${d.segments || ''}\nPalabras: ${(d.word_count||0).toLocaleString()}`;
+        resultEl.style.display = 'block';
+        document.getElementById('tx-btn').disabled = false;
+        document.getElementById('tx-btn').textContent = 'Nueva transcripción';
+        await loadArtifacts();
+        switchArtifactTab('system');
+        toast('Transcripción lista — ver pestaña Generados', 'success');
+      } else if (d.status === 'error') {
+        _txError(d.error || 'Error desconocido');
+      } else {
+        _txPoll(jobId);  // sigue polling
+      }
+    } catch(e) {
+      _txPoll(jobId);    // reintento silencioso en error de red
+    }
+  }, 2500);
+}
 
 // ── Image generation ──────────────────────────────────────
 function openImagenModal() {
