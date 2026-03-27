@@ -23,7 +23,7 @@ def list_artifacts_by_case(case_id):
                       uploaded_at AS created_at,
                       'user' AS source, NULL AS artifact_type
                FROM user_artifacts
-               WHERE case_id=%s AND COALESCE(source,'user')='user'
+               WHERE case_id=%s AND COALESCE(source,'') != 'system'
                ORDER BY uploaded_at DESC
                LIMIT %s""",
             (case_id, limit), many=True
@@ -112,7 +112,7 @@ def list_artifacts():
                       uploaded_at AS created_at,
                       'user' AS source, NULL AS artifact_type
                FROM user_artifacts
-               WHERE case_id=%s AND COALESCE(source,'user')='user'
+               WHERE case_id=%s AND COALESCE(source,'') != 'system'
                ORDER BY uploaded_at DESC
                LIMIT %s""",
             (case_id, limit), many=True
