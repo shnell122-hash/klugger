@@ -157,11 +157,13 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 #theme-btn{font-size:.9rem;padding:5px 9px}
 
 /* ── Responsive ── */
-@media(max-width:900px){
-  #viewer-panel{display:none}
-  #viewer-panel.mobile-open{display:flex;position:fixed;inset:0;z-index:60;width:100%!important;min-width:unset;flex-direction:column}
-  #viewer-close-mobile{display:flex!important}
-}
+@media(max-width:900px){#viewer-panel{display:none}}
+/* ── Mobile viewer modal ── */
+#mobile-viewer{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:var(--sidebar);z-index:200;flex-direction:column;-webkit-overflow-scrolling:touch}
+#mobile-viewer.open{display:flex}
+#mobile-viewer-header{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:var(--sidebar)}
+#mobile-viewer-content{flex:1;overflow-y:auto;padding:14px;font-size:.78rem;line-height:1.6;white-space:pre-wrap;word-wrap:break-word;-webkit-overflow-scrolling:touch}
+#mobile-viewer-content img{max-width:100%;border-radius:6px;margin:4px 0}
 @media(max-width:640px){
   #sidebar-toggle{display:flex}
   #sidebar{position:fixed;top:0;bottom:0;left:0;z-index:50;width:85vw!important;max-width:320px;min-width:unset;transform:translateX(-100%);transition:transform .25s ease;resize:none}
@@ -262,10 +264,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   <div id="viewer-panel">
     <div id="viewer-header">
       <h2>Visor</h2>
-      <div style="display:flex;gap:4px;align-items:center">
-        <button id="viewer-close-mobile" class="btn btn-ghost btn-sm" style="display:none" onclick="clearViewer()">✕ Cerrar</button>
-        <button class="btn btn-ghost btn-sm" onclick="clearViewer()">✕</button>
-      </div>
+      <button class="btn btn-ghost btn-sm" onclick="clearViewer()">✕</button>
     </div>
     <div id="viewer-content" class="empty">Selecciona un archivo para visualizarlo</div>
   </div>
@@ -633,12 +632,21 @@ function updateCtxCounter() {
   document.getElementById('ctx-counter').textContent = `${ctxIds.size} en contexto`;
 }
 
+function closeMobileViewer() {
+  document.getElementById('mobile-viewer').classList.remove('open');
+}
+
 async function viewArtifact(id) {
   const all = [...artifacts.user, ...artifacts.system];
   const a = all.find(x => x.artifact_id === id);
   if (!a) return;
-  if (window.innerWidth <= 900) document.getElementById('viewer-panel').classList.add('mobile-open');
-  const vc = document.getElementById('viewer-content');
+  let vc;
+  if (window.innerWidth <= 900) {
+    document.getElementById('mobile-viewer').classList.add('open');
+    vc = document.getElementById('mobile-viewer-content');
+  } else {
+    vc = document.getElementById('viewer-content');
+  }
   vc.className = '';
   const name = a.filename || a.artifact_name || 'Archivo';
 
@@ -716,7 +724,6 @@ async function deleteArtifact(id) {
 }
 
 function clearViewer() {
-  document.getElementById('viewer-panel').classList.remove('mobile-open');
   const vc = document.getElementById('viewer-content');
   vc.className = 'empty';
   vc.textContent = 'Selecciona un archivo para visualizarlo';
@@ -1267,5 +1274,13 @@ document.querySelectorAll('.modal-overlay').forEach(o => {
   o.addEventListener('click', e => { if (e.target === o) o.classList.add('hidden'); });
 });
 </script>
+<!-- Mobile viewer modal (direct child of body to avoid iOS overflow:hidden issues) -->
+<div id="mobile-viewer">
+  <div id="mobile-viewer-header">
+    <span style="font-size:.82rem;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)">Visor</span>
+    <button class="btn btn-ghost btn-sm" onclick="closeMobileViewer()">✕ Cerrar</button>
+  </div>
+  <div id="mobile-viewer-content"></div>
+</div>
 </body>
 </html>
