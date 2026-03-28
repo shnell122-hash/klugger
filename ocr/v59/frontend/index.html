@@ -1165,10 +1165,9 @@ function _copyShareUrl(url) {
     setTimeout(() => div.remove(), 8000);
   };
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(url).then(finish).catch(() => { _fallbackCopy(url); finish(); });
+    navigator.clipboard.writeText(url).then(finish).catch(() => _fallbackCopy(url, finish));
   } else {
-    _fallbackCopy(url);
-    finish();
+    _fallbackCopy(url, finish);
   }
 }
 
@@ -1708,7 +1707,7 @@ function _fallbackCopy(text, cb) {
   ta.focus();
   ta.select();
   ta.setSelectionRange(0, 99999);
-  try { document.execCommand('copy'); cb(); } catch(e) { toast('No se pudo copiar', 'error'); }
+  try { document.execCommand('copy'); if (cb) cb(); } catch(e) { toast('No se pudo copiar', 'error'); }
   document.body.removeChild(ta);
 }
 
