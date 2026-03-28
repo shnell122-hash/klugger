@@ -1499,28 +1499,45 @@ async function sendMessage(e) {
   e.preventDefault();
   if (_isStreaming) return;
   const inp = document.getElementById('chat-input');
-  const text = inp.value.trim();
-  if (!text) return;
+  const rawText = inp.value.trim();
+  if (!rawText) return;
 
   // ── Interceptar comando de contexto ──────────────────────────────────────
-  const ctxSpec = _parseCtxCommand(text);
+  // Caso 1: el mensaje completo es un comando de contexto
+  // Caso 2: la primera oración es el comando + el resto se envía a Claude
+  let ctxSpec  = _parseCtxCommand(rawText);
+  let chatText = ctxSpec ? null : rawText;   // null = no enviar a Claude
+
+  if (!ctxSpec) {
+    // Detectar "Oración de contexto. Resto del mensaje para Claude."
+    const sentM = rawText.match(/^(.+?[.!?])\s+([^\s].+)$/s);
+    if (sentM) {
+      const firstSpec = _parseCtxCommand(sentM[1].trim());
+      if (firstSpec) { ctxSpec = firstSpec; chatText = sentM[2].trim(); }
+    }
+  }
+
   if (ctxSpec) {
     inp.value = ''; inp.style.height = 'auto';
     const matched = await _applyCtxFilter(ctxSpec);
     if (!matched.length) {
       _appendSysMsg('Sin artefactos que coincidan con ese filtro.');
-      return;
+      if (!chatText) return;
+    } else {
+      let added = 0;
+      matched.forEach(a => { if (!ctxIds.has(a.artifact_id)) { ctxIds.add(a.artifact_id); added++; } });
+      renderArtifacts(); renderCtxChips();
+      const names = matched.slice(0,4).map(a => `<b>${esc(a.filename||a.artifact_name||a.name||'?')}</b>`).join(', ');
+      const more  = matched.length > 4 ? ` y ${matched.length-4} más` : '';
+      _appendSysMsg(`✅ ${added} artefacto${added!==1?'s':''} agregado${added!==1?'s':''} al contexto: ${names}${more}`);
+      if (!chatText) return;
     }
-    let added = 0;
-    matched.forEach(a => { if (!ctxIds.has(a.artifact_id)) { ctxIds.add(a.artifact_id); added++; } });
-    renderArtifacts(); renderCtxChips();
-    const names = matched.slice(0,4).map(a => `<b>${esc(a.filename||a.artifact_name||a.name||'?')}</b>`).join(', ');
-    const more  = matched.length > 4 ? ` y ${matched.length-4} más` : '';
-    _appendSysMsg(`✅ ${added} artefacto${added!==1?'s':''} agregado${added!==1?'s':''} al contexto: ${names}${more}`);
-    return;
+    // Hay chatText → continuar y enviar a Claude (inp ya vaciado arriba)
+  } else {
+    inp.value = ''; inp.style.height = 'auto';
   }
-  inp.value = '';
-  inp.style.height = 'auto';
+
+  const text = chatText || rawText;
   closeSidebar();
 
   appendMessage('user', text);
