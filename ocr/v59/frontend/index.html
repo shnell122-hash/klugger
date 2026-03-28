@@ -1385,7 +1385,9 @@ async function sendMessage(e) {
 
     // Render final completo con markdown (solo si no hubo error)
     if (!hasError) {
-      bubble.innerHTML = mdToHtml(fullText) ||
+      const displayText = fullText ||
+        (artifactSaved ? '✅ Artefacto guardado. Puedes verlo en la pestaña **Generados**.' : '');
+      bubble.innerHTML = mdToHtml(displayText) ||
         '<span style="color:var(--muted)">(sin respuesta)</span>';
       const copyRow = document.getElementById(`copy-row-${mid}`);
       if (copyRow) { copyRow.style.opacity = '1'; copyRow.style.pointerEvents = 'auto'; }

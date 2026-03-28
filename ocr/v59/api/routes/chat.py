@@ -133,12 +133,12 @@ ARTIFACT_TEMPLATES = {
 }
 
 MAX_TOKENS_BY_TYPE = {
-    "contract": 8192,
-    "brief": 8192,
-    "html": 8192,
-    "analysis": 4096,
-    "summary": 2048,
-    "checklist": 2048,
+    "contract": 16000,
+    "brief":    16000,
+    "html":     16000,
+    "analysis": 16000,
+    "summary":  4096,
+    "checklist":4096,
 }
 
 
@@ -539,7 +539,7 @@ def chat():
 
     case_info    = _get_case_info(case_id)
     art_template = ARTIFACT_TEMPLATES.get(artifact_type, ARTIFACT_TEMPLATES["analysis"])
-    max_tokens   = MAX_TOKENS_BY_TYPE.get(artifact_type, 4096)
+    max_tokens   = MAX_TOKENS_BY_TYPE.get(artifact_type, 16000)
 
     long_types = {'contract', 'brief', 'html'}
     length_rule = (
@@ -639,7 +639,7 @@ def chat_stream():
 
     case_info    = _get_case_info(case_id)
     art_template = ARTIFACT_TEMPLATES.get(artifact_type, ARTIFACT_TEMPLATES["analysis"])
-    max_tokens   = MAX_TOKENS_BY_TYPE.get(artifact_type, 4096)
+    max_tokens   = MAX_TOKENS_BY_TYPE.get(artifact_type, 16000)
 
     long_types = {'contract', 'brief', 'html'}
     length_rule = (
