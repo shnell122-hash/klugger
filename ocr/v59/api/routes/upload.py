@@ -13,7 +13,7 @@ ALLOWED_MIME = {
     'image/gif', 'image/tiff',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/msword',
-    'text/plain',
+    'text/plain', 'text/html',
 }
 ZIP_MIMES = {'application/zip', 'application/x-zip-compressed', 'application/octet-stream'}
 
