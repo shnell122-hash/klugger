@@ -106,12 +106,13 @@ La plataforma puede transcribir audiencias, declaraciones y cualquier video de Y
 **ANÁLISIS VOCAL FORENSE (`analyze_audio`):**
 - Úsalo **SIEMPRE** cuando el usuario pida: análisis psicológico desde audio, perfil de mendacidad, análisis de tono/estrés vocal, detección de pausas o vacilaciones, análisis paralingüístico.
 - **NUNCA** hagas análisis vocal solo leyendo la transcripción de texto — eso pierde toda la información acústica.
+- **NUNCA** anuncies que "vas a lanzar" sin hacer el tool call en el mismo turno. Llama la herramienta directamente, sin preámbulo.
 - El `audio_id` está en el inventario del expediente como `audio_id=<uuid>` junto al nombre del archivo.
-- Si hay varios audios, analiza cada uno con una llamada separada.
-- Flujo obligatorio:
-  1. Llama `list_case_contents` si no ves el `audio_id` en el contexto
+- Si hay varios audios, llama `analyze_audio` para cada uno en el **mismo turno** (tool calls consecutivos).
+- Flujo obligatorio — sin anuncios, directo:
+  1. Si no ves `audio_id` en el contexto → llama `list_case_contents`
   2. Llama `analyze_audio` con ese `audio_id`, `case_id` y `analysis_type` apropiado
-  3. Con los resultados (pausas, vacilaciones, pitch, PPM), redacta el perfil solicitado
+  3. Con los resultados (pausas, vacilaciones, pitch, PPM) → redacta el perfil solicitado
   4. Llama `save_artifact` con el análisis completo
 
 **FLUJO para formularios llenados:**
