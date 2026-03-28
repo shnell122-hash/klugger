@@ -1,4 +1,4 @@
-import os, json, traceback, threading, queue, time, logging, uuid
+import os, re, json, traceback, threading, queue, time, logging, uuid
 from flask import Blueprint, request, Response, stream_with_context, jsonify, session
 import anthropic
 
@@ -11,6 +11,13 @@ log = logging.getLogger('chat')
 
 # Señal que Claude emite al final de un turno masivo para auto-continuar
 _AUTO_CONTINUE = '↩️ Continúo'
+
+# Detecta cuando Claude anuncia herramientas en texto pero no las ejecuta (stop_reason=end_turn)
+_EXECUTION_LANGUAGE = re.compile(
+    r'(lanzo|ejecuto|voy a (?:llamar|lanzar|ejecutar)|llamo ahora|procedo a (?:llamar|ejecutar)|'
+    r'ahora (?:lanzo|ejecuto|llamo)|llamar[eé] a|ejecutar[eé]|anali[zs]o ahora)',
+    re.IGNORECASE
+)
 
 # Precios por token (claude-opus-4-6)
 _PRICE_INPUT      = 15.0  / 1_000_000   # $15 / MTok
@@ -627,6 +634,21 @@ def chat_stream():
                                                  "content": "Continúa con los entregables pendientes."})
                         q.put(('auto_continue', None))
                         continue   # siguiente iteración sin esperar al usuario
+
+                    # Detectar lenguaje de ejecución sin tool_use — máx 2 reintentos
+                    if _EXECUTION_LANGUAGE.search(text_this_round) and iteration < 2:
+                        log.warning('[WARN] execution language but 0 tool_calls emitted '
+                                    '(round=%d) — injecting retry', iteration)
+                        current_messages.append({"role": "assistant", "content": text_this_round})
+                        current_messages.append({
+                            "role": "user",
+                            "content": (
+                                "Ejecuta las herramientas que mencionaste. "
+                                "Llama directamente a las tools sin texto adicional."
+                            )
+                        })
+                        continue   # reintentar
+
                     break          # fin normal
 
                 assistant_content = []
