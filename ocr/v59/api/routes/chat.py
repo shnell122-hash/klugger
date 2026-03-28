@@ -215,7 +215,8 @@ def _get_case_inventory(case_id: str) -> str:
         ) or []
 
         gen_arts = query(
-            """SELECT artifact_name, artifact_type, created_at
+            """SELECT artifact_id, artifact_name, artifact_type, created_at,
+                      LEFT(content, 5000) AS preview
                FROM system_artifacts
                WHERE case_id=%s AND COALESCE(artifact_type,'') != 'session_notes'
                ORDER BY created_at ASC""",
@@ -250,7 +251,7 @@ def _get_case_inventory(case_id: str) -> str:
             lines.append(f"\nARTEFACTOS GENERADOS ({len(gen_arts)}):")
             for a in gen_arts:
                 dt = str(a.get('created_at', ''))[:16]
-                lines.append(f"  - {a['artifact_name']} [{a['artifact_type']}] — {dt}")
+                lines.append(f"  - [{a['artifact_id']}] {a['artifact_name']} [{a['artifact_type']}] — {dt}")
         else:
             lines.append("\nARTEFACTOS GENERADOS: Ninguno aún")
 
@@ -261,6 +262,28 @@ def _get_case_inventory(case_id: str) -> str:
             dt = str(notes_row.get('created_at', ''))[:16]
             lines.append(f"\nNOTAS DE SESIÓN ANTERIOR ({dt}):")
             lines.append(notes_row['content'])
+
+        # Inyectar contenido completo de artefactos generados
+        if gen_arts:
+            lines.append("\n<generated_artifacts_content>")
+            total_chars = 0
+            char_limit  = 24000   # tope total para no saturar el contexto
+            for a in gen_arts:
+                preview = (a.get('preview') or '').strip()
+                if not preview:
+                    continue
+                header = (
+                    f'\n<artifact id="{a["artifact_id"]}" '
+                    f'name="{a["artifact_name"]}" '
+                    f'type="{a["artifact_type"]}">'
+                )
+                block = f"{header}\n{preview}\n</artifact>"
+                if total_chars + len(block) > char_limit:
+                    lines.append(f"<!-- {a['artifact_name']}: omitido por límite de contexto -->")
+                    continue
+                lines.append(block)
+                total_chars += len(block)
+            lines.append("</generated_artifacts_content>")
 
         lines.append("</case_inventory>")
         return "\n".join(lines)

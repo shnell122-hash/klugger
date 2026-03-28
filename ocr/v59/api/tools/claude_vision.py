@@ -46,6 +46,14 @@ def extract_text(file_path: str, mime_type: str, raw_bytes: bytes = None) -> str
     ):
         return _extract_from_docx(raw_bytes)
 
+    # HTML — preservar código fuente completo (CSS+JS incluido para replicar estilos)
+    if mime_type in ('text/html', 'text/htm'):
+        return raw_bytes.decode('utf-8', errors='replace')
+
+    # Texto plano
+    if mime_type == 'text/plain':
+        return raw_bytes.decode('utf-8', errors='replace')
+
     return ''
 
 

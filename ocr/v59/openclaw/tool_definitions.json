@@ -170,5 +170,29 @@
       },
       "required": ["case_id", "notes"]
     }
+  },
+  {
+    "name": "analyze_audio",
+    "description": "Análisis forense vocal de un archivo de audio: transcripción con timestamps palabra por palabra, detección de pausas y vacilaciones, velocidad del habla por segmento, features acústicas (pitch F0, energía/volumen). Úsala cuando el usuario pida perfil psicológico, análisis de mendacidad, o análisis de tono/estrés vocal.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "audio_id": {
+          "type": "string",
+          "description": "artifact_id del archivo de audio en user_artifacts (obtenible con list_case_contents)"
+        },
+        "case_id": {
+          "type": "string",
+          "description": "ID del expediente"
+        },
+        "analysis_type": {
+          "type": "string",
+          "enum": ["psychological", "mendacity", "full"],
+          "description": "psychological: perfil emocional/psicológico; mendacity: marcadores de estrés/mentira; full: análisis completo con todas las métricas",
+          "default": "full"
+        }
+      },
+      "required": ["audio_id", "case_id"]
+    }
   }
 ]

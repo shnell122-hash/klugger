@@ -17,6 +17,7 @@ def handle_tool(tool_name: str, inputs: dict, case_id: str = None) -> dict:
         'export_to_jotform':  _export_to_jotform,
         'list_case_contents': _list_case_contents,
         'save_session_notes': _save_session_notes,
+        'analyze_audio':      _analyze_audio,
     }
     handler = handlers.get(tool_name)
     if not handler:
@@ -353,6 +354,213 @@ def _save_session_notes(inputs: dict) -> dict:
     )
     return {"status": "saved", "artifact_id": art_id,
             "message": "Notas guardadas. La próxima sesión las recibirá automáticamente."}
+
+
+def _analyze_audio(inputs: dict) -> dict:
+    """
+    Análisis forense vocal:
+    1. Whisper verbose_json → transcripción con timestamps por palabra y segmento
+    2. Detección de pausas (>300ms), vacilaciones y marcadores paralingüísticos
+    3. Velocidad del habla (PPM) por segmento
+    4. Features acústicas con librosa: pitch F0, energía RMS (si disponible)
+    5. Guarda reporte completo como system_artifact
+    """
+    import re, json as _json
+
+    audio_id      = inputs.get('audio_id', '').strip()
+    case_id       = inputs.get('case_id', '').strip()
+    analysis_type = inputs.get('analysis_type', 'full')
+
+    if not audio_id or not case_id:
+        return {"error": "audio_id y case_id son requeridos"}
+
+    row = query(
+        "SELECT file_path, filename FROM user_artifacts WHERE artifact_id=%s AND case_id=%s",
+        (audio_id, case_id)
+    )
+    if not row or not row.get('file_path'):
+        return {"error": "Audio no encontrado en el expediente"}
+
+    audio_path = row['file_path']
+    if not os.path.exists(audio_path):
+        return {"error": f"Archivo no encontrado en disco: {audio_path}"}
+
+    openai_key = os.getenv('OPENAI_API_KEY', '')
+    if not openai_key:
+        return {"error": "OPENAI_API_KEY no configurado en el servidor"}
+
+    # ── 1. Whisper verbose con timestamps por palabra ─────────────────────────
+    import openai as _oai
+    oai = _oai.OpenAI(api_key=openai_key)
+
+    with open(audio_path, 'rb') as fh:
+        transcript = oai.audio.transcriptions.create(
+            model='whisper-1',
+            file=fh,
+            response_format='verbose_json',
+            timestamp_granularities=['word', 'segment'],
+        )
+
+    words    = transcript.words    or []
+    segments = transcript.segments or []
+    full_text = transcript.text    or ''
+
+    # ── 2. Pausas entre palabras ──────────────────────────────────────────────
+    pauses = []
+    for i in range(1, len(words)):
+        gap = words[i].start - words[i - 1].end
+        if gap >= 0.3:
+            pauses.append({
+                "time_sec":     round(words[i - 1].end, 2),
+                "duration_sec": round(gap, 2),
+                "type":         "larga" if gap >= 1.0 else "breve",
+                "context":      f"…{words[i-1].word} [PAUSA {gap:.1f}s] {words[i].word}…",
+            })
+
+    # ── 3. Vacilaciones y marcadores paralingüísticos ─────────────────────────
+    hes_re = re.compile(
+        r'^\s*(eh|ehm|um|uh|este|o sea|bueno|pues|mmm|este que|o|aa+|eee+)\s*$',
+        re.IGNORECASE
+    )
+    hesitations = [
+        {"time_sec": round(w.start, 2), "word": w.word.strip()}
+        for w in words if hes_re.match(w.word)
+    ]
+
+    # ── 4. Velocidad del habla por segmento (palabras por minuto) ────────────
+    segment_rates = []
+    for seg in segments:
+        dur = seg.end - seg.start
+        wc  = len(seg.text.split())
+        segment_rates.append({
+            "start_sec": round(seg.start, 1),
+            "end_sec":   round(seg.end, 1),
+            "ppm":       round((wc / dur) * 60) if dur > 0 else 0,
+            "text":      seg.text[:120],
+        })
+
+    # ── 5. Features acústicas con librosa (opcional) ──────────────────────────
+    acoustic = {}
+    try:
+        import librosa, numpy as np
+        y, sr = librosa.load(audio_path, sr=None, mono=True)
+
+        # Pitch F0
+        f0, voiced, _ = librosa.pyin(
+            y,
+            fmin=librosa.note_to_hz('C2'),
+            fmax=librosa.note_to_hz('C7'),
+        )
+        f0_v = f0[voiced] if voiced is not None and f0 is not None else np.array([])
+
+        # Energía RMS
+        rms = librosa.feature.rms(y=y)[0]
+
+        acoustic = {
+            "duration_sec": round(float(len(y) / sr), 1),
+            "pitch_hz": {
+                "mean": round(float(np.nanmean(f0_v)), 1) if len(f0_v) > 0 else None,
+                "std":  round(float(np.nanstd(f0_v)), 1)  if len(f0_v) > 0 else None,
+                "min":  round(float(np.nanmin(f0_v)), 1)  if len(f0_v) > 0 else None,
+                "max":  round(float(np.nanmax(f0_v)), 1)  if len(f0_v) > 0 else None,
+            },
+            "energy_rms": {
+                "mean": round(float(np.mean(rms)), 5),
+                "std":  round(float(np.std(rms)), 5),
+                "max":  round(float(np.max(rms)), 5),
+            },
+        }
+    except ImportError:
+        acoustic = {"note": "librosa no instalado — instalar con: pip install librosa"}
+    except Exception as e:
+        acoustic = {"error": str(e)}
+
+    # ── 6. Resumen ────────────────────────────────────────────────────────────
+    summary = {
+        "word_count":       len(words),
+        "total_pauses":     len(pauses),
+        "long_pauses":      len([p for p in pauses if p["type"] == "larga"]),
+        "hesitation_count": len(hesitations),
+        "avg_ppm":          round(sum(s["ppm"] for s in segment_rates) / len(segment_rates))
+                            if segment_rates else None,
+        "acoustic_available": "pitch_hz" in acoustic,
+    }
+
+    # ── 7. Construir reporte Markdown y guardar ───────────────────────────────
+    pause_lines = "\n".join(
+        f"- `[{p['time_sec']}s]` Pausa **{p['type']}** de {p['duration_sec']}s — {p['context']}"
+        for p in pauses[:30]
+    ) or "_Ninguna_"
+
+    hes_lines = "\n".join(
+        f"- `[{h['time_sec']}s]` «{h['word']}»"
+        for h in hesitations[:40]
+    ) or "_Ninguna_"
+
+    rate_lines = "\n".join(
+        f"- `[{s['start_sec']}s–{s['end_sec']}s]` {s['ppm']} PPM — {s['text']}"
+        for s in segment_rates
+    ) or "_Sin segmentos_"
+
+    acoustic_block = _json.dumps(acoustic, ensure_ascii=False, indent=2)
+
+    art_name = f"Análisis vocal [{analysis_type}] — {row['filename'][:50]}"
+    content_md = f"""# {art_name}
+
+**Tipo de análisis:** {analysis_type}
+**Archivo:** {row['filename']}
+**Palabras:** {summary['word_count']} | **PPM promedio:** {summary['avg_ppm']}
+**Pausas:** {summary['total_pauses']} ({summary['long_pauses']} largas) | **Vacilaciones:** {summary['hesitation_count']}
+
+---
+
+## Transcripción completa
+{full_text}
+
+---
+
+## Pausas detectadas ({summary['total_pauses']})
+{pause_lines}
+
+## Marcadores paralingüísticos — vacilaciones ({summary['hesitation_count']})
+{hes_lines}
+
+## Velocidad del habla por segmento
+{rate_lines}
+
+## Features acústicas (pitch F0 y energía)
+```json
+{acoustic_block}
+```
+
+---
+*Datos RAW disponibles para análisis adicional en artifact_id de este artefacto.*
+"""
+
+    art_id = str(uuid.uuid4())
+    execute(
+        """INSERT INTO system_artifacts
+           (artifact_id, case_id, artifact_name, artifact_type, content,
+            mime_type, file_size_bytes, source)
+           VALUES (%s,%s,%s,'analysis',%s,'text/markdown',%s,'system')""",
+        (art_id, case_id, art_name, content_md, len(content_md.encode()))
+    )
+
+    return {
+        "status": "completed",
+        "artifact_id": art_id,
+        "artifact_name": art_name,
+        "summary": summary,
+        "pauses": pauses[:10],         # primeras 10 para no saturar el contexto
+        "hesitations": hesitations[:15],
+        "acoustic": acoustic,
+        "message": (
+            f"Análisis vocal completado y guardado. "
+            f"{summary['word_count']} palabras, {summary['total_pauses']} pausas "
+            f"({summary['long_pauses']} largas), {summary['hesitation_count']} vacilaciones. "
+            f"Ver reporte completo en pestaña **Generados**."
+        ),
+    }
 
 
 def _export_to_jotform(inputs: dict) -> dict:
