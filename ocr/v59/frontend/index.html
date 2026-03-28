@@ -1416,7 +1416,8 @@ function stopStream() {
 function _parseCtxFilter(str) {
   const s = str.toLowerCase().trim();
   const spec = { all:false, types:[], sources:[], nameQuery:null, contentQuery:null, recent:null };
-  if (/^todos?$|^all$|^todo$/.test(s)) { spec.all = true; return spec; }
+  // "todos" puede aparecer en cualquier lugar de la cadena
+  const hasTodos = /\btodos?\b|\ball\b/.test(s);
   if (/\bhtml\b/.test(s))                       spec.types.push('html');
   if (/\bpdf\b/.test(s))                        spec.types.push('pdf');
   if (/\baudio\b|\bvoz\b|\bsonido\b|\bmp3\b|\bwav\b/.test(s)) spec.types.push('audio');
@@ -1431,8 +1432,10 @@ function _parseCtxFilter(str) {
   if (contM) { spec.contentQuery = contM[1].trim(); return spec; }
   const nameM = s.match(/(?:nombre|llamad[ao]s?|que\s+se\s+llam[ae]n?)\s*:?\s*"?([^"]+)"?\s*$/i);
   if (nameM) { spec.nameQuery = nameM[1].trim(); return spec; }
-  // Si ningún filtro reconocido → tratar texto completo como búsqueda por nombre
-  if (!spec.types.length && !spec.sources.length && !spec.recent && !spec.all)
+  // "todos" detectado (con o sin tipo adicional) → usar como "todos [del tipo]"
+  if (hasTodos) { spec.all = true; return spec; }
+  // Sin filtros reconocidos → búsqueda por nombre
+  if (!spec.types.length && !spec.sources.length && !spec.recent)
     spec.nameQuery = str.trim();
   return spec;
 }
