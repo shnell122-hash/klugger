@@ -167,7 +167,16 @@ _AGENT_CONFIGS: dict = {
         'tools': None,   # todas las herramientas
         'icon':  '🌐',
         'label': 'General',
-        'focus': None,
+        'focus': (
+            "═══ PROTOCOLO DE EJECUCIÓN ═══\n"
+            "- Si la tarea requiere guardar un documento: llama save_artifact INMEDIATAMENTE.\n"
+            "- Para documentos HTML largos (>35KB): save_artifact (primera parte) + "
+            "append_artifact (resto) — sin reducir contenido.\n"
+            "- Máximo 2 líneas de texto ANTES de cualquier tool call.\n"
+            "- PROHIBIDO: describir lo que harás en lugar de hacerlo.\n"
+            "- Si necesitas continuar desde una conversación previa sobre análisis forense, "
+            "documentos o gestión: actúa directamente sin re-explicar el contexto."
+        ),
     },
 }
 
@@ -916,7 +925,17 @@ def chat_stream():
             q.put(('op_log', {'icon': icon, 'msg': msg, 'detail': detail, 'level': level}))
 
         # ── Clasificar intención → seleccionar agente especializado ──────────
-        agent_key    = _classify_intent(client, message)
+        # Incluir contexto del historial para mensajes cortos de continuación
+        # (ej: "sí", "hazlo", "genéralo") que no tienen suficiente info solos
+        _classify_ctx = message
+        last_asst = next(
+            (m.get('content', '') for m in reversed(messages) if m.get('role') == 'assistant'),
+            ''
+        )
+        if last_asst and len(message.strip()) < 80:
+            # Mensaje corto: añadir el último turno del asistente como pista
+            _classify_ctx = f"[Contexto previo: {str(last_asst)[:350]}] Solicitud actual: {message[:200]}"
+        agent_key    = _classify_intent(client, _classify_ctx)
         agent_cfg    = _AGENT_CONFIGS.get(agent_key, _AGENT_CONFIGS['general'])
         _model       = agent_cfg['model'] or model
         _agent_tools = _filter_tool_defs(agent_cfg.get('tools'))
@@ -963,6 +982,8 @@ def chat_stream():
                 _gen_tool        = [None]          # tool cuyo JSON se está generando ahora
                 _gen_start       = [0.0]           # cuándo empezó la generación del JSON
                 _gen_status_at   = [0.0]           # cuándo se emitió el último status de generación
+                _text_chars      = [0]             # chars de texto generados esta iteración
+                _text_oplog_at   = [time.time()]   # último op_log de progreso en fase texto
 
                 # Mensajes de estado durante la fase de generación del JSON del tool call
                 _GEN_STATUS = {
@@ -1043,8 +1064,17 @@ def chat_stream():
                                     emit_op('📡', f'Primer token en {t_first[0]-t_start:.1f}s — generando respuesta…')
                                 text_this_round += chunk
                                 accumulated.append(chunk)
+                                _text_chars[0] += len(chunk)
                                 q.put(('text', chunk))
                                 _ka_time[0] = time.time()
+                                # Op-log progresivo durante generación larga de texto
+                                _now_t = time.time()
+                                if _now_t - _text_oplog_at[0] >= 30:
+                                    _elapsed_t = _now_t - t_round
+                                    _words_so_far = len(text_this_round.split())
+                                    emit_op('✍️', f'Generando — {_words_so_far:,} palabras · {_elapsed_t:.0f}s',
+                                            detail='Redactando análisis completo…')
+                                    _text_oplog_at[0] = _now_t
                             elif dtype == 'input_json_delta':
                                 # Claude construyendo el JSON del tool call — mantener SSE vivo
                                 _maybe_keepalive()
