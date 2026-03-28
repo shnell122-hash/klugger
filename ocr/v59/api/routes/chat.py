@@ -44,6 +44,9 @@ _STATUS_STEPS = {
     'save_artifact': [
         (0, 'Guardando artefacto en base de datos…'),
     ],
+    'append_artifact': [
+        (0, 'Añadiendo contenido al artefacto…'),
+    ],
     'list_case_contents': [
         (0, 'Consultando inventario completo del expediente…'),
     ],
@@ -109,7 +112,7 @@ _ORCHESTRATOR_PROMPT = (
 _AGENT_CONFIGS: dict = {
     'forensic': {
         'model': _MODEL_SONNET,
-        'tools': {'analyze_audio', 'save_artifact', 'list_case_contents', 'save_session_notes'},
+        'tools': {'analyze_audio', 'save_artifact', 'append_artifact', 'list_case_contents', 'save_session_notes'},
         'icon':  '🎵',
         'label': 'Forense',
         'focus': (
@@ -124,7 +127,7 @@ _AGENT_CONFIGS: dict = {
     },
     'document': {
         'model': _MODEL_SONNET,
-        'tools': {'save_artifact', 'list_case_contents'},
+        'tools': {'save_artifact', 'append_artifact', 'list_case_contents'},
         'icon':  '📄',
         'label': 'Documentos',
         'focus': (
@@ -150,7 +153,7 @@ _AGENT_CONFIGS: dict = {
     },
     'legal': {
         'model': _MODEL_SONNET,
-        'tools': {'search_precedents', 'validate_document', 'save_artifact', 'list_case_contents'},
+        'tools': {'search_precedents', 'validate_document', 'save_artifact', 'append_artifact', 'list_case_contents'},
         'icon':  '⚖️',
         'label': 'Legal',
         'focus': (
@@ -967,6 +970,13 @@ def chat_stream():
                         (0,  'Generando contenido del artefacto…'),
                         (20, 'Redactando — documentos HTML largos tardan 1–2 min…'),
                         (45, 'Construyendo secciones del análisis…'),
+                        (80, 'Generando gráficas Chart.js y visualizaciones…'),
+                        (120,'Redactando veredictos y recomendaciones…'),
+                    ],
+                    'append_artifact': [
+                        (0,  'Generando segunda parte del documento…'),
+                        (20, 'Redactando secciones restantes del análisis…'),
+                        (45, 'Finalizando veredictos y recomendaciones…'),
                         (75, 'Finalizando referencias y estructura…'),
                         (110,'Completando el documento…'),
                     ],
@@ -1085,14 +1095,19 @@ def chat_stream():
                                     "role": "assistant", "content": text_this_round
                                 })
                             current_messages.append({"role": "user", "content": (
-                                f"El contenido de {tnames} fue truncado — excedió los "
-                                f"{max_tokens:,} tokens de salida disponibles. "
-                                f"Regenera la llamada con HTML más compacto:\n"
-                                f"- CSS: eliminar comentarios y whitespace, usar shorthand\n"
-                                f"- Chart.js: configs mínimos, sin animaciones, labels cortos\n"
-                                f"- Sin comentarios HTML — cada byte cuenta\n"
-                                f"Conserva TODO el contenido analítico. "
-                                f"Máximo 40KB total. Llama {tnames} ahora."
+                                f"El contenido de {tnames} fue truncado (excedió "
+                                f"{max_tokens:,} tokens). "
+                                f"NO reduzcas el contenido analítico — usa estrategia de "
+                                f"dos llamadas:\n"
+                                f"1. save_artifact con la PRIMERA PARTE completa "
+                                f"(HTML head + <style> completo + primeras secciones "
+                                f"analíticas hasta aproximadamente la mitad del cuerpo)\n"
+                                f"2. append_artifact(artifact_id=ID_de_paso_1, "
+                                f"content_chunk=SEGUNDA_PARTE con las secciones restantes "
+                                f"+ </body></html>)\n"
+                                f"El sistema concatena ambas partes automáticamente. "
+                                f"El análisis debe ser COMPLETO Y RICO — todos los datos, "
+                                f"gráficas, valoraciones y veredictos sin reducir."
                             )})
                             _force_tool = True
                             continue   # reintentar con contenido compacto

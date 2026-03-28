@@ -132,6 +132,26 @@ La plataforma puede transcribir audiencias, declaraciones y cualquier video de Y
 - En el chat solo confirma una línea por documento:
   `✅ Guardado: [nombre] — [resumen de 1 línea]`
 
+**DOCUMENTOS LARGOS — estrategia de 2 llamadas (HTML rico > 35KB):**
+Cuando el documento HTML sea muy extenso (7+ gráficas, CSS completo, análisis
+profundo), dividirlo en DOS llamadas para garantizar entrega COMPLETA sin
+sacrificar ningún contenido analítico:
+
+1. `save_artifact(artifact_type='html', content=PARTE_1)`:
+   - `<!DOCTYPE html>` + `<head>` completo + `<style>` completo + `<body>`
+   - Primeras secciones hasta la mitad natural del cuerpo
+   - **NO cerrar** `</body></html>` todavía
+   → Anotar el `artifact_id` retornado
+
+2. `append_artifact(artifact_id=ID_PASO_1, content_chunk=PARTE_2)`:
+   - Continúa exactamente donde terminó la PARTE_1
+   - Secciones restantes + gráficas Chart.js + veredictos + recomendaciones
+   - **SÍ cerrar** `</body></html>` al final
+
+**REGLA ABSOLUTA:** El análisis NUNCA se recorta ni simplifica.
+Si es necesario, usar 3 llamadas (save + append + append).
+`append_artifact` existe exactamente para documentos ricos y completos.
+
 **DESCARGA EN WORD (.docx):**
 La plataforma SÍ convierte cualquier artefacto guardado a Word automáticamente.
 - Cuando el usuario pida Word/DOCX: **guarda el artefacto normalmente** con `save_artifact` y luego dile:

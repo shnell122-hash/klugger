@@ -1215,6 +1215,7 @@ async function loadChatHistory() {
 // icon HTML + running label + done label
 const TOOL_META = {
   'save_artifact':     {icon:'<i class="fa-solid fa-floppy-disk"></i>',      running:'Guardando artefacto',    done:'Artefacto guardado'},
+  'append_artifact':   {icon:'<i class="fa-solid fa-file-circle-plus"></i>',  running:'Añadiendo contenido',    done:'Contenido añadido'},
   'generate_image':    {icon:'<i class="fa-solid fa-wand-magic-sparkles"></i>',running:'Generando imagen',      done:'Imagen generada'},
   'create_case':       {icon:'<i class="fa-solid fa-folder-plus"></i>',       running:'Creando expediente',     done:'Expediente creado'},
   'search_precedents': {icon:'<i class="fa-solid fa-scale-balanced"></i>',    running:'Buscando precedentes',   done:'Búsqueda completada'},
@@ -1423,7 +1424,7 @@ async function sendMessage(e) {
             _toolStatusEls[evt.tool].remove();
             delete _toolStatusEls[evt.tool];
           }
-          if (evt.tool === 'save_artifact' || evt.tool === 'generate_image') artifactSaved = true;
+          if (evt.tool === 'save_artifact' || evt.tool === 'append_artifact' || evt.tool === 'generate_image') artifactSaved = true;
           currentTextEl = null;
           _currentSectionText = '';
 

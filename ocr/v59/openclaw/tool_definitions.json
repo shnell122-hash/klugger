@@ -56,6 +56,28 @@
     }
   },
   {
+    "name": "append_artifact",
+    "description": "Añadir contenido adicional a un artefacto ya guardado. Usar cuando el documento es demasiado largo para un solo save_artifact: primero save_artifact con la primera parte, luego append_artifact con el resto. El contenido se concatena al final del artefacto existente.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "artifact_id": {
+          "type": "string",
+          "description": "ID del artefacto a continuar (retornado por save_artifact)"
+        },
+        "case_id": {
+          "type": "string",
+          "description": "ID del caso (validación)"
+        },
+        "content_chunk": {
+          "type": "string",
+          "description": "Contenido a añadir al final del artefacto. Debe continuar naturalmente desde donde terminó el save_artifact anterior."
+        }
+      },
+      "required": ["artifact_id", "case_id", "content_chunk"]
+    }
+  },
+  {
     "name": "create_case",
     "description": "Crear un nuevo expediente/caso en el sistema.",
     "input_schema": {

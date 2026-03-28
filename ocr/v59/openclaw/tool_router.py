@@ -11,6 +11,7 @@ def handle_tool(tool_name: str, inputs: dict, case_id: str = None) -> dict:
     handlers = {
         'generate_image':     _generate_image,
         'save_artifact':      _save_artifact,
+        'append_artifact':    _append_artifact,
         'create_case':        _create_case,
         'search_precedents':  _search_precedents,
         'validate_document':  _validate_document,
@@ -63,6 +64,36 @@ def _save_artifact(inputs: dict) -> dict:
         "artifact_id": art_id,
         "artifact_name": inputs['artifact_name'],
         "artifact_type": inputs['artifact_type'],
+    }
+
+
+def _append_artifact(inputs: dict) -> dict:
+    required = ['artifact_id', 'case_id', 'content_chunk']
+    for f in required:
+        if not inputs.get(f):
+            return {"error": f"{f} requerido"}
+
+    chunk = inputs['content_chunk']
+    execute(
+        """UPDATE system_artifacts
+           SET content = CONCAT(COALESCE(content, ''), %s)
+           WHERE artifact_id = %s AND case_id = %s""",
+        (chunk, inputs['artifact_id'], inputs['case_id'])
+    )
+    # Actualizar file_size_bytes después del CONCAT
+    execute(
+        "UPDATE system_artifacts SET file_size_bytes = LENGTH(content) WHERE artifact_id = %s",
+        (inputs['artifact_id'],)
+    )
+    row = query(
+        "SELECT artifact_name, artifact_type, file_size_bytes FROM system_artifacts WHERE artifact_id = %s",
+        (inputs['artifact_id'],)
+    )
+    return {
+        "status": "appended",
+        "artifact_id": inputs['artifact_id'],
+        "artifact_name": (row or {}).get('artifact_name', '?'),
+        "total_bytes":   (row or {}).get('file_size_bytes', 0),
     }
 
 
