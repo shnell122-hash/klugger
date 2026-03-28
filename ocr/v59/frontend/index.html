@@ -1171,24 +1171,67 @@ function shareArtifact(slug) {
 }
 
 async function shareArtifactById(id) {
-  // Para artefactos viejos sin share_slug — lo pide al backend y lo muestra
+  // Mostrar panel inmediatamente (dentro del gesto) con estado de carga
+  const div = _showSharePanel('⏳ Generando enlace…', null);
   try {
     const r = await fetch(`${API}/artifacts/${id}/share-slug`);
     const d = await r.json();
-    if (d.share_slug) {
-      const url = `${window.location.origin}/caso/${d.share_slug}`;
-      _copyShareUrl(url);
+    const slug = d.share_slug;
+    if (slug) {
+      const url = `${window.location.origin}/caso/${slug}`;
+      // Actualizar panel con URL real
+      _updateSharePanel(div, url);
+      // Intentar copy async (funciona en Chromium; Safari muestra el panel igualmente)
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).catch(()=>{});
+      }
+      // Actualizar en memoria para que próximos clicks sean sincrónicos
+      const art = [...artifacts.user, ...artifacts.system].find(a => a.artifact_id === id);
+      if (art) art.share_slug = slug;
     } else {
-      toast('Este artefacto no tiene URL pública aún. Regenera el documento para obtenerla.', 'info');
+      _updateSharePanel(div, null, 'No se pudo generar enlace. Regenera el documento.');
     }
-  } catch {
-    toast('Error obteniendo URL de compartir', 'error');
+  } catch(e) {
+    _updateSharePanel(div, null, 'Error al obtener enlace.');
   }
 }
 
+function _showSharePanel(msg, url) {
+  // Cerrar panel anterior si existe
+  document.querySelectorAll('.share-toast-wrap').forEach(el => el.remove());
+  const div = document.createElement('div');
+  div.className = 'share-toast-wrap';
+  div.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--green);border-radius:10px;padding:12px 16px;z-index:9999;max-width:min(480px,90vw);box-shadow:var(--shadow);min-width:240px';
+  _renderShareContent(div, msg, url);
+  document.body.appendChild(div);
+  setTimeout(() => { if (div.parentNode) div.remove(); }, 12000);
+  return div;
+}
+function _updateSharePanel(div, url, errMsg) {
+  if (!div || !div.parentNode) return;
+  if (url) {
+    _renderShareContent(div, url ? '✅ Enlace listo' : '', url);
+  } else {
+    _renderShareContent(div, errMsg || 'Error', null);
+  }
+}
+function _renderShareContent(div, label, url) {
+  div.innerHTML =
+    `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:${url?'8px':'0'}">` +
+      `<span style="font-size:.75rem;color:var(--muted)">${label}</span>` +
+      `<button onclick="this.closest('.share-toast-wrap').remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;line-height:1;padding:0">×</button>` +
+    `</div>` +
+    (url ?
+      `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">` +
+        `<code style="font-size:.70rem;color:var(--green);word-break:break-all;flex:1;min-width:0;cursor:pointer" onclick="navigator.clipboard&&navigator.clipboard.writeText('${url}')">${url}</code>` +
+        `<a href="${url}" target="_blank" rel="noopener" style="color:var(--accent);font-size:.78rem;white-space:nowrap;text-decoration:none;font-weight:600;flex-shrink:0">Abrir ↗</a>` +
+      `</div>`
+    : '')
+  ;
+}
+
 function _copyShareUrl(url) {
-  // execCommand DEBE correr sincrónicamente dentro del gesto del usuario.
-  // navigator.clipboard es async y en Safari/iOS pierde el contexto del gesto.
+  // execCommand sincrónicamente dentro del gesto del usuario
   let copied = false;
   try {
     const ta = document.createElement('textarea');
@@ -1199,26 +1242,8 @@ function _copyShareUrl(url) {
     copied = document.execCommand('copy');
     document.body.removeChild(ta);
   } catch(e) { copied = false; }
-
-  // Si execCommand no funcionó (algunos Chromium con policy), intentar async
-  const writeAsync = (!copied && navigator.clipboard && navigator.clipboard.writeText)
-    ? navigator.clipboard.writeText(url).then(()=>{}).catch(()=>{})
-    : Promise.resolve();
-
-  writeAsync.finally(() => {
-    const div = document.createElement('div');
-    div.className = 'share-toast-wrap';
-    div.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--green);border-radius:10px;padding:12px 16px;z-index:9999;max-width:90vw;box-shadow:var(--shadow)';
-    div.innerHTML =
-      `<div style="font-size:.75rem;color:var(--muted);margin-bottom:6px">${copied ? '✅ URL copiada al portapapeles' : '🔗 Enlace para compartir'}</div>`+
-      `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">`+
-        `<code style="font-size:.70rem;color:var(--green);word-break:break-all;flex:1;min-width:0">${url}</code>`+
-        `<a href="${url}" target="_blank" rel="noopener" style="color:var(--accent);font-size:.75rem;white-space:nowrap;text-decoration:none;flex-shrink:0">Abrir ↗</a>`+
-        `<button onclick="this.closest('.share-toast-wrap').remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;line-height:1;flex-shrink:0;padding:0 2px">×</button>`+
-      `</div>`;
-    document.body.appendChild(div);
-    setTimeout(() => { if (div.parentNode) div.remove(); }, 10000);
-  });
+  if (!copied && navigator.clipboard) navigator.clipboard.writeText(url).catch(()=>{});
+  _showSharePanel(copied ? '✅ URL copiada' : '🔗 Compartir enlace', url);
 }
 
 function downloadArtifact(id, fmt) {

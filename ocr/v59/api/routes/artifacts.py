@@ -1,5 +1,6 @@
 import os
 import io
+import re
 import uuid
 import zipfile
 from flask import Blueprint, request, jsonify, send_file, Response
@@ -402,16 +403,44 @@ def serve_shared_html(slug):
     return Response(html, mimetype='text/html; charset=utf-8')
 
 
+def _make_slug(name: str) -> str:
+    s = name.lower().strip()
+    for src, dst in [('á','a'),('é','e'),('í','i'),('ó','o'),('ú','u'),
+                     ('ñ','n'),('ü','u'),('à','a'),('è','e'),('ì','i'),
+                     ('ò','o'),('ù','u')]:
+        s = s.replace(src, dst)
+    s = re.sub(r'[^a-z0-9]+', '-', s).strip('-')
+    return s[:100] or 'artefacto'
+
+def _unique_slug_art(base: str) -> str:
+    slug, suffix = base, 2
+    while True:
+        if not query("SELECT 1 FROM system_artifacts WHERE share_slug=%s", (slug,)):
+            return slug
+        slug = f"{base}-{suffix}"; suffix += 1
+        if suffix > 999:
+            return f"{base}-{uuid.uuid4().hex[:6]}"
+
 @artifacts_bp.route('/api/artifacts/<artifact_id>/share-slug', methods=['GET'])
 def get_share_slug(artifact_id):
-    """Retorna el share_slug de un artefacto (para generar URL compartible desde el frontend)."""
+    """Retorna (y genera si falta) el share_slug de un artefacto."""
     row = query(
         "SELECT share_slug, artifact_name FROM system_artifacts WHERE artifact_id=%s",
         (artifact_id,)
     )
     if not row:
         return jsonify({"error": "Artefacto no encontrado"}), 404
-    return jsonify({"share_slug": row.get('share_slug'), "artifact_name": row.get('artifact_name')})
+
+    slug = row.get('share_slug')
+    if not slug:
+        # Generar slug on-the-fly para artefactos creados antes del deploy
+        slug = _unique_slug_art(_make_slug(row.get('artifact_name') or 'documento'))
+        execute(
+            "UPDATE system_artifacts SET share_slug=%s WHERE artifact_id=%s",
+            (slug, artifact_id)
+        )
+
+    return jsonify({"share_slug": slug, "artifact_name": row.get('artifact_name')})
 
 
 @artifacts_bp.route('/api/v1/artifacts/save', methods=['POST'])
