@@ -14,6 +14,10 @@ ALLOWED_MIME = {
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/msword',
     'text/plain', 'text/html',
+    # Audio y video
+    'audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/wav', 'audio/x-wav',
+    'audio/ogg', 'audio/webm', 'audio/aac', 'audio/flac',
+    'video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo',
 }
 ZIP_MIMES = {'application/zip', 'application/x-zip-compressed'}
 
