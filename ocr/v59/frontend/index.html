@@ -189,10 +189,12 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 .badge-spinner{display:inline-block;width:9px;height:9px;border:1.5px solid currentColor;border-top-color:transparent;border-radius:50%;animation:badge-spin .65s linear infinite;flex-shrink:0}
 .action-badge.running{background:linear-gradient(135deg,rgba(196,122,90,0.13) 0%,rgba(139,92,246,0.09) 100%);border:1px solid rgba(196,122,90,0.55);color:var(--accent);animation:badge-pulse 1.9s ease-in-out infinite}
 .action-badge.done{background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.40);color:var(--green)}
-.audio-progress-wrap{margin:0 0 8px 0;width:240px;max-width:100%}
-.audio-progress-hint{font-size:.62rem;color:var(--muted);margin-bottom:4px;letter-spacing:.1px}
+.audio-progress-wrap{margin:0 0 8px 0;width:260px;max-width:100%}
+.audio-progress-hint{font-size:.61rem;color:var(--muted);margin-bottom:4px;letter-spacing:.1px;transition:color .2s}
 .audio-progress-bar{height:2px;background:var(--border);border-radius:2px;overflow:hidden}
 .audio-progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:2px;transition:width .6s ease}
+.tool-status-line{font-size:.61rem;color:var(--muted);margin:-1px 0 5px 0;padding-left:1px;letter-spacing:.1px;min-height:13px;transition:opacity .25s;display:flex;align-items:center;gap:4px}
+.tool-status-line i{font-size:.55rem;opacity:.6;animation:badge-pulse 1.6s ease-in-out infinite}
 .auto-continue-pill{display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--accent);margin:8px 0;padding:5px 0;border-top:1px dashed var(--border);border-bottom:1px dashed var(--border)}
 .st{white-space:pre-wrap;word-wrap:break-word}
 
@@ -1219,7 +1221,8 @@ async function sendMessage(e) {
   let hasError = false;
   let artifactSaved = false;
   let badgeCount = 0;
-  const _toolTimers = {}; // { badgeId: { tid, wrap } }
+  const _toolTimers = {};    // { badgeId: { tid, wrap } }
+  const _toolStatusEls = {}; // { toolName: statusLineEl } — para actualizar vía tool_status
 
   function ensureText() {
     if (!currentTextEl) {
@@ -1291,16 +1294,23 @@ async function sendMessage(e) {
           badge.innerHTML = `<span class="badge-spinner"></span>${m ? m.icon : '<i class="fa-solid fa-gear"></i>'} ${m ? m.running : evt.tool}`;
           bubble.appendChild(badge);
 
-          // Progress bar for slow tools (analyze_audio)
+          // Línea de estado dinámica para TODAS las herramientas
+          const statusLine = document.createElement('div');
+          statusLine.className = 'tool-status-line';
+          statusLine.innerHTML = '<i class="fa-solid fa-ellipsis fa-fade"></i> <span></span>';
+          bubble.appendChild(statusLine);
+          _toolStatusEls[evt.tool] = statusLine;
+
+          // Barra de progreso adicional para tools lentas
           if (evt.tool === 'analyze_audio') {
             const wrap = document.createElement('div');
             wrap.className = 'audio-progress-wrap';
-            wrap.innerHTML = `<div class="audio-progress-hint"><i class="fa-solid fa-circle-info"></i> Whisper + análisis acústico · audios largos pueden tardar 3–5 min</div><div class="audio-progress-bar"><div class="audio-progress-fill"></div></div>`;
+            wrap.innerHTML = `<div class="audio-progress-bar" style="margin-top:4px"><div class="audio-progress-fill"></div></div>`;
             bubble.appendChild(wrap);
             let pct = 0;
             const fill = wrap.querySelector('.audio-progress-fill');
             const tid = setInterval(() => {
-              pct = pct + (88 - pct) * 0.016;  // asintótico: se acerca a 88% lentamente
+              pct = pct + (88 - pct) * 0.016;
               fill.style.width = pct.toFixed(1) + '%';
             }, 600);
             _toolTimers[badge.id] = { tid, wrap };
@@ -1323,9 +1333,22 @@ async function sendMessage(e) {
             badge.className = 'action-badge done';
             badge.innerHTML = `${m ? m.icon : '<i class="fa-solid fa-circle-check"></i>'} ${m ? m.done : evt.tool + ' ✓'}`;
           }
+          // Limpiar la línea de estado de esta herramienta
+          if (_toolStatusEls[evt.tool]) {
+            _toolStatusEls[evt.tool].remove();
+            delete _toolStatusEls[evt.tool];
+          }
           if (evt.tool === 'save_artifact' || evt.tool === 'generate_image') artifactSaved = true;
           currentTextEl = null;
           _currentSectionText = '';
+
+        } else if (evt.type === 'tool_status') {
+          // Actualizar el texto de la línea de estado de la herramienta en curso
+          const el = _toolStatusEls[evt.tool];
+          if (el) {
+            const span = el.querySelector('span');
+            if (span) span.textContent = evt.msg;
+          }
 
         } else if (evt.type === 'auto_continue') {
           currentTextEl = null;
@@ -1383,6 +1406,7 @@ async function sendMessage(e) {
       clearInterval(tid);
       if (wrap) wrap.remove();
     });
+    Object.values(_toolStatusEls).forEach(el => el && el.remove());
     setStreamingUI(false);
     _abortCtrl = null;
     _currentSectionText = '';

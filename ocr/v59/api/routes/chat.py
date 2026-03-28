@@ -14,10 +14,54 @@ _AUTO_CONTINUE = '↩️ Continúo'
 
 # Detecta cuando Claude anuncia herramientas en texto pero no las ejecuta (stop_reason=end_turn)
 _EXECUTION_LANGUAGE = re.compile(
-    r'(lanzo|ejecuto|voy a (?:llamar|lanzar|ejecutar)|llamo ahora|procedo a (?:llamar|ejecutar)|'
-    r'ahora (?:lanzo|ejecuto|llamo)|llamar[eé] a|ejecutar[eé]|anali[zs]o ahora)',
+    r'(lanzo|ejecuto|'
+    r'voy a (?:llamar|lanzar|ejecutar|guardar|generar|crear|analizar|proceder)|'
+    r'llamo ahora|procedo a (?:llamar|ejecutar|guardar|generar)|'
+    r'ahora (?:lanzo|ejecuto|llamo|guardo|genero|procedo)|'
+    r'llamar[eé] a|ejecutar[eé]|anali[zs]o ahora|'
+    r'guardo directamente|genero ahora|generando (?:el|la|un|una)\s|'
+    r'guardarlo.{0,40}save_artifact|save_artifact|analyze_audio)',
     re.IGNORECASE
 )
+
+# Mensajes de estado por herramienta, con umbral de tiempo en segundos
+# (t_seg_mínimo, mensaje)  — se emite cuando elapsed >= t_seg y el mensaje cambia
+_STATUS_STEPS = {
+    'analyze_audio': [
+        (0,   'Subiendo audio a Whisper API…'),
+        (20,  'Transcribiendo con timestamps de palabras y segmentos…'),
+        (60,  'Procesando — archivos grandes pueden tardar 2–4 min más…'),
+        (120, 'Detectando pausas y marcadores paralingüísticos…'),
+        (180, 'Calculando pitch F0 y energía RMS con librosa…'),
+        (240, 'Construyendo reporte forense vocal…'),
+    ],
+    'generate_image': [
+        (0,  'Enviando prompt a Flux.1 (fal.ai)…'),
+        (15, 'Renderizando — procesando composición y detalles…'),
+        (40, 'Finalizando imagen y guardando en el expediente…'),
+    ],
+    'save_artifact': [
+        (0, 'Guardando artefacto en base de datos…'),
+    ],
+    'list_case_contents': [
+        (0, 'Consultando inventario completo del expediente…'),
+    ],
+    'search_precedents': [
+        (0, 'Buscando jurisprudencia y precedentes legales…'),
+    ],
+    'validate_document': [
+        (0, 'Verificando requisitos legales del documento…'),
+    ],
+    'export_to_jotform': [
+        (0, 'Exportando datos del caso a JotForm…'),
+    ],
+    'create_case': [
+        (0, 'Creando nuevo expediente en la base de datos…'),
+    ],
+    'save_session_notes': [
+        (0, 'Guardando notas de sesión…'),
+    ],
+}
 
 # Precios por token (claude-opus-4-6)
 _PRICE_INPUT      = 15.0  / 1_000_000   # $15 / MTok
@@ -688,6 +732,12 @@ def chat_stream():
                         continue
                     q.put(('tool_start', b.name))   # avisa al frontend antes de ejecutar
                     t_tool = time.time()
+                    # Emitir primer mensaje de estado inmediatamente
+                    _steps = _STATUS_STEPS.get(b.name, [])
+                    if _steps:
+                        q.put(('tool_status', {'tool': b.name, 'msg': _steps[0][1]}))
+                    _last_status = [_steps[0][1] if _steps else None]
+
                     # Ejecutar tool en hilo propio; enviar keepalives cada 10s
                     # para evitar timeout SSE en tools lentas (analyze_audio, etc.)
                     _tool_result = [None]
@@ -701,6 +751,16 @@ def chat_stream():
                         _tt.join(timeout=10)
                         if not _tool_done[0]:
                             q.put(('keepalive', None))
+                            # Actualizar mensaje de estado según tiempo transcurrido
+                            t_el = time.time() - t_tool
+                            msg = None
+                            for t_s, m in reversed(_steps):
+                                if t_el >= t_s:
+                                    msg = m
+                                    break
+                            if msg and msg != _last_status[0]:
+                                _last_status[0] = msg
+                                q.put(('tool_status', {'tool': b.name, 'msg': msg}))
                     result = _tool_result[0]
                     log.info('tool %s %.2fs', b.name, time.time() - t_tool)
                     q.put(('tool_result', {'tool': b.name, 'result': result}))
@@ -764,6 +824,8 @@ def chat_stream():
                 yield f"data: {json.dumps({'type': 'keepalive'})}\n\n"
             elif type_ == 'auto_continue':
                 yield f"data: {json.dumps({'type': 'auto_continue'})}\n\n"
+            elif type_ == 'tool_status':
+                yield f"data: {json.dumps({'type': 'tool_status', 'tool': data['tool'], 'msg': data['msg']})}\n\n"
 
     return Response(
         stream_with_context(generate()),
