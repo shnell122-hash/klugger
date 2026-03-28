@@ -189,6 +189,10 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 .badge-spinner{display:inline-block;width:9px;height:9px;border:1.5px solid currentColor;border-top-color:transparent;border-radius:50%;animation:badge-spin .65s linear infinite;flex-shrink:0}
 .action-badge.running{background:linear-gradient(135deg,rgba(196,122,90,0.13) 0%,rgba(139,92,246,0.09) 100%);border:1px solid rgba(196,122,90,0.55);color:var(--accent);animation:badge-pulse 1.9s ease-in-out infinite}
 .action-badge.done{background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.40);color:var(--green)}
+.audio-progress-wrap{margin:0 0 8px 0;width:240px;max-width:100%}
+.audio-progress-hint{font-size:.62rem;color:var(--muted);margin-bottom:4px;letter-spacing:.1px}
+.audio-progress-bar{height:2px;background:var(--border);border-radius:2px;overflow:hidden}
+.audio-progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:2px;transition:width .6s ease}
 .auto-continue-pill{display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--accent);margin:8px 0;padding:5px 0;border-top:1px dashed var(--border);border-bottom:1px dashed var(--border)}
 .st{white-space:pre-wrap;word-wrap:break-word}
 
@@ -1215,6 +1219,7 @@ async function sendMessage(e) {
   let hasError = false;
   let artifactSaved = false;
   let badgeCount = 0;
+  const _toolTimers = {}; // { badgeId: { tid, wrap } }
 
   function ensureText() {
     if (!currentTextEl) {
@@ -1285,11 +1290,35 @@ async function sendMessage(e) {
           badge.dataset.tool = evt.tool;
           badge.innerHTML = `<span class="badge-spinner"></span>${m ? m.icon : '<i class="fa-solid fa-gear"></i>'} ${m ? m.running : evt.tool}`;
           bubble.appendChild(badge);
+
+          // Progress bar for slow tools (analyze_audio)
+          if (evt.tool === 'analyze_audio') {
+            const wrap = document.createElement('div');
+            wrap.className = 'audio-progress-wrap';
+            wrap.innerHTML = `<div class="audio-progress-hint"><i class="fa-solid fa-circle-info"></i> Whisper + análisis acústico · audios largos pueden tardar 3–5 min</div><div class="audio-progress-bar"><div class="audio-progress-fill"></div></div>`;
+            bubble.appendChild(wrap);
+            let pct = 0;
+            const fill = wrap.querySelector('.audio-progress-fill');
+            const tid = setInterval(() => {
+              pct = pct + (88 - pct) * 0.016;  // asintótico: se acerca a 88% lentamente
+              fill.style.width = pct.toFixed(1) + '%';
+            }, 600);
+            _toolTimers[badge.id] = { tid, wrap };
+          }
           scrollChat();
 
         } else if (evt.type === 'tool_result') {
           const badge = bubble.querySelector(`.action-badge[data-tool="${evt.tool}"].running`);
           if (badge) {
+            // Complete progress bar if present
+            if (_toolTimers[badge.id]) {
+              const { tid, wrap } = _toolTimers[badge.id];
+              clearInterval(tid);
+              const fill = wrap.querySelector('.audio-progress-fill');
+              if (fill) { fill.style.transition = 'width .25s ease'; fill.style.width = '100%'; }
+              setTimeout(() => wrap.remove(), 700);
+              delete _toolTimers[badge.id];
+            }
             const m = TOOL_META[evt.tool];
             badge.className = 'action-badge done';
             badge.innerHTML = `${m ? m.icon : '<i class="fa-solid fa-circle-check"></i>'} ${m ? m.done : evt.tool + ' ✓'}`;
@@ -1349,6 +1378,11 @@ async function sendMessage(e) {
     }
     scrollChat();
   } finally {
+    // Clean up any stuck progress timers (e.g. user pressed stop mid-analysis)
+    Object.values(_toolTimers).forEach(({ tid, wrap }) => {
+      clearInterval(tid);
+      if (wrap) wrap.remove();
+    });
     setStreamingUI(false);
     _abortCtrl = null;
     _currentSectionText = '';

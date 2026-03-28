@@ -390,13 +390,24 @@ def _analyze_audio(inputs: dict) -> dict:
     if not os.path.exists(audio_path):
         return {"error": f"Archivo no encontrado en disco: {audio_path}"}
 
+    # Whisper tiene un límite de 25 MB — rechazar antes de intentar
+    file_size = os.path.getsize(audio_path)
+    if file_size > 24 * 1024 * 1024:
+        mb = round(file_size / 1024 / 1024, 1)
+        return {
+            "error": (
+                f"El archivo ({mb} MB) supera el límite de 24 MB de Whisper. "
+                "Por favor convierte el audio a MP3 128kbps o divide en fragmentos de < 20 MB."
+            )
+        }
+
     openai_key = os.getenv('OPENAI_API_KEY', '')
     if not openai_key:
         return {"error": "OPENAI_API_KEY no configurado en el servidor"}
 
     # ── 1. Whisper verbose con timestamps por palabra ─────────────────────────
     import openai as _oai
-    oai = _oai.OpenAI(api_key=openai_key)
+    oai = _oai.OpenAI(api_key=openai_key, timeout=600)
 
     with open(audio_path, 'rb') as fh:
         transcript = oai.audio.transcriptions.create(
@@ -445,10 +456,12 @@ def _analyze_audio(inputs: dict) -> dict:
         })
 
     # ── 5. Features acústicas con librosa (opcional) ──────────────────────────
+    # Limitar a 300 s y 16 kHz para evitar OOM en archivos largos
     acoustic = {}
     try:
         import librosa, numpy as np
-        y, sr = librosa.load(audio_path, sr=None, mono=True)
+        MAX_DUR = 300  # primeros 5 min son suficientes para perfil vocal
+        y, sr = librosa.load(audio_path, sr=16000, mono=True, duration=MAX_DUR)
 
         # Pitch F0
         f0, voiced, _ = librosa.pyin(
@@ -462,7 +475,7 @@ def _analyze_audio(inputs: dict) -> dict:
         rms = librosa.feature.rms(y=y)[0]
 
         acoustic = {
-            "duration_sec": round(float(len(y) / sr), 1),
+            "analyzed_sec":  min(MAX_DUR, round(float(len(y) / sr), 1)),
             "pitch_hz": {
                 "mean": round(float(np.nanmean(f0_v)), 1) if len(f0_v) > 0 else None,
                 "std":  round(float(np.nanstd(f0_v)), 1)  if len(f0_v) > 0 else None,
