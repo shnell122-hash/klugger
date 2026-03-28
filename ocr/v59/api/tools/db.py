@@ -45,7 +45,7 @@ def query(sql: str, params=None, many: bool = False):
     conn = _get_pool().get_connection()
     cur = None
     try:
-        cur = conn.cursor(dictionary=True)
+        cur = conn.cursor(dictionary=True, buffered=True)
         cur.execute(sql, params or ())
         if many:
             rows = cur.fetchall()
