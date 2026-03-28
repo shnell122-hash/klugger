@@ -39,19 +39,22 @@ def _save_artifact(inputs: dict) -> dict:
         if not inputs.get(f):
             return {"error": f"{f} requerido"}
 
-    art_id = str(uuid.uuid4())
-    content = inputs['content']
+    art_id   = str(uuid.uuid4())
+    content  = inputs['content']
+    art_type = inputs['artifact_type']
+    mime     = 'text/html' if art_type == 'html' else 'text/markdown'
     execute(
         """INSERT INTO system_artifacts
            (artifact_id, case_id, artifact_name, artifact_type, content,
             mime_type, file_size_bytes, source)
-           VALUES (%s,%s,%s,%s,%s,'text/markdown',%s,'system')""",
+           VALUES (%s,%s,%s,%s,%s,%s,%s,'system')""",
         (
             art_id,
             inputs['case_id'],
             inputs['artifact_name'],
-            inputs['artifact_type'],
+            art_type,
             content,
+            mime,
             len(content.encode()),
         )
     )

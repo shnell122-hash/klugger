@@ -348,10 +348,10 @@ ARTIFACT_TEMPLATES = {
 }
 
 MAX_TOKENS_BY_TYPE = {
-    "contract": 32000,
-    "brief":    32000,
-    "html":     32000,
-    "analysis": 32000,
+    "contract": 64000,
+    "brief":    64000,
+    "html":     64000,
+    "analysis": 64000,
     "summary":  4096,
     "checklist":4096,
 }
@@ -611,6 +611,14 @@ def _get_case_inventory(case_id: str) -> str:
                     f'name="{a["artifact_name"]}" '
                     f'type="{a["artifact_type"]}">'
                 )
+                # Para HTML: no inyectar el código crudo (principalmente CSS/JS)
+                # — consume tokens sin aportar contexto analítico útil
+                if a.get('artifact_type') == 'html':
+                    lines.append(
+                        f'{header}\n[HTML artefacto — {len(preview):,} chars — '
+                        f'disponible para ver en Generados]\n</artifact>'
+                    )
+                    continue
                 block = f"{header}\n{preview}\n</artifact>"
                 if total_chars + len(block) > char_limit:
                     lines.append(f"<!-- {a['artifact_name']}: omitido por límite de contexto -->")
@@ -1059,6 +1067,36 @@ def chat_stream():
                 }))
 
                 if final_msg.stop_reason != 'tool_use':
+                    # ── Detectar truncamiento de tool call por max_tokens ─────────
+                    if final_msg.stop_reason == 'max_tokens':
+                        truncated = [b for b in final_msg.content if b.type == 'tool_use']
+                        if truncated and iteration < 3:
+                            tnames = ', '.join(b.name for b in truncated)
+                            emit_op('⚠️',
+                                    f'Contenido truncado ({tnames}) — reintentando compacto…',
+                                    detail=f'max_tokens={max_tokens:,} insuficiente. '
+                                           f'Solicitando HTML compacto.',
+                                    level='warn')
+                            log.warning('max_tokens truncation of tool_use %s at iter %d',
+                                        tnames, iteration)
+                            # Añadir solo el texto generado (sin el tool_use incompleto)
+                            if text_this_round:
+                                current_messages.append({
+                                    "role": "assistant", "content": text_this_round
+                                })
+                            current_messages.append({"role": "user", "content": (
+                                f"El contenido de {tnames} fue truncado — excedió los "
+                                f"{max_tokens:,} tokens de salida disponibles. "
+                                f"Regenera la llamada con HTML más compacto:\n"
+                                f"- CSS: eliminar comentarios y whitespace, usar shorthand\n"
+                                f"- Chart.js: configs mínimos, sin animaciones, labels cortos\n"
+                                f"- Sin comentarios HTML — cada byte cuenta\n"
+                                f"Conserva TODO el contenido analítico. "
+                                f"Máximo 40KB total. Llama {tnames} ahora."
+                            )})
+                            _force_tool = True
+                            continue   # reintentar con contenido compacto
+
                     # Detectar señal de auto-continuación (tareas masivas §11)
                     if _AUTO_CONTINUE in text_this_round:
                         log.info('auto-continue detected at iteration %d', iteration)
