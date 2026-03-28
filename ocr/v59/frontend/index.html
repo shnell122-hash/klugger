@@ -139,10 +139,15 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 #ctx-chips{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;min-height:0}
 .ctx-chip{background:var(--accent);color:#fff;border-radius:4px;padding:2px 8px;font-size:.7rem;display:flex;align-items:center;gap:4px;cursor:default}
 .ctx-chip button{background:none;border:none;color:#fff;cursor:pointer;font-size:.8rem;line-height:1;padding:0}
-#chat-form{display:flex;gap:8px}
-#chat-input{flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 13px;font-size:.85rem;resize:none;min-height:42px;max-height:120px;outline:none;font-family:inherit;transition:border-color .15s}
-#chat-input:focus{border-color:var(--accent)}
-#send-btn{padding:9px 16px;font-size:.85rem}
+#chat-form{position:relative;background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:10px 50px 10px 14px;transition:border-color .15s}
+#chat-form:focus-within{border-color:var(--accent)}
+#chat-input{width:100%;background:transparent;border:none;color:var(--text);padding:0;font-size:.85rem;resize:none;min-height:22px;max-height:120px;outline:none;font-family:inherit;line-height:1.5}
+.send-stop-btn{position:absolute;bottom:8px;right:8px;width:32px;height:32px;border-radius:9px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:opacity .15s;font-size:.82rem;flex-shrink:0}
+#send-btn{background:var(--accent);color:#fff}
+#send-btn:hover{opacity:.82}
+#send-btn:disabled{opacity:.30;cursor:default}
+#stop-btn{background:var(--red);color:#fff;display:none}
+#stop-btn:hover{opacity:.82}
 
 /* ── Right panel — Viewer ── */
 #viewer-panel{width:380px;min-width:280px;background:var(--glass);backdrop-filter:blur(14px) saturate(150%);-webkit-backdrop-filter:blur(14px) saturate(150%);border-left:1px solid var(--glass-border);display:flex;flex-direction:column}
@@ -319,8 +324,9 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
     <div id="chat-input-area">
       <div id="ctx-chips"></div>
       <form id="chat-form" onsubmit="sendMessage(event)">
-        <textarea id="chat-input" placeholder="Escribe un mensaje... (Enter envía, Shift+Enter nueva línea)" rows="1"></textarea>
-        <button type="submit" id="send-btn" class="btn">Enviar</button>
+        <textarea id="chat-input" placeholder="Escribe un mensaje… (Enter envía, Shift+Enter nueva línea)" rows="1"></textarea>
+        <button type="submit" id="send-btn" class="send-stop-btn" title="Enviar"><i class="fa-solid fa-arrow-up"></i></button>
+        <button type="button" id="stop-btn" class="send-stop-btn" title="Detener generación" onclick="stopStream()"><i class="fa-solid fa-stop" style="font-size:.65rem"></i></button>
       </form>
     </div>
   </div>
@@ -473,6 +479,8 @@ let artifacts = {user: [], system: []};
 let ctxIds = new Set();        // artifact IDs selected for context
 let artifactTab = 'user';
 let chatHistory = [];
+let _abortCtrl = null;
+let _isStreaming = false;
 
 // ── Theme ─────────────────────────────────────────────────
 function _resolvedTheme() {
@@ -1155,8 +1163,21 @@ const TOOL_LABELS = Object.fromEntries(
   Object.entries(TOOL_META).map(([k,v])=>[k, v.icon + ' ' + v.running])
 );
 
+function setStreamingUI(streaming) {
+  _isStreaming = streaming;
+  const sendBtn = document.getElementById('send-btn');
+  const stopBtn = document.getElementById('stop-btn');
+  sendBtn.style.display = streaming ? 'none' : 'flex';
+  stopBtn.style.display = streaming ? 'flex' : 'none';
+}
+
+function stopStream() {
+  if (_abortCtrl) { _abortCtrl.abort(); _abortCtrl = null; }
+}
+
 async function sendMessage(e) {
   e.preventDefault();
+  if (_isStreaming) return;
   const inp = document.getElementById('chat-input');
   const text = inp.value.trim();
   if (!text) return;
@@ -1204,10 +1225,14 @@ async function sendMessage(e) {
     return currentTextEl;
   }
 
+  _abortCtrl = new AbortController();
+  setStreamingUI(true);
+
   try {
     const res = await fetch(`${API}/v1/chat/stream`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
+      signal: _abortCtrl.signal,
       body: JSON.stringify({
         case_id: currentCase ? currentCase.case_id : '',
         message: text,
@@ -1307,22 +1332,25 @@ async function sendMessage(e) {
     scrollChat();
 
   } catch(err) {
-    // iOS Safari mata la conexión cuando la app va a background → "Load failed"
-    const isNetworkAbort = /load failed|network|aborted|failed to fetch/i.test(err.message);
-    if (isNetworkAbort && fullText) {
-      // Ya había texto parcial — renderizarlo y marcar como interrumpido
+    const isUserStop = err.name === 'AbortError';
+    const isNetworkAbort = !isUserStop && /load failed|network|aborted|failed to fetch/i.test(err.message);
+    if ((isUserStop || isNetworkAbort) && fullText) {
       bubble.innerHTML = mdToHtml(fullText) +
-        '<div style="font-size:.7rem;color:var(--muted);margin-top:6px">⚠️ Conexión interrumpida — respuesta parcial</div>';
+        `<div style="font-size:.7rem;color:var(--muted);margin-top:6px">${isUserStop ? '⬛ Generación detenida' : '⚠️ Conexión interrumpida — respuesta parcial'}</div>`;
       _msgStore.set(mid, fullText);
       chatHistory.push({role:'assistant', content: fullText});
+      const copyRow = document.getElementById(`copy-row-${mid}`);
+      if (copyRow) { copyRow.style.opacity='1'; copyRow.style.pointerEvents='auto'; }
     } else if (isNetworkAbort) {
       bubble.innerHTML = '<span style="color:var(--muted)">⚠️ Conexión interrumpida. Recargando historial…</span>';
       setTimeout(() => loadChatHistory(), 1500);
-    } else {
+    } else if (!isUserStop) {
       bubble.innerHTML = `<span style="color:var(--red)">Error: ${esc(err.message)}</span>`;
     }
     scrollChat();
   } finally {
+    setStreamingUI(false);
+    _abortCtrl = null;
     _currentSectionText = '';
   }
 }

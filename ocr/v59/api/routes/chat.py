@@ -409,8 +409,17 @@ def _run_agentic_loop(client, model, max_tokens, system, init_messages, case_id,
 
 @chat_bp.route('/api/chat/history/<case_id>', methods=['GET'])
 def get_chat_history(case_id):
+    # Fetch the 200 most-recent messages and return them in chronological order
     rows = query(
-        "SELECT role, content, created_at FROM chat_history WHERE case_id=%s ORDER BY created_at ASC LIMIT 100",
+        """SELECT role, content, created_at
+           FROM (
+             SELECT role, content, created_at
+             FROM chat_history
+             WHERE case_id = %s
+             ORDER BY created_at DESC
+             LIMIT 200
+           ) t
+           ORDER BY created_at ASC""",
         (case_id,), many=True
     )
     return jsonify({"history": rows or []})
