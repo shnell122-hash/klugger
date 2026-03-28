@@ -930,6 +930,22 @@ def chat_stream():
                          u.input_tokens, cached, u.output_tokens,
                          time.time() - t_round)
                 _log_usage(user_id, case_id, model, u)
+                p_    = _PRICES.get(model, _PRICES[_MODEL_OPUS])
+                cost_ = (u.input_tokens * p_['inp'] +
+                         u.output_tokens * p_['out'] +
+                         cached * p_['cache'])
+                emit_op('📊',
+                        f'Tokens · {u.input_tokens:,} entrada + {u.output_tokens:,} salida',
+                        detail=f'Cache: {cached:,} · Costo: ${cost_:.4f} USD · Modelo: {mshort}')
+                q.put(('token_usage', {
+                    'model':      mshort,
+                    'iteration':  iteration + 1,
+                    'input':      u.input_tokens,
+                    'output':     u.output_tokens,
+                    'cache':      cached,
+                    'cost_usd':   round(cost_, 6),
+                    'stop':       final_msg.stop_reason,
+                }))
 
                 if final_msg.stop_reason != 'tool_use':
                     # Detectar señal de auto-continuación (tareas masivas §11)
@@ -994,6 +1010,8 @@ def chat_stream():
                         _steps = _STATUS_STEPS.get(b.name, [])
                         if _steps:
                             q.put(('tool_status', {'tool': b.name, 'msg': _steps[0][1]}))
+                    emit_op('🔧', f'Ejecutando herramienta: {b.name}',
+                            detail=f'Input keys: {list(dict(b.input).keys())}')
                     t_tool = time.time()
                     _steps = _STATUS_STEPS.get(b.name, [])
                     _last_status = [_steps[0][1] if _steps else None]
@@ -1023,6 +1041,14 @@ def chat_stream():
                                 q.put(('tool_status', {'tool': b.name, 'msg': msg}))
                     result = _tool_result[0]
                     log.info('tool %s %.2fs', b.name, time.time() - t_tool)
+                    status_r = result.get('status', '?') if isinstance(result, dict) else '?'
+                    if status_r == 'saved':
+                        emit_op('✅', f'Artefacto guardado — {b.name}',
+                                detail=f'ID: {result.get("artifact_id","?")} · tipo: {result.get("artifact_type","?")}')
+                    elif status_r == 'error':
+                        emit_op('❌', f'Error en {b.name}: {result.get("error","?")}', level='error')
+                    else:
+                        emit_op('✅', f'{b.name} completado', detail=str(status_r))
                     q.put(('tool_result', {'tool': b.name, 'result': result}))
                     tool_result_content.append({
                         "type": "tool_result",
@@ -1034,11 +1060,17 @@ def chat_stream():
                 current_messages.append({"role": "user", "content": tool_result_content})
 
         except anthropic.APIError as e:
-            q.put(('error', f'API Error: {str(e)}'))
+            diag = _auto_diagnose(traceback.format_exc(), model, artifact_type, max_tokens)
+            emit_op('❌', f'Error API Anthropic: {str(e)[:120]}', level='error')
+            q.put(('diagnosis', diag))
+            q.put(('error', diag['user_msg']))
         except Exception:
-            err = traceback.format_exc()
-            log.error('chat_stream worker:\n%s', err)
-            q.put(('error', 'Error interno del servidor'))
+            tb_ = traceback.format_exc()
+            log.error('chat_stream worker:\n%s', tb_)
+            diag = _auto_diagnose(tb_, model, artifact_type, max_tokens)
+            emit_op('❌', f'Error interno: {diag["last_error"][:120]}', level='error')
+            q.put(('diagnosis', diag))
+            q.put(('error', diag['user_msg']))
         finally:
             full_text = ''.join(accumulated)
             # Guardar en DB siempre, aunque el cliente haya cerrado el tab
@@ -1056,6 +1088,8 @@ def chat_stream():
                              len(full_text.split()), time.time() - t_start)
                 except Exception as e:
                     log.error('chat_history save failed: %s', e)
+            elapsed_ = time.time() - t_start
+            emit_op('🏁', f'Completado en {elapsed_:.1f}s · {len(full_text.split()):,} palabras')
             q.put(('done', None))
 
     threading.Thread(target=worker, daemon=True).start()
@@ -1086,6 +1120,12 @@ def chat_stream():
                 yield f"data: {json.dumps({'type': 'auto_continue'})}\n\n"
             elif type_ == 'tool_status':
                 yield f"data: {json.dumps({'type': 'tool_status', 'tool': data['tool'], 'msg': data['msg']})}\n\n"
+            elif type_ == 'op_log':
+                yield f"data: {json.dumps({'type': 'op_log', 'icon': data.get('icon','•'), 'msg': data['msg'], 'detail': data.get('detail'), 'level': data.get('level','info')})}\n\n"
+            elif type_ == 'token_usage':
+                yield f"data: {json.dumps({'type': 'token_usage', **data})}\n\n"
+            elif type_ == 'diagnosis':
+                yield f"data: {json.dumps({'type': 'diagnosis', **data})}\n\n"
 
     return Response(
         stream_with_context(generate()),

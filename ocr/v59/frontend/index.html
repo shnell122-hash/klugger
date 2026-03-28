@@ -198,6 +198,26 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 .audio-progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:2px;transition:width .6s ease}
 .tool-status-line{font-size:.61rem;color:var(--muted);margin:2px 0 6px 0;padding-left:2px;letter-spacing:.1px;min-height:14px;display:flex;align-items:center;gap:5px;transition:opacity .2s}
 .tool-status-dot{width:5px;height:5px;border-radius:50%;background:var(--accent);flex-shrink:0;animation:badge-pulse 1.6s ease-in-out infinite}
+/* ── Op-log (step-by-step operation log) ── */
+.op-log-section{margin-top:8px;padding-top:6px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:2px}
+.op-log-entry{display:flex;align-items:flex-start;gap:6px;font-size:.60rem;color:var(--muted);line-height:1.4;padding:1px 0}
+.op-log-entry.error{color:var(--red)}
+.op-log-entry.warn{color:var(--yellow)}
+.op-log-icon{flex-shrink:0;width:14px;text-align:center}
+.op-log-msg{flex:1;min-width:0}
+.op-log-detail{font-size:.57rem;color:var(--muted);opacity:.7;margin-top:1px;font-style:italic}
+/* ── Token chip ── */
+.token-chip{display:inline-flex;align-items:center;gap:5px;font-size:.60rem;color:var(--muted);background:var(--hover);border:1px solid var(--border);border-radius:8px;padding:3px 8px;margin-top:6px;white-space:nowrap}
+.token-chip .tc-model{color:var(--accent);font-weight:600}
+/* ── Diagnosis panel ── */
+.diagnosis-panel{margin-top:8px;background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.30);border-radius:8px;padding:10px;font-size:.68rem}
+.diagnosis-panel .dp-title{color:var(--red);font-weight:600;margin-bottom:6px}
+.diagnosis-panel .dp-user{color:var(--text);margin-bottom:8px}
+.diagnosis-panel details{cursor:pointer}
+.diagnosis-panel summary{color:var(--muted);font-size:.62rem;user-select:none}
+.diagnosis-panel .dp-steps{margin-top:6px;padding-left:8px;border-left:2px solid rgba(248,113,113,0.4)}
+.diagnosis-panel .dp-step{color:var(--muted);margin:2px 0;font-size:.61rem}
+.diagnosis-panel pre{background:rgba(0,0,0,.25);border-radius:4px;padding:6px 8px;font-size:.58rem;overflow-x:auto;margin-top:6px;white-space:pre-wrap;color:var(--yellow)}
 .auto-continue-pill{display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--accent);margin:8px 0;padding:5px 0;border-top:1px dashed var(--border);border-bottom:1px dashed var(--border)}
 .st{white-space:pre-wrap;word-wrap:break-word}
 
@@ -1391,6 +1411,50 @@ async function sendMessage(e) {
           if (evt.tool === 'save_artifact' || evt.tool === 'generate_image') artifactSaved = true;
           currentTextEl = null;
           _currentSectionText = '';
+
+        } else if (evt.type === 'op_log') {
+          // Crear sección de log si no existe
+          let logSec = bubble.querySelector('.op-log-section');
+          if (!logSec) {
+            logSec = document.createElement('div');
+            logSec.className = 'op-log-section';
+            bubble.appendChild(logSec);
+          }
+          const entry = document.createElement('div');
+          entry.className = `op-log-entry${evt.level === 'error' ? ' error' : evt.level === 'warn' ? ' warn' : ''}`;
+          entry.innerHTML = `<span class="op-log-icon">${esc(evt.icon || '•')}</span>
+            <span class="op-log-msg">${esc(evt.msg)}${evt.detail ? `<div class="op-log-detail">${esc(evt.detail)}</div>` : ''}</span>`;
+          logSec.appendChild(entry);
+          scrollChat();
+
+        } else if (evt.type === 'token_usage') {
+          // Actualizar o crear token chip (solo mostrar el último acumulado)
+          let chip = bubble.querySelector('.token-chip');
+          if (!chip) {
+            chip = document.createElement('div');
+            chip.className = 'token-chip';
+            bubble.appendChild(chip);
+          }
+          const inK  = (evt.input  / 1000).toFixed(1);
+          const outK = (evt.output / 1000).toFixed(1);
+          const cost = evt.cost_usd ? `· $${evt.cost_usd.toFixed(4)}` : '';
+          chip.innerHTML = `📊 <span class="tc-model">${esc(evt.model)}</span> · ${inK}k→${outK}k ${cost}`;
+
+        } else if (evt.type === 'diagnosis') {
+          const panel = document.createElement('div');
+          panel.className = 'diagnosis-panel';
+          const steps = (evt.dev_steps || []).map(s => `<div class="dp-step">• ${esc(s)}</div>`).join('');
+          const fix   = evt.fix_code ? `<pre>${esc(evt.fix_code)}</pre>` : '';
+          panel.innerHTML = `
+            <div class="dp-title">⚠️ Error detectado</div>
+            <div class="dp-user">${esc(evt.user_msg || 'Error interno')}</div>
+            <details>
+              <summary>🔍 Diagnóstico técnico (para el desarrollador)</summary>
+              <div class="dp-steps">${steps}</div>
+              ${fix}
+            </details>`;
+          bubble.appendChild(panel);
+          scrollChat();
 
         } else if (evt.type === 'tool_status') {
           // Actualizar el texto de la línea de estado de la herramienta en curso
