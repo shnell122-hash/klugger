@@ -63,10 +63,47 @@ _STATUS_STEPS = {
     ],
 }
 
-# Precios por token (claude-opus-4-6)
-_PRICE_INPUT      = 15.0  / 1_000_000   # $15 / MTok
-_PRICE_OUTPUT     = 75.0  / 1_000_000   # $75 / MTok
-_PRICE_CACHE_READ = 1.5   / 1_000_000   # $1.5 / MTok
+# ── Modelos disponibles ────────────────────────────────────────────────────────
+_MODEL_HAIKU  = "claude-haiku-4-5-20251001"
+_MODEL_SONNET = "claude-sonnet-4-6"
+_MODEL_OPUS   = "claude-opus-4-6"
+
+# Modelo por tipo de artefacto
+_MODEL_BY_TYPE = {
+    "summary":   _MODEL_HAIKU,    # resúmenes → Haiku (rápido y barato)
+    "checklist": _MODEL_HAIKU,    # checklists → Haiku
+    "html":      _MODEL_SONNET,   # HTML / reportes visuales → Sonnet
+    "contract":  _MODEL_SONNET,   # contratos → Sonnet
+    "brief":     _MODEL_SONNET,   # escritos → Sonnet
+    "analysis":  _MODEL_SONNET,   # análisis → Sonnet por defecto
+}
+
+# Palabras clave que escalan a Opus (solo para análisis forense muy exigente)
+_OPUS_KEYWORDS = re.compile(
+    r'\b(usa opus|con opus|'
+    r'análisis (?:muy )?(?:profundo|exhaustivo|completo) (?:de todos|de cada|forense)|'
+    r'revisión exhaustiva completa)\b',
+    re.IGNORECASE
+)
+
+def _select_model(artifact_type: str, message: str) -> str:
+    """Elige el modelo más económico suficiente para la tarea."""
+    if _OPUS_KEYWORDS.search(message or ''):
+        return _MODEL_OPUS
+    return _MODEL_BY_TYPE.get(artifact_type, _MODEL_SONNET)
+
+
+# ── Precios por modelo (USD / token) ──────────────────────────────────────────
+_PRICES = {
+    _MODEL_HAIKU:  dict(inp=0.80/1e6,  out=4.0/1e6,   cache=0.08/1e6),
+    _MODEL_SONNET: dict(inp=3.0/1e6,   out=15.0/1e6,  cache=0.30/1e6),
+    _MODEL_OPUS:   dict(inp=15.0/1e6,  out=75.0/1e6,  cache=1.50/1e6),
+}
+
+# Compatibilidad con código viejo que usa las constantes sueltas
+_PRICE_INPUT      = _PRICES[_MODEL_OPUS]['inp']
+_PRICE_OUTPUT     = _PRICES[_MODEL_OPUS]['out']
+_PRICE_CACHE_READ = _PRICES[_MODEL_OPUS]['cache']
 
 
 def _log_usage(user_id, case_id, model, usage):
@@ -77,7 +114,8 @@ def _log_usage(user_id, case_id, model, usage):
         inp   = getattr(usage, 'input_tokens', 0) or 0
         out   = getattr(usage, 'output_tokens', 0) or 0
         cache = getattr(usage, 'cache_read_input_tokens', 0) or 0
-        cost  = inp * _PRICE_INPUT + out * _PRICE_OUTPUT + cache * _PRICE_CACHE_READ
+        p     = _PRICES.get(model, _PRICES[_MODEL_OPUS])
+        cost  = inp * p['inp'] + out * p['out'] + cache * p['cache']
         execute(
             """INSERT INTO api_usage
                (usage_id, user_id, case_id, model,
@@ -569,13 +607,14 @@ def chat():
     messages.append({"role": "user", "content": message})
 
     client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
+    model  = _select_model(artifact_type, message)
 
     t0 = time.time()
-    log.info('chat start | case=%s type=%s', case_id, artifact_type)
+    log.info('chat start | case=%s type=%s model=%s', case_id, artifact_type, model)
     try:
         full_text, tool_results = _run_agentic_loop(
             client=client,
-            model="claude-opus-4-6",
+            model=model,
             max_tokens=max_tokens,
             system=system_blocks,
             init_messages=messages,
@@ -669,9 +708,10 @@ def chat_stream():
     messages.append({"role": "user", "content": message})
 
     client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
+    model  = _select_model(artifact_type, message)
     q: queue.Queue = queue.Queue()   # ilimitado — worker escribe, SSE lee
     t_start = time.time()
-    log.info('chat_stream start | case=%s type=%s', case_id, artifact_type)
+    log.info('chat_stream start | case=%s type=%s model=%s', case_id, artifact_type, model)
 
     def worker():
         """
@@ -691,7 +731,7 @@ def chat_stream():
                 t_round = time.time()
 
                 stream_kwargs = dict(
-                    model="claude-opus-4-6",
+                    model=model,
                     max_tokens=max_tokens,
                     system=system_blocks,
                     tools=TOOL_DEFS,
@@ -752,7 +792,7 @@ def chat_stream():
                          iteration, final_msg.stop_reason,
                          u.input_tokens, cached, u.output_tokens,
                          time.time() - t_round)
-                _log_usage(user_id, case_id, 'claude-opus-4-6', u)
+                _log_usage(user_id, case_id, model, u)
 
                 if final_msg.stop_reason != 'tool_use':
                     # Detectar señal de auto-continuación (tareas masivas §11)
