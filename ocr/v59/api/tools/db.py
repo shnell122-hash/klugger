@@ -43,6 +43,7 @@ def _serialize(row):
 def query(sql: str, params=None, many: bool = False):
     """Ejecuta SELECT y retorna dict o lista de dicts."""
     conn = _get_pool().get_connection()
+    cur = None
     try:
         cur = conn.cursor(dictionary=True)
         cur.execute(sql, params or ())
@@ -52,16 +53,23 @@ def query(sql: str, params=None, many: bool = False):
         row = cur.fetchone()
         return _serialize(row)
     finally:
+        if cur is not None:
+            try: cur.close()
+            except Exception: pass
         conn.close()
 
 
 def execute(sql: str, params=None) -> int:
     """Ejecuta INSERT/UPDATE/DELETE, retorna lastrowid."""
     conn = _get_pool().get_connection()
+    cur = None
     try:
         cur = conn.cursor()
         cur.execute(sql, params or ())
         conn.commit()
         return cur.lastrowid
     finally:
+        if cur is not None:
+            try: cur.close()
+            except Exception: pass
         conn.close()
