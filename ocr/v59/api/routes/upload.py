@@ -75,47 +75,63 @@ def _process_file(case_id, filename, raw, mime):
             "text_len": len(text), "status": "ok"}
 
 
+def _safe_process(case_id, filename, raw, mime):
+    """Envuelve _process_file capturando cualquier excepción como error JSON."""
+    try:
+        return _process_file(case_id, filename, raw, mime)
+    except Exception as e:
+        import logging, traceback
+        logging.getLogger('upload').error('_process_file %s: %s\n%s', filename, e, traceback.format_exc())
+        return {"filename": filename, "error": str(e)}
+
+
 @upload_bp.route('/api/upload', methods=['POST'])
 @upload_bp.route('/api/v1/upload', methods=['POST'])
 def upload():
-    case_id = request.form.get('case_id', '')
+    try:
+        case_id = request.form.get('case_id', '')
 
-    files = request.files.getlist('files') or request.files.getlist('file')
-    if not files:
-        return jsonify({"error": "No se recibieron archivos"}), 400
+        files = request.files.getlist('files') or request.files.getlist('file')
+        if not files:
+            return jsonify({"error": "No se recibieron archivos"}), 400
 
-    results = []
-    for f in files:
-        raw  = f.read()
-        mime = f.mimetype or 'application/octet-stream'
-        # Normalizar MIME cuando el browser manda octet-stream para tipos conocidos
-        if mime == 'application/octet-stream':
-            guessed = mimetypes.guess_type(f.filename)[0]
-            if guessed:
-                mime = guessed
+        results = []
+        for f in files:
+            raw  = f.read()
+            mime = f.mimetype or 'application/octet-stream'
+            # Normalizar MIME cuando el browser manda octet-stream para tipos conocidos
+            if mime == 'application/octet-stream':
+                guessed = mimetypes.guess_type(f.filename)[0]
+                if guessed:
+                    mime = guessed
 
-        # ── ZIP: extraer y procesar cada archivo interno ──────────────
-        is_zip = _is_zip(raw, f.filename, mime)
-        if is_zip:
-            try:
-                with zipfile.ZipFile(io.BytesIO(raw)) as zf:
-                    for zname in zf.namelist():
-                        if zname.endswith('/') or zname.startswith('__MACOSX'):
-                            continue
-                        zraw  = zf.read(zname)
-                        zmime = mimetypes.guess_type(zname)[0] or 'application/octet-stream'
-                        if zmime not in ALLOWED_MIME:
-                            results.append({"filename": zname, "error": f"Tipo no permitido: {zmime}"})
-                            continue
-                        results.append(_process_file(case_id, os.path.basename(zname), zraw, zmime))
-            except zipfile.BadZipFile:
-                results.append({"filename": f.filename, "error": "ZIP inválido o corrupto"})
-            continue
+            # ── ZIP: extraer y procesar cada archivo interno ──────────────
+            is_zip = _is_zip(raw, f.filename, mime)
+            if is_zip:
+                try:
+                    with zipfile.ZipFile(io.BytesIO(raw)) as zf:
+                        for zname in zf.namelist():
+                            if zname.endswith('/') or zname.startswith('__MACOSX'):
+                                continue
+                            zraw  = zf.read(zname)
+                            zmime = mimetypes.guess_type(zname)[0] or 'application/octet-stream'
+                            if zmime not in ALLOWED_MIME:
+                                results.append({"filename": zname, "error": f"Tipo no permitido: {zmime}"})
+                                continue
+                            results.append(_safe_process(case_id, os.path.basename(zname), zraw, zmime))
+                except zipfile.BadZipFile:
+                    results.append({"filename": f.filename, "error": "ZIP inválido o corrupto"})
+                continue
 
-        # ── Archivo normal ────────────────────────────────────────────
-        if mime not in ALLOWED_MIME:
-            results.append({"filename": f.filename, "error": f"Tipo no permitido: {mime}"})
-            continue
-        results.append(_process_file(case_id, f.filename, raw, mime))
+            # ── Archivo normal ────────────────────────────────────────────
+            if mime not in ALLOWED_MIME:
+                results.append({"filename": f.filename, "error": f"Tipo no permitido: {mime}"})
+                continue
+            results.append(_safe_process(case_id, f.filename, raw, mime))
+
+    except Exception as e:
+        import logging
+        logging.getLogger('upload').error('upload route: %s', e)
+        return jsonify({"error": str(e)}), 500
 
     return jsonify({"results": results})
