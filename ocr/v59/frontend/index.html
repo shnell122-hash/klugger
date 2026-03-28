@@ -1325,6 +1325,10 @@ async function sendMessage(e) {
           scrollChat();
 
         } else if (evt.type === 'tool_start') {
+          // Guardia contra duplicados: tool_start ahora se emite en content_block_start
+          // y puede llegar una segunda vez como fallback — ignorar si ya existe
+          if (_toolStatusEls[evt.tool]) continue;
+
           // Freeze current text section
           currentTextEl = null;
           _currentSectionText = '';

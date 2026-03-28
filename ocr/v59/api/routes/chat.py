@@ -703,19 +703,47 @@ def chat_stream():
                     _force_tool = False
                     log.info('tool_choice=any forced at iteration %d', iteration)
 
+                _ka_time    = [time.time()]   # último keepalive/text emitido
+                _early_tools = set()           # tools ya anunciadas en content_block_start
+
+                def _maybe_keepalive():
+                    now = time.time()
+                    if now - _ka_time[0] >= 8:
+                        q.put(('keepalive', None))
+                        _ka_time[0] = now
+
                 with client.messages.stream(**stream_kwargs) as stream:
                     for event in stream:
-                        if (hasattr(event, 'type')
-                                and event.type == 'content_block_delta'
-                                and hasattr(event, 'delta')
-                                and getattr(event.delta, 'type', None) == 'text_delta'):
-                            chunk = event.delta.text
-                            if t_first[0] is None:
-                                t_first[0] = time.time()
-                                log.info('first token %.2fs', t_first[0] - t_start)
-                            text_this_round += chunk
-                            accumulated.append(chunk)
-                            q.put(('text', chunk))
+                        etype = getattr(event, 'type', None)
+
+                        # Anunciar tool call en cuanto Claude lo declara (antes del JSON)
+                        if etype == 'content_block_start':
+                            cb = getattr(event, 'content_block', None)
+                            if cb and getattr(cb, 'type', None) == 'tool_use':
+                                tname = cb.name
+                                if tname not in _early_tools:
+                                    _early_tools.add(tname)
+                                    q.put(('tool_start', tname))
+                                    _steps_e = _STATUS_STEPS.get(tname, [])
+                                    if _steps_e:
+                                        q.put(('tool_status', {'tool': tname, 'msg': _steps_e[0][1]}))
+                                    _ka_time[0] = time.time()
+
+                        elif etype == 'content_block_delta' and hasattr(event, 'delta'):
+                            dtype = getattr(event.delta, 'type', None)
+                            if dtype == 'text_delta':
+                                chunk = event.delta.text
+                                if t_first[0] is None:
+                                    t_first[0] = time.time()
+                                    log.info('first token %.2fs', t_first[0] - t_start)
+                                text_this_round += chunk
+                                accumulated.append(chunk)
+                                q.put(('text', chunk))
+                                _ka_time[0] = time.time()
+                            elif dtype == 'input_json_delta':
+                                # Claude construyendo el JSON del tool call — mantener SSE vivo
+                                _maybe_keepalive()
+
                     final_msg = stream.get_final_message()
 
                 u = final_msg.usage
@@ -782,12 +810,15 @@ def chat_stream():
                 for b in final_msg.content:
                     if b.type != 'tool_use':
                         continue
-                    q.put(('tool_start', b.name))   # avisa al frontend antes de ejecutar
+                    # tool_start ya fue emitido en content_block_start; sólo emitir
+                    # si por algún motivo no se detectó antes (fallback)
+                    if b.name not in _early_tools:
+                        q.put(('tool_start', b.name))
+                        _steps = _STATUS_STEPS.get(b.name, [])
+                        if _steps:
+                            q.put(('tool_status', {'tool': b.name, 'msg': _steps[0][1]}))
                     t_tool = time.time()
-                    # Emitir primer mensaje de estado inmediatamente
                     _steps = _STATUS_STEPS.get(b.name, [])
-                    if _steps:
-                        q.put(('tool_status', {'tool': b.name, 'msg': _steps[0][1]}))
                     _last_status = [_steps[0][1] if _steps else None]
 
                     # Ejecutar tool en hilo propio; enviar keepalives cada 10s
