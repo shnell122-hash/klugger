@@ -1246,7 +1246,9 @@ async function sendMessage(e) {
     <div class="msg-avatar">AI</div>
     <div style="flex:1;min-width:0">
       <div class="msg-bubble" id="stream-bubble-${mid}">
-        <div class="thinking"><span></span><span></span><span></span></div>
+        <div id="text-wrap-${mid}">
+          <div class="thinking"><span></span><span></span><span></span></div>
+        </div>
       </div>
       <span class="msg-time">${new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}</span>
       <div class="msg-actions" id="copy-row-${mid}" style="opacity:0;pointer-events:none;transition:opacity .2s">
@@ -1256,7 +1258,8 @@ async function sendMessage(e) {
   msgs.appendChild(streamDiv);
   scrollChat();
 
-  const bubble = document.getElementById(`stream-bubble-${mid}`);
+  const bubble   = document.getElementById(`stream-bubble-${mid}`);
+  const textWrap = document.getElementById(`text-wrap-${mid}`);
   let fullText = '';
   let currentTextEl = null;
   let hasText = false;
@@ -1270,7 +1273,7 @@ async function sendMessage(e) {
     if (!currentTextEl) {
       currentTextEl = document.createElement('div');
       currentTextEl.className = 'st';
-      bubble.appendChild(currentTextEl);
+      textWrap.appendChild(currentTextEl);
     }
     return currentTextEl;
   }
@@ -1318,7 +1321,7 @@ async function sendMessage(e) {
         try { evt = JSON.parse(payload); } catch { continue; }
 
         if (evt.type === 'text') {
-          if (!hasText) { bubble.innerHTML = ''; hasText = true; currentTextEl = null; _currentSectionText = ''; }
+          if (!hasText) { textWrap.innerHTML = ''; hasText = true; currentTextEl = null; _currentSectionText = ''; }
           fullText += evt.text;
           _currentSectionText += evt.text;
           ensureText().innerHTML = mdToHtml(_currentSectionText);
@@ -1415,11 +1418,11 @@ async function sendMessage(e) {
       }
     }
 
-    // Render final completo con markdown (solo si no hubo error)
+    // Render final: solo actualizar el textWrap — badges y status lines sobreviven
     if (!hasError) {
       const displayText = fullText ||
         (artifactSaved ? '✅ Artefacto guardado. Puedes verlo en la pestaña **Generados**.' : '');
-      bubble.innerHTML = mdToHtml(displayText) ||
+      textWrap.innerHTML = mdToHtml(displayText) ||
         '<span style="color:var(--muted)">(sin respuesta)</span>';
       const copyRow = document.getElementById(`copy-row-${mid}`);
       if (copyRow) { copyRow.style.opacity = '1'; copyRow.style.pointerEvents = 'auto'; }

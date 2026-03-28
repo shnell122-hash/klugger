@@ -171,10 +171,10 @@ ARTIFACT_TEMPLATES = {
 }
 
 MAX_TOKENS_BY_TYPE = {
-    "contract": 16000,
-    "brief":    16000,
-    "html":     16000,
-    "analysis": 16000,
+    "contract": 32000,
+    "brief":    32000,
+    "html":     32000,
+    "analysis": 32000,
     "summary":  4096,
     "checklist":4096,
 }
@@ -577,7 +577,7 @@ def chat():
 
     case_info    = _get_case_info(case_id)
     art_template = ARTIFACT_TEMPLATES.get(artifact_type, ARTIFACT_TEMPLATES["analysis"])
-    max_tokens   = MAX_TOKENS_BY_TYPE.get(artifact_type, 16000)
+    max_tokens   = MAX_TOKENS_BY_TYPE.get(artifact_type, 32000)
 
     long_types = {'contract', 'brief', 'html'}
     length_rule = (
@@ -678,7 +678,7 @@ def chat_stream():
 
     case_info    = _get_case_info(case_id)
     art_template = ARTIFACT_TEMPLATES.get(artifact_type, ARTIFACT_TEMPLATES["analysis"])
-    max_tokens   = MAX_TOKENS_BY_TYPE.get(artifact_type, 16000)
+    max_tokens   = MAX_TOKENS_BY_TYPE.get(artifact_type, 32000)
 
     long_types = {'contract', 'brief', 'html'}
     length_rule = (
@@ -743,14 +743,49 @@ def chat_stream():
                     _force_tool = False
                     log.info('tool_choice=any forced at iteration %d', iteration)
 
-                _ka_time    = [time.time()]   # último keepalive/text emitido
-                _early_tools = set()           # tools ya anunciadas en content_block_start
+                _ka_time         = [time.time()]  # último keepalive/text emitido
+                _early_tools     = set()          # tools ya anunciadas en content_block_start
+                _gen_tool        = [None]          # tool cuyo JSON se está generando ahora
+                _gen_start       = [0.0]           # cuándo empezó la generación del JSON
+                _gen_status_at   = [0.0]           # cuándo se emitió el último status de generación
+
+                # Mensajes de estado durante la fase de generación del JSON del tool call
+                _GEN_STATUS = {
+                    'save_artifact': [
+                        (0,  'Generando contenido del artefacto…'),
+                        (20, 'Redactando — documentos HTML largos tardan 1–2 min…'),
+                        (45, 'Construyendo secciones del análisis…'),
+                        (75, 'Finalizando referencias y estructura…'),
+                        (110,'Completando el documento…'),
+                    ],
+                    'analyze_audio': [
+                        (0,  'Preparando análisis de audio…'),
+                    ],
+                }
 
                 def _maybe_keepalive():
                     now = time.time()
                     if now - _ka_time[0] >= 8:
                         q.put(('keepalive', None))
                         _ka_time[0] = now
+
+                def _maybe_gen_status():
+                    """Emite mensajes de estado progresivos mientras Claude genera el JSON."""
+                    if not _gen_tool[0]:
+                        return
+                    now  = time.time()
+                    if now - _gen_status_at[0] < 18:   # como máximo cada 18 segundos
+                        return
+                    elapsed = now - _gen_start[0]
+                    steps   = _GEN_STATUS.get(_gen_tool[0], [])
+                    msg     = None
+                    for t_s, m in reversed(steps):
+                        if elapsed >= t_s:
+                            msg = m
+                            break
+                    if msg:
+                        q.put(('tool_status', {'tool': _gen_tool[0], 'msg': msg}))
+                        _gen_status_at[0] = now
 
                 with client.messages.stream(**stream_kwargs) as stream:
                     for event in stream:
@@ -765,9 +800,16 @@ def chat_stream():
                                     _early_tools.add(tname)
                                     q.put(('tool_start', tname))
                                     _steps_e = _STATUS_STEPS.get(tname, [])
-                                    if _steps_e:
-                                        q.put(('tool_status', {'tool': tname, 'msg': _steps_e[0][1]}))
-                                    _ka_time[0] = time.time()
+                                    init_msg = _GEN_STATUS.get(tname, [(0, None)])[0][1]
+                                    if init_msg:
+                                        q.put(('tool_status', {'tool': tname, 'msg': init_msg}))
+                                    _ka_time[0]       = time.time()
+                                    _gen_tool[0]      = tname
+                                    _gen_start[0]     = time.time()
+                                    _gen_status_at[0] = time.time()
+
+                        elif etype == 'content_block_stop':
+                            _gen_tool[0] = None   # terminó de generar el JSON
 
                         elif etype == 'content_block_delta' and hasattr(event, 'delta'):
                             dtype = getattr(event.delta, 'type', None)
@@ -783,6 +825,7 @@ def chat_stream():
                             elif dtype == 'input_json_delta':
                                 # Claude construyendo el JSON del tool call — mantener SSE vivo
                                 _maybe_keepalive()
+                                _maybe_gen_status()
 
                     final_msg = stream.get_final_message()
 
