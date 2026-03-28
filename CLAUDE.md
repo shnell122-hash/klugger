@@ -77,3 +77,31 @@ Archivo: `/var/www/catalogos/OCR/v59/api/.env`
 | `system_artifacts` | Artefactos de texto generados por Claude (contratos, análisis, transcripciones) |
 | `cases` | Expedientes |
 | `chat_history` | Historial de conversaciones |
+
+## URLs compartibles (/caso/)
+
+Los HTMLs y artefactos generados se pueden compartir en `ocr.ruby.lease/caso/<slug>`.
+
+### Migración de BD (ejecutar UNA VEZ en producción):
+```sql
+ALTER TABLE system_artifacts ADD COLUMN share_slug VARCHAR(255) DEFAULT NULL;
+ALTER TABLE system_artifacts ADD UNIQUE KEY uk_share_slug (share_slug);
+```
+
+### Configuración Apache (requerida para que /caso/ llegue a Flask):
+
+Si el VirtualHost de Apache solo hace proxy de `/api/` pero sirve el frontend
+como archivos estáticos, hay que añadir la ruta `/caso/` al proxy:
+
+```apache
+# En el VirtualHost de ocr.ruby.lease:
+ProxyPass /caso/ http://127.0.0.1:5005/caso/
+ProxyPassReverse /caso/ http://127.0.0.1:5005/caso/
+```
+
+Si ya hay un `ProxyPass / http://127.0.0.1:5005/` catch-all, no se necesita
+nada adicional (Flask maneja `/caso/` automáticamente).
+
+Verificar con: `curl -I https://ocr.ruby.lease/caso/test`
+— Si responde 404 de Flask: Apache ya pasa la ruta (correcto).
+— Si responde 404 de Apache: añadir las líneas ProxyPass arriba.

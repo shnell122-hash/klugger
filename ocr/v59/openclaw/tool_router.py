@@ -1,8 +1,39 @@
 """
 Tool router — ejecuta las herramientas de Claude y retorna resultados.
 """
-import os, uuid
+import os, re, uuid
 from tools.db import query, execute
+
+
+def _make_share_slug(name: str) -> str:
+    """Genera un slug URL-amigable a partir del nombre del artefacto."""
+    # Normalizar: minúsculas, acentos básicos → ASCII
+    s = name.lower().strip()
+    # Reemplazar caracteres especiales frecuentes en español
+    for src, dst in [('á','a'),('é','e'),('í','i'),('ó','o'),('ú','u'),
+                     ('ñ','n'),('ü','u'),('à','a'),('è','e'),('ì','i'),
+                     ('ò','o'),('ù','u')]:
+        s = s.replace(src, dst)
+    # Solo alfanuméricos y guiones
+    s = re.sub(r'[^a-z0-9]+', '-', s)
+    s = s.strip('-')
+    return s[:100] or 'artefacto'
+
+
+def _unique_slug(base_slug: str) -> str:
+    """Garantiza unicidad del slug en system_artifacts."""
+    slug = base_slug
+    suffix = 2
+    while True:
+        existing = query(
+            "SELECT 1 FROM system_artifacts WHERE share_slug=%s", (slug,)
+        )
+        if not existing:
+            return slug
+        slug = f"{base_slug}-{suffix}"
+        suffix += 1
+        if suffix > 999:   # salvaguarda
+            return f"{base_slug}-{uuid.uuid4().hex[:6]}"
 from tools.jotform_tools import export_case_to_jotform
 
 
@@ -40,15 +71,17 @@ def _save_artifact(inputs: dict) -> dict:
         if not inputs.get(f):
             return {"error": f"{f} requerido"}
 
-    art_id   = str(uuid.uuid4())
-    content  = inputs['content']
-    art_type = inputs['artifact_type']
-    mime     = 'text/html' if art_type == 'html' else 'text/markdown'
+    art_id     = str(uuid.uuid4())
+    content    = inputs['content']
+    art_type   = inputs['artifact_type']
+    mime       = 'text/html' if art_type == 'html' else 'text/markdown'
+    share_slug = _unique_slug(_make_share_slug(inputs['artifact_name']))
+
     execute(
         """INSERT INTO system_artifacts
            (artifact_id, case_id, artifact_name, artifact_type, content,
-            mime_type, file_size_bytes, source)
-           VALUES (%s,%s,%s,%s,%s,%s,%s,'system')""",
+            mime_type, file_size_bytes, source, share_slug)
+           VALUES (%s,%s,%s,%s,%s,%s,%s,'system',%s)""",
         (
             art_id,
             inputs['case_id'],
@@ -57,6 +90,7 @@ def _save_artifact(inputs: dict) -> dict:
             content,
             mime,
             len(content.encode()),
+            share_slug,
         )
     )
     # Detectar HTML incompleto (sin </html> al final)
@@ -66,11 +100,12 @@ def _save_artifact(inputs: dict) -> dict:
         incomplete = not tail.endswith('</html>')
 
     return {
-        "status": "saved",
-        "artifact_id": art_id,
+        "status":       "saved",
+        "artifact_id":  art_id,
         "artifact_name": inputs['artifact_name'],
         "artifact_type": inputs['artifact_type'],
-        "incomplete": incomplete,
+        "share_slug":   share_slug,
+        "incomplete":   incomplete,
     }
 
 

@@ -56,7 +56,7 @@ def list_artifacts_by_case(case_id):
         params.append(limit)
         rows = query(
             f"""SELECT artifact_id, case_id, artifact_name, artifact_type,
-                       mime_type, file_size_bytes,
+                       mime_type, file_size_bytes, share_slug,
                        created_at, 'system' AS source
                 FROM system_artifacts
                 WHERE case_id=%s {atype_clause}
@@ -146,7 +146,7 @@ def list_artifacts():
 
         rows = query(
             f"""SELECT artifact_id, case_id, artifact_name, artifact_type,
-                       mime_type, file_size_bytes,
+                       mime_type, file_size_bytes, share_slug,
                        created_at, 'system' AS source
                 FROM system_artifacts
                 WHERE case_id=%s {atype_clause}
@@ -348,6 +348,70 @@ def download_case_zip(case_id):
     case_name = (case_row or {}).get('case_name', case_id)
     zip_name = f"{case_name.replace(' ', '_')}_{fmt}.zip"
     return send_file(buf, mimetype='application/zip', as_attachment=True, download_name=zip_name)
+
+
+@artifacts_bp.route('/caso/<path:slug>', methods=['GET'])
+def serve_shared_html(slug):
+    """
+    URL pública y persistente para compartir un HTML generado.
+    Soporta:  /caso/mi-analisis
+              /caso/mi-analisis.html
+    No requiere autenticación — accesible desde cualquier navegador.
+    """
+    # Quitar extensión .html si viene en la URL
+    if slug.endswith('.html'):
+        slug = slug[:-5]
+
+    row = query(
+        """SELECT content, artifact_name, artifact_type, mime_type, case_id
+           FROM system_artifacts
+           WHERE share_slug = %s""",
+        (slug,)
+    )
+    if not row:
+        return (
+            "<!DOCTYPE html><html><head><meta charset='UTF-8'>"
+            "<title>No encontrado</title></head><body style='font-family:sans-serif;padding:40px'>"
+            "<h2>Documento no encontrado</h2>"
+            "<p>El enlace puede haber sido eliminado o la URL es incorrecta.</p>"
+            "</body></html>",
+            404,
+            {'Content-Type': 'text/html; charset=utf-8'}
+        )
+
+    content    = row.get('content', '')
+    art_type   = row.get('artifact_type', '')
+    art_name   = row.get('artifact_name', 'Documento')
+
+    # HTML directo — servir tal cual
+    if art_type == 'html' or (row.get('mime_type') or '').startswith('text/html'):
+        return Response(content, mimetype='text/html; charset=utf-8')
+
+    # Markdown / texto — envoltura HTML mínima para lectura
+    html = (
+        f"<!DOCTYPE html><html><head>"
+        f"<meta charset='UTF-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
+        f"<title>{art_name}</title>"
+        f"<style>body{{font-family:Georgia,serif;max-width:860px;margin:40px auto;padding:0 20px;"
+        f"color:#1a1a1a;line-height:1.7}}h1,h2,h3{{font-family:sans-serif}}pre{{background:#f4f4f4;"
+        f"padding:12px;border-radius:4px;overflow:auto}}code{{background:#f4f4f4;padding:1px 4px}}"
+        f"</style></head><body>"
+        f"<h1>{art_name}</h1><pre style='white-space:pre-wrap'>{content}</pre>"
+        f"</body></html>"
+    )
+    return Response(html, mimetype='text/html; charset=utf-8')
+
+
+@artifacts_bp.route('/api/artifacts/<artifact_id>/share-slug', methods=['GET'])
+def get_share_slug(artifact_id):
+    """Retorna el share_slug de un artefacto (para generar URL compartible desde el frontend)."""
+    row = query(
+        "SELECT share_slug, artifact_name FROM system_artifacts WHERE artifact_id=%s",
+        (artifact_id,)
+    )
+    if not row:
+        return jsonify({"error": "Artefacto no encontrado"}), 404
+    return jsonify({"share_slug": row.get('share_slug'), "artifact_name": row.get('artifact_name')})
 
 
 @artifacts_bp.route('/api/v1/artifacts/save', methods=['POST'])

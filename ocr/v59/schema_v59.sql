@@ -50,13 +50,19 @@ CREATE TABLE IF NOT EXISTS system_artifacts (
   source            VARCHAR(20)  NOT NULL DEFAULT 'system',
   source_artifacts  JSON         DEFAULT NULL,
   selected_ctx_json JSON         DEFAULT NULL,
+  share_slug        VARCHAR(255) DEFAULT NULL,
   created_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (artifact_id),
+  UNIQUE KEY uk_share_slug (share_slug),
   KEY idx_case_id (case_id),
   KEY idx_type    (artifact_type),
   KEY idx_created (created_at),
   CONSTRAINT fk_sa_case FOREIGN KEY (case_id) REFERENCES cases (case_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Migración para instancias existentes (ejecutar una sola vez en producción):
+-- ALTER TABLE system_artifacts ADD COLUMN share_slug VARCHAR(255) DEFAULT NULL;
+-- ALTER TABLE system_artifacts ADD UNIQUE KEY uk_share_slug (share_slug);
 
 -- Cache de extracción: evita re-procesar el mismo archivo SHA256
 CREATE TABLE IF NOT EXISTS extraction_cache (

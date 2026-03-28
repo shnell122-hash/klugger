@@ -1036,13 +1036,19 @@ async function viewArtifact(id) {
   }
 
   if (a.source === 'system') {
-    const isHtml = a.artifact_type === 'html' || /\.html?$/i.test(a.artifact_name || '');
+    const isHtml   = a.artifact_type === 'html' || /\.html?$/i.test(a.artifact_name || '');
+    const shareSlug = a.share_slug || null;
+    const shareBtn = shareSlug
+      ? `<button class="btn btn-ghost btn-sm" onclick="shareArtifact('${shareSlug}')" title="Copiar URL pública para compartir" style="border-color:var(--green);color:var(--green)"><i class="fa-solid fa-link"></i> Compartir</button>`
+      : `<button class="btn btn-ghost btn-sm" onclick="shareArtifactById('${id}')" title="Obtener URL pública" style="border-color:var(--green);color:var(--green)"><i class="fa-solid fa-link"></i> Compartir</button>`;
     const dlBtns = `<div style="display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap;align-items:center">
       ${isHtml ? `<button class="btn btn-ghost btn-sm" id="vw-tab-preview" onclick="switchHtmlView('preview')" style="font-weight:bold">👁 Preview</button><button class="btn btn-ghost btn-sm" id="vw-tab-code" onclick="switchHtmlView('code')">Código</button><button class="btn btn-sm" id="vw-copy-code" onclick="copyViewerCode()" title="Copiar código HTML al portapapeles" style="display:none;background:var(--accent2);color:#fff;border:none;cursor:pointer"><i class="fa-regular fa-copy"></i> Copiar</button><div style="width:1px;background:var(--border);margin:0 2px;align-self:stretch"></div>` : ''}
       <button id="vw-dl-pdf" class="btn btn-ghost btn-sm${isHtml ? '' : ' vw-dl-active'}" onclick="downloadArtifact('${id}','pdf')" title="Descargar PDF">PDF</button>
       <button id="vw-dl-md" class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','md')" title="Descargar Markdown">MD</button>
       ${isHtml ? `<button id="vw-dl-html" class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','html')" title="Descargar HTML">HTML</button>` : ''}
       <button id="vw-dl-docx" class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','docx')" title="Descargar Word">Word</button>
+      <div style="width:1px;background:var(--border);margin:0 2px;align-self:stretch"></div>
+      ${shareBtn}
     </div>`;
     const header = `<div class="viewer-filename">${esc(name)}${dlBtns}</div>`;
     let content = a.content || '';
@@ -1120,6 +1126,49 @@ function copyViewerCode() {
   } else {
     _fallbackCopy(text);
     if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> Copiado'; setTimeout(() => { btn.innerHTML = orig; }, 2000); }
+  }
+}
+
+function shareArtifact(slug) {
+  const url = `${window.location.origin}/caso/${slug}`;
+  _copyShareUrl(url);
+}
+
+async function shareArtifactById(id) {
+  // Para artefactos viejos sin share_slug — lo pide al backend y lo muestra
+  try {
+    const r = await fetch(`${API}/artifacts/${id}/share-slug`);
+    const d = await r.json();
+    if (d.share_slug) {
+      const url = `${window.location.origin}/caso/${d.share_slug}`;
+      _copyShareUrl(url);
+    } else {
+      toast('Este artefacto no tiene URL pública aún. Regenera el documento para obtenerla.', 'info');
+    }
+  } catch {
+    toast('Error obteniendo URL de compartir', 'error');
+  }
+}
+
+function _copyShareUrl(url) {
+  const finish = () => {
+    // Mostrar toast con la URL + botón abrir
+    const div = document.createElement('div');
+    div.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--green);border-radius:10px;padding:12px 16px;z-index:9999;max-width:90vw;box-shadow:var(--shadow)';
+    div.innerHTML = `<div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">URL copiada al portapapeles</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <code style="font-size:.72rem;color:var(--green);word-break:break-all;flex:1">${url}</code>
+        <a href="${url}" target="_blank" style="color:var(--accent);font-size:.75rem;white-space:nowrap;text-decoration:none">Abrir ↗</a>
+        <button onclick="this.closest('div[style]').remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;line-height:1">×</button>
+      </div>`;
+    document.body.appendChild(div);
+    setTimeout(() => div.remove(), 8000);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(finish).catch(() => { _fallbackCopy(url); finish(); });
+  } else {
+    _fallbackCopy(url);
+    finish();
   }
 }
 
