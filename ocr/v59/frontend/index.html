@@ -176,8 +176,11 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 .progress-bar{height:100%;background:var(--accent);width:0;transition:width .3s;border-radius:4px}
 
 /* ── Action badges (tool progress) ── */
-.action-badge{display:inline-flex;align-items:center;gap:5px;border-radius:4px;padding:3px 9px;font-size:.71rem;margin:4px 0;white-space:nowrap;transition:all .2s}
-.action-badge.running{background:var(--hover);border:1px solid var(--accent);color:var(--accent)}
+@keyframes badge-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes badge-spin{to{transform:rotate(360deg)}}
+.action-badge{display:inline-flex;align-items:center;gap:6px;border-radius:4px;padding:3px 10px;font-size:.71rem;margin:4px 2px 4px 0;white-space:nowrap;transition:all .2s}
+.action-badge.running{background:var(--hover);border:1px solid var(--accent);color:var(--accent);animation:badge-pulse 1.4s ease-in-out infinite}
+.action-badge.running::before{content:'';display:inline-block;width:8px;height:8px;border:1.5px solid var(--accent);border-top-color:transparent;border-radius:50%;animation:badge-spin .7s linear infinite;flex-shrink:0}
 .action-badge.done{background:var(--hover);border:1px solid var(--green);color:var(--green)}
 .auto-continue-pill{display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--accent);margin:8px 0;padding:5px 0;border-top:1px dashed var(--border);border-bottom:1px dashed var(--border)}
 .st{white-space:pre-wrap;word-wrap:break-word}
@@ -1142,6 +1145,7 @@ const TOOL_LABELS = {
   'read_file':         '📄 Leyendo documento',
   'bash':              '⚙️ Ejecutando comando',
   'search':            '🔍 Buscando información',
+  'analyze_audio':     '🎙️ Analizando audio',
 };
 
 async function sendMessage(e) {

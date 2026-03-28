@@ -625,7 +625,20 @@ def chat_stream():
                         continue
                     q.put(('tool_start', b.name))   # avisa al frontend antes de ejecutar
                     t_tool = time.time()
-                    result = handle_tool(b.name, dict(b.input), case_id)
+                    # Ejecutar tool en hilo propio; enviar keepalives cada 10s
+                    # para evitar timeout SSE en tools lentas (analyze_audio, etc.)
+                    _tool_result = [None]
+                    _tool_done   = [False]
+                    def _run_tool(name=b.name, inp=dict(b.input)):
+                        _tool_result[0] = handle_tool(name, inp, case_id)
+                        _tool_done[0] = True
+                    _tt = threading.Thread(target=_run_tool, daemon=True)
+                    _tt.start()
+                    while not _tool_done[0]:
+                        _tt.join(timeout=10)
+                        if not _tool_done[0]:
+                            q.put(('keepalive', None))
+                    result = _tool_result[0]
                     log.info('tool %s %.2fs', b.name, time.time() - t_tool)
                     q.put(('tool_result', {'tool': b.name, 'result': result}))
                     tool_result_content.append({
@@ -667,9 +680,9 @@ def chat_stream():
     def generate():
         while True:
             try:
-                type_, data = q.get(timeout=180)  # 3 min máximo entre eventos
+                type_, data = q.get(timeout=600)  # 10 min máximo entre eventos
             except queue.Empty:
-                yield f"data: {json.dumps({'type': 'error', 'text': 'Timeout: sin respuesta en 3 minutos'})}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'text': 'Timeout: sin respuesta en 10 minutos'})}\n\n"
                 break
             if type_ == 'done':
                 yield "data: [DONE]\n\n"
@@ -684,6 +697,8 @@ def chat_stream():
                 yield f"data: {json.dumps({'type': 'tool_start', 'tool': data})}\n\n"
             elif type_ == 'tool_result':
                 yield f"data: {json.dumps({'type': 'tool_result', 'tool': data['tool'], 'result': data['result']})}\n\n"
+            elif type_ == 'keepalive':
+                yield f"data: {json.dumps({'type': 'keepalive'})}\n\n"
             elif type_ == 'auto_continue':
                 yield f"data: {json.dumps({'type': 'auto_continue'})}\n\n"
 
