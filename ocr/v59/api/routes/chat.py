@@ -911,6 +911,7 @@ def chat_stream():
                                 if t_first[0] is None:
                                     t_first[0] = time.time()
                                     log.info('first token %.2fs', t_first[0] - t_start)
+                                    emit_op('📡', f'Primer token en {t_first[0]-t_start:.1f}s — generando respuesta…')
                                 text_this_round += chunk
                                 accumulated.append(chunk)
                                 q.put(('text', chunk))
