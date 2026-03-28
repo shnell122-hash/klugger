@@ -276,7 +276,16 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
     <div id="artifact-actions">
       <button class="btn btn-ghost btn-sm" style="flex:1" onclick="selectAllArtifacts()">Todos al ctx</button>
       <button class="btn btn-ghost btn-sm" style="flex:1" onclick="clearContext()">Limpiar ctx</button>
-      <button class="btn btn-ghost btn-sm" style="flex:1" onclick="downloadZip()" title="Descargar todos los artefactos generados en ZIP">⬇ ZIP</button>
+      <div style="flex:1;position:relative">
+        <button class="btn btn-ghost btn-sm" style="width:100%" onclick="toggleZipMenu(event)" title="Descargar todos en ZIP">⬇ ZIP ▾</button>
+        <div id="zip-menu" style="display:none;position:absolute;bottom:110%;left:0;right:0;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;overflow:hidden;z-index:200;box-shadow:0 4px 12px rgba(0,0,0,.15)">
+          <div style="padding:4px 8px;font-size:.65rem;color:var(--text-muted);border-bottom:1px solid var(--border)">Formato del ZIP</div>
+          <button class="btn btn-ghost btn-sm" style="width:100%;border-radius:0;justify-content:flex-start;padding:6px 10px" onclick="downloadZip('md')">📄 Markdown</button>
+          <button class="btn btn-ghost btn-sm" style="width:100%;border-radius:0;justify-content:flex-start;padding:6px 10px" onclick="downloadZip('html')">🌐 HTML</button>
+          <button class="btn btn-ghost btn-sm" style="width:100%;border-radius:0;justify-content:flex-start;padding:6px 10px" onclick="downloadZip('docx')">📝 Word</button>
+          <button class="btn btn-ghost btn-sm" style="width:100%;border-radius:0;justify-content:flex-start;padding:6px 10px" onclick="downloadZip('pdf')">📕 PDF</button>
+        </div>
+      </div>
     </div>
     <div style="padding:6px 10px 10px;border-top:1px solid var(--border);flex-shrink:0;display:flex;flex-direction:column;gap:5px">
       <button class="btn btn-sm" style="width:100%;background:var(--accent2)" onclick="openImagenModal()">📷 Generar imagen</button>
@@ -1013,9 +1022,21 @@ function downloadArtifact(id, fmt) {
   }
 }
 
-function downloadZip() {
+function toggleZipMenu(e) {
+  e.stopPropagation();
+  const m = document.getElementById('zip-menu');
+  m.style.display = m.style.display === 'none' ? 'block' : 'none';
+}
+document.addEventListener('click', () => {
+  const m = document.getElementById('zip-menu');
+  if (m) m.style.display = 'none';
+});
+
+function downloadZip(fmt) {
   if (!currentCase) { toast('Selecciona un expediente primero', 'error'); return; }
-  window.open(`${API}/artifacts/${currentCase.case_id}/zip`, '_blank');
+  const m = document.getElementById('zip-menu');
+  if (m) m.style.display = 'none';
+  window.open(`${API}/artifacts/${currentCase.case_id}/zip?fmt=${fmt || 'md'}`, '_blank');
 }
 
 async function deleteArtifact(id) {

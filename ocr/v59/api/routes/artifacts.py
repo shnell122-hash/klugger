@@ -205,13 +205,45 @@ def download_artifact(artifact_id):
     content = row.get('content', '')
     name    = row.get('artifact_name', 'documento').replace(' ', '_')
 
+    MIMES = {
+        'md':   ('text/markdown', '{name}.md'),
+        'html': ('text/html', '{name}.html'),
+        'pdf':  ('application/pdf', '{name}.pdf'),
+        'docx': ('application/vnd.openxmlformats-officedocument.wordprocessingml.document', '{name}.docx'),
+    }
+    try:
+        data, ext = _content_to_bytes(content, name, fmt)
+    except ImportError:
+        return jsonify({"error": "weasyprint/markdown no instalado. Ejecuta: pip install weasyprint markdown"}), 500
+    except Exception as e:
+        return jsonify({"error": f"Error generando {fmt.upper()}: {str(e)}"}), 500
+
+    mime = MIMES.get(ext, ('application/octet-stream', f'{{name}}.{ext}'))[0]
+    return Response(
+        data,
+        mimetype=mime,
+        headers={'Content-Disposition': f'attachment; filename="{name}.{ext}"'}
+    )
+
+
+def _content_to_bytes(content, name, fmt):
+    """Convierte contenido markdown al formato pedido. Devuelve (bytes, extension)."""
+    if fmt == 'html':
+        import markdown as md_lib
+        html_body = md_lib.markdown(content, extensions=['tables', 'fenced_code'])
+        html = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>{name}</title>
+<style>body{{font-family:Arial,sans-serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.6}}
+h1,h2,h3{{color:#1a202c}}table{{border-collapse:collapse;width:100%}}
+td,th{{border:1px solid #ccc;padding:8px}}@media print{{body{{margin:0}}}}</style>
+</head><body>{html_body}</body></html>"""
+        return html.encode('utf-8'), 'html'
+
     if fmt == 'pdf':
-        try:
-            import markdown as md_lib
-            from weasyprint import HTML as WH
-            # Markdown → HTML completo
-            html_body = md_lib.markdown(content, extensions=['tables', 'fenced_code'])
-            html = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+        import markdown as md_lib
+        from weasyprint import HTML as WH
+        html_body = md_lib.markdown(content, extensions=['tables', 'fenced_code'])
+        html = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <title>{name}</title>
 <style>
   @page {{margin:2cm}}
@@ -226,86 +258,47 @@ def download_artifact(artifact_id):
   code{{background:#f0ede8;padding:1pt 4pt;border-radius:3pt;font-size:9.5pt}}
   pre{{background:#f0ede8;padding:10pt;border-radius:5pt;overflow-x:auto}}
   ul,ol{{margin:6pt 0;padding-left:20pt}}
-  strong{{color:#1a202c}}
   hr{{border:none;border-top:1px solid #ddd;margin:14pt 0}}
 </style>
 </head><body>{html_body}</body></html>"""
-            pdf_bytes = WH(string=html).write_pdf()
-            return Response(
-                pdf_bytes,
-                mimetype='application/pdf',
-                headers={'Content-Disposition': f'attachment; filename="{name}.pdf"'}
-            )
-        except ImportError:
-            return jsonify({"error": "weasyprint no instalado. Ejecuta: pip install weasyprint markdown"}), 500
-        except Exception as e:
-            return jsonify({"error": f"Error generando PDF: {str(e)}"}), 500
-
-    if fmt == 'html':
-        # Envolver en HTML completo con estilos básicos para impresión
-        html_body = content.replace('\n', '<br>') if not content.strip().startswith('<') else content
-        html = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-<title>{name}</title>
-<style>body{{font-family:Arial,sans-serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.6}}
-h1,h2,h3{{color:#1a202c}}table{{border-collapse:collapse;width:100%}}
-td,th{{border:1px solid #ccc;padding:8px}}@media print{{body{{margin:0}}}}</style>
-</head><body>{html_body}</body></html>"""
-        return Response(
-            html,
-            mimetype='text/html',
-            headers={'Content-Disposition': f'attachment; filename="{name}.html"'}
-        )
+        return WH(string=html).write_pdf(), 'pdf'
 
     if fmt == 'docx':
-        try:
-            from docx import Document
-            from docx.shared import Pt
-            doc = Document()
-            doc.add_heading(name, 0)
-            for line in content.split('\n'):
-                stripped = line.strip()
-                if stripped.startswith('# '):
-                    doc.add_heading(stripped[2:], level=1)
-                elif stripped.startswith('## '):
-                    doc.add_heading(stripped[3:], level=2)
-                elif stripped.startswith('### '):
-                    doc.add_heading(stripped[4:], level=3)
-                elif stripped.startswith('- ') or stripped.startswith('* '):
-                    doc.add_paragraph(stripped[2:], style='List Bullet')
-                elif stripped == '---':
-                    doc.add_paragraph('─' * 40)
-                elif stripped:
-                    p = doc.add_paragraph()
-                    # Bold markers
-                    parts = stripped.split('**')
-                    for idx, part in enumerate(parts):
-                        run = p.add_run(part)
-                        run.bold = (idx % 2 == 1)
-                else:
-                    doc.add_paragraph('')
-            buf = io.BytesIO()
-            doc.save(buf)
-            buf.seek(0)
-            return send_file(
-                buf,
-                mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                as_attachment=True,
-                download_name=f'{name}.docx'
-            )
-        except Exception as e:
-            return jsonify({"error": f"Error generando DOCX: {str(e)}"}), 500
+        from docx import Document
+        doc = Document()
+        doc.add_heading(name, 0)
+        for line in content.split('\n'):
+            stripped = line.strip()
+            if stripped.startswith('# '):
+                doc.add_heading(stripped[2:], level=1)
+            elif stripped.startswith('## '):
+                doc.add_heading(stripped[3:], level=2)
+            elif stripped.startswith('### '):
+                doc.add_heading(stripped[4:], level=3)
+            elif stripped.startswith('- ') or stripped.startswith('* '):
+                doc.add_paragraph(stripped[2:], style='List Bullet')
+            elif stripped == '---':
+                doc.add_paragraph('─' * 40)
+            elif stripped:
+                p = doc.add_paragraph()
+                parts = stripped.split('**')
+                for idx, part in enumerate(parts):
+                    run = p.add_run(part)
+                    run.bold = (idx % 2 == 1)
+            else:
+                doc.add_paragraph('')
+        b = io.BytesIO()
+        doc.save(b)
+        return b.getvalue(), 'docx'
 
-    # Default: markdown
-    return Response(
-        content,
-        mimetype='text/markdown',
-        headers={'Content-Disposition': f'attachment; filename="{name}.md"'}
-    )
+    # default: markdown
+    return content.encode('utf-8'), 'md'
 
 
 @artifacts_bp.route('/api/artifacts/<case_id>/zip', methods=['GET'])
 def download_case_zip(case_id):
     """Descarga todos los artefactos generados del expediente en un ZIP."""
+    fmt = request.args.get('fmt', 'md')
     buf = io.BytesIO()
     used_names = {}
 
@@ -328,8 +321,12 @@ def download_case_zip(case_id):
         ) or []
         for r in rows:
             safe = (r.get('artifact_name') or 'documento').replace('/', '_').replace('\\', '_')
-            fname = unique_name(f"{safe}.md")
-            zf.writestr(fname, r.get('content') or '')
+            try:
+                data, ext = _content_to_bytes(r.get('content') or '', safe, fmt)
+            except Exception:
+                data, ext = (r.get('content') or '').encode('utf-8'), 'md'
+            fname = unique_name(f"{safe}.{ext}")
+            zf.writestr(fname, data)
 
         # Imágenes y archivos generados por IA (user_artifacts source='system')
         img_rows = query(
@@ -345,7 +342,7 @@ def download_case_zip(case_id):
     buf.seek(0)
     case_row = query("SELECT case_name FROM cases WHERE case_id=%s", (case_id,))
     case_name = (case_row or {}).get('case_name', case_id)
-    zip_name = f"{case_name.replace(' ', '_')}.zip"
+    zip_name = f"{case_name.replace(' ', '_')}_{fmt}.zip"
     return send_file(buf, mimetype='application/zip', as_attachment=True, download_name=zip_name)
 
 
