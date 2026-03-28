@@ -31,7 +31,7 @@ def _process_file(case_id, filename, raw, mime):
     size = len(raw)
 
     dup = query(
-        "SELECT artifact_id FROM user_artifacts WHERE checksum_sha256=%s AND case_id=%s",
+        "SELECT artifact_id FROM user_artifacts WHERE checksum_sha256=%s AND case_id=%s AND source='user'",
         (sha, case_id)
     )
     if dup:

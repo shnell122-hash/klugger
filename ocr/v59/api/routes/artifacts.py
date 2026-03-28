@@ -22,9 +22,13 @@ def list_artifacts_by_case(case_id):
                       file_size_bytes, checksum_sha256,
                       CHAR_LENGTH(extracted_text) AS text_len,
                       uploaded_at AS created_at,
-                      'user' AS source, NULL AS artifact_type
+                      source, NULL AS artifact_type
                FROM user_artifacts
-               WHERE case_id=%s AND COALESCE(source,'') != 'system'
+               WHERE case_id=%s AND (
+                   COALESCE(source,'') != 'system'
+                   OR mime_type LIKE 'audio/%%'
+                   OR mime_type LIKE 'video/%%'
+               )
                ORDER BY uploaded_at DESC
                LIMIT %s""",
             (case_id, limit), many=True

@@ -895,7 +895,8 @@ function renderArtifacts() {
 function iconClass(a) {
   const m = a.mime_type || '';
   if (m.includes('pdf')) return 'icon-pdf';
-  if (m.includes('image')) return 'icon-img';
+  if (m.startsWith('image/')) return 'icon-img';
+  if (m.startsWith('audio/') || m.startsWith('video/')) return 'icon-doc';
   if (m.includes('word') || m.includes('docx')) return 'icon-doc';
   if (a.source === 'system') return 'icon-sys';
   return 'icon-txt';
@@ -903,7 +904,9 @@ function iconClass(a) {
 function iconEmoji(a) {
   const m = a.mime_type || '';
   if (m.includes('pdf')) return '📄';
-  if (m.includes('image')) return '🖼';
+  if (m.startsWith('image/')) return '🖼';
+  if (m.startsWith('audio/')) return '🎵';
+  if (m.startsWith('video/')) return '🎬';
   if (m.includes('word') || m.includes('docx')) return '📝';
   if (a.source === 'system') return '🤖';
   return '📃';
