@@ -403,7 +403,32 @@ def serve_shared_html(slug):
     return Response(html, mimetype='text/html; charset=utf-8')
 
 
-def _make_slug(name: str) -> str:
+@artifacts_bp.route('/api/artifacts/search', methods=['POST'])
+def search_artifacts_content():
+    """Búsqueda full-text de artefactos para agregar al contexto desde el chat."""
+    body    = request.get_json(force=True, silent=True) or {}
+    case_id = body.get('case_id', '').strip()
+    q       = body.get('q', '').strip()
+    if not case_id or not q:
+        return jsonify({"results": [], "count": 0})
+    like = f'%{q}%'
+    sys_rows = query(
+        """SELECT artifact_id, artifact_name AS name
+           FROM system_artifacts
+           WHERE case_id=%s AND (artifact_name LIKE %s OR content LIKE %s)
+           ORDER BY created_at DESC LIMIT 50""",
+        (case_id, like, like), many=True
+    ) or []
+    usr_rows = query(
+        """SELECT artifact_id, filename AS name
+           FROM user_artifacts
+           WHERE case_id=%s AND (filename LIKE %s OR COALESCE(extracted_text,'') LIKE %s)
+           ORDER BY uploaded_at DESC LIMIT 50""",
+        (case_id, like, like), many=True
+    ) or []
+    results = [{'artifact_id': r['artifact_id'], 'name': r['name']}
+               for r in sys_rows + usr_rows]
+    return jsonify({"results": results, "count": len(results)})
     s = name.lower().strip()
     for src, dst in [('á','a'),('é','e'),('í','i'),('ó','o'),('ú','u'),
                      ('ñ','n'),('ü','u'),('à','a'),('è','e'),('ì','i'),

@@ -141,6 +141,9 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 .copy-btn:hover,.edit-btn:hover{border-color:var(--accent);color:var(--accent)}
 .copy-btn.copied{border-color:var(--green);color:var(--green)}
 .msg.user .msg-actions{justify-content:flex-end}
+.msg.system{justify-content:center}
+.msg.system .msg-bubble{background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.22);color:var(--muted);font-size:.78rem;max-width:90%;font-style:normal;text-align:center;padding:7px 14px}
+.msg.system .msg-avatar{background:rgba(52,211,153,0.15);color:var(--green);font-size:.58rem;font-weight:700}
 .thinking{display:flex;gap:4px;padding:10px 14px;background:var(--panel);border:1px solid var(--border);border-radius:10px;width:fit-content}
 .thinking span{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:bounce 1.2s infinite}
 .thinking span:nth-child(2){animation-delay:.2s}
@@ -369,7 +372,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
     <div id="chat-input-area">
       <div id="ctx-chips"></div>
       <form id="chat-form" onsubmit="sendMessage(event)">
-        <textarea id="chat-input" placeholder="Escribe un mensaje… (Enter envía, Shift+Enter nueva línea)" rows="1"></textarea>
+        <textarea id="chat-input" placeholder="Mensaje… · /ctx todos|html|pdf|nombre:X|contenido:X" rows="1"></textarea>
         <button type="submit" id="send-btn" class="send-stop-btn" title="Enviar"><i class="fa-solid fa-arrow-up"></i></button>
         <button type="button" id="stop-btn" class="send-stop-btn" title="Detener generación" onclick="stopStream()"><i class="fa-solid fa-stop" style="font-size:.65rem"></i></button>
       </form>
@@ -1408,12 +1411,111 @@ function stopStream() {
   if (_abortCtrl) { _abortCtrl.abort(); _abortCtrl = null; }
 }
 
+// ── Contexto por lenguaje natural / comando /ctx ──────────────────────────
+
+function _parseCtxFilter(str) {
+  const s = str.toLowerCase().trim();
+  const spec = { all:false, types:[], sources:[], nameQuery:null, contentQuery:null, recent:null };
+  if (/^todos?$|^all$|^todo$/.test(s)) { spec.all = true; return spec; }
+  if (/\bhtml\b/.test(s))                       spec.types.push('html');
+  if (/\bpdf\b/.test(s))                        spec.types.push('pdf');
+  if (/\baudio\b|\bvoz\b|\bsonido\b|\bmp3\b|\bwav\b/.test(s)) spec.types.push('audio');
+  if (/\bimagen(?:es)?\b|\bfoto\b|\bimg\b|\bjpg\b|\bpng\b/.test(s)) spec.types.push('image');
+  if (/\bword\b|\bdocx\b/.test(s))              spec.types.push('word');
+  if (/\b(?:md|markdown|análisis|analisis|contrato|escrito|brief)\b/.test(s)) spec.types.push('md');
+  if (/\bgenerados?\b|\bsistema\b|\bde\s+ia\b|\bclaude\b/.test(s)) spec.sources.push('system');
+  if (/\bsubidos?\b|\busuario\b|\bm[ií]os?\b|\bpropios?\b/.test(s)) spec.sources.push('user');
+  const recM = s.match(/(?:recientes?|[uú]ltimos?)\s*:?\s*(\d+)/);
+  if (recM) spec.recent = parseInt(recM[1]);
+  const contM = s.match(/(?:contenido|contengan?|contienen?|mencionan?|digan?|con\s+)\s*:?\s*"?([^"]+)"?\s*$/i);
+  if (contM) { spec.contentQuery = contM[1].trim(); return spec; }
+  const nameM = s.match(/(?:nombre|llamad[ao]s?|que\s+se\s+llam[ae]n?)\s*:?\s*"?([^"]+)"?\s*$/i);
+  if (nameM) { spec.nameQuery = nameM[1].trim(); return spec; }
+  // Si ningún filtro reconocido → tratar texto completo como búsqueda por nombre
+  if (!spec.types.length && !spec.sources.length && !spec.recent && !spec.all)
+    spec.nameQuery = str.trim();
+  return spec;
+}
+
+function _parseCtxCommand(text) {
+  // Comando explícito
+  const explM = text.match(/^\/ctx\s+(.*)/i);
+  if (explM) return _parseCtxFilter(explM[1].trim());
+  // Lenguaje natural español: "añade/incluye/agrega/pon/toma ... contexto" o "contexto: ..."
+  const nlM = text.match(
+    /^(?:a[gñ]rega|a[nñ]ade|incluye|pon|toma|usa|selecciona|activa)\s+(?:en\s+el\s+|al?\s+)?(?:contexto\s+)?(.+?)(?:\s+(?:en\s+)?(?:al?\s+)?contexto)?$/i
+  ) || text.match(/^contexto\s*:\s*(.+)/i) || text.match(/^\/ctx\s+(.*)/i);
+  if (nlM) return _parseCtxFilter(nlM[1].trim());
+  return null;
+}
+
+async function _applyCtxFilter(spec) {
+  const all = [...artifacts.user, ...artifacts.system];
+  let matched = spec.all ? all : all.filter(a => {
+    const m = (a.mime_type || '').toLowerCase();
+    const t = (a.artifact_type || '').toLowerCase();
+    const typeOk = !spec.types.length || (
+      (spec.types.includes('html')  && (t==='html'  || m.includes('html'))) ||
+      (spec.types.includes('pdf')   && m.includes('pdf'))  ||
+      (spec.types.includes('audio') && (m.startsWith('audio/') || m.startsWith('video/'))) ||
+      (spec.types.includes('image') && m.startsWith('image/')) ||
+      (spec.types.includes('word')  && (m.includes('word') || m.includes('docx'))) ||
+      (spec.types.includes('md')    && !['html'].includes(t) && a.source==='system')
+    );
+    const srcOk = !spec.sources.length || spec.sources.includes(a.source==='system'?'system':'user');
+    const nm = (a.filename || a.artifact_name || a.name || '').toLowerCase();
+    const nameOk = !spec.nameQuery || nm.includes(spec.nameQuery.toLowerCase());
+    return typeOk && srcOk && nameOk;
+  });
+  if (spec.recent) matched = matched.slice(0, spec.recent);
+  if (spec.contentQuery && currentCase) {
+    try {
+      const r  = await fetch(`${API}/artifacts/search`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({case_id: currentCase.case_id, q: spec.contentQuery})
+      });
+      const d  = await r.json();
+      const hit = new Set((d.results||[]).map(x => x.artifact_id));
+      matched = matched.length ? matched.filter(a => hit.has(a.artifact_id))
+                               : all.filter(a => hit.has(a.artifact_id));
+    } catch { /* ignorar error de red */ }
+  }
+  return matched;
+}
+
+function _appendSysMsg(html) {
+  const msgs = document.getElementById('chat-messages');
+  const d = document.createElement('div');
+  d.className = 'msg system';
+  d.innerHTML = `<div class="msg-avatar">CTX</div><div><div class="msg-bubble">${html}</div></div>`;
+  msgs.appendChild(d);
+  scrollChat();
+}
+
 async function sendMessage(e) {
   e.preventDefault();
   if (_isStreaming) return;
   const inp = document.getElementById('chat-input');
   const text = inp.value.trim();
   if (!text) return;
+
+  // ── Interceptar comando de contexto ──────────────────────────────────────
+  const ctxSpec = _parseCtxCommand(text);
+  if (ctxSpec) {
+    inp.value = ''; inp.style.height = 'auto';
+    const matched = await _applyCtxFilter(ctxSpec);
+    if (!matched.length) {
+      _appendSysMsg('Sin artefactos que coincidan con ese filtro.');
+      return;
+    }
+    let added = 0;
+    matched.forEach(a => { if (!ctxIds.has(a.artifact_id)) { ctxIds.add(a.artifact_id); added++; } });
+    renderArtifacts(); renderCtxChips();
+    const names = matched.slice(0,4).map(a => `<b>${esc(a.filename||a.artifact_name||a.name||'?')}</b>`).join(', ');
+    const more  = matched.length > 4 ? ` y ${matched.length-4} más` : '';
+    _appendSysMsg(`✅ ${added} artefacto${added!==1?'s':''} agregado${added!==1?'s':''} al contexto: ${names}${more}`);
+    return;
+  }
   inp.value = '';
   inp.style.height = 'auto';
   closeSidebar();
