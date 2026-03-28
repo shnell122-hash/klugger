@@ -93,6 +93,87 @@ def _select_model(artifact_type: str, message: str) -> str:
     return _MODEL_BY_TYPE.get(artifact_type, _MODEL_SONNET)
 
 
+_MODEL_SHORT = {
+    _MODEL_HAIKU:  'Haiku',
+    _MODEL_SONNET: 'Sonnet',
+    _MODEL_OPUS:   'Opus',
+}
+
+def _auto_diagnose(tb: str, model: str, artifact_type: str, max_tokens: int) -> dict:
+    """Traduce un traceback en diagnóstico amigable para usuario y desarrollador."""
+    lines   = [l.strip() for l in tb.strip().split('\n') if l.strip()]
+    last    = lines[-1] if lines else 'Error desconocido'
+    file_   = next((l for l in lines if 'File "' in l), '')
+
+    user_msg   = '⚠️ Ocurrió un error procesando tu solicitud.'
+    dev_steps  = [
+        f'Traceback: {last}',
+        f'Archivo: {file_}',
+        f'Modelo: {model} · tipo: {artifact_type} · max_tokens: {max_tokens}',
+        'Ver logs completos: pm2 logs vilar-legal-os-v59 --lines 200',
+    ]
+    fix_code = None
+
+    tb_low = tb.lower()
+    if 'max_tokens' in tb_low or ("stop_reason" in tb_low and "tool_use" not in tb_low):
+        user_msg  = '⚠️ El documento generado excedió el límite de longitud configurado.'
+        new_limit = min(max_tokens * 2, 64000)
+        fix_code  = (f"# En ocr/v59/api/routes/chat.py:\n"
+                     f"MAX_TOKENS_BY_TYPE['{artifact_type}'] = {new_limit}")
+        dev_steps = [
+            f'Causa: max_tokens={max_tokens} insuficiente para tipo "{artifact_type}"',
+            f'El modelo truncó la respuesta (stop_reason=max_tokens)',
+            f'Fix recomendado: aumentar a {new_limit}',
+            f'Ver: grep MAX_TOKENS_BY_TYPE /var/www/catalogos/OCR/v59/api/routes/chat.py',
+        ]
+    elif 'apierror' in tb_low or 'authenticationerror' in tb_low or 'rate_limit' in tb_low:
+        user_msg = '⚠️ Error al conectar con la API de Anthropic.'
+        dev_steps = [
+            'Verificar ANTHROPIC_API_KEY en /var/www/catalogos/OCR/v59/api/.env',
+            'Verificar créditos: console.anthropic.com → Settings → Billing',
+            f'Modelo fallido: {model}',
+            'pm2 logs vilar-legal-os-v59 --lines 50 | grep -i error',
+        ]
+    elif 'mysql' in tb_low or 'operationalerror' in tb_low or 'database' in tb_low:
+        user_msg = '⚠️ Error de base de datos.'
+        dev_steps = [
+            'Verificar DB_HOST, DB_NAME, DB_USER, DB_PASS en .env',
+            'systemctl status mysql',
+            'mysql -u $DB_USER -p$DB_PASS -e "SELECT 1"',
+        ]
+    elif 'memoryerror' in tb_low or 'oom' in tb_low:
+        user_msg = '⚠️ El audio es demasiado grande para procesar en memoria.'
+        dev_steps = [
+            'librosa cargó demasiados frames — audio muy largo o alta frecuencia',
+            'Verificar límite en tool_router.py: sr=16000, duration=300',
+            'Considerar aumentar RAM del servidor o dividir el audio',
+        ]
+    elif 'timeout' in tb_low or 'timed out' in tb_low:
+        user_msg = '⚠️ La operación tardó demasiado (timeout).'
+        dev_steps = [
+            'Verificar timeout del cliente OpenAI en tool_router.py',
+            'El archivo de audio puede ser demasiado grande para Whisper API',
+            'Límite Whisper: 25MB — verificar tamaño del archivo',
+        ]
+    elif 'json' in tb_low and ('decode' in tb_low or 'parse' in tb_low):
+        user_msg = '⚠️ Error al interpretar la respuesta del modelo.'
+        dev_steps = [
+            'El modelo generó JSON malformado — posible truncamiento',
+            f'Aumentar max_tokens (actual: {max_tokens}) → 64000',
+            'Revisar tool_definitions.json para esquema correcto',
+        ]
+
+    return {
+        'user_msg': user_msg,
+        'dev_steps': dev_steps,
+        'fix_code':  fix_code,
+        'last_error': last,
+        'model': model,
+        'artifact_type': artifact_type,
+        'max_tokens': max_tokens,
+    }
+
+
 # ── Precios por modelo (USD / token) ──────────────────────────────────────────
 _PRICES = {
     _MODEL_HAIKU:  dict(inp=0.80/1e6,  out=4.0/1e6,   cache=0.08/1e6),
@@ -723,10 +804,22 @@ def chat_stream():
         accumulated: list[str] = []
         t_first = [None]
 
+        def emit_op(icon: str, msg: str, detail: str = None, level: str = 'info'):
+            """Emite un evento de log operacional al frontend."""
+            q.put(('op_log', {'icon': icon, 'msg': msg, 'detail': detail, 'level': level}))
+
+        # Contexto inicial
+        n_ctx = len(selected_ids) if selected_ids else 0
+        mshort = _MODEL_SHORT.get(model, model)
+        emit_op('🚀', f'Iniciando · {mshort} · caso {case_id or "sin caso"}',
+                detail=f'Tipo: {artifact_type} · max_tokens: {max_tokens:,} · contexto: {n_ctx} artefactos')
+
         try:
             current_messages = list(messages)
             _force_tool = False   # cuando True: próxima iteración usa tool_choice=any
             for iteration in range(15):   # 15 = 5 tool-use + hasta 10 auto-continuaciones
+                emit_op('🧠', f'Consultando {mshort} — iteración {iteration + 1}…',
+                        detail=f'Historial: {len(current_messages)} mensajes · tool_choice: {"any" if _force_tool else "auto"}')
                 text_this_round = ""
                 t_round = time.time()
 
