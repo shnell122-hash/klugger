@@ -193,8 +193,8 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 .audio-progress-hint{font-size:.61rem;color:var(--muted);margin-bottom:4px;letter-spacing:.1px;transition:color .2s}
 .audio-progress-bar{height:2px;background:var(--border);border-radius:2px;overflow:hidden}
 .audio-progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:2px;transition:width .6s ease}
-.tool-status-line{font-size:.61rem;color:var(--muted);margin:-1px 0 5px 0;padding-left:1px;letter-spacing:.1px;min-height:13px;transition:opacity .25s;display:flex;align-items:center;gap:4px}
-.tool-status-line i{font-size:.55rem;opacity:.6;animation:badge-pulse 1.6s ease-in-out infinite}
+.tool-status-line{font-size:.61rem;color:var(--muted);margin:2px 0 6px 0;padding-left:2px;letter-spacing:.1px;min-height:14px;display:flex;align-items:center;gap:5px;transition:opacity .2s}
+.tool-status-dot{width:5px;height:5px;border-radius:50%;background:var(--accent);flex-shrink:0;animation:badge-pulse 1.6s ease-in-out infinite}
 .auto-continue-pill{display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--accent);margin:8px 0;padding:5px 0;border-top:1px dashed var(--border);border-bottom:1px dashed var(--border)}
 .st{white-space:pre-wrap;word-wrap:break-word}
 
@@ -1164,6 +1164,20 @@ const TOOL_META = {
   'search':            {icon:'<i class="fa-solid fa-magnifying-glass"></i>',  running:'Buscando información',   done:'Búsqueda completada'},
   'analyze_audio':     {icon:'<i class="fa-solid fa-microphone-lines"></i>',  running:'Analizando audio',       done:'Análisis completado'},
 };
+// Texto de estado inicial por herramienta — visible desde el primer instante de tool_start
+const TOOL_STATUS_INIT = {
+  'save_artifact':     'Guardando en base de datos…',
+  'generate_image':    'Enviando prompt a Flux.1 (fal.ai)…',
+  'create_case':       'Creando expediente…',
+  'search_precedents': 'Buscando jurisprudencia y precedentes…',
+  'validate_document': 'Verificando requisitos legales…',
+  'export_to_jotform': 'Exportando datos del caso…',
+  'list_case_contents':'Consultando inventario del expediente…',
+  'save_session_notes':'Guardando notas de sesión…',
+  'read_file':         'Leyendo contenido del documento…',
+  'analyze_audio':     'Subiendo audio a Whisper API…',
+};
+
 // Legacy compat
 const TOOL_LABELS = Object.fromEntries(
   Object.entries(TOOL_META).map(([k,v])=>[k, v.icon + ' ' + v.running])
@@ -1297,7 +1311,8 @@ async function sendMessage(e) {
           // Línea de estado dinámica para TODAS las herramientas
           const statusLine = document.createElement('div');
           statusLine.className = 'tool-status-line';
-          statusLine.innerHTML = '<i class="fa-solid fa-ellipsis fa-fade"></i> <span></span>';
+          const initMsg = TOOL_STATUS_INIT[evt.tool] || 'Procesando…';
+          statusLine.innerHTML = `<span class="tool-status-dot"></span><span>${initMsg}</span>`;
           bubble.appendChild(statusLine);
           _toolStatusEls[evt.tool] = statusLine;
 
@@ -1346,8 +1361,10 @@ async function sendMessage(e) {
           // Actualizar el texto de la línea de estado de la herramienta en curso
           const el = _toolStatusEls[evt.tool];
           if (el) {
-            const span = el.querySelector('span');
-            if (span) span.textContent = evt.msg;
+            const spans = el.querySelectorAll('span');
+            const textSpan = spans[spans.length - 1]; // último span = texto
+            if (textSpan) textSpan.textContent = evt.msg;
+            scrollChat();
           }
 
         } else if (evt.type === 'auto_continue') {
