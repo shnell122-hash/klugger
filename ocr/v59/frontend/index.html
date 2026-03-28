@@ -1461,6 +1461,12 @@ async function sendMessage(e) {
     setStreamingUI(false);
     _abortCtrl = null;
     _currentSectionText = '';
+    // Si un artefacto fue guardado (incluso si la conexión se cortó después),
+    // siempre recargar la pestaña Generados
+    if (artifactSaved) {
+      await loadArtifacts();
+      switchArtifactTab('system');
+    }
   }
 }
 
