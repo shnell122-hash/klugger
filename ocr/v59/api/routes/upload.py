@@ -15,7 +15,11 @@ ALLOWED_MIME = {
     'application/msword',
     'text/plain', 'text/html',
 }
-ZIP_MIMES = {'application/zip', 'application/x-zip-compressed', 'application/octet-stream'}
+ZIP_MIMES = {'application/zip', 'application/x-zip-compressed'}
+
+def _is_zip(raw: bytes, filename: str, mime: str) -> bool:
+    """Detecta ZIP por firma de bytes (PK\\x03\\x04), no solo por MIME."""
+    return raw[:4] == b'PK\x03\x04' or filename.lower().endswith('.zip')
 
 def _process_file(case_id, filename, raw, mime):
     """Procesa un archivo (bytes) y lo guarda. Retorna dict resultado."""
@@ -78,9 +82,14 @@ def upload():
     for f in files:
         raw  = f.read()
         mime = f.mimetype or 'application/octet-stream'
+        # Normalizar MIME cuando el browser manda octet-stream para tipos conocidos
+        if mime == 'application/octet-stream':
+            guessed = mimetypes.guess_type(f.filename)[0]
+            if guessed:
+                mime = guessed
 
         # ── ZIP: extraer y procesar cada archivo interno ──────────────
-        is_zip = (mime in ZIP_MIMES or f.filename.lower().endswith('.zip'))
+        is_zip = _is_zip(raw, f.filename, mime)
         if is_zip:
             try:
                 with zipfile.ZipFile(io.BytesIO(raw)) as zf:
