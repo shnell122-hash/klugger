@@ -206,10 +206,14 @@ def _get_case_inventory(case_id: str) -> str:
         return ""
     try:
         user_files = query(
-            """SELECT filename, mime_type, file_size_bytes,
+            """SELECT artifact_id, filename, mime_type, file_size_bytes,
                       CHAR_LENGTH(COALESCE(extracted_text,'')) AS text_len
                FROM user_artifacts
-               WHERE case_id=%s AND COALESCE(source,'') != 'system'
+               WHERE case_id=%s AND (
+                   COALESCE(source,'') != 'system'
+                   OR mime_type LIKE 'audio/%%'
+                   OR mime_type LIKE 'video/%%'
+               )
                ORDER BY uploaded_at ASC""",
             (case_id,), many=True
         ) or []
@@ -241,8 +245,12 @@ def _get_case_inventory(case_id: str) -> str:
         if user_files:
             lines.append(f"\nDOCUMENTOS SUBIDOS ({len(user_files)}):")
             for f in user_files:
-                kb = round((f.get('file_size_bytes') or 0) / 1024)
-                txt = "texto ✅" if (f.get('text_len') or 0) > 100 else "sin texto ⚠️"
+                kb  = round((f.get('file_size_bytes') or 0) / 1024)
+                mime = f.get('mime_type', '')
+                if mime.startswith('audio/') or mime.startswith('video/'):
+                    txt = f"audio_id={f['artifact_id']}"
+                else:
+                    txt = "texto ✅" if (f.get('text_len') or 0) > 100 else "sin texto ⚠️"
                 lines.append(f"  - {f['filename']} ({kb} KB, {txt})")
         else:
             lines.append("\nDOCUMENTOS SUBIDOS: Ninguno")

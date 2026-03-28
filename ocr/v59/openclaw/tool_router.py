@@ -275,11 +275,15 @@ def _list_case_contents(inputs: dict) -> dict:
         return {"error": "case_id requerido"}
 
     user_files = query(
-        """SELECT filename, mime_type, file_size_bytes,
+        """SELECT artifact_id, filename, mime_type, file_size_bytes,
                   CHAR_LENGTH(COALESCE(extracted_text,'')) AS text_len,
                   uploaded_at
            FROM user_artifacts
-           WHERE case_id=%s AND COALESCE(source,'') != 'system'
+           WHERE case_id=%s AND (
+               COALESCE(source,'') != 'system'
+               OR mime_type LIKE 'audio/%%'
+               OR mime_type LIKE 'video/%%'
+           )
            ORDER BY uploaded_at ASC""",
         (cid,), many=True
     ) or []
@@ -309,6 +313,7 @@ def _list_case_contents(inputs: dict) -> dict:
     return {
         "uploaded_files": [
             {
+                "artifact_id": r["artifact_id"],
                 "filename": r["filename"],
                 "type": r["mime_type"],
                 "size_kb": round((r.get("file_size_bytes") or 0) / 1024, 1),
