@@ -59,7 +59,7 @@
   }
 }
 html{height:-webkit-fill-available}
-body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);height:100vh;height:100dvh;overflow:hidden;display:flex;flex-direction:column;min-height:-webkit-fill-available;
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);height:100vh;height:100dvh;overflow:clip;display:flex;flex-direction:column;min-height:-webkit-fill-available;
   background-image:radial-gradient(ellipse at 15% 10%, rgba(196,122,90,0.08) 0%, transparent 55%),
                    radial-gradient(ellipse at 85% 85%, rgba(139,92,246,0.06) 0%, transparent 55%);
 }
@@ -85,7 +85,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 #user-info{display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--muted)}
 
 /* ── Main layout ── */
-#main{display:flex;flex:1;overflow:hidden}
+#main{display:flex;flex:1;overflow:clip}
 
 /* ── Left sidebar — Artifacts ── */
 #sidebar{width:300px;min-width:240px;max-width:400px;background:var(--glass);backdrop-filter:blur(14px) saturate(150%);-webkit-backdrop-filter:blur(14px) saturate(150%);border-right:1px solid var(--glass-border);display:flex;flex-direction:column;resize:horizontal;overflow:hidden}
@@ -130,9 +130,10 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 .msg.user .msg-avatar{background:var(--accent);color:#fff}
 .msg-time{font-size:.65rem;color:var(--muted);margin-top:4px;display:block}
 .msg-actions{display:flex;gap:6px;margin-top:6px}
-.copy-btn{background:none;border:1px solid var(--border);color:var(--muted);border-radius:5px;padding:2px 8px;font-size:.68rem;cursor:pointer;transition:all .15s}
-.copy-btn:hover{border-color:var(--accent);color:var(--accent)}
+.copy-btn,.edit-btn{background:none;border:1px solid var(--border);color:var(--muted);border-radius:5px;padding:2px 8px;font-size:.68rem;cursor:pointer;transition:all .15s;touch-action:manipulation}
+.copy-btn:hover,.edit-btn:hover{border-color:var(--accent);color:var(--accent)}
 .copy-btn.copied{border-color:var(--green);color:var(--green)}
+.msg.user .msg-actions{justify-content:flex-end}
 .thinking{display:flex;gap:4px;padding:10px 14px;background:var(--panel);border:1px solid var(--border);border-radius:10px;width:fit-content}
 .thinking span{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:bounce 1.2s infinite}
 .thinking span:nth-child(2){animation-delay:.2s}
@@ -227,7 +228,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 
 /* ── Sidebar toggle button (mobile only) ── */
-#sidebar-toggle{display:none;align-items:center;justify-content:center;background:none;border:1px solid var(--border);border-radius:6px;width:32px;height:32px;cursor:pointer;color:var(--text);font-size:1.1rem;flex-shrink:0}
+#sidebar-toggle{display:none;align-items:center;justify-content:center;background:none;border:1px solid var(--border);border-radius:6px;width:32px;height:32px;cursor:pointer;color:var(--text);font-size:1.1rem;flex-shrink:0;touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
 /* ── Sidebar backdrop (mobile) ── */
 #sidebar-backdrop{display:none;position:fixed;inset:0;background:#0006;z-index:49}
 /* ── Theme toggle ── */
@@ -244,8 +245,8 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 @media(max-width:640px){
   #sidebar-toggle{display:flex}
   #header-dashboard-btn,#theme-btn,#user-info{display:none!important}
-  #sidebar{position:fixed;top:0;bottom:0;left:0;z-index:50;width:85vw!important;max-width:320px;min-width:unset;transform:translateX(-100%);transition:transform .25s ease;resize:none}
-  #sidebar.open{transform:translateX(0)}
+  #sidebar{position:fixed;top:0;bottom:0;left:0;z-index:50;width:85vw!important;max-width:320px;min-width:unset;-webkit-transform:translateX(-100%);transform:translateX(-100%);-webkit-transition:-webkit-transform .25s ease;transition:transform .25s ease;will-change:transform;resize:none;overflow-y:auto}
+  #sidebar.open{-webkit-transform:translateX(0);transform:translateX(0)}
   #sidebar-backdrop.show{display:block}
   #header{padding:6px 10px;gap:4px;flex-wrap:nowrap;min-height:unset}
   #header h1{font-size:.78rem;white-space:nowrap;letter-spacing:0}
@@ -532,11 +533,25 @@ function toggleSidebar() {
   const bd = document.getElementById('sidebar-backdrop');
   const open = sb.classList.toggle('open');
   bd.classList.toggle('show', open);
+  // Force repaint on iOS Safari
+  sb.style.display = 'none';
+  sb.offsetHeight; // eslint-disable-line no-unused-expressions
+  sb.style.display = '';
 }
 function closeSidebar() {
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebar-backdrop').classList.remove('show');
 }
+// iOS Safari: register touchstart as backup for sidebar toggle
+(function() {
+  const btn = document.getElementById('sidebar-toggle');
+  if (btn) {
+    btn.addEventListener('touchstart', function(e) {
+      e.preventDefault();
+      toggleSidebar();
+    }, { passive: false });
+  }
+})();
 
 // ── Auth ──────────────────────────────────────────────────
 let currentUser = null;
@@ -1562,18 +1577,20 @@ function appendMessage(role, content, ts) {
   div.className = `msg ${role}`;
   const time = ts ? new Date(ts).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'}) :
     new Date().toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'});
-  let copyBtn = '';
+  const mid = 'msg-' + (++_msgCounter);
+  _msgStore.set(mid, content);
+  let actions = '';
   if (role === 'assistant') {
-    const mid = 'msg-' + (++_msgCounter);
-    _msgStore.set(mid, content);
-    copyBtn = `<div class="msg-actions"><button class="copy-btn" data-mid="${mid}" onclick="copyMsg(this)">Copiar</button></div>`;
+    actions = `<div class="msg-actions"><button class="copy-btn" data-mid="${mid}" onclick="copyMsg(this)">Copiar</button></div>`;
+  } else {
+    actions = `<div class="msg-actions"><button class="copy-btn" data-mid="${mid}" onclick="copyMsg(this)">Copiar</button><button class="edit-btn" data-mid="${mid}" onclick="editMsg(this)">Editar</button></div>`;
   }
   div.innerHTML = `
     <div class="msg-avatar">${role === 'user' ? 'Tú' : 'AI'}</div>
     <div>
       <div class="msg-bubble">${role === 'assistant' ? mdToHtml(content) : esc(content)}</div>
       <span class="msg-time">${time}</span>
-      ${copyBtn}
+      ${actions}
     </div>`;
   msgs.appendChild(div);
 }
@@ -1590,6 +1607,20 @@ function copyMsg(btn) {
   } else {
     _fallbackCopy(text, finish);
   }
+}
+
+function editMsg(btn) {
+  const text = _msgStore.get(btn.dataset.mid) || btn.closest('.msg').querySelector('.msg-bubble').innerText;
+  const inp = document.getElementById('chat-input');
+  if (!inp) return;
+  inp.value = text;
+  inp.style.height = 'auto';
+  inp.style.height = Math.min(inp.scrollHeight, 180) + 'px';
+  inp.focus();
+  inp.setSelectionRange(inp.value.length, inp.value.length);
+  // Highlight the button briefly
+  btn.textContent = '✓ En input';
+  setTimeout(() => { btn.textContent = 'Editar'; }, 1500);
 }
 
 function _fallbackCopy(text, cb) {
