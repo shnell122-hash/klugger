@@ -37,19 +37,21 @@ def _process_file(case_id, filename, raw, mime):
         "SELECT extracted_text FROM extraction_cache WHERE checksum_sha256=%s AND mime_type=%s",
         (sha, mime)
     )
-    if cached:
-        text = cached['extracted_text']
+    cached_text = (cached or {}).get('extracted_text', '') or ''
+    if cached and cached_text.strip():
+        text = cached_text
     else:
         tmp_path = os.path.join(UPLOAD_DIR, f"tmp_{sha[:16]}")
         with open(tmp_path, 'wb') as fh:
             fh.write(raw)
         text = extract_text(tmp_path, mime, raw)
         os.remove(tmp_path)
-        execute(
-            "INSERT INTO extraction_cache (checksum_sha256, mime_type, extracted_text) "
-            "VALUES (%s, %s, %s) ON DUPLICATE KEY UPDATE extracted_text=VALUES(extracted_text)",
-            (sha, mime, text)
-        )
+        if text.strip():  # solo cachear si hay contenido real
+            execute(
+                "INSERT INTO extraction_cache (checksum_sha256, mime_type, extracted_text) "
+                "VALUES (%s, %s, %s) ON DUPLICATE KEY UPDATE extracted_text=VALUES(extracted_text)",
+                (sha, mime, text)
+            )
 
     ext      = os.path.splitext(filename)[1] or ''
     safe     = f"{uuid.uuid4().hex}{ext}"
