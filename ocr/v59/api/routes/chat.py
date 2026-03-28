@@ -154,35 +154,55 @@ def _get_specific_context(case_id: str, artifact_ids: list) -> str:
         return _get_case_context(case_id)
 
     placeholders = ','.join(['%s'] * len(artifact_ids))
-    rows = query(
+
+    # Separar audio/video (sin texto extraíble) del resto
+    all_rows = query(
         f"""SELECT artifact_id, filename, mime_type,
                    LEFT(extracted_text, 12000) AS snippet,
                    file_size_bytes
             FROM user_artifacts
             WHERE artifact_id IN ({placeholders})
               AND case_id = %s
-              AND extracted_text IS NOT NULL
-              AND TRIM(extracted_text) != ''
             ORDER BY uploaded_at DESC""",
         (*artifact_ids, case_id), many=True
-    )
-    if not rows:
+    ) or []
+
+    audio_rows = [r for r in all_rows if (r.get('mime_type') or '').startswith(('audio/', 'video/'))]
+    text_rows  = [r for r in all_rows if r not in audio_rows
+                  and r.get('snippet') and (r.get('snippet') or '').strip()]
+
+    parts = []
+
+    # Archivos de texto con contenido
+    if text_rows:
+        parts.append("<documents>")
+        for i, r in enumerate(text_rows, 1):
+            parts.append(
+                f'<document index="{i}" '
+                f'filename="{r["filename"]}" '
+                f'type="{r["mime_type"]}" '
+                f'size="{r.get("file_size_bytes", 0)}">'
+                f'\n{r.get("snippet", "")}\n'
+                f'</document>'
+            )
+        parts.append("</documents>")
+
+    # Archivos de audio/video: proveer audio_id para que Claude use analyze_audio
+    if audio_rows:
+        parts.append("\n<audio_files_in_context>")
+        parts.append("INSTRUCCIÓN: Para analizar estos audios llama analyze_audio con el audio_id correspondiente.")
+        for r in audio_rows:
+            parts.append(
+                f'  audio_id={r["artifact_id"]} | {r["filename"]} '
+                f'({round((r.get("file_size_bytes") or 0)/1048576, 1)} MB)'
+            )
+        parts.append("</audio_files_in_context>")
+
+    if not parts:
         return (
             "\n\n**IMPORTANTE:** Los documentos seleccionados no tienen texto extraído. "
             "Por favor vuelve a subirlos."
         )
-
-    parts = ["<documents>"]
-    for i, r in enumerate(rows, 1):
-        parts.append(
-            f'<document index="{i}" '
-            f'filename="{r["filename"]}" '
-            f'type="{r["mime_type"]}" '
-            f'size="{r.get("file_size_bytes", 0)}">'
-            f'\n{r.get("snippet", "")}\n'
-            f'</document>'
-        )
-    parts.append("</documents>")
     return "\n".join(parts)
 
 
