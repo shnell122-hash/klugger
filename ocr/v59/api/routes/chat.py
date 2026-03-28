@@ -200,14 +200,17 @@ def _get_case_context(case_id: str) -> str:
 
 
 def _get_specific_context(case_id: str, artifact_ids: list) -> str:
-    """Obtiene contexto de artefactos específicos seleccionados por el usuario."""
+    """Obtiene contexto de artefactos específicos seleccionados por el usuario.
+    Consulta tanto user_artifacts (archivos subidos) como system_artifacts
+    (análisis, transcripciones y artefactos generados por Claude).
+    """
     if not artifact_ids:
         return _get_case_context(case_id)
 
     placeholders = ','.join(['%s'] * len(artifact_ids))
 
-    # Separar audio/video (sin texto extraíble) del resto
-    all_rows = query(
+    # ── 1. user_artifacts (archivos subidos, audio, imágenes) ────────────────
+    user_rows = query(
         f"""SELECT artifact_id, filename, mime_type,
                    LEFT(extracted_text, 12000) AS snippet,
                    file_size_bytes
@@ -218,13 +221,38 @@ def _get_specific_context(case_id: str, artifact_ids: list) -> str:
         (*artifact_ids, case_id), many=True
     ) or []
 
-    audio_rows = [r for r in all_rows if (r.get('mime_type') or '').startswith(('audio/', 'video/'))]
-    text_rows  = [r for r in all_rows if r not in audio_rows
+    found_ids = {r['artifact_id'] for r in user_rows}
+
+    # ── 2. system_artifacts (análisis vocales, transcripciones, contratos…) ──
+    sys_ids = [aid for aid in artifact_ids if aid not in found_ids]
+    sys_rows = []
+    if sys_ids:
+        sys_ph = ','.join(['%s'] * len(sys_ids))
+        sys_rows = query(
+            f"""SELECT artifact_id,
+                       artifact_name AS filename,
+                       artifact_type AS mime_type,
+                       LEFT(content, 12000) AS snippet,
+                       file_size_bytes
+                FROM system_artifacts
+                WHERE artifact_id IN ({sys_ph})
+                  AND case_id = %s
+                ORDER BY created_at DESC""",
+            (*sys_ids, case_id), many=True
+        ) or []
+
+    audio_rows = [r for r in user_rows
+                  if (r.get('mime_type') or '').startswith(('audio/', 'video/'))]
+    text_rows  = [r for r in user_rows
+                  if r not in audio_rows
                   and r.get('snippet') and (r.get('snippet') or '').strip()]
+    # system_artifacts son siempre texto/markdown
+    text_rows += [r for r in sys_rows
+                  if r.get('snippet') and (r.get('snippet') or '').strip()]
 
     parts = []
 
-    # Archivos de texto con contenido
+    # Archivos de texto con contenido (user + system)
     if text_rows:
         parts.append("<documents>")
         for i, r in enumerate(text_rows, 1):
@@ -239,7 +267,11 @@ def _get_specific_context(case_id: str, artifact_ids: list) -> str:
         parts.append("</documents>")
 
     # Archivos de audio/video: proveer audio_id para que Claude use analyze_audio
-    if audio_rows:
+    # SOLO si NO hay ya un análisis vocal en el contexto
+    has_vocal_analysis = any(
+        'Análisis vocal' in (r.get('filename') or '') for r in text_rows
+    )
+    if audio_rows and not has_vocal_analysis:
         parts.append("\n<audio_files_in_context>")
         parts.append("INSTRUCCIÓN: Para analizar estos audios llama analyze_audio con el audio_id correspondiente.")
         for r in audio_rows:
@@ -247,6 +279,14 @@ def _get_specific_context(case_id: str, artifact_ids: list) -> str:
                 f'  audio_id={r["artifact_id"]} | {r["filename"]} '
                 f'({round((r.get("file_size_bytes") or 0)/1048576, 1)} MB)'
             )
+        parts.append("</audio_files_in_context>")
+    elif audio_rows and has_vocal_analysis:
+        # Los análisis vocales ya están en el contexto — no re-analizar
+        parts.append("\n<audio_files_in_context>")
+        parts.append("NOTA: Los análisis vocales de estos audios ya están disponibles en los documentos de contexto. "
+                      "NO llames analyze_audio de nuevo. Usa los resultados ya obtenidos.")
+        for r in audio_rows:
+            parts.append(f'  {r["filename"]} — análisis ya completado, ver documentos de contexto')
         parts.append("</audio_files_in_context>")
 
     if not parts:
@@ -696,19 +736,31 @@ def chat_stream():
                         q.put(('auto_continue', None))
                         continue   # siguiente iteración sin esperar al usuario
 
-                    # Detectar lenguaje de ejecución sin tool_use — máx 2 reintentos
-                    if _EXECUTION_LANGUAGE.search(text_this_round) and iteration < 2:
+                    # Detectar lenguaje de ejecución sin tool_use — máx 1 reintento
+                    if _EXECUTION_LANGUAGE.search(text_this_round) and iteration < 1:
                         log.warning('[WARN] execution language but 0 tool_calls emitted '
                                     '(round=%d) — forcing tool_choice=any on retry', iteration)
                         current_messages.append({"role": "assistant", "content": text_this_round})
+                        # Detectar si ya hay análisis vocales en el contexto
+                        ctx_str = ' '.join(
+                            m.get('content', '') if isinstance(m.get('content'), str)
+                            else str(m.get('content', ''))
+                            for m in current_messages
+                        )
+                        has_analysis_in_ctx = 'Análisis vocal' in ctx_str
+                        extra = (
+                            " IMPORTANTE: el análisis vocal ya está en el contexto — "
+                            "llama save_artifact para guardar el HTML/reporte, NO analyze_audio."
+                            if has_analysis_in_ctx else ""
+                        )
                         current_messages.append({
                             "role": "user",
                             "content": (
                                 "NO ejecutaste ninguna herramienta. "
                                 "Está PROHIBIDO declarar que un análisis fue completado sin haber "
-                                "llamado la herramienta correspondiente. "
-                                "Llama analyze_audio() (u otra tool mencionada) AHORA MISMO. "
-                                "Solo tool call — cero texto."
+                                "llamado la herramienta. "
+                                "Llama save_artifact o la herramienta apropiada AHORA. "
+                                "Solo tool call — cero texto." + extra
                             )
                         })
                         _force_tool = True   # próxima iteración: tool_choice=any
