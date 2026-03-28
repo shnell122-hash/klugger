@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>VILAR Legal OS v59</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -997,25 +1000,32 @@ async function viewArtifact(id) {
   }
 
   if (a.source === 'system') {
-    const dlBtns = `<div style="display:flex;gap:4px;flex-shrink:0">
+    const isHtml = a.artifact_type === 'html' || /\.html?$/i.test(a.artifact_name || '');
+    const dlBtns = `<div style="display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap">
+      ${isHtml ? `<button class="btn btn-ghost btn-sm" id="vw-tab-preview" onclick="switchHtmlView('preview')" style="font-weight:bold">👁 Preview</button><button class="btn btn-ghost btn-sm" id="vw-tab-code" onclick="switchHtmlView('code')">Código</button>` : ''}
       <button class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','pdf')" title="Descargar PDF">PDF</button>
       <button class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','md')" title="Descargar Markdown">MD</button>
       <button class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','html')" title="Descargar HTML">HTML</button>
       <button class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','docx')" title="Descargar Word">Word</button>
     </div>`;
     const header = `<div class="viewer-filename">${esc(name)}${dlBtns}</div>`;
-    const content = a.content || '';
-    if (content) {
-      vc.innerHTML = header + `<div style="white-space:normal">${mdToHtml(content)}</div>`;
-    } else {
+    let content = a.content || '';
+    if (!content) {
       try {
         const r = await fetch(`${API}/artifacts/${id}/text`);
         const d = await r.json();
-        vc.innerHTML = header + `<div style="white-space:normal">${mdToHtml(d.text || '(Sin contenido)')}</div>`;
-      } catch {
-        vc.innerHTML = header + '(No disponible)';
-      }
+        content = d.text || '';
+      } catch { content = ''; }
     }
+    if (isHtml && content) {
+      vc.innerHTML = header +
+        `<iframe id="vw-html-iframe" sandbox="allow-scripts allow-same-origin"
+           style="width:100%;height:600px;border:1px solid var(--border);border-radius:6px;background:#fff;display:block"></iframe>
+         <pre id="vw-html-code" style="display:none;white-space:pre-wrap;font-size:.72rem;overflow:auto;max-height:600px;padding:10px;background:var(--panel);border-radius:6px;margin-top:0">${esc(content)}</pre>`;
+      document.getElementById('vw-html-iframe').srcdoc = content;
+      return;
+    }
+    vc.innerHTML = header + `<div style="white-space:normal">${mdToHtml(content || '(Sin contenido)')}</div>`;
     return;
   }
 
@@ -1031,6 +1041,24 @@ async function viewArtifact(id) {
     vc.innerHTML = header + esc(d.text || '(Sin texto extraído)');
   } catch {
     vc.innerHTML = header + '(No disponible)';
+  }
+}
+
+function switchHtmlView(tab) {
+  const iframe = document.getElementById('vw-html-iframe');
+  const code   = document.getElementById('vw-html-code');
+  const btnP   = document.getElementById('vw-tab-preview');
+  const btnC   = document.getElementById('vw-tab-code');
+  if (tab === 'preview') {
+    if (iframe) iframe.style.display = 'block';
+    if (code)   code.style.display   = 'none';
+    if (btnP)   btnP.style.fontWeight = 'bold';
+    if (btnC)   btnC.style.fontWeight = '';
+  } else {
+    if (iframe) iframe.style.display = 'none';
+    if (code)   code.style.display   = 'block';
+    if (btnP)   btnP.style.fontWeight = '';
+    if (btnC)   btnC.style.fontWeight = 'bold';
   }
 }
 
