@@ -1218,8 +1218,12 @@ def chat_stream():
                         log.info('tool %s %.2fs', b.name, time.time() - _t_starts[b.id])
                         status_r = result.get('status', '?') if isinstance(result, dict) else '?'
                         if status_r == 'saved':
-                            emit_op('✅', f'Artefacto guardado — {b.name}',
+                            emit_op('✅', f'Artefacto guardado — {result.get("artifact_name","?")}',
                                     detail=f'ID: {result.get("artifact_id","?")} · tipo: {result.get("artifact_type","?")}')
+                        elif status_r == 'appended':
+                            kb = round((result.get("total_bytes") or 0) / 1024, 1)
+                            emit_op('📎', f'Documento ampliado — {result.get("artifact_name","?")}',
+                                    detail=f'ID: {result.get("artifact_id","?")} · total: {kb} KB')
                         elif status_r == 'error':
                             emit_op('❌', f'Error en {b.name}: {result.get("error","?")}',
                                     level='error')
