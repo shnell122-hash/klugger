@@ -78,6 +78,12 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 .btn-ghost:hover{border-color:var(--accent);color:var(--accent);opacity:1;background:rgba(196,122,90,0.06)}
 .vw-dl-active{border-color:var(--accent)!important;color:var(--accent)!important;background:rgba(196,122,90,0.10)!important}
 .btn-danger{background:var(--red)}
+/* ── Artifact type badges ── */
+.art-badge{display:inline-block;font-size:.58rem;font-weight:700;letter-spacing:.4px;padding:1px 5px;border-radius:3px;vertical-align:middle;text-transform:uppercase;flex-shrink:0}
+.art-badge-html{background:rgba(52,211,153,0.15);color:var(--green);border:1px solid rgba(52,211,153,0.35)}
+.art-badge-md{background:rgba(147,197,253,0.12);color:#93c5fd;border:1px solid rgba(147,197,253,0.30)}
+.art-badge-sys{background:rgba(192,132,252,0.12);color:#c084fc;border:1px solid rgba(192,132,252,0.28)}
+.icon-html{background:rgba(52,211,153,0.12);color:var(--green)}
 #health-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0}
 #health-dot.ok{background:var(--green)}
 #health-dot.err{background:var(--red)}
@@ -161,7 +167,8 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 #viewer-content{flex:1;overflow-y:auto;padding:14px;font-size:.78rem;line-height:1.6;white-space:pre-wrap;word-wrap:break-word}
 #viewer-content.empty{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.85rem;font-style:italic}
 #viewer-content img{max-width:100%;border-radius:6px;margin:4px 0}
-.viewer-filename{font-size:.7rem;color:var(--accent);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.viewer-filename{font-size:.7rem;color:var(--accent);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:6px}
+.viewer-filename > span:first-child{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-top:2px}
 
 /* ── Modal ── */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:100;display:flex;align-items:center;justify-content:center}
@@ -256,9 +263,16 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
   #case-selector select{max-width:110px;font-size:.72rem;padding:3px 6px}
   .btn-sm{padding:3px 7px;font-size:.72rem;white-space:nowrap}
   #theme-btn{padding:3px 7px;font-size:.82rem}
-  .msg-bubble{max-width:88%}
+  .msg-bubble{max-width:92%}
   #chat-input-area{padding:8px 10px}
-  #chat-messages{padding:10px}
+  #chat-messages{padding:10px;gap:10px}
+  /* Viewer en mobile: botones más compactos, bien envueltos */
+  #mobile-viewer-content .viewer-filename{flex-direction:column;align-items:flex-start;gap:8px}
+  #mobile-viewer-content .viewer-filename > div{width:100%;justify-content:flex-start;flex-wrap:wrap}
+  #mobile-viewer-content iframe{height:55vh!important}
+  #mobile-viewer-content pre{max-height:55vh!important}
+  /* Share toast: no solapar el input en mobile */
+  .share-toast-wrap{bottom:90px!important;width:90vw!important;left:5vw!important;transform:none!important}
 }
 </style>
 </head>
@@ -938,7 +952,10 @@ function renderArtifacts() {
         <div class="artifact-name" title="${esc(a.filename||a.artifact_name||a.name||'')}">
           ${esc(a.filename||a.artifact_name||a.name||'Archivo')}
         </div>
-        <div class="artifact-meta">${a.mime_type||''} · ${fmtSize(a.file_size_bytes)}</div>
+        <div class="artifact-meta" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+          ${artTypeBadge(a)}
+          <span>${fmtSize(a.file_size_bytes)}</span>
+        </div>
       </div>
       <div style="display:flex;gap:2px;flex-shrink:0">
         ${a.source === 'system' ? `<button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 3px" onclick="downloadArtifact('${a.artifact_id}','docx')" title="Descargar Word">⬇</button>` : ''}
@@ -952,22 +969,41 @@ function renderArtifacts() {
 
 function iconClass(a) {
   const m = a.mime_type || '';
+  const t = a.artifact_type || '';
   if (m.includes('pdf')) return 'icon-pdf';
   if (m.startsWith('image/')) return 'icon-img';
   if (m.startsWith('audio/') || m.startsWith('video/')) return 'icon-doc';
   if (m.includes('word') || m.includes('docx')) return 'icon-doc';
+  if (t === 'html' || m === 'text/html') return 'icon-html';
   if (a.source === 'system') return 'icon-sys';
   return 'icon-txt';
 }
 function iconEmoji(a) {
   const m = a.mime_type || '';
+  const t = a.artifact_type || '';
   if (m.includes('pdf')) return '📄';
   if (m.startsWith('image/')) return '🖼';
   if (m.startsWith('audio/')) return '🎵';
   if (m.startsWith('video/')) return '🎬';
   if (m.includes('word') || m.includes('docx')) return '📝';
+  if (t === 'html' || m === 'text/html') return '</>';
   if (a.source === 'system') return '🤖';
   return '📃';
+}
+const _ART_TYPE_LABEL = {
+  html:'HTML', analysis:'Análisis', contract:'Contrato',
+  brief:'Escrito', session_notes:'Notas', md:'Markdown', markdown:'Markdown'
+};
+function artTypeBadge(a) {
+  const t = (a.artifact_type || '').toLowerCase();
+  const m = (a.mime_type || '').toLowerCase();
+  if (t === 'html' || m === 'text/html')
+    return `<span class="art-badge art-badge-html">HTML</span>`;
+  if (a.source === 'system') {
+    const lbl = _ART_TYPE_LABEL[t] || t || 'IA';
+    return `<span class="art-badge art-badge-sys">${esc(lbl)}</span>`;
+  }
+  return '';
 }
 function fmtSize(b) {
   if (!b) return '';
@@ -1151,24 +1187,38 @@ async function shareArtifactById(id) {
 }
 
 function _copyShareUrl(url) {
-  const finish = () => {
-    // Mostrar toast con la URL + botón abrir
+  // execCommand DEBE correr sincrónicamente dentro del gesto del usuario.
+  // navigator.clipboard es async y en Safari/iOS pierde el contexto del gesto.
+  let copied = false;
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = url;
+    ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;pointer-events:none';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select(); ta.setSelectionRange(0, 99999);
+    copied = document.execCommand('copy');
+    document.body.removeChild(ta);
+  } catch(e) { copied = false; }
+
+  // Si execCommand no funcionó (algunos Chromium con policy), intentar async
+  const writeAsync = (!copied && navigator.clipboard && navigator.clipboard.writeText)
+    ? navigator.clipboard.writeText(url).then(()=>{}).catch(()=>{})
+    : Promise.resolve();
+
+  writeAsync.finally(() => {
     const div = document.createElement('div');
+    div.className = 'share-toast-wrap';
     div.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--green);border-radius:10px;padding:12px 16px;z-index:9999;max-width:90vw;box-shadow:var(--shadow)';
-    div.innerHTML = `<div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">URL copiada al portapapeles</div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <code style="font-size:.72rem;color:var(--green);word-break:break-all;flex:1">${url}</code>
-        <a href="${url}" target="_blank" style="color:var(--accent);font-size:.75rem;white-space:nowrap;text-decoration:none">Abrir ↗</a>
-        <button onclick="this.closest('div[style]').remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;line-height:1">×</button>
-      </div>`;
+    div.innerHTML =
+      `<div style="font-size:.75rem;color:var(--muted);margin-bottom:6px">${copied ? '✅ URL copiada al portapapeles' : '🔗 Enlace para compartir'}</div>`+
+      `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">`+
+        `<code style="font-size:.70rem;color:var(--green);word-break:break-all;flex:1;min-width:0">${url}</code>`+
+        `<a href="${url}" target="_blank" rel="noopener" style="color:var(--accent);font-size:.75rem;white-space:nowrap;text-decoration:none;flex-shrink:0">Abrir ↗</a>`+
+        `<button onclick="this.closest('.share-toast-wrap').remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;line-height:1;flex-shrink:0;padding:0 2px">×</button>`+
+      `</div>`;
     document.body.appendChild(div);
-    setTimeout(() => div.remove(), 8000);
-  };
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(url).then(finish).catch(() => _fallbackCopy(url, finish));
-  } else {
-    _fallbackCopy(url, finish);
-  }
+    setTimeout(() => { if (div.parentNode) div.remove(); }, 10000);
+  });
 }
 
 function downloadArtifact(id, fmt) {
