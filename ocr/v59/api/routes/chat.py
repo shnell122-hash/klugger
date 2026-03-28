@@ -601,17 +601,25 @@ def chat_stream():
 
         try:
             current_messages = list(messages)
+            _force_tool = False   # cuando True: próxima iteración usa tool_choice=any
             for iteration in range(15):   # 15 = 5 tool-use + hasta 10 auto-continuaciones
                 text_this_round = ""
                 t_round = time.time()
 
-                with client.messages.stream(
+                stream_kwargs = dict(
                     model="claude-opus-4-6",
                     max_tokens=max_tokens,
                     system=system_blocks,
                     tools=TOOL_DEFS,
                     messages=current_messages,
-                ) as stream:
+                )
+                if _force_tool:
+                    # Forzar al modelo a ejecutar AL MENOS una herramienta
+                    stream_kwargs["tool_choice"] = {"type": "any"}
+                    _force_tool = False
+                    log.info('tool_choice=any forced at iteration %d', iteration)
+
+                with client.messages.stream(**stream_kwargs) as stream:
                     for event in stream:
                         if (hasattr(event, 'type')
                                 and event.type == 'content_block_delta'
@@ -647,15 +655,19 @@ def chat_stream():
                     # Detectar lenguaje de ejecución sin tool_use — máx 2 reintentos
                     if _EXECUTION_LANGUAGE.search(text_this_round) and iteration < 2:
                         log.warning('[WARN] execution language but 0 tool_calls emitted '
-                                    '(round=%d) — injecting retry', iteration)
+                                    '(round=%d) — forcing tool_choice=any on retry', iteration)
                         current_messages.append({"role": "assistant", "content": text_this_round})
                         current_messages.append({
                             "role": "user",
                             "content": (
-                                "Ejecuta las herramientas que mencionaste. "
-                                "Llama directamente a las tools sin texto adicional."
+                                "NO ejecutaste ninguna herramienta. "
+                                "Está PROHIBIDO declarar que un análisis fue completado sin haber "
+                                "llamado la herramienta correspondiente. "
+                                "Llama analyze_audio() (u otra tool mencionada) AHORA MISMO. "
+                                "Solo tool call — cero texto."
                             )
                         })
+                        _force_tool = True   # próxima iteración: tool_choice=any
                         continue   # reintentar
 
                     break          # fin normal
