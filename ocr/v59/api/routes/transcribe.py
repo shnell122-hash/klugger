@@ -91,14 +91,23 @@ def _upd(job_id, status, progress, message):
         _jobs[job_id].update(status=status, progress=progress, message=message)
 
 
-def _ytdlp_args(extra: list) -> list:
+def _is_gdrive_folder(url: str) -> bool:
+    """True si la URL es una carpeta de Google Drive."""
+    import re
+    return bool(re.search(r'drive\.google\.com/(drive/[^/]*/)?folders/', url))
+
+
+def _ytdlp_args(extra: list, url: str = '') -> list:
     """
-    Construye los args base de yt-dlp con:
-    - cliente Android (evita detección de bot en YouTube sin cookies)
-    - cookies file si YTDLP_COOKIES_FILE está configurado en .env
+    Construye los args base de yt-dlp.
+    - Carpetas de Google Drive: --yes-playlist (procesa todos los archivos)
+    - Todo lo demás: --no-playlist
+    - Cliente Android para YouTube (evita detección de bot)
+    - cookies file si YTDLP_COOKIES_FILE está en .env
     """
+    playlist_flag = '--yes-playlist' if _is_gdrive_folder(url) else '--no-playlist'
     args = [
-        YTDLP_BIN, '--no-playlist',
+        YTDLP_BIN, playlist_flag,
         '--extractor-args', 'youtube:player_client=android,web',
     ]
     cookies = os.getenv('YTDLP_COOKIES_FILE', '').strip()
@@ -112,33 +121,35 @@ def _run_transcription(job_id, case_id, url, language, openai_key):
     log.info('[%s] Iniciando transcripción | case=%s url=%s', job_id[:8], case_id, url)
     try:
         # ── 1. Obtener título ────────────────────────────────────────────
-        _upd(job_id, 'downloading', 3, 'Obteniendo información del video...')
-        log.info('[%s] Obteniendo título...', job_id[:8])
+        is_folder = _is_gdrive_folder(url)
+        _upd(job_id, 'downloading', 3,
+             'Obteniendo información del video...' if not is_folder
+             else 'Leyendo carpeta de Google Drive...')
+        log.info('[%s] Obteniendo título... (carpeta=%s)', job_id[:8], is_folder)
         title_proc = subprocess.run(
-            _ytdlp_args(['--get-title', url]),
+            _ytdlp_args(['--get-title', url], url),
             capture_output=True, text=True, timeout=60
         )
-        video_title = title_proc.stdout.strip()[:120] or 'Video'
+        video_title = title_proc.stdout.strip().split('\n')[0][:120] or 'Video'
         log.info('[%s] Título: %s', job_id[:8], video_title)
 
         # ── 2. Descargar audio ───────────────────────────────────────────
         _upd(job_id, 'downloading', 8,
              f'Descargando audio: {video_title}...')
         log.info('[%s] Descargando audio...', job_id[:8])
-        raw_out = os.path.join(tmp, 'raw.%(ext)s')
+        raw_out = os.path.join(tmp, 'raw%(autonumber)s.%(ext)s' if is_folder else 'raw.%(ext)s')
         dl = subprocess.run(
             _ytdlp_args([
                 '-x',                    # solo audio
                 '--audio-format', 'mp3',
                 '--audio-quality', '5',  # VBR ~130 kbps — recomprimimos después
                 '-o', raw_out, url,
-            ]),
+            ], url),
             capture_output=True, text=True, timeout=1800
         )
         if dl.returncode != 0:
             stderr = dl.stderr or ''
             log.error('[%s] yt-dlp error (code %d): %s', job_id[:8], dl.returncode, stderr[-300:])
-            # Mensaje de error accionable para el usuario
             if 'Sign in to confirm' in stderr or 'bot' in stderr.lower():
                 raise RuntimeError(
                     'YouTube bloqueó la descarga por detección de bot.\n\n'
@@ -150,12 +161,37 @@ def _run_transcription(job_id, case_id, url, language, openai_key):
                     '5. Agrega al .env: YTDLP_COOKIES_FILE=/var/www/catalogos/OCR/v59/youtube_cookies.txt\n'
                     '6. Reinicia: pm2 restart vilar-legal-os-v59'
                 )
+            if 'drive.google.com' in url and ('400' in stderr or 'Bad Request' in stderr):
+                raise RuntimeError(
+                    'Google Drive rechazó la solicitud (Error 400).\n\n'
+                    'Posibles causas:\n'
+                    '• La carpeta/archivo es privado — asegúrate de que el link sea "Cualquier persona con el link puede ver"\n'
+                    '• Demasiadas solicitudes — espera unos minutos y vuelve a intentarlo\n'
+                    '• Google Drive no permite descarga directa de este archivo\n\n'
+                    'Alternativa: descarga los videos manualmente y súbelos desde "Subir archivos".'
+                )
             raise RuntimeError(f'yt-dlp falló (código {dl.returncode}):\n{stderr[-500:]}')
 
-        raw_files = list(Path(tmp).glob('raw.*'))
+        raw_files = sorted(Path(tmp).glob('raw*.*'))
         if not raw_files:
             raise RuntimeError('yt-dlp no generó archivo de audio')
-        raw_path = str(raw_files[0])
+        # Si hay múltiples archivos (carpeta Drive), concatenar con ffmpeg
+        if len(raw_files) > 1:
+            _upd(job_id, 'downloading', 20, f'Uniendo {len(raw_files)} archivos de la carpeta...')
+            list_file = os.path.join(tmp, 'concat.txt')
+            with open(list_file, 'w') as f:
+                for rf in raw_files:
+                    f.write(f"file '{rf}'\n")
+            concat_out = os.path.join(tmp, 'raw_concat.mp3')
+            subprocess.run(
+                ['ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', list_file,
+                 '-c', 'copy', concat_out],
+                capture_output=True, timeout=600, check=True
+            )
+            raw_path = concat_out
+            log.info('[%s] %d archivos concatenados', job_id[:8], len(raw_files))
+        else:
+            raw_path = str(raw_files[0])
         log.info('[%s] Audio descargado: %s (%.1f MB)', job_id[:8], raw_path,
                  os.path.getsize(raw_path) / 1_048_576)
 
