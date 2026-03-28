@@ -1,4 +1,5 @@
 import os, re, json, traceback, threading, queue, time, logging, uuid
+import concurrent.futures
 from flask import Blueprint, request, Response, stream_with_context, jsonify, session
 import anthropic
 
@@ -91,6 +92,101 @@ def _select_model(artifact_type: str, message: str) -> str:
     if _OPUS_KEYWORDS.search(message or ''):
         return _MODEL_OPUS
     return _MODEL_BY_TYPE.get(artifact_type, _MODEL_SONNET)
+
+
+# ── Orquestador multi-agente ───────────────────────────────────────────────────
+_ORCHESTRATOR_PROMPT = (
+    "Classify this legal assistant request. Reply ONLY with compact JSON, no explanation.\n"
+    "Categories:\n"
+    "  forensic   — audio analysis, vocal profile, transcription, mendacity\n"
+    "  document   — generate HTML report, contract, brief, written analysis\n"
+    "  management — case ops, notes, checklists, export, create case\n"
+    "  legal      — jurisprudence, precedents, document validation\n"
+    "  general    — conversation, questions, anything else\n"
+    'Reply format: {"a":"category"}'
+)
+
+_AGENT_CONFIGS: dict = {
+    'forensic': {
+        'model': _MODEL_SONNET,
+        'tools': {'analyze_audio', 'save_artifact', 'list_case_contents', 'save_session_notes'},
+        'icon':  '🎵',
+        'label': 'Forense',
+        'focus': (
+            "═══ AGENTE FORENSE ACTIVO ═══\n"
+            "Especialidad: análisis de audio forense, perfil vocal, detección de mendacidad.\n"
+            "PROTOCOLO OBLIGATORIO:\n"
+            "1. Usa list_case_contents si no conoces los audios del expediente.\n"
+            "2. Llama analyze_audio para CADA audio relevante — puedes llamar varios en un mismo turno para ejecución paralela.\n"
+            "3. Con todos los resultados, llama save_artifact(artifact_type='html') generando el reporte completo sin cortar.\n"
+            "PROHIBIDO: declarar análisis completo sin haber llamado las herramientas y recibido sus resultados reales."
+        ),
+    },
+    'document': {
+        'model': _MODEL_SONNET,
+        'tools': {'save_artifact', 'list_case_contents'},
+        'icon':  '📄',
+        'label': 'Documentos',
+        'focus': (
+            "═══ AGENTE DE DOCUMENTOS ACTIVO ═══\n"
+            "Especialidad: generación de documentos legales y reportes HTML completos.\n"
+            "PROTOCOLO OBLIGATORIO:\n"
+            "1. Genera el documento COMPLETO de una sola vez — sin cortar ni resumir.\n"
+            "2. Llama save_artifact INMEDIATAMENTE, sin texto previo de anuncio.\n"
+            "3. Para HTML: incluir CSS glassmorphism completo + JS interactivo + todo el contenido analítico.\n"
+            "PROHIBIDO: anunciar que guardarás sin llamar save_artifact de inmediato."
+        ),
+    },
+    'management': {
+        'model': _MODEL_HAIKU,
+        'tools': {'create_case', 'list_case_contents', 'save_session_notes', 'export_to_jotform'},
+        'icon':  '📁',
+        'label': 'Gestión',
+        'focus': (
+            "═══ AGENTE DE GESTIÓN ACTIVO ═══\n"
+            "Especialidad: gestión de expedientes, notas de sesión, exportaciones.\n"
+            "Sé eficiente y directo. Ejecuta las herramientas de gestión sin demora."
+        ),
+    },
+    'legal': {
+        'model': _MODEL_SONNET,
+        'tools': {'search_precedents', 'validate_document', 'save_artifact', 'list_case_contents'},
+        'icon':  '⚖️',
+        'label': 'Legal',
+        'focus': (
+            "═══ AGENTE LEGAL ACTIVO ═══\n"
+            "Especialidad: jurisprudencia mexicana, precedentes, validación de documentos legales.\n"
+            "Cita fuentes específicas (SCJN, Tribunales Colegiados, DOF) y aplica rigor técnico-legal."
+        ),
+    },
+    'general': {
+        'model': None,   # usa _select_model()
+        'tools': None,   # todas las herramientas
+        'icon':  '🌐',
+        'label': 'General',
+        'focus': None,
+    },
+}
+
+def _classify_intent(client, message: str) -> str:
+    """Usa Haiku para clasificar la intención en < 800ms."""
+    try:
+        resp = client.messages.create(
+            model=_MODEL_HAIKU,
+            max_tokens=12,
+            system=_ORCHESTRATOR_PROMPT,
+            messages=[{"role": "user", "content": message[:600]}],
+        )
+        text = resp.content[0].text.strip() if resp.content else '{}'
+        return json.loads(text).get('a', 'general')
+    except Exception:
+        return 'general'
+
+def _filter_tool_defs(allowed: set | None) -> list:
+    """Filtra TOOL_DEFS por conjunto de nombres permitidos."""
+    if not allowed:
+        return TOOL_DEFS
+    return [t for t in TOOL_DEFS if t['name'] in allowed]
 
 
 _MODEL_SHORT = {
@@ -808,11 +904,26 @@ def chat_stream():
             """Emite un evento de log operacional al frontend."""
             q.put(('op_log', {'icon': icon, 'msg': msg, 'detail': detail, 'level': level}))
 
+        # ── Clasificar intención → seleccionar agente especializado ──────────
+        agent_key    = _classify_intent(client, message)
+        agent_cfg    = _AGENT_CONFIGS.get(agent_key, _AGENT_CONFIGS['general'])
+        _model       = agent_cfg['model'] or model
+        _agent_tools = _filter_tool_defs(agent_cfg.get('tools'))
+        mshort       = _MODEL_SHORT.get(_model, _model)
+        agent_icon   = agent_cfg['icon']
+        agent_label  = agent_cfg['label']
+        # Añadir foco del agente al system prompt dinámico
+        _system_blocks = system_blocks
+        if agent_cfg.get('focus'):
+            _dyn_with_focus = dynamic + f"\n\n{agent_cfg['focus']}"
+            _system_blocks  = _make_system(SOUL, _dyn_with_focus)
+
         # Contexto inicial
         n_ctx = len(selected_ids) if selected_ids else 0
-        mshort = _MODEL_SHORT.get(model, model)
         emit_op('🚀', f'Iniciando · {mshort} · caso {case_id or "sin caso"}',
                 detail=f'Tipo: {artifact_type} · max_tokens: {max_tokens:,} · contexto: {n_ctx} artefactos')
+        emit_op(agent_icon, f'Agente {agent_label} activado',
+                detail=f'Clasificación: {agent_key} · Herramientas: {len(_agent_tools)}')
 
         try:
             current_messages = list(messages)
@@ -824,10 +935,10 @@ def chat_stream():
                 t_round = time.time()
 
                 stream_kwargs = dict(
-                    model=model,
+                    model=_model,
                     max_tokens=max_tokens,
-                    system=system_blocks,
-                    tools=TOOL_DEFS,
+                    system=_system_blocks,
+                    tools=_agent_tools,
                     messages=current_messages,
                 )
                 if _force_tool:
@@ -929,8 +1040,8 @@ def chat_stream():
                          iteration, final_msg.stop_reason,
                          u.input_tokens, cached, u.output_tokens,
                          time.time() - t_round)
-                _log_usage(user_id, case_id, model, u)
-                p_    = _PRICES.get(model, _PRICES[_MODEL_OPUS])
+                _log_usage(user_id, case_id, _model, u)
+                p_    = _PRICES.get(_model, _PRICES[_MODEL_OPUS])
                 cost_ = (u.input_tokens * p_['inp'] +
                          u.output_tokens * p_['out'] +
                          cached * p_['cache'])
@@ -999,62 +1110,74 @@ def chat_stream():
                             "name": b.name, "input": dict(b.input),
                         })
 
+                tool_use_blocks    = [b for b in final_msg.content if b.type == 'tool_use']
                 tool_result_content = []
-                for b in final_msg.content:
-                    if b.type != 'tool_use':
-                        continue
-                    # tool_start ya fue emitido en content_block_start; sólo emitir
-                    # si por algún motivo no se detectó antes (fallback)
-                    if b.name not in _early_tools:
-                        q.put(('tool_start', b.name))
-                        _steps = _STATUS_STEPS.get(b.name, [])
-                        if _steps:
-                            q.put(('tool_status', {'tool': b.name, 'msg': _steps[0][1]}))
-                    emit_op('🔧', f'Ejecutando herramienta: {b.name}',
-                            detail=f'Input keys: {list(dict(b.input).keys())}')
-                    t_tool = time.time()
-                    _steps = _STATUS_STEPS.get(b.name, [])
-                    _last_status = [_steps[0][1] if _steps else None]
 
-                    # Ejecutar tool en hilo propio; enviar keepalives cada 10s
-                    # para evitar timeout SSE en tools lentas (analyze_audio, etc.)
-                    _tool_result = [None]
-                    _tool_done   = [False]
-                    def _run_tool(name=b.name, inp=dict(b.input)):
-                        _tool_result[0] = handle_tool(name, inp, case_id)
-                        _tool_done[0] = True
-                    _tt = threading.Thread(target=_run_tool, daemon=True)
-                    _tt.start()
-                    while not _tool_done[0]:
-                        _tt.join(timeout=10)
-                        if not _tool_done[0]:
-                            q.put(('keepalive', None))
-                            # Actualizar mensaje de estado según tiempo transcurrido
-                            t_el = time.time() - t_tool
-                            msg = None
-                            for t_s, m in reversed(_steps):
-                                if t_el >= t_s:
-                                    msg = m
-                                    break
-                            if msg and msg != _last_status[0]:
-                                _last_status[0] = msg
-                                q.put(('tool_status', {'tool': b.name, 'msg': msg}))
-                    result = _tool_result[0]
-                    log.info('tool %s %.2fs', b.name, time.time() - t_tool)
-                    status_r = result.get('status', '?') if isinstance(result, dict) else '?'
-                    if status_r == 'saved':
-                        emit_op('✅', f'Artefacto guardado — {b.name}',
-                                detail=f'ID: {result.get("artifact_id","?")} · tipo: {result.get("artifact_type","?")}')
-                    elif status_r == 'error':
-                        emit_op('❌', f'Error en {b.name}: {result.get("error","?")}', level='error')
-                    else:
-                        emit_op('✅', f'{b.name} completado', detail=str(status_r))
-                    q.put(('tool_result', {'tool': b.name, 'result': result}))
-                    tool_result_content.append({
-                        "type": "tool_result",
-                        "tool_use_id": b.id,
-                        "content": json.dumps(result, ensure_ascii=False),
-                    })
+                if tool_use_blocks:
+                    # ── 1. Anunciar todas las herramientas ────────────────────────
+                    for b in tool_use_blocks:
+                        if b.name not in _early_tools:
+                            q.put(('tool_start', b.name))
+                            _steps0 = _STATUS_STEPS.get(b.name, [])
+                            if _steps0:
+                                q.put(('tool_status', {'tool': b.name, 'msg': _steps0[0][1]}))
+                        emit_op('🔧', f'Ejecutando: {b.name}',
+                                detail=f'Input keys: {list(dict(b.input).keys())}')
+
+                    # ── 2. Lanzar todas en paralelo ───────────────────────────────
+                    _exec      = concurrent.futures.ThreadPoolExecutor(
+                                     max_workers=min(len(tool_use_blocks), 4))
+                    _t_starts  = {}
+                    _futs      = {}
+                    _last_stat = {}
+                    for b in tool_use_blocks:
+                        _t_starts[b.id]  = time.time()
+                        _last_stat[b.name] = None
+                        _futs[b.id] = (b, _exec.submit(handle_tool, b.name,
+                                                        dict(b.input), case_id))
+
+                    # ── 3. Esperar con keepalives y estados progresivos ────────────
+                    _pending = {b.id for b in tool_use_blocks}
+                    while _pending:
+                        done_ids = {tid for tid in _pending if _futs[tid][1].done()}
+                        _pending -= done_ids
+                        if _pending:
+                            time.sleep(0.5)
+                            _maybe_keepalive()
+                            for tid in list(_pending):
+                                b_    = _futs[tid][0]
+                                t_el  = time.time() - _t_starts[tid]
+                                _st   = _STATUS_STEPS.get(b_.name, [])
+                                smsg  = None
+                                for t_s, m in reversed(_st):
+                                    if t_el >= t_s:
+                                        smsg = m
+                                        break
+                                if smsg and smsg != _last_stat.get(b_.name):
+                                    _last_stat[b_.name] = smsg
+                                    q.put(('tool_status', {'tool': b_.name, 'msg': smsg}))
+
+                    _exec.shutdown(wait=False)
+
+                    # ── 4. Recolectar resultados en orden original ─────────────────
+                    for b in tool_use_blocks:
+                        result   = _futs[b.id][1].result()
+                        log.info('tool %s %.2fs', b.name, time.time() - _t_starts[b.id])
+                        status_r = result.get('status', '?') if isinstance(result, dict) else '?'
+                        if status_r == 'saved':
+                            emit_op('✅', f'Artefacto guardado — {b.name}',
+                                    detail=f'ID: {result.get("artifact_id","?")} · tipo: {result.get("artifact_type","?")}')
+                        elif status_r == 'error':
+                            emit_op('❌', f'Error en {b.name}: {result.get("error","?")}',
+                                    level='error')
+                        else:
+                            emit_op('✅', f'{b.name} completado', detail=str(status_r))
+                        q.put(('tool_result', {'tool': b.name, 'result': result}))
+                        tool_result_content.append({
+                            "type": "tool_result",
+                            "tool_use_id": b.id,
+                            "content": json.dumps(result, ensure_ascii=False),
+                        })
 
                 current_messages.append({"role": "assistant", "content": assistant_content})
                 current_messages.append({"role": "user", "content": tool_result_content})
