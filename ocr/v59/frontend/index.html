@@ -76,6 +76,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 .btn-sm{padding:4px 10px;font-size:.76rem}
 .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--muted)}
 .btn-ghost:hover{border-color:var(--accent);color:var(--accent);opacity:1;background:rgba(196,122,90,0.06)}
+.vw-dl-active{border-color:var(--accent)!important;color:var(--accent)!important;background:rgba(196,122,90,0.10)!important}
 .btn-danger{background:var(--red)}
 #health-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0}
 #health-dot.ok{background:var(--green)}
@@ -1036,12 +1037,12 @@ async function viewArtifact(id) {
 
   if (a.source === 'system') {
     const isHtml = a.artifact_type === 'html' || /\.html?$/i.test(a.artifact_name || '');
-    const dlBtns = `<div style="display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap">
-      ${isHtml ? `<button class="btn btn-ghost btn-sm" id="vw-tab-preview" onclick="switchHtmlView('preview')" style="font-weight:bold">👁 Preview</button><button class="btn btn-ghost btn-sm" id="vw-tab-code" onclick="switchHtmlView('code')">Código</button>` : ''}
-      <button class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','pdf')" title="Descargar PDF">PDF</button>
-      <button class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','md')" title="Descargar Markdown">MD</button>
-      <button class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','html')" title="Descargar HTML">HTML</button>
-      <button class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','docx')" title="Descargar Word">Word</button>
+    const dlBtns = `<div style="display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap;align-items:center">
+      ${isHtml ? `<button class="btn btn-ghost btn-sm" id="vw-tab-preview" onclick="switchHtmlView('preview')" style="font-weight:bold">👁 Preview</button><button class="btn btn-ghost btn-sm" id="vw-tab-code" onclick="switchHtmlView('code')">Código</button><button class="btn btn-sm" id="vw-copy-code" onclick="copyViewerCode()" title="Copiar código HTML al portapapeles" style="display:none;background:var(--accent2);color:#fff;border:none;cursor:pointer"><i class="fa-regular fa-copy"></i> Copiar</button><div style="width:1px;background:var(--border);margin:0 2px;align-self:stretch"></div>` : ''}
+      <button id="vw-dl-pdf" class="btn btn-ghost btn-sm${isHtml ? '' : ' vw-dl-active'}" onclick="downloadArtifact('${id}','pdf')" title="Descargar PDF">PDF</button>
+      <button id="vw-dl-md" class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','md')" title="Descargar Markdown">MD</button>
+      ${isHtml ? `<button id="vw-dl-html" class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','html')" title="Descargar HTML">HTML</button>` : ''}
+      <button id="vw-dl-docx" class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','docx')" title="Descargar Word">Word</button>
     </div>`;
     const header = `<div class="viewer-filename">${esc(name)}${dlBtns}</div>`;
     let content = a.content || '';
@@ -1080,20 +1081,45 @@ async function viewArtifact(id) {
 }
 
 function switchHtmlView(tab) {
-  const iframe = document.getElementById('vw-html-iframe');
-  const code   = document.getElementById('vw-html-code');
-  const btnP   = document.getElementById('vw-tab-preview');
-  const btnC   = document.getElementById('vw-tab-code');
+  const iframe   = document.getElementById('vw-html-iframe');
+  const code     = document.getElementById('vw-html-code');
+  const btnP     = document.getElementById('vw-tab-preview');
+  const btnC     = document.getElementById('vw-tab-code');
+  const copyBtn  = document.getElementById('vw-copy-code');
+  const dlPdf    = document.getElementById('vw-dl-pdf');
+  const dlHtml   = document.getElementById('vw-dl-html');
   if (tab === 'preview') {
-    if (iframe) iframe.style.display = 'block';
-    if (code)   code.style.display   = 'none';
-    if (btnP)   btnP.style.fontWeight = 'bold';
-    if (btnC)   btnC.style.fontWeight = '';
+    if (iframe)   iframe.style.display   = 'block';
+    if (code)     code.style.display     = 'none';
+    if (btnP)     btnP.style.fontWeight  = 'bold';
+    if (btnC)     btnC.style.fontWeight  = '';
+    if (copyBtn)  copyBtn.style.display  = 'none';
+    if (dlPdf)    dlPdf.classList.add('vw-dl-active');
+    if (dlHtml)   dlHtml.classList.remove('vw-dl-active');
   } else {
-    if (iframe) iframe.style.display = 'none';
-    if (code)   code.style.display   = 'block';
-    if (btnP)   btnP.style.fontWeight = '';
-    if (btnC)   btnC.style.fontWeight = 'bold';
+    if (iframe)   iframe.style.display   = 'none';
+    if (code)     code.style.display     = 'block';
+    if (btnP)     btnP.style.fontWeight  = '';
+    if (btnC)     btnC.style.fontWeight  = 'bold';
+    if (copyBtn)  copyBtn.style.display  = 'inline-flex';
+    if (dlHtml)   dlHtml.classList.add('vw-dl-active');
+    if (dlPdf)    dlPdf.classList.remove('vw-dl-active');
+  }
+}
+
+function copyViewerCode() {
+  const pre = document.getElementById('vw-html-code');
+  if (!pre) return;
+  const text = pre.textContent;
+  const btn  = document.getElementById('vw-copy-code');
+  const orig = btn ? btn.innerHTML : '';
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> Copiado'; setTimeout(() => { btn.innerHTML = orig; }, 2000); }
+    }).catch(() => _fallbackCopy(text));
+  } else {
+    _fallbackCopy(text);
+    if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> Copiado'; setTimeout(() => { btn.innerHTML = orig; }, 2000); }
   }
 }
 

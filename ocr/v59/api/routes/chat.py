@@ -1195,6 +1195,7 @@ def chat_stream():
 
                 tool_use_blocks    = [b for b in final_msg.content if b.type == 'tool_use']
                 tool_result_content = []
+                _tool_results       = {}
 
                 if tool_use_blocks:
                     # ── 1. Anunciar todas las herramientas ────────────────────────
@@ -1243,13 +1244,22 @@ def chat_stream():
                     _exec.shutdown(wait=False)
 
                     # ── 4. Recolectar resultados en orden original ─────────────────
+                    _tool_results = {}   # b.id → result dict
                     for b in tool_use_blocks:
                         result   = _futs[b.id][1].result()
+                        _tool_results[b.id] = result
                         log.info('tool %s %.2fs', b.name, time.time() - _t_starts[b.id])
                         status_r = result.get('status', '?') if isinstance(result, dict) else '?'
                         if status_r == 'saved':
-                            emit_op('✅', f'Artefacto guardado — {result.get("artifact_name","?")}',
-                                    detail=f'ID: {result.get("artifact_id","?")} · tipo: {result.get("artifact_type","?")}')
+                            if result.get('incomplete'):
+                                emit_op('⚠️',
+                                        f'HTML incompleto detectado — {result.get("artifact_name","?")}',
+                                        detail=f'ID: {result.get("artifact_id","?")} · falta </html> · '
+                                               f'solicitando append_artifact automáticamente',
+                                        level='warn')
+                            else:
+                                emit_op('✅', f'Artefacto guardado — {result.get("artifact_name","?")}',
+                                        detail=f'ID: {result.get("artifact_id","?")} · tipo: {result.get("artifact_type","?")}')
                         elif status_r == 'appended':
                             kb = round((result.get("total_bytes") or 0) / 1024, 1)
                             emit_op('📎', f'Documento ampliado — {result.get("artifact_name","?")}',
@@ -1268,6 +1278,26 @@ def chat_stream():
 
                 current_messages.append({"role": "assistant", "content": assistant_content})
                 current_messages.append({"role": "user", "content": tool_result_content})
+
+                # ── Detectar HTML incompleto → forzar append_artifact ─────────
+                for b in tool_use_blocks:
+                    if b.name == 'save_artifact':
+                        _res = _tool_results.get(b.id, {})
+                        if isinstance(_res, dict) and _res.get('incomplete') and _res.get('artifact_id'):
+                            _inc_id   = _res['artifact_id']
+                            _inc_name = _res.get('artifact_name', '?')
+                            log.warning('incomplete HTML detected artifact_id=%s name=%s',
+                                        _inc_id, _inc_name)
+                            current_messages.append({"role": "user", "content": (
+                                f"ALERTA: El artefacto '{_inc_name}' (ID: {_inc_id}) está INCOMPLETO "
+                                f"— le falta el cierre </body></html>. "
+                                f"Usa append_artifact(artifact_id='{_inc_id}', case_id=..., "
+                                f"content_chunk=...) para añadir el contenido faltante y cerrar "
+                                f"correctamente el documento. "
+                                f"NO uses save_artifact de nuevo. "
+                                f"Solo llama append_artifact."
+                            )})
+                            _force_tool = True
 
         except anthropic.APIError as e:
             diag = _auto_diagnose(traceback.format_exc(), model, artifact_type, max_tokens)

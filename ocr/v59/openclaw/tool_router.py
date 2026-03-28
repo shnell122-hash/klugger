@@ -59,11 +59,18 @@ def _save_artifact(inputs: dict) -> dict:
             len(content.encode()),
         )
     )
+    # Detectar HTML incompleto (sin </html> al final)
+    incomplete = False
+    if art_type == 'html':
+        tail = content[-200:].strip().lower()
+        incomplete = not tail.endswith('</html>')
+
     return {
         "status": "saved",
         "artifact_id": art_id,
         "artifact_name": inputs['artifact_name'],
         "artifact_type": inputs['artifact_type'],
+        "incomplete": incomplete,
     }
 
 
