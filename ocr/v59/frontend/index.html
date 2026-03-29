@@ -645,11 +645,15 @@ async function openDashboard() {
   _destroyDashCharts();
   try {
     const r = await fetch(`${API}/dashboard/costs`);
+    if (!r.ok) {
+      const txt = await r.text();
+      throw new Error(`HTTP ${r.status}: ${txt.slice(0,200)}`);
+    }
     const d = await r.json();
     if (d.role === 'admin') { _renderAdminDash(el, d); }
     else { _renderUserDash(el, d); }
   } catch (err) {
-    el.innerHTML = `<div style="color:var(--red);padding:16px">Error: ${esc(err.message)}</div>`;
+    el.innerHTML = `<div style="color:var(--red);padding:16px;font-size:.8rem;white-space:pre-wrap">Error: ${esc(err.message)}</div>`;
   }
 }
 
