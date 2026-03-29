@@ -669,167 +669,111 @@ function _fmtUSD(v) { return `$${(+v).toFixed(4)}`; }
 function _fmtMXN(v) { const n=(+v).toFixed(2); const[i,d]=n.split('.'); return `$${i.replace(/\B(?=(\d{3})+(?!\d))/g,',')}.${d}`; }
 function _fmtTok(v) { const n=+v; return n>=1e6?`${(n/1e6).toFixed(2)}M`:n>=1e3?`${(n/1e3).toFixed(1)}k`:String(n); }
 
+// ── Dashboard helpers ────────────────────────────────────────────────────────
+function _miniBar(series, valueKey) {
+  if (!series || !series.length) return '<span style="font-size:.65rem;color:var(--muted)">—</span>';
+  const max = Math.max(...series.map(d=>+(d[valueKey]||0)), 0.001);
+  const accent = 'var(--accent)';
+  return `<div style="display:flex;align-items:flex-end;gap:1px;height:28px">${
+    series.map(d=>{
+      const h = Math.max(2, Math.round(((+(d[valueKey]||0))/max)*24));
+      return `<div title="${d.day}" style="flex:1;min-width:2px;height:${h}px;background:${accent};border-radius:1px;opacity:.75"></div>`;
+    }).join('')
+  }</div>`;
+}
+function _artBadges(artifacts) {
+  if (!artifacts || !artifacts.length) return '';
+  return artifacts.map(a=>`<span style="font-size:.6rem;background:var(--hover);border:1px solid var(--border);border-radius:3px;padding:1px 5px;white-space:nowrap">${esc(a.type)} ×${a.count}</span>`).join(' ');
+}
+
 function _renderAdminDash(el, d) {
-  const t = d.totals || {};
-  const rows = d.rows || [];
-  const ts   = d.time_series || [];
-  const bm   = d.by_model || [];
-  const keys = d.api_keys || {};
+  _destroyDashCharts();
+  const t    = d.totals   || {};
+  const users = d.by_user || [];
+  const keys  = d.api_keys || {};
 
-  const statCards = `
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px">
-      ${_statCard('Costo real', `${_fmtUSD(t.cost_usd||0)} USD`, `${_fmtTok(t.input_tokens||0)} in · ${_fmtTok(t.output_tokens||0)} out · ${_fmtTok(t.cache_tokens||0)} cache`)}
-      ${_statCard('Precio cliente', `${_fmtUSD(t.revenue_usd||0)} USD`, '×3.5 markup')}
-      ${_statCard('Precio cliente', `${_fmtMXN(t.revenue_mxn||0)} MXN`, 'a 18.5 MXN/USD')}
-      ${_statCard('Margen', `${(+(t.margin_pct||0)).toFixed(1)}%`, `Utilidad: ${_fmtUSD(t.profit_usd||0)} USD`, '#4caf82')}
-    </div>`;
+  const tok = `${_fmtTok(t.input_tokens||0)} in · ${_fmtTok(t.output_tokens||0)} out`;
+  const stats = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px">
+    ${_statCard('Costo real', `${_fmtUSD(t.cost_usd||0)} USD`, tok)}
+    ${_statCard('Precio cliente', `${_fmtMXN(t.price_mxn||0)} MXN`, `×${t.markup||5.5} · $${t.fx||19}/USD`)}
+  </div>`;
 
-  const tableRows = rows.length ? rows.map(r=>`
-    <tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:8px 10px;font-size:.8rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.name)}</td>
-      <td style="padding:8px 10px;font-size:.72rem;color:var(--muted);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.email)}</td>
-      <td style="padding:8px 10px;font-size:.74rem;text-align:right;color:var(--muted)">${_fmtTok(r.total_input)}</td>
-      <td style="padding:8px 10px;font-size:.74rem;text-align:right;color:var(--muted)">${_fmtTok(r.total_output)}</td>
-      <td style="padding:8px 10px;font-size:.78rem;text-align:right">${_fmtUSD(r.cost_usd)} USD</td>
-      <td style="padding:8px 10px;font-size:.78rem;text-align:right;color:var(--accent);font-weight:600">${_fmtMXN(r.price_mxn)}</td>
-    </tr>`).join('') :
-    '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Sin datos aún</td></tr>';
-
-  const userTable = `
-    <div style="margin-bottom:24px">
-      <div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px">Por usuario</div>
+  const userSections = users.map(u => {
+    const caseRows = (u.by_case||[]).map(c=>`
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:7px 10px;font-size:.78rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.case_name)}</td>
+        <td style="padding:7px 10px;font-size:.74rem;text-align:right;color:var(--muted)">${_fmtUSD(c.cost_usd)}</td>
+        <td style="padding:7px 10px;font-size:.76rem;text-align:right;color:var(--accent);font-weight:600">${_fmtMXN(c.price_mxn)}</td>
+        <td style="padding:7px 10px;font-size:.7rem;text-align:right;color:var(--muted)">${_fmtTok(c.tokens)}</td>
+        <td style="padding:7px 10px;min-width:70px">${_miniBar(c.time_series,'cost_usd')}</td>
+        <td style="padding:7px 10px;font-size:.6rem;max-width:160px">${_artBadges(c.artifacts)}</td>
+      </tr>`).join('') ||
+      '<tr><td colspan="6" style="padding:8px 10px;color:var(--muted);font-size:.75rem">Sin expedientes con costo</td></tr>';
+    const utok = _fmtTok((u.input_tokens||0)+(u.output_tokens||0));
+    return `<details style="margin-bottom:10px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+      <summary style="padding:11px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:var(--hover);list-style:none;user-select:none">
+        <div style="min-width:0;flex:1;overflow:hidden">
+          <span style="font-size:.83rem;font-weight:600">${esc(u.name||u.email)}</span>
+          <span style="font-size:.7rem;color:var(--muted);margin-left:8px;overflow:hidden;text-overflow:ellipsis">${esc(u.email)}</span>
+          ${u.role==='admin'?'<span style="font-size:.58rem;color:var(--accent);margin-left:6px;text-transform:uppercase;font-weight:700">admin</span>':''}
+        </div>
+        <div style="display:flex;gap:14px;font-size:.78rem;flex-shrink:0;margin-left:12px">
+          <span style="color:var(--muted)">${_fmtUSD(u.cost_usd)}</span>
+          <span style="color:var(--accent);font-weight:600">${_fmtMXN(u.price_mxn)}</span>
+          <span style="color:var(--muted)">${utok}</span>
+        </div>
+      </summary>
       <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-family:inherit;white-space:nowrap">
-          <thead><tr style="border-bottom:2px solid var(--border)">
-            <th style="padding:6px 10px;font-size:.68rem;color:var(--muted);text-align:left">Usuario</th>
-            <th style="padding:6px 10px;font-size:.68rem;color:var(--muted);text-align:left">Correo</th>
-            <th style="padding:6px 10px;font-size:.68rem;color:var(--muted);text-align:right">Tok.In</th>
-            <th style="padding:6px 10px;font-size:.68rem;color:var(--muted);text-align:right">Tok.Out</th>
-            <th style="padding:6px 10px;font-size:.68rem;color:var(--muted);text-align:right">Costo real</th>
-            <th style="padding:6px 10px;font-size:.68rem;color:var(--muted);text-align:right">Precio MXN</th>
+        <table style="width:100%;border-collapse:collapse;white-space:nowrap">
+          <thead><tr style="border-bottom:1px solid var(--border);background:var(--bg)">
+            <th style="padding:5px 10px;font-size:.64rem;color:var(--muted);text-align:left">Expediente</th>
+            <th style="padding:5px 10px;font-size:.64rem;color:var(--muted);text-align:right">Costo real</th>
+            <th style="padding:5px 10px;font-size:.64rem;color:var(--muted);text-align:right">Precio MXN</th>
+            <th style="padding:5px 10px;font-size:.64rem;color:var(--muted);text-align:right">Tokens</th>
+            <th style="padding:5px 10px;font-size:.64rem;color:var(--muted)">30 días</th>
+            <th style="padding:5px 10px;font-size:.64rem;color:var(--muted)">Artefactos</th>
           </tr></thead>
-          <tbody>${tableRows}</tbody>
+          <tbody>${caseRows}</tbody>
         </table>
       </div>
-    </div>`;
-
-  const modelRows = bm.map(m=>`
-    <tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:6px 10px;font-size:.76rem">${esc(m.model)}</td>
-      <td style="padding:6px 10px;font-size:.74rem;text-align:right;color:var(--muted)">${_fmtTok(m.input_tokens)} / ${_fmtTok(m.output_tokens)}</td>
-      <td style="padding:6px 10px;font-size:.76rem;text-align:right;color:var(--accent);font-weight:600">${_fmtUSD(m.cost_usd)} USD</td>
-    </tr>`).join('') || '<tr><td colspan="3" style="padding:12px;text-align:center;color:var(--muted)">Sin datos</td></tr>';
-
-  const modelTable = `
-    <div style="margin-bottom:24px">
-      <div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px">Por modelo / API</div>
-      <table style="width:100%;border-collapse:collapse;font-family:inherit">
-        <thead><tr style="border-bottom:2px solid var(--border)">
-          <th style="padding:6px 10px;font-size:.68rem;color:var(--muted);text-align:left">Modelo</th>
-          <th style="padding:6px 10px;font-size:.68rem;color:var(--muted);text-align:right">Tokens in/out</th>
-          <th style="padding:6px 10px;font-size:.68rem;color:var(--muted);text-align:right">Costo USD</th>
-        </tr></thead>
-        <tbody>${modelRows}</tbody>
-      </table>
-    </div>`;
+    </details>`;
+  }).join('') || '<div style="color:var(--muted);padding:20px;text-align:center">Sin usuarios con actividad</div>';
 
   const keyRows = Object.entries(keys).map(([k,v])=>`
-    <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--hover);border-radius:8px;margin-bottom:6px;font-size:.75rem">
-      <span style="color:var(--muted);min-width:150px">${esc(k)}</span>
-      <code style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.73rem">${esc(v)}</code>
+    <div style="display:flex;gap:8px;padding:6px 10px;background:var(--hover);border-radius:6px;margin-bottom:5px;font-size:.72rem">
+      <span style="color:var(--muted);min-width:140px">${esc(k)}</span>
+      <code style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(v)}</code>
     </div>`).join('');
 
-  const apiSection = `
-    <div style="margin-bottom:24px">
-      <div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px">API Keys (masked)</div>
-      ${keyRows}
-    </div>`;
-
-  // Charts
-  const chartsSection = `
-    <div style="margin-bottom:24px">
-      <div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:14px;text-transform:uppercase;letter-spacing:.6px">Gráficas</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
-        <div style="background:var(--hover);border:1px solid var(--border);border-radius:12px;padding:14px">
-          <div style="font-size:.72rem;color:var(--muted);margin-bottom:10px">Costo por usuario (USD)</div>
-          <canvas id="chart-users" height="180"></canvas>
-        </div>
-        <div style="background:var(--hover);border:1px solid var(--border);border-radius:12px;padding:14px">
-          <div style="font-size:.72rem;color:var(--muted);margin-bottom:10px">Costo diario — últimos 30 días (USD)</div>
-          <canvas id="chart-time" height="180"></canvas>
-        </div>
-      </div>
-    </div>`;
-
-  el.innerHTML = statCards + userTable + modelTable + chartsSection + apiSection;
-
-  // Bar chart — users
-  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#c47a5a';
-  const ctx1 = document.getElementById('chart-users')?.getContext('2d');
-  if (ctx1 && rows.length) {
-    _dashCharts.push(new Chart(ctx1, {
-      type: 'bar',
-      data: {
-        labels: rows.map(r=>r.name),
-        datasets: [{
-          label: 'Costo USD',
-          data: rows.map(r=>+(r.cost_usd||0).toFixed(4)),
-          backgroundColor: accent + 'cc',
-          borderRadius: 6,
-        }]
-      },
-      options: { plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,ticks:{callback:v=>'$'+v}}}, responsive:true, maintainAspectRatio:true }
-    }));
-  }
-
-  // Line chart — time series
-  const ctx2 = document.getElementById('chart-time')?.getContext('2d');
-  if (ctx2 && ts.length) {
-    _dashCharts.push(new Chart(ctx2, {
-      type: 'line',
-      data: {
-        labels: ts.map(t=>t.day),
-        datasets: [{
-          label: 'USD/día',
-          data: ts.map(t=>+(t.cost_usd||0).toFixed(4)),
-          borderColor: accent,
-          backgroundColor: accent + '22',
-          fill: true,
-          tension: 0.3,
-          pointRadius: 3,
-        }]
-      },
-      options: { plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,ticks:{callback:v=>'$'+v}}}, responsive:true, maintainAspectRatio:true }
-    }));
-  }
+  el.innerHTML = stats + userSections +
+    `<div style="margin-top:16px"><div style="font-size:.75rem;font-weight:600;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.6px">API Keys</div>${keyRows}</div>`;
 }
 
 function _renderUserDash(el, d) {
-  const mxn = _fmtMXN(d.cost_mxn||0);
   const tok = `${_fmtTok(d.input_tokens||0)} in · ${_fmtTok(d.output_tokens||0)} out`;
-  const cases = (d.by_case||[]);
-  const caseRows = cases.length ? cases.map(c=>`
-    <tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:8px 10px;font-size:.8rem">${esc(c.case_name)}</td>
-      <td style="padding:8px 10px;font-size:.74rem;text-align:right;color:var(--muted)">${_fmtTok(c.tokens)}</td>
-      <td style="padding:8px 10px;font-size:.8rem;text-align:right;color:var(--accent);font-weight:600">${_fmtMXN(c.cost_mxn)}</td>
-    </tr>`).join('') :
-    '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:24px">Sin datos aún</td></tr>';
+  const cases = d.by_case || [];
+
+  const caseCards = cases.length ? cases.map(c=>`
+    <div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <span style="font-size:.84rem;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis">${esc(c.case_name)}</span>
+        <div style="text-align:right;flex-shrink:0;margin-left:10px">
+          <div style="color:var(--accent);font-weight:700;font-size:.95rem">${_fmtMXN(c.price_mxn)} MXN</div>
+          <div style="color:var(--muted);font-size:.68rem">${_fmtTok(c.tokens)} tokens</div>
+        </div>
+      </div>
+      ${c.time_series&&c.time_series.length?`<div style="margin-bottom:8px">${_miniBar(c.time_series,'price_mxn')}</div>`:''}
+      ${c.artifacts&&c.artifacts.length?`<div style="display:flex;flex-wrap:wrap;gap:4px">${_artBadges(c.artifacts)}</div>`:''}
+    </div>`).join('') :
+    '<div style="text-align:center;color:var(--muted);padding:24px">Sin expedientes aún</div>';
 
   el.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:24px">
-      ${_statCard('Tu consumo (MXN)', mxn, 'incluye servicio IA')}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px">
+      ${_statCard('Tu consumo', `${_fmtMXN(d.price_mxn||0)} MXN`, `×${d.markup||5.5} · $${d.fx||19}/USD · incl. servicio`)}
       ${_statCard('Tokens usados', _fmtTok((d.input_tokens||0)+(d.output_tokens||0)), tok)}
     </div>
-    <div style="font-size:.8rem;font-weight:600;color:var(--text);margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px">Por expediente</div>
-    <table style="width:100%;border-collapse:collapse;font-family:inherit">
-      <thead><tr style="border-bottom:2px solid var(--border)">
-        <th style="padding:6px 10px;font-size:.68rem;color:var(--muted);text-align:left">Expediente</th>
-        <th style="padding:6px 10px;font-size:.68rem;color:var(--muted);text-align:right">Tokens</th>
-        <th style="padding:6px 10px;font-size:.68rem;color:var(--muted);text-align:right">Costo MXN</th>
-      </tr></thead>
-      <tbody>${caseRows}</tbody>
-    </table>`;
+    <div style="font-size:.78rem;font-weight:600;color:var(--text);margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px">Por expediente</div>
+    ${caseCards}`;
 }
 
 // ── Init ─────────────────────────────────────────────────
@@ -1738,7 +1682,7 @@ async function sendMessage(e) {
             if (isAdmin) {
               cost = `· $${evt.cost_usd.toFixed(4)}`;
             } else {
-              const mxn = evt.cost_usd * 3.5 * 18.5;
+              const mxn = evt.cost_usd * 5.5 * 19;
               cost = `· ${_fmtMXN(mxn)} MXN`;
             }
           }
