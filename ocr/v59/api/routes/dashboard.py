@@ -120,6 +120,23 @@ def costs():
                 (user_id,)
             ) or {}
 
+            # DEBUG: buscar user_id real por email para comparar
+            user_row = query("SELECT user_id FROM users WHERE email=%s",
+                             (session.get('user_email',''),))
+            real_uid = user_row.get('user_id') if user_row else None
+            # Si session user_id no coincide con el real, usar el real
+            if real_uid and str(real_uid) != str(user_id):
+                log.warning('user_id mismatch: session=%s db=%s email=%s',
+                            user_id, real_uid, session.get('user_email'))
+                user_id = real_uid
+                totals = query(
+                    """SELECT COALESCE(SUM(input_tokens), 0)      AS total_input,
+                              COALESCE(SUM(output_tokens), 0)     AS total_output,
+                              COALESCE(SUM(cost_usd), 0)          AS total_usd
+                       FROM api_usage WHERE user_id=%s""",
+                    (user_id,)
+                ) or {}
+
             by_case = query(
                 """SELECT c.case_name,
                           COALESCE(SUM(au.cost_usd), 0)                      AS cost_usd,
