@@ -662,7 +662,7 @@ function _statCard(label, value, sub='', color='var(--accent)') {
 }
 
 function _fmtUSD(v) { return `$${(+v).toFixed(4)}`; }
-function _fmtMXN(v) { return `$${(+v).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})}`; }
+function _fmtMXN(v) { const n=(+v).toFixed(2); const[i,d]=n.split('.'); return `$${i.replace(/\B(?=(\d{3})+(?!\d))/g,',')}.${d}`; }
 function _fmtTok(v) { const n=+v; return n>=1e6?`${(n/1e6).toFixed(2)}M`:n>=1e3?`${(n/1e3).toFixed(1)}k`:String(n); }
 
 function _renderAdminDash(el, d) {
@@ -1735,7 +1735,7 @@ async function sendMessage(e) {
               cost = `· $${evt.cost_usd.toFixed(4)}`;
             } else {
               const mxn = evt.cost_usd * 3.5 * 18.5;
-              cost = `· $${mxn.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})} MXN`;
+              cost = `· ${_fmtMXN(mxn)} MXN`;
             }
           }
           chip.innerHTML = `📊 <span class="tc-model">${esc(evt.model)}</span> · ${inK}k→${outK}k ${cost}`;
