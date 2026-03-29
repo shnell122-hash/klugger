@@ -769,7 +769,7 @@ function _renderUserDash(el, d) {
 
   el.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px">
-      ${_statCard('Tu consumo', `${_fmtMXN(d.price_mxn||0)} MXN`, `×${d.markup||5.5} · $${d.fx||19}/USD · incl. servicio`)}
+      ${_statCard('Tu consumo', `${_fmtMXN(d.price_mxn||0)} MXN`, 'incl. servicio')}
       ${_statCard('Tokens usados', _fmtTok((d.input_tokens||0)+(d.output_tokens||0)), tok)}
     </div>
     <div style="font-size:.78rem;font-weight:600;color:var(--text);margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px">Por expediente</div>
