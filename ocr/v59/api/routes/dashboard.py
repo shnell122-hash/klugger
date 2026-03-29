@@ -133,7 +133,7 @@ def costs():
                       COALESCE(SUM(au.input_tokens + au.output_tokens), 0) AS tokens
                FROM api_usage au
                INNER JOIN users u ON au.user_id = u.user_id
-               JOIN cases c ON au.case_id = c.case_id
+               JOIN cases c ON au.case_id COLLATE utf8mb4_unicode_ci = c.case_id
                WHERE u.user_id = %s
                GROUP BY au.case_id, c.case_name
                ORDER BY cost_usd DESC""",
