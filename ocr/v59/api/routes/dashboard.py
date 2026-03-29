@@ -114,7 +114,10 @@ def costs():
         try:
             # Siempre resolver user_id desde email (fuente de verdad)
             user_email = session.get('user_email', '')
-            user_row = query("SELECT user_id FROM users WHERE email=%s", (user_email,))
+            user_row = query(
+                "SELECT user_id FROM users WHERE email COLLATE utf8mb4_unicode_ci = %s",
+                (user_email,)
+            )
             if user_row:
                 user_id = user_row['user_id']
             log.info('dashboard user_id=%s email=%s', user_id, user_email)
