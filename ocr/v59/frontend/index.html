@@ -1728,7 +1728,16 @@ async function sendMessage(e) {
           }
           const inK  = (evt.input  / 1000).toFixed(1);
           const outK = (evt.output / 1000).toFixed(1);
-          const cost = evt.cost_usd ? `· $${evt.cost_usd.toFixed(4)}` : '';
+          let cost = '';
+          if (evt.cost_usd) {
+            const isAdmin = currentUser && currentUser.role === 'admin';
+            if (isAdmin) {
+              cost = `· $${evt.cost_usd.toFixed(4)}`;
+            } else {
+              const mxn = evt.cost_usd * 3.5 * 18.5;
+              cost = `· $${mxn.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})} MXN`;
+            }
+          }
           chip.innerHTML = `📊 <span class="tc-model">${esc(evt.model)}</span> · ${inK}k→${outK}k ${cost}`;
 
         } else if (evt.type === 'diagnosis') {

@@ -905,6 +905,7 @@ def chat_stream():
     artifact_type = body.get('artifact_type', 'analysis')
     selected_ids  = body.get('selected_artifacts', [])
     user_id       = session.get('user_id')
+    user_role     = session.get('user_role', 'user')
 
     if not message:
         return jsonify({"error": "message requerido"}), 400
@@ -1136,9 +1137,14 @@ def chat_stream():
                 cost_ = (u.input_tokens * p_['inp'] +
                          u.output_tokens * p_['out'] +
                          cached * p_['cache'])
+                if user_role == 'admin':
+                    cost_label = f'${cost_:.4f} USD'
+                else:
+                    cost_mxn = cost_ * 3.5 * 18.5
+                    cost_label = f'${cost_mxn:,.2f} MXN'
                 emit_op('📊',
                         f'Tokens · {u.input_tokens:,} entrada + {u.output_tokens:,} salida',
-                        detail=f'Cache: {cached:,} · Costo: ${cost_:.4f} USD · Modelo: {mshort}')
+                        detail=f'Cache: {cached:,} · Costo: {cost_label} · Modelo: {mshort}')
                 q.put(('token_usage', {
                     'model':      mshort,
                     'iteration':  iteration + 1,
