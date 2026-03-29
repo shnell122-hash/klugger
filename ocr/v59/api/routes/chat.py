@@ -392,37 +392,80 @@ def _get_case_info(case_id: str) -> str:
 
 
 def _get_case_context(case_id: str) -> str:
-    """Obtiene contexto de documentos del caso. Filtra texto vacío (fix CERO INVENCIÓN)."""
-    rows = query(
+    """Contexto completo del caso: archivos subidos + artefactos generados por Claude.
+    Claude puede discriminar qué es relevante para cada tarea.
+    """
+    # ── 1. user_artifacts (documentos subidos con texto extraído) ─────────────
+    user_rows = query(
         """SELECT artifact_id, filename, mime_type,
-                  LEFT(extracted_text, 8000) AS snippet,
+                  LEFT(extracted_text, 10000) AS snippet,
                   file_size_bytes, uploaded_at
            FROM user_artifacts
            WHERE case_id = %s
-             AND extracted_text IS NOT NULL
-             AND TRIM(extracted_text) != ''
            ORDER BY uploaded_at DESC
-           LIMIT 10""",
+           LIMIT 20""",
         (case_id,), many=True
-    )
-    if not rows:
+    ) or []
+
+    # ── 2. system_artifacts (análisis, contratos, HTMLs generados por Claude) ──
+    sys_rows = query(
+        """SELECT artifact_id,
+                  artifact_name AS filename,
+                  artifact_type AS mime_type,
+                  LEFT(content, 12000) AS snippet,
+                  created_at
+           FROM system_artifacts
+           WHERE case_id = %s
+           ORDER BY created_at DESC
+           LIMIT 20""",
+        (case_id,), many=True
+    ) or []
+
+    audio_rows = [r for r in user_rows
+                  if (r.get('mime_type') or '').startswith(('audio/', 'video/'))]
+    text_user  = [r for r in user_rows
+                  if r not in audio_rows
+                  and (r.get('snippet') or '').strip()]
+    text_sys   = [r for r in sys_rows
+                  if (r.get('snippet') or '').strip()]
+
+    if not text_user and not text_sys and not audio_rows:
         return (
-            "\n\n**IMPORTANTE:** No hay documentos con texto extraído en este caso. "
-            "Si el usuario pregunta sobre documentos, responder: "
-            "'No tengo acceso al contenido de los documentos. Por favor vuelve a subir el archivo.'"
+            "\n\n**IMPORTANTE:** No hay documentos ni artefactos en este caso todavía."
         )
 
-    parts = ["<documents>"]
-    for i, r in enumerate(rows, 1):
-        parts.append(
-            f'<document index="{i}" '
-            f'filename="{r["filename"]}" '
-            f'type="{r["mime_type"]}" '
-            f'size="{r.get("file_size_bytes", 0)}">'
-            f'\n{r.get("snippet", "")}\n'
-            f'</document>'
-        )
-    parts.append("</documents>")
+    parts = []
+
+    all_text = text_user + text_sys
+    if all_text:
+        parts.append("<documents>")
+        for i, r in enumerate(all_text, 1):
+            parts.append(
+                f'<document index="{i}" '
+                f'filename="{r["filename"]}" '
+                f'type="{r["mime_type"]}">'
+                f'\n{r.get("snippet", "")}\n'
+                f'</document>'
+            )
+        parts.append("</documents>")
+
+    has_vocal_analysis = any(
+        'Análisis vocal' in (r.get('filename') or '') for r in text_sys
+    )
+    if audio_rows and not has_vocal_analysis:
+        parts.append("\n<audio_files_in_context>")
+        parts.append("INSTRUCCIÓN: Para analizar estos audios llama analyze_audio con el audio_id correspondiente.")
+        for r in audio_rows:
+            parts.append(
+                f'  audio_id={r["artifact_id"]} | {r["filename"]} '
+                f'({round((r.get("file_size_bytes") or 0)/1048576, 1)} MB)'
+            )
+        parts.append("</audio_files_in_context>")
+    elif audio_rows and has_vocal_analysis:
+        parts.append("\n<audio_files_in_context>")
+        parts.append("Análisis vocal ya realizado (ver documentos). No volver a llamar analyze_audio salvo nueva instrucción explícita.")
+        parts.append("</audio_files_in_context>")
+
     return "\n".join(parts)
 
 
