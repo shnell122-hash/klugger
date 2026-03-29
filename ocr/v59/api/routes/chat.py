@@ -1140,7 +1140,7 @@ def chat_stream():
                 if user_role == 'admin':
                     cost_label = f'${cost_:.4f} USD'
                 else:
-                    cost_mxn = cost_ * 3.5 * 18.5
+                    cost_mxn = cost_ * 5.5 * 19
                     cost_label = f'${cost_mxn:,.2f} MXN'
                 emit_op('📊',
                         f'Tokens · {u.input_tokens:,} entrada + {u.output_tokens:,} salida',
