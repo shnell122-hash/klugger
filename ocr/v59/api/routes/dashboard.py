@@ -111,47 +111,44 @@ def costs():
 
     else:
         # ── Vista usuario: MXN con markup ─────────────────────────────
-        try:
-            # Siempre resolver user_id desde email (fuente de verdad)
-            user_email = session.get('user_email', '')
-            user_row = query("SELECT user_id FROM users WHERE email=%s", (user_email,))
-            if user_row:
-                user_id = user_row['user_id']
-            log.info('dashboard user_id=%s email=%s', user_id, user_email)
+        # JOIN directo por user_id (evita comparaciones de email con colaciones mixtas)
+        user_email = session.get('user_email', '')
+        log.info('dashboard non-admin email=%s session_uid=%s', user_email, user_id)
 
-            totals = query(
-                """SELECT COALESCE(SUM(input_tokens), 0)      AS total_input,
-                          COALESCE(SUM(output_tokens), 0)     AS total_output,
-                          COALESCE(SUM(cost_usd), 0)          AS total_usd
-                   FROM api_usage WHERE user_id=%s""",
-                (user_id,)
-            ) or {}
+        totals = query(
+            """SELECT COALESCE(SUM(au.input_tokens), 0)      AS total_input,
+                      COALESCE(SUM(au.output_tokens), 0)     AS total_output,
+                      COALESCE(SUM(au.cost_usd), 0)          AS total_usd
+               FROM api_usage au
+               INNER JOIN users u ON au.user_id = u.user_id
+               WHERE u.user_id = %s""",
+            (user_id,)
+        ) or {}
 
-            by_case = query(
-                """SELECT c.case_name,
-                          COALESCE(SUM(au.cost_usd), 0)                      AS cost_usd,
-                          COALESCE(SUM(au.input_tokens + au.output_tokens), 0) AS tokens
-                   FROM api_usage au
-                   JOIN cases c ON au.case_id = c.case_id
-                   WHERE au.user_id = %s
-                   GROUP BY au.case_id, c.case_name
-                   ORDER BY cost_usd DESC""",
-                (user_id,), many=True
-            ) or []
+        log.info('dashboard totals=%s', dict(totals))
 
-            cost_usd = float(totals.get('total_usd') or 0)
-            return jsonify({
-                'role':          'user',
-                'input_tokens':  int(totals.get('total_input') or 0),
-                'output_tokens': int(totals.get('total_output') or 0),
-                'cost_mxn':      round(cost_usd * USER_MARKUP * MXN_PER_USD, 2),
-                'by_case': [{
-                    'case_name': c.get('case_name') or '',
-                    'cost_mxn':  round(float(c.get('cost_usd') or 0) * USER_MARKUP * MXN_PER_USD, 2),
-                    'tokens':    int(c.get('tokens') or 0),
-                } for c in by_case],
-            })
-        except Exception as e:
-            log.exception('dashboard user error user_id=%s', user_id)
-            return jsonify({'error': str(e), 'role': 'user', 'input_tokens': 0,
-                            'output_tokens': 0, 'cost_mxn': 0, 'by_case': []}), 200
+        by_case = query(
+            """SELECT c.case_name,
+                      COALESCE(SUM(au.cost_usd), 0)                      AS cost_usd,
+                      COALESCE(SUM(au.input_tokens + au.output_tokens), 0) AS tokens
+               FROM api_usage au
+               INNER JOIN users u ON au.user_id = u.user_id
+               JOIN cases c ON au.case_id = c.case_id
+               WHERE u.user_id = %s
+               GROUP BY au.case_id, c.case_name
+               ORDER BY cost_usd DESC""",
+            (user_id,), many=True
+        ) or []
+
+        cost_usd = float(totals.get('total_usd') or 0)
+        return jsonify({
+            'role':          'user',
+            'input_tokens':  int(totals.get('total_input') or 0),
+            'output_tokens': int(totals.get('total_output') or 0),
+            'cost_mxn':      round(cost_usd * USER_MARKUP * MXN_PER_USD, 2),
+            'by_case': [{
+                'case_name': c.get('case_name') or '',
+                'cost_mxn':  round(float(c.get('cost_usd') or 0) * USER_MARKUP * MXN_PER_USD, 2),
+                'tokens':    int(c.get('tokens') or 0),
+            } for c in by_case],
+        })
