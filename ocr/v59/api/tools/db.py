@@ -16,7 +16,7 @@ def _get_pool():
             user=os.getenv('DB_USER', 'vilar_legal'),
             password=os.getenv('DB_PASS', ''),
             charset='utf8mb4',
-            collation='utf8mb4_unicode_ci',
+            collation='utf8mb4_0900_ai_ci',
             autocommit=True,
         )
     return _pool
