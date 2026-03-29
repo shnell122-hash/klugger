@@ -1503,18 +1503,22 @@ async function sendMessage(e) {
   if (!rawText) return;
 
   // ── Interceptar comando de contexto ──────────────────────────────────────
-  // Caso 1: el mensaje completo es un comando de contexto
-  // Caso 2: la primera oración es el comando + el resto se envía a Claude
-  let ctxSpec  = _parseCtxCommand(rawText);
-  let chatText = ctxSpec ? null : rawText;   // null = no enviar a Claude
+  // Orden: primero multi-oración (evita que el regex NL capture todo el texto),
+  // luego mensaje completo como comando, y si no, texto normal para Claude.
+  let ctxSpec  = null;
+  let chatText = null;
 
+  // Caso 1: "Primera oración = contexto. Resto = instrucción para Claude."
+  const sentM = rawText.match(/^(.+?[.!?])\s+([^\s].+)$/s);
+  if (sentM) {
+    const firstSpec = _parseCtxCommand(sentM[1].trim());
+    if (firstSpec) { ctxSpec = firstSpec; chatText = sentM[2].trim(); }
+  }
+
+  // Caso 2: el mensaje completo es un comando de contexto (sin instrucción adicional)
   if (!ctxSpec) {
-    // Detectar "Oración de contexto. Resto del mensaje para Claude."
-    const sentM = rawText.match(/^(.+?[.!?])\s+([^\s].+)$/s);
-    if (sentM) {
-      const firstSpec = _parseCtxCommand(sentM[1].trim());
-      if (firstSpec) { ctxSpec = firstSpec; chatText = sentM[2].trim(); }
-    }
+    ctxSpec  = _parseCtxCommand(rawText);
+    chatText = ctxSpec ? null : rawText;
   }
 
   if (ctxSpec) {
