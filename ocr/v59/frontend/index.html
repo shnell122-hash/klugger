@@ -58,8 +58,8 @@
     --shadow:0 4px 24px rgba(0,0,0,0.12);--user-bubble:rgba(181,98,42,0.14);
   }
 }
-html{height:-webkit-fill-available}
-body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);height:100vh;height:100dvh;overflow:clip;display:flex;flex-direction:column;min-height:-webkit-fill-available;
+html{height:-webkit-fill-available;overflow:hidden}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);height:100vh;height:100dvh;overflow:hidden;display:flex;flex-direction:column;min-height:-webkit-fill-available;
   background-image:radial-gradient(ellipse at 15% 10%, rgba(196,122,90,0.08) 0%, transparent 55%),
                    radial-gradient(ellipse at 85% 85%, rgba(139,92,246,0.06) 0%, transparent 55%);
 }
@@ -92,7 +92,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 #user-info{display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--muted)}
 
 /* ── Main layout ── */
-#main{display:flex;flex:1;overflow:clip}
+#main{display:flex;flex:1;overflow:hidden}
 
 /* ── Left sidebar — Artifacts ── */
 #sidebar{width:300px;min-width:240px;max-width:400px;background:var(--glass);backdrop-filter:blur(14px) saturate(150%);-webkit-backdrop-filter:blur(14px) saturate(150%);border-right:1px solid var(--glass-border);display:flex;flex-direction:column;resize:horizontal;overflow:hidden}
