@@ -207,8 +207,10 @@ def download_artifact(artifact_id):
     if not row:
         return jsonify({"error": "Artefacto no encontrado"}), 404
 
-    content = row.get('content', '')
+    content = row.get('content') or ''
     name    = row.get('artifact_name', 'documento').replace(' ', '_')
+    if not content:
+        return jsonify({"error": "Este artefacto no tiene contenido descargable"}), 404
 
     MIMES = {
         'md':   ('text/markdown', '{name}.md'),

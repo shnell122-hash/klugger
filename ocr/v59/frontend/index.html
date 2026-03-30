@@ -123,7 +123,8 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 #ctx-counter{font-size:.72rem;color:var(--accent);white-space:nowrap}
 
 /* ── Center — Chat ── */
-#chat-panel{flex:1;display:flex;flex-direction:column;min-width:0}
+#chat-panel{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden;position:relative}
+#scroll-btn{position:absolute;right:20px;bottom:80px;width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;display:none;align-items:center;justify-content:center;cursor:pointer;font-size:1.1rem;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,.35);border:none;padding:0;line-height:1}
 #chat-header{padding:10px 16px;border-bottom:1px solid var(--glass-border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
 #chat-header h2{font-size:.85rem;font-weight:600;color:var(--text)}
 #chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px}
@@ -164,7 +165,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 #stop-btn:hover{opacity:.82}
 
 /* ── Right panel — Viewer ── */
-#viewer-panel{width:380px;min-width:280px;background:var(--glass);backdrop-filter:blur(14px) saturate(150%);-webkit-backdrop-filter:blur(14px) saturate(150%);border-left:1px solid var(--glass-border);display:flex;flex-direction:column}
+#viewer-panel{width:380px;min-width:280px;background:var(--glass);backdrop-filter:blur(14px) saturate(150%);-webkit-backdrop-filter:blur(14px) saturate(150%);border-left:1px solid var(--glass-border);display:flex;flex-direction:column;overflow:hidden}
 #viewer-header{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 #viewer-header h2{font-size:.82rem;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
 #viewer-content{flex:1;overflow-y:auto;padding:14px;font-size:.78rem;line-height:1.6;white-space:pre-wrap;word-wrap:break-word}
@@ -359,6 +360,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
         <button class="btn btn-ghost btn-sm" onclick="clearHistory()">Limpiar historial</button>
       </div>
     </div>
+    <button id="scroll-btn" onclick="scrollChat()" title="Ir al final">↓</button>
     <div id="chat-messages">
       <div class="msg assistant">
         <div class="msg-avatar">AI</div>
@@ -786,6 +788,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupUpload();
   autoResizeTextarea();
   setInterval(healthCheck, 30000);
+
+  // Scroll-to-bottom button
+  const msgs = document.getElementById('chat-messages');
+  const scrollBtn = document.getElementById('scroll-btn');
+  msgs.addEventListener('scroll', () => {
+    const atBottom = msgs.scrollTop + msgs.clientHeight >= msgs.scrollHeight - 80;
+    scrollBtn.style.display = atBottom ? 'none' : 'flex';
+  });
 });
 
 // ── Health ────────────────────────────────────────────────
@@ -1202,9 +1212,21 @@ function downloadArtifact(id, fmt) {
   const a = all.find(x => x.artifact_id === id);
   if (a && a.mime_type && a.mime_type.includes('image')) {
     window.open(`${API}/artifacts/file/${id}`, '_blank');
-  } else {
-    window.open(`${API}/artifacts/${id}/download?fmt=${fmt}`, '_blank');
+    return;
   }
+  const filename = (a ? (a.artifact_name || a.name || 'documento') : 'documento').replace(/\s+/g,'_');
+  fetch(`${API}/artifacts/${id}/download?fmt=${fmt}`)
+    .then(r => {
+      if (!r.ok) return r.json().then(j => { throw new Error(j.error || r.statusText); });
+      return r.blob();
+    })
+    .then(blob => {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url; link.download = `${filename}.${fmt}`; link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    })
+    .catch(err => toast('Error al descargar: ' + err.message, 'error'));
 }
 
 function toggleZipMenu(e) {
