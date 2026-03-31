@@ -1041,9 +1041,8 @@ async function viewArtifact(id) {
       : `<button class="btn btn-ghost btn-sm" onclick="shareArtifactById('${id}')" title="Obtener URL pública" style="border-color:var(--green);color:var(--green)"><i class="fa-solid fa-link"></i> Compartir</button>`;
     const dlBtns = `<div style="display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap;align-items:center">
       ${isHtml ? `<button class="btn btn-ghost btn-sm" id="vw-tab-preview" onclick="switchHtmlView('preview')" style="font-weight:bold">👁 Preview</button><button class="btn btn-ghost btn-sm" id="vw-tab-code" onclick="switchHtmlView('code')">Código</button><button class="btn btn-sm" id="vw-copy-code" onclick="copyViewerCode()" title="Copiar código HTML al portapapeles" style="display:none;background:var(--accent2);color:#fff;border:none;cursor:pointer"><i class="fa-regular fa-copy"></i> Copiar</button><div style="width:1px;background:var(--border);margin:0 2px;align-self:stretch"></div>` : ''}
-      <button id="vw-dl-pdf" class="btn btn-ghost btn-sm${isHtml ? '' : ' vw-dl-active'}" onclick="downloadArtifact('${id}','pdf')" title="Descargar PDF">PDF</button>
+      <button id="vw-dl-html" class="btn btn-ghost btn-sm${isHtml ? '' : ' vw-dl-active'}" onclick="downloadArtifact('${id}','html')" title="Descargar HTML (imprimible como PDF)">HTML</button>
       <button id="vw-dl-md" class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','md')" title="Descargar Markdown">MD</button>
-      ${isHtml ? `<button id="vw-dl-html" class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','html')" title="Descargar HTML">HTML</button>` : ''}
       <button id="vw-dl-docx" class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','docx')" title="Descargar Word">Word</button>
       <div style="width:1px;background:var(--border);margin:0 2px;align-self:stretch"></div>
       ${shareBtn}
@@ -1210,12 +1209,21 @@ function _copyShareUrl(url) {
 
 function downloadArtifact(id, fmt) {
   const all = [...artifacts.user, ...artifacts.system];
-  const a = all.find(x => x.artifact_id === id);
+  const a   = all.find(x => x.artifact_id === id);
   if (a && a.mime_type && a.mime_type.includes('image')) {
     window.open(`${API}/artifacts/file/${id}`, '_blank');
-  } else {
-    window.open(`${API}/artifacts/${id}/download?fmt=${fmt}`, '_blank');
+    return;
   }
+  const fname = (a ? (a.artifact_name || a.name || 'documento') : 'documento')
+    .replace(/\s+/g, '_');
+  toast('Preparando descarga…', 'info');
+  const link = document.createElement('a');
+  link.href = `${API}/artifacts/${id}/download?fmt=${fmt}`;
+  link.download = `${fname}.${fmt}`;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
 
 function toggleZipMenu(e) {
