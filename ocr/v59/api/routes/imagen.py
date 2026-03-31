@@ -1,4 +1,4 @@
-import os, uuid, hashlib, requests
+import os, uuid, hashlib, io, requests
 from flask import Blueprint, request, jsonify
 from tools.db import execute
 
@@ -8,14 +8,32 @@ FAL_URL   = 'https://fal.run/fal-ai/flux/dev'
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'uploads')
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+# Parámetros de degradación — simula foto de campo tomada con celular barato
+TRAINING_BLUR_RADIUS  = 1.4   # 0 = sin blur; 1-2 = leve; 3+ = muy borroso
+TRAINING_JPEG_QUALITY = 48    # 1-95; 85 = default fal.ai; 40-55 = degradado notorio
+
 _STYLE_SUFFIX = (
-    "shot on a smartphone, candid photo, natural lighting, slightly imperfect framing, "
-    "documentary style, realistic, no text overlays, photorealistic"
+    "photo taken on a cheap smartphone, slightly blurry, poor lighting, candid shot, "
+    "low resolution, grainy, natural imperfections, documentary, photorealistic, no text"
 )
 _NEGATIVE = (
     "painting, illustration, drawing, cartoon, render, cgi, watermark, logo, text, "
-    "signature, border, frame, artistic, stylized, blurry beyond natural"
+    "signature, border, frame, artistic, stylized, professional photography, studio lighting"
 )
+
+
+def _degrade_image(raw_bytes: bytes) -> bytes:
+    """Aplica blur leve y baja calidad JPEG para simular foto de campo con celular barato."""
+    try:
+        from PIL import Image, ImageFilter
+        img = Image.open(io.BytesIO(raw_bytes)).convert('RGB')
+        if TRAINING_BLUR_RADIUS > 0:
+            img = img.filter(ImageFilter.GaussianBlur(radius=TRAINING_BLUR_RADIUS))
+        buf = io.BytesIO()
+        img.save(buf, format='JPEG', quality=TRAINING_JPEG_QUALITY, optimize=True)
+        return buf.getvalue()
+    except ImportError:
+        return raw_bytes  # Pillow no instalado — guardar sin procesar
 
 
 @imagen_bp.route('/api/imagen/generate', methods=['POST'])
@@ -79,12 +97,13 @@ def generate_image():
         except Exception:
             continue
 
-        artifact_id = str(uuid.uuid4())
-        filename    = f"capacitacion_{artifact_id[:8]}.jpg"
-        file_path   = os.path.join(UPLOAD_DIR, f"{artifact_id}.jpg")
-        sha256      = hashlib.sha256(img_bytes).hexdigest()
+        artifact_id  = str(uuid.uuid4())
+        filename     = f"capacitacion_{artifact_id[:8]}.jpg"
+        file_path    = os.path.join(UPLOAD_DIR, f"{artifact_id}.jpg")
+        processed    = _degrade_image(img_bytes)
+        sha256       = hashlib.sha256(processed).hexdigest()
         with open(file_path, 'wb') as fh:
-            fh.write(img_bytes)
+            fh.write(processed)
 
         execute(
             """INSERT INTO user_artifacts
@@ -92,7 +111,7 @@ def generate_image():
                 file_size_bytes, checksum_sha256, extracted_text, source, uploaded_at)
                VALUES (%s, %s, %s, 'image/jpeg', %s, %s, %s, %s, 'system', NOW())""",
             (artifact_id, case_id, filename, file_path,
-             len(img_bytes), sha256, f'[Imagen generada — capacitación] {prompt}')
+             len(processed), sha256, f'[Imagen generada — capacitación] {prompt}')
         )
         saved.append({
             'artifact_id': artifact_id,
