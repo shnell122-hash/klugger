@@ -1049,8 +1049,24 @@ async function viewArtifact(id) {
 
   if (a.mime_type && a.mime_type.includes('image')) {
     const dlBtn = `<a class="btn btn-ghost btn-sm" href="${API}/artifacts/file/${id}" download="${esc(name)}" title="Descargar imagen">⬇ JPG</a>`;
+    const degradeControls = a.source === 'system' ? `
+      <div style="margin-top:10px;padding:8px;background:var(--panel);border-radius:8px;display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;gap:10px">
+          <div style="flex:1">
+            <label style="font-size:.72rem;color:var(--muted);display:flex;justify-content:space-between">Desenfoque <span id="vw-blur-val">1.4</span></label>
+            <input type="range" id="vw-blur" min="0" max="3" step="0.1" value="1.4"
+              oninput="document.getElementById('vw-blur-val').textContent=parseFloat(this.value).toFixed(1)">
+          </div>
+          <div style="flex:1">
+            <label style="font-size:.72rem;color:var(--muted);display:flex;justify-content:space-between">Calidad JPEG <span id="vw-quality-val">48</span></label>
+            <input type="range" id="vw-quality" min="20" max="85" step="5" value="48"
+              oninput="document.getElementById('vw-quality-val').textContent=this.value">
+          </div>
+        </div>
+        <button class="btn btn-sm" style="background:var(--accent2)" onclick="degradeImage('${id}')">Degradar imagen</button>
+      </div>` : '';
     const header = `<div class="viewer-filename"><span>${esc(name)}</span>${dlBtn}</div>`;
-    vc.innerHTML = header + `<img src="${API}/artifacts/file/${id}" alt="${esc(name)}" style="max-width:100%;border-radius:6px;margin-top:6px">`;
+    vc.innerHTML = header + `<img id="vw-img-${id}" src="${API}/artifacts/file/${id}" alt="${esc(name)}" style="max-width:100%;border-radius:6px;margin-top:6px">` + degradeControls;
     return;
   }
 
@@ -1226,6 +1242,30 @@ function _copyShareUrl(url) {
   } catch(e) { copied = false; }
   if (!copied && navigator.clipboard) navigator.clipboard.writeText(url).catch(()=>{});
   _showSharePanel(copied ? '✅ URL copiada' : '🔗 Compartir enlace', url);
+}
+
+async function degradeImage(id) {
+  const blur    = parseFloat(document.getElementById('vw-blur').value);
+  const quality = parseInt(document.getElementById('vw-quality').value);
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = 'Degradando…';
+  try {
+    const r = await fetch(`${API}/artifacts/${id}/degrade`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({blur, quality})
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Error');
+    // Forzar recarga de la imagen en el visor
+    const img = document.getElementById(`vw-img-${id}`);
+    if (img) img.src = `${API}/artifacts/file/${id}?t=${Date.now()}`;
+    toast('Imagen degradada correctamente', 'success');
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Degradar imagen';
+  }
 }
 
 function downloadArtifact(id, fmt) {

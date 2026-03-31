@@ -80,6 +80,46 @@ def serve_artifact_file(artifact_id):
                      download_name=row['filename'], as_attachment=False)
 
 
+@artifacts_bp.route('/api/artifacts/<artifact_id>/degrade', methods=['POST'])
+def degrade_image(artifact_id):
+    row = query(
+        "SELECT file_path, mime_type, source FROM user_artifacts WHERE artifact_id=%s",
+        (artifact_id,)
+    )
+    if not row:
+        return jsonify({"error": "Artefacto no encontrado"}), 404
+    if row.get('source') != 'system' or not (row.get('mime_type') or '').startswith('image/'):
+        return jsonify({"error": "Solo aplica a imágenes generadas por IA"}), 400
+    file_path = row.get('file_path')
+    if not file_path or not os.path.exists(file_path):
+        return jsonify({"error": "Archivo no encontrado en disco"}), 404
+
+    body    = request.get_json(force=True) or {}
+    blur    = min(max(float(body.get('blur',    1.4)), 0.0), 5.0)
+    quality = min(max(int(  body.get('quality', 48)),  10),  95)
+
+    try:
+        import io as _io, hashlib as _hs
+        from PIL import Image, ImageFilter
+        raw = open(file_path, 'rb').read()
+        img = Image.open(_io.BytesIO(raw)).convert('RGB')
+        if blur > 0:
+            img = img.filter(ImageFilter.GaussianBlur(radius=blur))
+        buf = _io.BytesIO()
+        img.save(buf, format='JPEG', quality=quality, optimize=True)
+        processed = buf.getvalue()
+        sha256    = _hs.sha256(processed).hexdigest()
+        with open(file_path, 'wb') as fh:
+            fh.write(processed)
+        execute(
+            "UPDATE user_artifacts SET file_size_bytes=%s, checksum_sha256=%s WHERE artifact_id=%s",
+            (len(processed), sha256, artifact_id)
+        )
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @artifacts_bp.route('/api/artifacts/<artifact_id>/text', methods=['GET'])
 def get_artifact_text(artifact_id):
     row = query("SELECT extracted_text FROM user_artifacts WHERE artifact_id=%s", (artifact_id,))
