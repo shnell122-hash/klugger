@@ -487,11 +487,6 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
     <p style="font-size:.78rem;color:var(--muted);margin-bottom:14px">
       Genera fotos de ejemplo estilo celular para mostrar a clientes cómo documentar entregas u operaciones.
     </p>
-    <div class="form-row">
-      <label>Descripción de la escena *</label>
-      <textarea id="img-prompt" rows="3"
-        placeholder="Ej: camión de carga blanco descargando cajas de cartón en patio de bodega industrial, trabajador con chaleco naranja firmando albarán de entrega"></textarea>
-    </div>
     <div style="display:flex;gap:10px">
       <div class="form-row" style="flex:1">
         <label>Cantidad</label>
@@ -511,19 +506,24 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
         </select>
       </div>
     </div>
-    <div style="display:flex;gap:10px;margin-top:2px">
-      <div class="form-row" style="flex:1">
-        <label style="display:flex;justify-content:space-between">Desenfoque <span id="img-blur-val">1.4</span></label>
+    <div style="display:flex;gap:10px;margin-bottom:10px">
+      <div style="flex:1">
+        <label style="display:flex;justify-content:space-between;font-size:.78rem;color:var(--muted);margin-bottom:4px">Desenfoque <span id="img-blur-val">1.4</span></label>
         <input type="range" id="img-blur" min="0" max="3" step="0.1" value="1.4"
           style="width:100%;accent-color:var(--accent)"
           oninput="document.getElementById('img-blur-val').textContent=parseFloat(this.value).toFixed(1)">
       </div>
-      <div class="form-row" style="flex:1">
-        <label style="display:flex;justify-content:space-between">Calidad JPEG <span id="img-quality-val">48</span></label>
+      <div style="flex:1">
+        <label style="display:flex;justify-content:space-between;font-size:.78rem;color:var(--muted);margin-bottom:4px">Calidad JPEG <span id="img-quality-val">48</span></label>
         <input type="range" id="img-quality" min="20" max="85" step="5" value="48"
           style="width:100%;accent-color:var(--accent)"
           oninput="document.getElementById('img-quality-val').textContent=this.value">
       </div>
+    </div>
+    <div class="form-row">
+      <label>Descripción de la escena *</label>
+      <textarea id="img-prompt" rows="3"
+        placeholder="Ej: camión de carga blanco descargando cajas de cartón en patio de bodega industrial, trabajador con chaleco naranja firmando albarán de entrega"></textarea>
     </div>
     <div id="imagen-previews" style="display:none;margin-top:10px">
       <div style="font-size:.75rem;color:var(--muted);margin-bottom:6px">Imágenes generadas:</div>
