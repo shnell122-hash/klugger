@@ -22,15 +22,16 @@ _NEGATIVE = (
 )
 
 
-def _degrade_image(raw_bytes: bytes) -> bytes:
+def _degrade_image(raw_bytes: bytes, blur: float = TRAINING_BLUR_RADIUS,
+                   quality: int = TRAINING_JPEG_QUALITY) -> bytes:
     """Aplica blur leve y baja calidad JPEG para simular foto de campo con celular barato."""
     try:
         from PIL import Image, ImageFilter
         img = Image.open(io.BytesIO(raw_bytes)).convert('RGB')
-        if TRAINING_BLUR_RADIUS > 0:
-            img = img.filter(ImageFilter.GaussianBlur(radius=TRAINING_BLUR_RADIUS))
+        if blur > 0:
+            img = img.filter(ImageFilter.GaussianBlur(radius=blur))
         buf = io.BytesIO()
-        img.save(buf, format='JPEG', quality=TRAINING_JPEG_QUALITY, optimize=True)
+        img.save(buf, format='JPEG', quality=quality, optimize=True)
         return buf.getvalue()
     except ImportError:
         return raw_bytes  # Pillow no instalado — guardar sin procesar
@@ -47,6 +48,9 @@ def generate_image():
     prompt  = body.get('prompt', '').strip()
     count   = min(max(int(body.get('count', 1)), 1), 4)
     aspect  = body.get('aspect', 'portrait')
+
+    blur    = min(max(float(body.get('blur',    TRAINING_BLUR_RADIUS)),  0.0), 5.0)
+    quality = min(max(int(  body.get('quality', TRAINING_JPEG_QUALITY)), 10),  95)
 
     if not case_id:
         return jsonify(error='case_id requerido'), 400
@@ -100,7 +104,7 @@ def generate_image():
         artifact_id  = str(uuid.uuid4())
         filename     = f"capacitacion_{artifact_id[:8]}.jpg"
         file_path    = os.path.join(UPLOAD_DIR, f"{artifact_id}.jpg")
-        processed    = _degrade_image(img_bytes)
+        processed    = _degrade_image(img_bytes, blur, quality)
         sha256       = hashlib.sha256(processed).hexdigest()
         with open(file_path, 'wb') as fh:
             fh.write(processed)

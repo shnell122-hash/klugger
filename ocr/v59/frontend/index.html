@@ -504,6 +504,20 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
         </select>
       </div>
     </div>
+    <div style="display:flex;gap:10px;margin-top:2px">
+      <div class="form-row" style="flex:1">
+        <label style="display:flex;justify-content:space-between">Desenfoque <span id="img-blur-val">1.4</span></label>
+        <input type="range" id="img-blur" min="0" max="3" step="0.1" value="1.4"
+          style="width:100%;accent-color:var(--accent)"
+          oninput="document.getElementById('img-blur-val').textContent=parseFloat(this.value).toFixed(1)">
+      </div>
+      <div class="form-row" style="flex:1">
+        <label style="display:flex;justify-content:space-between">Calidad JPEG <span id="img-quality-val">48</span></label>
+        <input type="range" id="img-quality" min="20" max="85" step="5" value="48"
+          style="width:100%;accent-color:var(--accent)"
+          oninput="document.getElementById('img-quality-val').textContent=this.value">
+      </div>
+    </div>
     <div id="imagen-previews" style="display:none;margin-top:10px">
       <div style="font-size:.75rem;color:var(--muted);margin-bottom:6px">Imágenes generadas:</div>
       <div id="imagen-grid" style="display:flex;flex-wrap:wrap;gap:8px"></div>
@@ -2090,14 +2104,16 @@ async function generateImages() {
   btn.textContent = 'Generando…';
   status.textContent = 'Llamando a Flux.1 — esto tarda 10-30 segundos…';
 
-  const count  = parseInt(document.getElementById('img-count').value);
-  const aspect = document.getElementById('img-aspect').value;
+  const count   = parseInt(document.getElementById('img-count').value);
+  const aspect  = document.getElementById('img-aspect').value;
+  const blur    = parseFloat(document.getElementById('img-blur').value);
+  const quality = parseInt(document.getElementById('img-quality').value);
 
   try {
     const r = await fetch(`${API}/imagen/generate`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ case_id: currentCase.case_id, prompt, count, aspect })
+      body: JSON.stringify({ case_id: currentCase.case_id, prompt, count, aspect, blur, quality })
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
