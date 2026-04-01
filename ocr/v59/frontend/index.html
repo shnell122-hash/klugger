@@ -734,9 +734,9 @@ function _applyOrgBranding(user) {
   const logo  = document.getElementById('org-logo');
   const title = document.getElementById('header-title');
   if (logo && user.logo_path) {
+    logo.onerror = () => { logo.style.display = 'none'; if (title) title.style.display = ''; };
+    logo.onload  = () => { logo.style.display = 'block'; if (title) title.style.display = 'none'; };
     logo.src = user.logo_path;
-    logo.style.display = 'block';
-    if (title) title.style.display = 'none';
   }
 }
 

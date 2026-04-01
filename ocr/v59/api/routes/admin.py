@@ -18,8 +18,11 @@ MASTER_EMAILS = {'vilarkptl@gmail.com'}
 INVITE_TTL_DAYS = 7
 APP_BASE_URL = os.getenv('APP_BASE_URL', 'https://ocr.ruby.lease')
 
-# Directorio donde se guardan los logos (dentro del frontend, servido por Apache)
-LOGO_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'frontend', 'logos')
+# Directorio correcto: admin.py está en api/routes/, necesitamos subir 3 niveles para llegar a v59/
+_V59_ROOT  = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+LOGO_DIR   = os.path.join(_V59_ROOT, 'frontend', 'logos')
+# Fallback para archivos subidos antes de la corrección del path
+_LOGO_DIR_LEGACY = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'frontend', 'logos')
 os.makedirs(LOGO_DIR, exist_ok=True)
 LOGO_ALLOWED_MIME = {'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml'}
 LOGO_MAX_BYTES = 2 * 1024 * 1024  # 2 MB
@@ -249,13 +252,14 @@ def upload_org_logo():
 @admin_bp.route('/api/admin/org-logo/<filename>')
 def serve_org_logo(filename):
     """Sirve el logo de una organización (sin auth — es imagen pública)."""
-    # Sanitizar: solo nombre de archivo, sin rutas
     safe = os.path.basename(filename)
-    path = os.path.join(LOGO_DIR, safe)
-    if not os.path.isfile(path):
-        return '', 404
     mime = mimetypes.guess_type(safe)[0] or 'image/png'
-    return send_file(path, mimetype=mime)
+    for d in [LOGO_DIR, _LOGO_DIR_LEGACY]:
+        path = os.path.join(d, safe)
+        if os.path.isfile(path):
+            return send_file(path, mimetype=mime)
+    log.warning('org logo not found: %s (looked in %s and %s)', safe, LOGO_DIR, _LOGO_DIR_LEGACY)
+    return '', 404
 
 
 @admin_bp.route('/api/admin/organizations/<org_id>', methods=['DELETE'])
