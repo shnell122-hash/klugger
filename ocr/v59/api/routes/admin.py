@@ -6,7 +6,7 @@ Jerarquía:
   Org Admin     (is_org_admin=1)       — gestión de su organización
   User          (default)              — sin acceso a este módulo
 """
-import os, uuid, secrets, logging
+import os, uuid, secrets, logging, mimetypes
 from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify, session
 from tools.db import query, execute
@@ -17,6 +17,12 @@ log = logging.getLogger('admin')
 MASTER_EMAILS = {'vilarkptl@gmail.com'}
 INVITE_TTL_DAYS = 7
 APP_BASE_URL = os.getenv('APP_BASE_URL', 'https://ocr.ruby.lease')
+
+# Directorio donde se guardan los logos (dentro del frontend, servido por Apache)
+LOGO_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'frontend', 'logos')
+os.makedirs(LOGO_DIR, exist_ok=True)
+LOGO_ALLOWED_MIME = {'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml'}
+LOGO_MAX_BYTES = 2 * 1024 * 1024  # 2 MB
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -204,6 +210,32 @@ def update_my_org():
     vals.append(org_id)
     execute(f"UPDATE organizations SET {','.join(fields)} WHERE org_id=%s", vals)
     return jsonify({'ok': True})
+
+
+@admin_bp.route('/api/admin/my-org/logo', methods=['POST'])
+@_require_admin
+def upload_org_logo():
+    """Org admin: sube el logo de su organización."""
+    org_id = _my_org()
+    if not org_id:
+        return jsonify({'error': 'Sin organización asignada'}), 404
+    f = request.files.get('logo')
+    if not f:
+        return jsonify({'error': 'No se envió archivo'}), 400
+    raw = f.read(LOGO_MAX_BYTES + 1)
+    if len(raw) > LOGO_MAX_BYTES:
+        return jsonify({'error': 'Archivo demasiado grande (máx 2 MB)'}), 400
+    mime = f.content_type or mimetypes.guess_type(f.filename or '')[0] or ''
+    if mime not in LOGO_ALLOWED_MIME:
+        return jsonify({'error': f'Tipo no permitido: {mime}. Usa PNG, JPG, GIF, WebP o SVG'}), 400
+    ext = os.path.splitext(f.filename or '')[1].lower() or '.png'
+    filename = f'org_{org_id}{ext}'
+    with open(os.path.join(LOGO_DIR, filename), 'wb') as fh:
+        fh.write(raw)
+    logo_url = f'/OCR/v59/frontend/logos/{filename}'
+    execute("UPDATE organizations SET logo_path=%s WHERE org_id=%s", (logo_url, org_id))
+    log.info('org logo uploaded: org=%s url=%s', org_id, logo_url)
+    return jsonify({'ok': True, 'logo_path': logo_url})
 
 
 @admin_bp.route('/api/admin/organizations/<org_id>', methods=['DELETE'])

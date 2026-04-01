@@ -2531,7 +2531,7 @@ async function admLoadUsers() {
   const orgOptions = _admOrgs.map(o => `<option value="${o.org_id}">${esc(o.org_name)}</option>`).join('');
   const orgLimitsCard = myOrg ? `
     <div class="adm-card" style="margin-bottom:14px">
-      <h4 style="margin:0 0 10px;font-size:.82rem"><i class="fa-solid fa-building"></i> ${esc(myOrg.org_name)} — Límites de la organización</h4>
+      <h4 style="margin:0 0 10px;font-size:.82rem"><i class="fa-solid fa-building"></i> ${esc(myOrg.org_name)} — Configuración de la organización</h4>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div class="adm-field">
           <label>Presupuesto mensual (MXN)</label>
@@ -2548,6 +2548,18 @@ async function admLoadUsers() {
       </div>
       <div style="text-align:right;margin-top:8px">
         <button class="btn btn-sm" onclick="admSaveMyOrg()" style="background:var(--accent)">Guardar límites</button>
+      </div>
+      <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">
+        <label style="font-size:.74rem;color:var(--muted);display:block;margin-bottom:6px"><i class="fa-solid fa-image"></i> Logo de la organización</label>
+        ${myOrg.logo_path ? `<img src="${esc(myOrg.logo_path)}" alt="Logo" style="max-height:52px;max-width:180px;object-fit:contain;border-radius:6px;margin-bottom:8px;display:block;background:var(--hover);padding:4px">` : '<div style="font-size:.74rem;color:var(--muted);margin-bottom:6px">Sin logo configurado</div>'}
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="file" id="adm-logo-file" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+            style="font-size:.74rem;color:var(--text);flex:1;min-width:0">
+          <button class="btn btn-sm" onclick="admUploadLogo()" style="background:var(--accent2);flex-shrink:0">
+            <i class="fa-solid fa-upload"></i> Subir logo
+          </button>
+        </div>
+        <div style="font-size:.68rem;color:var(--muted);margin-top:4px">PNG, JPG, SVG · máx 2 MB · reemplaza el título en el encabezado</div>
       </div>
     </div>` : '';
   c.innerHTML = `
@@ -2638,6 +2650,19 @@ async function admSaveMyOrg() {
   });
   if (!r.ok) { toast((await r.json()).error || 'Error', 'error'); return; }
   toast('Límites guardados', 'success');
+}
+
+async function admUploadLogo() {
+  const inp = document.getElementById('adm-logo-file');
+  if (!inp || !inp.files[0]) { toast('Selecciona una imagen primero', 'error'); return; }
+  const fd = new FormData();
+  fd.append('logo', inp.files[0]);
+  const r = await fetch(`${API}/admin/my-org/logo`, {method: 'POST', body: fd});
+  const d = await r.json();
+  if (!r.ok) { toast(d.error || 'Error al subir logo', 'error'); return; }
+  toast('Logo actualizado', 'success');
+  if (currentUser) _applyOrgBranding({...currentUser, logo_path: d.logo_path});
+  admLoadUsers();
 }
 
 async function admUpdateUser(user_id, patch) {
