@@ -110,6 +110,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 .icon-pdf{background:#fde68a22;color:#fbbf24}
 .icon-img{background:#bbf7d022;color:#34d399}
 .icon-doc{background:#bfdbfe22;color:#93c5fd}
+.icon-xls{background:#bbf7d022;color:#22c55e}
 .icon-txt{background:#e9d5ff22;color:#c084fc}
 .icon-sys{background:#f0abfc22;color:#e879f9}
 .artifact-info{flex:1;min-width:0}
@@ -1044,13 +1045,17 @@ function renderArtifacts() {
   updateCtxCounter();
 }
 
+function _isXls(m) { return m.includes('spreadsheet') || m.includes('excel') || m.includes('xlsx') || m.includes('xls'); }
+function _isDoc(m) { return m.includes('word') || m.includes('docx') || m.includes('msword'); }
+function _isPpt(m) { return m.includes('presentation') || m.includes('powerpoint') || m.includes('pptx'); }
 function iconClass(a) {
   const m = a.mime_type || '';
   const t = a.artifact_type || '';
   if (m.includes('pdf')) return 'icon-pdf';
   if (m.startsWith('image/')) return 'icon-img';
   if (m.startsWith('audio/') || m.startsWith('video/')) return 'icon-doc';
-  if (m.includes('word') || m.includes('docx')) return 'icon-doc';
+  if (_isXls(m)) return 'icon-xls';
+  if (_isDoc(m) || _isPpt(m)) return 'icon-doc';
   if (t === 'html' || m === 'text/html') return 'icon-html';
   if (a.source === 'system') return 'icon-sys';
   return 'icon-txt';
@@ -1062,7 +1067,9 @@ function iconEmoji(a) {
   if (m.startsWith('image/')) return '<i class="fa-solid fa-image"></i>';
   if (m.startsWith('audio/')) return '<i class="fa-solid fa-file-audio"></i>';
   if (m.startsWith('video/')) return '<i class="fa-solid fa-file-video"></i>';
-  if (m.includes('word') || m.includes('docx')) return '<i class="fa-solid fa-file-word"></i>';
+  if (_isXls(m)) return '<i class="fa-solid fa-file-excel"></i>';
+  if (_isDoc(m)) return '<i class="fa-solid fa-file-word"></i>';
+  if (_isPpt(m)) return '<i class="fa-solid fa-file-powerpoint"></i>';
   if (t === 'html' || m === 'text/html') return '<i class="fa-solid fa-code"></i>';
   if (a.source === 'system') return '<i class="fa-solid fa-robot"></i>';
   return '<i class="fa-solid fa-file-lines"></i>';
@@ -1080,6 +1087,11 @@ function artTypeBadge(a) {
     const lbl = _ART_TYPE_LABEL[t] || t || 'IA';
     return `<span class="art-badge art-badge-sys">${esc(lbl)}</span>`;
   }
+  // Badges para archivos de usuario con tipo reconocible
+  if (_isXls(m)) return `<span class="art-badge" style="background:#bbf7d022;color:#22c55e;border:1px solid #22c55e44">XLSX</span>`;
+  if (_isDoc(m)) return `<span class="art-badge" style="background:#bfdbfe22;color:#93c5fd;border:1px solid #93c5fd44">DOCX</span>`;
+  if (_isPpt(m)) return `<span class="art-badge" style="background:#fde68a22;color:#fbbf24;border:1px solid #fbbf2444">PPTX</span>`;
+  if (m.includes('pdf')) return `<span class="art-badge" style="background:#fde68a22;color:#fbbf24;border:1px solid #fbbf2444">PDF</span>`;
   return '';
 }
 function fmtSize(b) {

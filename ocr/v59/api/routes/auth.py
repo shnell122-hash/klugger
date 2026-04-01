@@ -73,6 +73,21 @@ def _verify_password(plain: str, stored_hash: str, salt: str) -> bool:
     return h == stored_hash
 
 
+def _auto_org_for_email(email: str):
+    """Devuelve org_id si el dominio del correo coincide con una organización activa."""
+    domain = email.split('@')[1] if '@' in email else ''
+    if not domain:
+        return None
+    row = query("SELECT org_id FROM organizations WHERE domain=%s AND is_active=1", (domain,))
+    return row['org_id'] if row else None
+
+
+def _apply_org_to_user(user_id: str, email: str, org_id: str):
+    """Asigna org_id al usuario y actualiza sus expedientes sin org."""
+    execute("UPDATE users SET org_id=%s WHERE user_id=%s AND org_id IS NULL", (org_id, user_id))
+    execute("UPDATE cases SET org_id=%s WHERE owner_email=%s AND org_id IS NULL", (org_id, email))
+
+
 def _load_user_session(user_id, email, name, picture, role):
     """Carga datos completos del usuario a la sesión, incluyendo org y permisos."""
     row = query(
@@ -171,14 +186,7 @@ def google_callback():
     role    = 'admin' if email in ADMIN_EMAILS else 'user'
 
     # ── Auto-detect org by email domain ──────────────────────────────────────
-    domain = email.split('@')[1] if '@' in email else ''
-    auto_org = None
-    if domain:
-        org_row = query(
-            "SELECT org_id FROM organizations WHERE domain=%s AND is_active=1", (domain,)
-        )
-        if org_row:
-            auto_org = org_row['org_id']
+    auto_org = _auto_org_for_email(email)
 
     # ── Global access control: admin, org-domain, valid invite, or existing user ──
     if email not in ADMIN_EMAILS:
@@ -193,13 +201,10 @@ def google_callback():
     existing = query("SELECT user_id, org_id FROM users WHERE email=%s", (email,))
     if existing:
         user_id = existing['user_id']
-        # Auto-assign org if not already set
+        execute("UPDATE users SET name=%s, picture=%s, role=%s WHERE user_id=%s",
+                (name, picture, role, user_id))
         if auto_org and not existing.get('org_id'):
-            execute("UPDATE users SET name=%s, picture=%s, role=%s, org_id=%s WHERE user_id=%s",
-                    (name, picture, role, auto_org, user_id))
-        else:
-            execute("UPDATE users SET name=%s, picture=%s, role=%s WHERE user_id=%s",
-                    (name, picture, role, user_id))
+            _apply_org_to_user(user_id, email, auto_org)
     else:
         user_id = str(uuid.uuid4())
         execute(
@@ -230,18 +235,21 @@ def invite_login():
     if not email:
         return redirect('/OCR/v59/frontend/?auth_error=invite_requires_email')
 
-    org_id       = invite.get('org_id')
+    org_id       = invite.get('org_id') or _auto_org_for_email(email)
     role_tag     = invite.get('role', 'user')
     role         = 'admin' if role_tag == 'master_admin' else 'user'
     is_org_admin = 1 if role_tag == 'org_admin' else 0
 
-    existing = query("SELECT user_id, name, picture FROM users WHERE email=%s", (email,))
+    existing = query("SELECT user_id, name, picture, org_id FROM users WHERE email=%s", (email,))
     if existing:
         user_id = existing['user_id']
         execute(
             "UPDATE users SET role=%s, org_id=%s, is_org_admin=%s, approved=1 WHERE user_id=%s",
             (role, org_id, is_org_admin, user_id)
         )
+        if org_id and not existing.get('org_id'):
+            execute("UPDATE cases SET org_id=%s WHERE owner_email=%s AND org_id IS NULL",
+                    (org_id, email))
         name    = existing.get('name') or email.split('@')[0]
         picture = existing.get('picture') or ''
     else:
@@ -306,6 +314,12 @@ def login_password():
 
     if not _verify_password(password, row['password_hash'], row['password_salt']):
         return jsonify({'error': 'Contraseña incorrecta'}), 401
+
+    # Auto-assign org if not already set
+    if not row.get('org_id'):
+        auto_org = _auto_org_for_email(email)
+        if auto_org:
+            _apply_org_to_user(row['user_id'], email, auto_org)
 
     _load_user_session(row['user_id'], email, row.get('name', ''), row.get('picture', ''), row.get('role', 'user'))
     log.info('password login ok: %s', email)
