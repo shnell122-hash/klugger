@@ -146,15 +146,6 @@ def google_callback():
     if not email:
         return redirect("/OCR/v59/frontend/?auth_error=no_email")
 
-    # ── Gmail block: only ADMIN_EMAILS or explicitly invited gmail users ──────
-    if email.endswith('@gmail.com') and email not in ADMIN_EMAILS:
-        invite = query(
-            "SELECT invite_id FROM invitations WHERE email=%s AND used=0 AND expires_at > NOW()",
-            (email,)
-        )
-        if not invite:
-            return redirect("/OCR/v59/frontend/?auth_error=gmail_not_allowed")
-
     name    = info.get('name', '')
     picture = info.get('picture', '')
     role    = 'admin' if email in ADMIN_EMAILS else 'user'
@@ -168,6 +159,16 @@ def google_callback():
         )
         if org_row:
             auto_org = org_row['org_id']
+
+    # ── Global access control: admin, org-domain, valid invite, or existing user ──
+    if email not in ADMIN_EMAILS:
+        already_registered = query("SELECT user_id FROM users WHERE email=%s", (email,))
+        has_invite = query(
+            "SELECT invite_id FROM invitations WHERE email=%s AND used=0 AND expires_at > NOW()",
+            (email,)
+        )
+        if not already_registered and not has_invite and not auto_org:
+            return redirect("/OCR/v59/frontend/?auth_error=not_authorized")
 
     existing = query("SELECT user_id, org_id FROM users WHERE email=%s", (email,))
     if existing:

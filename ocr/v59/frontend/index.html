@@ -658,7 +658,15 @@ function showAuthOverlay() {
   if (err) {
     const el = document.getElementById('auth-error-msg');
     el.style.display = 'block';
-    el.textContent = `Error de autenticación: ${err}`;
+    const msgs = {
+      not_authorized:    'Acceso no autorizado. Contacta al administrador para obtener una invitación.',
+      gmail_not_allowed: 'Acceso no autorizado. Contacta al administrador para obtener una invitación.',
+      state_mismatch:    'Error de seguridad OAuth. Intenta de nuevo.',
+      token_exchange:    'Error al verificar con Google. Intenta de nuevo.',
+      userinfo:          'No se pudo obtener tu perfil de Google.',
+      no_email:          'Google no proporcionó un correo electrónico.',
+    };
+    el.textContent = msgs[err] || `Error de autenticación: ${err}`;
   }
   document.getElementById('auth-overlay').style.display = 'flex';
 }
