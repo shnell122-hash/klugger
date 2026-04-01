@@ -8,7 +8,7 @@ Jerarquía:
 """
 import os, uuid, secrets, logging, mimetypes
 from datetime import datetime, timedelta
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, session, send_file
 from tools.db import query, execute
 
 admin_bp = Blueprint('admin', __name__)
@@ -119,6 +119,14 @@ def init_org_tables():
             execute(col_sql)
         except Exception:
             pass
+    # Migrar rutas de logos antiguas (frontend/logos/) a la nueva ruta de API
+    try:
+        execute(
+            "UPDATE organizations SET logo_path = CONCAT('/api/admin/org-logo/', SUBSTRING_INDEX(logo_path,'/',-1)) "
+            "WHERE logo_path LIKE '/OCR/v59/frontend/logos/%'"
+        )
+    except Exception:
+        pass
 
 
 # ── Organizations ─────────────────────────────────────────────────────────────
@@ -232,10 +240,22 @@ def upload_org_logo():
     filename = f'org_{org_id}{ext}'
     with open(os.path.join(LOGO_DIR, filename), 'wb') as fh:
         fh.write(raw)
-    logo_url = f'/OCR/v59/frontend/logos/{filename}'
+    logo_url = f'/api/admin/org-logo/{filename}'
     execute("UPDATE organizations SET logo_path=%s WHERE org_id=%s", (logo_url, org_id))
     log.info('org logo uploaded: org=%s url=%s', org_id, logo_url)
     return jsonify({'ok': True, 'logo_path': logo_url})
+
+
+@admin_bp.route('/api/admin/org-logo/<filename>')
+def serve_org_logo(filename):
+    """Sirve el logo de una organización (sin auth — es imagen pública)."""
+    # Sanitizar: solo nombre de archivo, sin rutas
+    safe = os.path.basename(filename)
+    path = os.path.join(LOGO_DIR, safe)
+    if not os.path.isfile(path):
+        return '', 404
+    mime = mimetypes.guess_type(safe)[0] or 'image/png'
+    return send_file(path, mimetype=mime)
 
 
 @admin_bp.route('/api/admin/organizations/<org_id>', methods=['DELETE'])
