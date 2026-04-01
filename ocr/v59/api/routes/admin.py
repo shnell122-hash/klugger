@@ -236,16 +236,25 @@ def upload_org_logo():
     raw = f.read(LOGO_MAX_BYTES + 1)
     if len(raw) > LOGO_MAX_BYTES:
         return jsonify({'error': 'Archivo demasiado grande (máx 2 MB)'}), 400
-    mime = f.content_type or mimetypes.guess_type(f.filename or '')[0] or ''
+    mime = (f.content_type or '').split(';')[0].strip()
+    if not mime:
+        mime = mimetypes.guess_type(f.filename or '')[0] or ''
     if mime not in LOGO_ALLOWED_MIME:
-        return jsonify({'error': f'Tipo no permitido: {mime}. Usa PNG, JPG, GIF, WebP o SVG'}), 400
+        return jsonify({'error': f'Tipo no permitido: "{mime}". Usa PNG, JPG, GIF, WebP o SVG'}), 400
     ext = os.path.splitext(f.filename or '')[1].lower() or '.png'
     filename = f'org_{org_id}{ext}'
-    with open(os.path.join(LOGO_DIR, filename), 'wb') as fh:
-        fh.write(raw)
+    dest = os.path.join(LOGO_DIR, filename)
+    log.info('logo upload: org=%s mime=%s dest=%s', org_id, mime, dest)
+    try:
+        os.makedirs(LOGO_DIR, exist_ok=True)
+        with open(dest, 'wb') as fh:
+            fh.write(raw)
+    except OSError as e:
+        log.error('logo write failed: %s', e)
+        return jsonify({'error': f'Error al guardar: {e}'}), 500
     logo_url = f'/api/admin/org-logo/{filename}'
     execute("UPDATE organizations SET logo_path=%s WHERE org_id=%s", (logo_url, org_id))
-    log.info('org logo uploaded: org=%s url=%s', org_id, logo_url)
+    log.info('org logo saved: org=%s url=%s', org_id, logo_url)
     return jsonify({'ok': True, 'logo_path': logo_url})
 
 

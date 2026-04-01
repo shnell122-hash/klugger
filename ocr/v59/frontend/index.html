@@ -2661,13 +2661,14 @@ async function admUploadLogo() {
     const fd = new FormData();
     fd.append('logo', inp.files[0]);
     const r = await fetch(`${API}/admin/my-org/logo`, {method: 'POST', body: fd});
-    const d = await r.json();
+    let d = {};
+    try { d = await r.json(); } catch { d = {error: `Error HTTP ${r.status}`}; }
     if (!r.ok) { toast(d.error || 'Error al subir logo', 'error'); return; }
     toast('Logo actualizado', 'success');
     if (currentUser) _applyOrgBranding({...currentUser, logo_path: d.logo_path});
     admLoadUsers();
   } catch(e) {
-    toast('Error de red: ' + e.message, 'error');
+    toast('Error: ' + e.message, 'error');
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-upload"></i> Subir logo'; }
   }
