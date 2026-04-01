@@ -24,6 +24,7 @@ from routes.imagen     import imagen_bp
 from routes.transcribe import transcribe_bp
 from routes.auth       import auth_bp, init_tables
 from routes.dashboard  import dashboard_bp
+from routes.admin      import admin_bp, init_org_tables
 
 app = Flask(__name__)
 # Trust Apache reverse-proxy headers (X-Forwarded-Proto, X-Forwarded-Host)
@@ -56,6 +57,7 @@ app.register_blueprint(imagen_bp)
 app.register_blueprint(transcribe_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(dashboard_bp)
+app.register_blueprint(admin_bp)
 
 # Inicializar tablas en startup
 with app.app_context():
@@ -63,6 +65,10 @@ with app.app_context():
         init_tables()
     except Exception as e:
         logging.getLogger('app').warning('init_tables: %s', e)
+    try:
+        init_org_tables()
+    except Exception as e:
+        logging.getLogger('app').warning('init_org_tables: %s', e)
 
 
 @app.route('/api/health')

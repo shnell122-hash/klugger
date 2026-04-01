@@ -286,6 +286,28 @@ input[type="range"]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;b
   .modal-overlay{align-items:flex-end;padding-bottom:10px}
   #img-prompt{height:50px;min-height:50px}
 }
+/* ── Admin panel ── */
+.adm-tab{padding:8px 14px;font-size:.78rem;border:none;background:none;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.adm-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.adm-tab i{margin-right:5px}
+.adm-section{max-width:860px}
+.adm-card{background:var(--glass);border:1px solid var(--glass-border);border-radius:10px;padding:14px;margin-bottom:12px}
+.adm-card h4{font-size:.82rem;margin-bottom:10px;color:var(--accent)}
+.adm-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.adm-field{display:flex;flex-direction:column;gap:3px}
+.adm-field label{font-size:.72rem;color:var(--muted)}
+.adm-field input,.adm-field select{background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 9px;font-size:.8rem;outline:none;font-family:inherit;width:100%}
+.adm-field input:focus,.adm-field select:focus{border-color:var(--accent)}
+.adm-table{width:100%;border-collapse:collapse;font-size:.75rem}
+.adm-table th{text-align:left;padding:6px 8px;color:var(--muted);border-bottom:1px solid var(--border);font-weight:600}
+.adm-table td{padding:6px 8px;border-bottom:1px solid var(--border)}
+.adm-table tr:last-child td{border-bottom:none}
+.adm-badge{display:inline-block;font-size:.65rem;padding:1px 6px;border-radius:8px;font-weight:600}
+.adm-badge-admin{background:rgba(196,122,90,.2);color:var(--accent)}
+.adm-badge-orgadmin{background:rgba(139,92,246,.2);color:var(--accent2)}
+.adm-badge-user{background:rgba(122,116,128,.15);color:var(--muted)}
+.adm-invite-url{font-size:.68rem;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:4px 7px;word-break:break-all;color:var(--muted);margin-top:4px}
+@media(max-width:640px){.adm-grid{grid-template-columns:1fr}.adm-table td,.adm-table th{padding:4px 5px}}
 </style>
 </head>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -303,7 +325,8 @@ input[type="range"]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;b
       <option value="">— Seleccionar expediente —</option>
     </select>
     <button class="btn btn-sm" onclick="openNewCaseModal()">+ Expediente</button>
-    <button id="header-dashboard-btn" class="btn btn-ghost btn-sm" onclick="openDashboard()" title="Dashboard de costos">📊</button>
+    <button id="header-dashboard-btn" class="btn btn-ghost btn-sm" onclick="openDashboard()" title="Dashboard de costos"><i class="fa-solid fa-chart-bar"></i></button>
+    <button id="header-admin-btn" class="btn btn-ghost btn-sm" onclick="openAdminPanel()" title="Administración" style="display:none"><i class="fa-solid fa-shield-halved"></i></button>
     <button class="btn btn-ghost btn-sm" id="theme-btn" onclick="toggleTheme()" title="Cambiar tema">☀</button>
     <div id="user-info">
       <img id="user-avatar" src="" alt="" style="display:none" onclick="confirmLogout()">
@@ -537,6 +560,26 @@ input[type="range"]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;b
   </div>
 </div>
 
+<!-- Admin Panel (full-screen overlay) -->
+<div id="admin-panel" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:300;flex-direction:column;overflow:hidden">
+  <div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:var(--sidebar)">
+    <div style="display:flex;align-items:center;gap:10px">
+      <i class="fa-solid fa-shield-halved" style="color:var(--accent)"></i>
+      <span style="font-weight:700;font-size:.9rem">Panel de Administración</span>
+      <span id="adm-role-badge" style="font-size:.68rem;padding:2px 7px;border-radius:10px;background:var(--accent);color:#fff"></span>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="closeAdminPanel()">✕ Cerrar</button>
+  </div>
+  <!-- Tabs -->
+  <div style="display:flex;gap:0;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--sidebar)">
+    <button class="adm-tab active" data-tab="orgs"    onclick="admTab('orgs')"><i class="fa-solid fa-building"></i> Organizaciones</button>
+    <button class="adm-tab"        data-tab="users"   onclick="admTab('users')"><i class="fa-solid fa-users"></i> Usuarios</button>
+    <button class="adm-tab"        data-tab="invites" onclick="admTab('invites')"><i class="fa-solid fa-envelope-open-text"></i> Invitaciones</button>
+  </div>
+  <!-- Tab content -->
+  <div id="adm-content" style="flex:1;overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch"></div>
+</div>
+
 <!-- Upload progress -->
 <div id="upload-progress">
   <div id="upload-progress-text">Subiendo...</div>
@@ -630,6 +673,9 @@ function _setUserUI(user) {
   if (user.picture) { av.src = user.picture; av.style.display = 'block'; }
   nm.textContent = user.name || user.email;
   nm.style.display = 'inline';
+  // Show admin button for master admin and org admins
+  const adminBtn = document.getElementById('header-admin-btn');
+  if (adminBtn) adminBtn.style.display = (user.role === 'admin' || user.is_org_admin) ? '' : 'none';
   const sbn = document.getElementById('sidebar-user-name');
   if (sbn) sbn.textContent = user.name || user.email;
 }
@@ -964,14 +1010,14 @@ function iconClass(a) {
 function iconEmoji(a) {
   const m = a.mime_type || '';
   const t = a.artifact_type || '';
-  if (m.includes('pdf')) return '📄';
-  if (m.startsWith('image/')) return '🖼';
-  if (m.startsWith('audio/')) return '🎵';
-  if (m.startsWith('video/')) return '🎬';
-  if (m.includes('word') || m.includes('docx')) return '📝';
-  if (t === 'html' || m === 'text/html') return '</>';
-  if (a.source === 'system') return '🤖';
-  return '📃';
+  if (m.includes('pdf')) return '<i class="fa-solid fa-file-pdf"></i>';
+  if (m.startsWith('image/')) return '<i class="fa-solid fa-image"></i>';
+  if (m.startsWith('audio/')) return '<i class="fa-solid fa-file-audio"></i>';
+  if (m.startsWith('video/')) return '<i class="fa-solid fa-file-video"></i>';
+  if (m.includes('word') || m.includes('docx')) return '<i class="fa-solid fa-file-word"></i>';
+  if (t === 'html' || m === 'text/html') return '<i class="fa-solid fa-code"></i>';
+  if (a.source === 'system') return '<i class="fa-solid fa-robot"></i>';
+  return '<i class="fa-solid fa-file-lines"></i>';
 }
 const _ART_TYPE_LABEL = {
   html:'HTML', analysis:'Análisis', contract:'Contrato',
@@ -2212,6 +2258,283 @@ function autoResizeTextarea() {
       document.getElementById('chat-form').dispatchEvent(new Event('submit', {cancelable:true}));
     }
   });
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.classList.add('hidden'); });
+});
+
+// ── Admin Panel ──────────────────────────────────────────────────────────────
+let _admOrgs = [], _admUsers = [], _admInvites = [], _admCurrentTab = 'orgs';
+
+function openAdminPanel() {
+  document.getElementById('admin-panel').style.display = 'flex';
+  const isMaster = currentUser && currentUser.role === 'admin';
+  const isOrgAdm = currentUser && currentUser.is_org_admin;
+  document.getElementById('adm-role-badge').textContent = isMaster ? 'Master Admin' : 'Org Admin';
+  // Hide orgs tab for org admins
+  document.querySelectorAll('.adm-tab').forEach(t => {
+    if (t.dataset.tab === 'orgs') t.style.display = isMaster ? '' : 'none';
+  });
+  admTab(isMaster ? 'orgs' : 'users');
+}
+
+function closeAdminPanel() {
+  document.getElementById('admin-panel').style.display = 'none';
+}
+
+function admTab(tab) {
+  _admCurrentTab = tab;
+  document.querySelectorAll('.adm-tab').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === tab));
+  if (tab === 'orgs')    admLoadOrgs();
+  if (tab === 'users')   admLoadUsers();
+  if (tab === 'invites') admLoadInvites();
+}
+
+// ── Organizations ──────────────────────────────────────────────
+async function admLoadOrgs() {
+  const c = document.getElementById('adm-content');
+  c.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Cargando…</div>';
+  const r = await fetch(`${API}/admin/organizations`);
+  if (!r.ok) { c.innerHTML = `<div style="color:var(--red)">Error: ${(await r.json()).error}</div>`; return; }
+  _admOrgs = (await r.json()).organizations || [];
+  c.innerHTML = `
+    <div class="adm-section">
+      <div class="adm-card">
+        <h4><i class="fa-solid fa-plus"></i> Nueva Organización</h4>
+        <div class="adm-grid">
+          <div class="adm-field"><label>Nombre *</label><input id="adm-org-name" placeholder="Empresa S.A."></div>
+          <div class="adm-field"><label>Dominio de correo</label><input id="adm-org-domain" placeholder="empresa.com"></div>
+          <div class="adm-field"><label>Color primario</label><input id="adm-org-color1" type="color" value="#c47a5a"></div>
+          <div class="adm-field"><label>Color acento</label><input id="adm-org-color2" type="color" value="#8b5cf6"></div>
+          <div class="adm-field"><label>Presupuesto mensual (MXN)</label><input id="adm-org-budget" type="number" placeholder="Sin límite"></div>
+          <div class="adm-field"><label>Límite de tokens</label><input id="adm-org-tokens" type="number" placeholder="Sin límite"></div>
+        </div>
+        <div style="margin-top:10px;text-align:right">
+          <button class="btn btn-sm" style="background:var(--accent)" onclick="admCreateOrg()">Crear organización</button>
+        </div>
+      </div>
+      <h4 style="font-size:.8rem;color:var(--muted);margin-bottom:8px">${_admOrgs.length} organizaciones</h4>
+      ${_admOrgs.map(o => `
+        <div class="adm-card" style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+            <div>
+              <strong style="font-size:.85rem">${esc(o.org_name)}</strong>
+              ${o.domain ? `<span style="font-size:.7rem;color:var(--muted);margin-left:6px">@${esc(o.domain)}</span>` : ''}
+              <div style="font-size:.7rem;color:var(--muted);margin-top:2px">
+                ${o.member_count||0} usuarios ·
+                ${o.monthly_budget_mxn ? `$${parseFloat(o.monthly_budget_mxn).toLocaleString()} MXN/mes` : 'Sin límite presupuestal'} ·
+                ${o.token_limit ? `${o.token_limit.toLocaleString()} tokens` : 'Sin límite tokens'}
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0">
+              <span style="width:14px;height:14px;border-radius:50%;background:${esc(o.primary_color||'#c47a5a')};display:inline-block"></span>
+              <span style="width:14px;height:14px;border-radius:50%;background:${esc(o.accent_color||'#8b5cf6')};display:inline-block"></span>
+              <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="admDeleteOrg('${o.org_id}','${esc(o.org_name)}')"><i class="fa-solid fa-trash-can"></i></button>
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+async function admCreateOrg() {
+  const body = {
+    org_name:           document.getElementById('adm-org-name').value.trim(),
+    domain:             document.getElementById('adm-org-domain').value.trim(),
+    primary_color:      document.getElementById('adm-org-color1').value,
+    accent_color:       document.getElementById('adm-org-color2').value,
+    monthly_budget_mxn: document.getElementById('adm-org-budget').value || null,
+    token_limit:        document.getElementById('adm-org-tokens').value || null,
+  };
+  if (!body.org_name) { toast('Nombre requerido','error'); return; }
+  const r = await fetch(`${API}/admin/organizations`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d = await r.json();
+  if (!r.ok) { toast(d.error,'error'); return; }
+  toast('Organización creada','success');
+  admLoadOrgs();
+}
+
+async function admDeleteOrg(id, name) {
+  if (!confirm(`¿Eliminar organización "${name}"? Los usuarios quedarán sin org asignada.`)) return;
+  const r = await fetch(`${API}/admin/organizations/${id}`, {method:'DELETE'});
+  if (!r.ok) { toast((await r.json()).error,'error'); return; }
+  toast('Organización eliminada','success');
+  admLoadOrgs();
+}
+
+// ── Users ──────────────────────────────────────────────────────
+async function admLoadUsers() {
+  const c = document.getElementById('adm-content');
+  c.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Cargando…</div>';
+  const r = await fetch(`${API}/admin/users`);
+  if (!r.ok) { c.innerHTML = `<div style="color:var(--red)">Error</div>`; return; }
+  _admUsers = (await r.json()).users || [];
+  const isMaster = currentUser && currentUser.role === 'admin';
+  const orgOptions = _admOrgs.map(o => `<option value="${o.org_id}">${esc(o.org_name)}</option>`).join('');
+  c.innerHTML = `
+    <div class="adm-section">
+      <div style="overflow-x:auto">
+        <table class="adm-table">
+          <thead><tr>
+            <th>Usuario</th><th>Correo</th>
+            ${isMaster ? '<th>Organización</th>' : ''}
+            <th>Rol</th><th>Activo</th><th>Límite tokens</th><th></th>
+          </tr></thead>
+          <tbody>
+            ${_admUsers.map(u => `
+              <tr id="adm-user-${u.user_id}">
+                <td style="white-space:nowrap">
+                  ${u.picture ? `<img src="${u.picture}" style="width:22px;height:22px;border-radius:50%;vertical-align:middle;margin-right:5px">` : ''}
+                  ${esc(u.name||'')}
+                </td>
+                <td style="color:var(--muted)">${esc(u.email)}</td>
+                ${isMaster ? `<td>
+                  <select onchange="admUpdateUser('${u.user_id}',{org_id:this.value})" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 5px;font-size:.72rem">
+                    <option value="">— Sin org —</option>${orgOptions}
+                  </select>
+                </td>` : ''}
+                <td>
+                  <span class="adm-badge ${u.role==='admin'?'adm-badge-admin':u.is_org_admin?'adm-badge-orgadmin':'adm-badge-user'}">
+                    ${u.role==='admin'?'Master':u.is_org_admin?'Org Admin':'Usuario'}
+                  </span>
+                  ${u.role!=='admin'?`<button class="btn btn-ghost btn-sm" style="font-size:.65rem;padding:1px 5px;margin-left:3px" onclick="admToggleOrgAdmin('${u.user_id}',${u.is_org_admin?0:1})">${u.is_org_admin?'Quitar admin':'Hacer admin'}</button>`:''}
+                </td>
+                <td>
+                  <button class="btn btn-ghost btn-sm" style="font-size:.65rem" onclick="admToggleApproved('${u.user_id}',${u.approved?0:1})">
+                    ${u.approved?'<i class="fa-solid fa-circle-check" style="color:var(--green)"></i>':'<i class="fa-solid fa-circle-xmark" style="color:var(--red)"></i>'}
+                  </button>
+                </td>
+                <td><input type="number" value="${u.token_limit||''}" placeholder="∞" style="width:70px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 5px;font-size:.72rem"
+                  onchange="admUpdateUser('${u.user_id}',{token_limit:this.value||null})"></td>
+                <td>
+                  <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="admDeleteUser('${u.user_id}','${esc(u.email)}')"><i class="fa-solid fa-trash-can"></i></button>
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  // Set org select values
+  _admUsers.forEach(u => {
+    const sel = document.querySelector(`#adm-user-${u.user_id} select`);
+    if (sel && u.org_id) sel.value = u.org_id;
+  });
+}
+
+async function admUpdateUser(user_id, patch) {
+  const r = await fetch(`${API}/admin/users/${user_id}`, {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)});
+  if (!r.ok) toast((await r.json()).error,'error');
+  else toast('Guardado','success');
+}
+
+async function admToggleOrgAdmin(user_id, val) {
+  await admUpdateUser(user_id, {is_org_admin: val});
+  admLoadUsers();
+}
+
+async function admToggleApproved(user_id, val) {
+  await admUpdateUser(user_id, {approved: val});
+  admLoadUsers();
+}
+
+async function admDeleteUser(user_id, email) {
+  if (!confirm(`¿Eliminar usuario ${email}?`)) return;
+  const r = await fetch(`${API}/admin/users/${user_id}`, {method:'DELETE'});
+  if (!r.ok) { toast((await r.json()).error,'error'); return; }
+  toast('Usuario eliminado','success');
+  admLoadUsers();
+}
+
+// ── Invitations ────────────────────────────────────────────────
+async function admLoadInvites() {
+  const c = document.getElementById('adm-content');
+  c.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Cargando…</div>';
+  const [invR, orgR] = await Promise.all([
+    fetch(`${API}/admin/invitations`),
+    currentUser.role==='admin' ? fetch(`${API}/admin/organizations`) : Promise.resolve(null)
+  ]);
+  if (!invR.ok) { c.innerHTML = `<div style="color:var(--red)">Error</div>`; return; }
+  _admInvites = (await invR.json()).invitations || [];
+  if (orgR) _admOrgs = ((await orgR.json()).organizations) || [];
+  const isMaster = currentUser && currentUser.role === 'admin';
+  const orgOptions = _admOrgs.map(o => `<option value="${o.org_id}">${esc(o.org_name)}</option>`).join('');
+  c.innerHTML = `
+    <div class="adm-section">
+      <div class="adm-card">
+        <h4><i class="fa-solid fa-paper-plane"></i> Nueva Invitación (Magic Link)</h4>
+        <div class="adm-grid">
+          <div class="adm-field"><label>Correo del invitado *</label><input id="adm-inv-email" type="email" placeholder="usuario@empresa.com"></div>
+          <div class="adm-field"><label>Rol</label>
+            <select id="adm-inv-role">
+              <option value="user">Usuario</option>
+              <option value="org_admin">Admin de Organización</option>
+              ${isMaster ? '<option value="master_admin">Master Admin</option>' : ''}
+            </select>
+          </div>
+          ${isMaster ? `<div class="adm-field" style="grid-column:1/-1"><label>Organización</label>
+            <select id="adm-inv-org"><option value="">— Sin organización —</option>${orgOptions}</select>
+          </div>` : ''}
+        </div>
+        <div style="margin-top:10px;text-align:right">
+          <button class="btn btn-sm" style="background:var(--accent2)" onclick="admCreateInvite()"><i class="fa-solid fa-link"></i> Generar enlace</button>
+        </div>
+        <div id="adm-inv-result" style="display:none;margin-top:10px">
+          <div style="font-size:.72rem;color:var(--muted);margin-bottom:4px">Enlace generado (válido ${7} días) — compártelo al usuario:</div>
+          <div class="adm-invite-url" id="adm-inv-url"></div>
+          <button class="btn btn-sm btn-ghost" style="margin-top:6px" onclick="admCopyInvite()"><i class="fa-regular fa-copy"></i> Copiar enlace</button>
+        </div>
+      </div>
+      <h4 style="font-size:.8rem;color:var(--muted);margin-bottom:8px">${_admInvites.length} invitaciones</h4>
+      ${_admInvites.map(i => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--glass);border:1px solid var(--glass-border);border-radius:8px;margin-bottom:6px;gap:10px;flex-wrap:wrap">
+          <div>
+            <span style="font-size:.8rem;font-weight:600">${esc(i.email||'Cualquier correo')}</span>
+            <span class="adm-badge ${i.role==='master_admin'?'adm-badge-admin':i.role==='org_admin'?'adm-badge-orgadmin':'adm-badge-user'}" style="margin-left:6px">${i.role}</span>
+            ${i.org_name ? `<span style="font-size:.7rem;color:var(--muted);margin-left:5px">${esc(i.org_name)}</span>` : ''}
+            <div style="font-size:.68rem;color:var(--muted);margin-top:2px">${i.used?'<span style="color:var(--green)">Usada</span>':'Pendiente'} · Expira: ${(i.expires_at||'').substring(0,10)}</div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+            ${!i.used ? `<button class="btn btn-ghost btn-sm" onclick="admCopyInviteUrl('${esc(i.url||'')}')"><i class="fa-regular fa-copy"></i></button>` : ''}
+            <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="admRevokeInvite('${i.invite_id}')"><i class="fa-solid fa-trash-can"></i></button>
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+async function admCreateInvite() {
+  const isMaster = currentUser && currentUser.role === 'admin';
+  const body = {
+    email:  document.getElementById('adm-inv-email').value.trim(),
+    role:   document.getElementById('adm-inv-role').value,
+    org_id: isMaster ? (document.getElementById('adm-inv-org')?.value || null) : null,
+  };
+  if (!body.email) { toast('Correo requerido','error'); return; }
+  const r = await fetch(`${API}/admin/invitations`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d = await r.json();
+  if (!r.ok) { toast(d.error,'error'); return; }
+  document.getElementById('adm-inv-url').textContent = d.url;
+  document.getElementById('adm-inv-result').style.display = 'block';
+  toast('Enlace generado','success');
+}
+
+function admCopyInvite() {
+  const url = document.getElementById('adm-inv-url').textContent;
+  admCopyInviteUrl(url);
+}
+
+function admCopyInviteUrl(url) {
+  navigator.clipboard.writeText(url).then(() => toast('Enlace copiado','success')).catch(() => {
+    prompt('Copia el enlace:', url);
+  });
+}
+
+async function admRevokeInvite(invite_id) {
+  if (!confirm('¿Revocar esta invitación?')) return;
+  await fetch(`${API}/admin/invitations/${invite_id}`, {method:'DELETE'});
+  toast('Invitación revocada','success');
+  admLoadInvites();
 }
 
 // Close modals on overlay click
