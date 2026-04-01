@@ -168,6 +168,44 @@ def update_org(org_id):
     return jsonify({'ok': True})
 
 
+@admin_bp.route('/api/admin/my-org', methods=['GET'])
+@_require_admin
+def get_my_org():
+    """Org admin: lee los datos de su propia organización."""
+    org_id = _my_org()
+    if not org_id:
+        return jsonify({'error': 'Sin organización asignada'}), 404
+    row = query(
+        "SELECT org_id, org_name, domain, monthly_budget_mxn, token_limit, "
+        "primary_color, accent_color FROM organizations WHERE org_id=%s", (org_id,)
+    )
+    if not row:
+        return jsonify({'error': 'Organización no encontrada'}), 404
+    return jsonify({'org': row})
+
+
+@admin_bp.route('/api/admin/my-org', methods=['PUT'])
+@_require_admin
+def update_my_org():
+    """Org admin: actualiza límites de su propia organización (solo budget y tokens)."""
+    org_id = _my_org()
+    if not org_id:
+        return jsonify({'error': 'Sin organización asignada'}), 404
+    body   = request.get_json(force=True) or {}
+    # Org admins only allowed to change budget/token limits, not name/domain/colors
+    allowed = ('monthly_budget_mxn', 'token_limit')
+    fields, vals = [], []
+    for f in allowed:
+        if f in body:
+            fields.append(f'{f}=%s')
+            vals.append(body[f] if body[f] != '' else None)
+    if not fields:
+        return jsonify({'error': 'Nada que actualizar'}), 400
+    vals.append(org_id)
+    execute(f"UPDATE organizations SET {','.join(fields)} WHERE org_id=%s", vals)
+    return jsonify({'ok': True})
+
+
 @admin_bp.route('/api/admin/organizations/<org_id>', methods=['DELETE'])
 @_require_master
 def delete_org(org_id):

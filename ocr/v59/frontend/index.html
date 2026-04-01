@@ -2446,13 +2446,39 @@ async function admDeleteOrg(id, name) {
 async function admLoadUsers() {
   const c = document.getElementById('adm-content');
   c.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Cargando…</div>';
-  const r = await fetch(`${API}/admin/users`);
-  if (!r.ok) { c.innerHTML = `<div style="color:var(--red)">Error</div>`; return; }
-  _admUsers = (await r.json()).users || [];
-  const isMaster = currentUser && currentUser.role === 'admin';
+  const isMaster = currentUser?.role === 'admin';
+  const [usersR, myOrgR] = await Promise.all([
+    fetch(`${API}/admin/users`),
+    !isMaster ? fetch(`${API}/admin/my-org`) : Promise.resolve(null),
+  ]);
+  if (!usersR.ok) { c.innerHTML = `<div style="color:var(--red)">Error</div>`; return; }
+  _admUsers = (await usersR.json()).users || [];
+  const myOrg = (myOrgR && myOrgR.ok) ? (await myOrgR.json()).org : null;
   const orgOptions = _admOrgs.map(o => `<option value="${o.org_id}">${esc(o.org_name)}</option>`).join('');
+  const orgLimitsCard = myOrg ? `
+    <div class="adm-card" style="margin-bottom:14px">
+      <h4 style="margin:0 0 10px;font-size:.82rem"><i class="fa-solid fa-building"></i> ${esc(myOrg.org_name)} — Límites de la organización</h4>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="adm-field">
+          <label>Presupuesto mensual (MXN)</label>
+          <input id="adm-myorg-budget" type="number" placeholder="Sin límite"
+            value="${myOrg.monthly_budget_mxn||''}"
+            style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.78rem;width:100%">
+        </div>
+        <div class="adm-field">
+          <label>Límite de tokens (org)</label>
+          <input id="adm-myorg-tokens" type="number" placeholder="Sin límite"
+            value="${myOrg.token_limit||''}"
+            style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.78rem;width:100%">
+        </div>
+      </div>
+      <div style="text-align:right;margin-top:8px">
+        <button class="btn btn-sm" onclick="admSaveMyOrg()" style="background:var(--accent)">Guardar límites</button>
+      </div>
+    </div>` : '';
   c.innerHTML = `
     <div class="adm-section">
+      ${orgLimitsCard}
       <div style="overflow-x:auto">
         <table class="adm-table">
           <thead><tr>
@@ -2523,6 +2549,21 @@ async function admLoadUsers() {
       });
     }
   });
+}
+
+async function admSaveMyOrg() {
+  const budget = document.getElementById('adm-myorg-budget')?.value;
+  const tokens = document.getElementById('adm-myorg-tokens')?.value;
+  const r = await fetch(`${API}/admin/my-org`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      monthly_budget_mxn: budget || null,
+      token_limit: tokens || null,
+    })
+  });
+  if (!r.ok) { toast((await r.json()).error || 'Error', 'error'); return; }
+  toast('Límites guardados', 'success');
 }
 
 async function admUpdateUser(user_id, patch) {
