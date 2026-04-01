@@ -8,6 +8,13 @@ from tools.db import query, execute
 
 artifacts_bp = Blueprint('artifacts', __name__)
 
+MIMES = {
+    'md':   ('text/markdown; charset=utf-8',),
+    'html': ('text/html; charset=utf-8',),
+    'pdf':  ('application/pdf',),
+    'docx': ('application/vnd.openxmlformats-officedocument.wordprocessingml.document',),
+}
+
 
 @artifacts_bp.route('/api/artifacts/<case_id>', methods=['GET'])
 def list_artifacts_by_case(case_id):
@@ -243,27 +250,32 @@ def download_artifact(artifact_id):
             download_name=img_row['filename']
         )
 
-    row = query("SELECT artifact_name, artifact_type, content FROM system_artifacts WHERE artifact_id=%s", (artifact_id,))
+    row = query(
+        "SELECT artifact_name, artifact_type, content FROM system_artifacts WHERE artifact_id=%s",
+        (artifact_id,)
+    )
     if not row:
         return jsonify({"error": "Artefacto no encontrado"}), 404
 
-    content = row.get('content') or ''
-    name    = row.get('artifact_name', 'documento').replace(' ', '_')
+    content    = row.get('content') or ''
+    name       = row.get('artifact_name', 'documento').replace(' ', '_')
+    is_html    = (row.get('artifact_type') == 'html' or
+                  (content.lstrip().startswith('<') and '</html>' in content.lower()))
     if not content:
         return jsonify({"error": "Este artefacto no tiene contenido descargable"}), 404
 
-    MIMES = {
-        'md':   ('text/markdown', '{name}.md'),
-        'html': ('text/html', '{name}.html'),
-        'pdf':  ('application/pdf', '{name}.pdf'),
-        'docx': ('application/vnd.openxmlformats-officedocument.wordprocessingml.document', '{name}.docx'),
-    }
     try:
-        data, ext = _content_to_bytes(content, name, fmt)
-    except ImportError:
-        return jsonify({"error": "weasyprint/markdown no instalado. Ejecuta: pip install weasyprint markdown"}), 500
+        data, ext = _content_to_bytes(content, name, fmt, is_html=is_html)
+    except ImportError as e:
+        pkg = 'markdown python-docx' if 'docx' in str(e) else 'markdown'
+        msg = f"Biblioteca no instalada. En el servidor ejecuta:\n/var/www/catalogos/OCR/v59/venv/bin/pip install {pkg}"
+        return Response(msg.encode('utf-8'), status=503,
+                        mimetype='text/plain',
+                        headers={'Content-Disposition': f'attachment; filename="error_{name}.txt"'})
     except Exception as e:
-        return jsonify({"error": f"Error generando {fmt.upper()}: {str(e)}"}), 500
+        return Response(str(e).encode('utf-8'), status=500,
+                        mimetype='text/plain',
+                        headers={'Content-Disposition': f'attachment; filename="error_{name}.txt"'})
 
     mime = MIMES.get(ext, ('application/octet-stream', f'{{name}}.{ext}'))[0]
     return Response(
@@ -273,73 +285,181 @@ def download_artifact(artifact_id):
     )
 
 
-def _content_to_bytes(content, name, fmt):
-    """Convierte contenido markdown al formato pedido. Devuelve (bytes, extension)."""
+_PDF_CSS = """
+  @page {margin:2cm}
+  body{font-family:Arial,sans-serif;font-size:11pt;line-height:1.6;color:#111}
+  h1{font-size:18pt;border-bottom:2px solid #c47a5a;padding-bottom:4pt;color:#1a202c}
+  h2{font-size:14pt;color:#2d3748;margin-top:16pt}
+  h3{font-size:12pt;color:#4a5568}
+  table{border-collapse:collapse;width:100%;margin:10pt 0}
+  td,th{border:1px solid #ccc;padding:6pt 8pt;font-size:10pt}
+  th{background:#f5f0eb;font-weight:bold}
+  tr:nth-child(even){background:#faf6f1}
+  code{background:#f0ede8;padding:1pt 4pt;border-radius:3pt;font-size:9.5pt;font-family:monospace}
+  pre{background:#f0ede8;padding:10pt;border-radius:5pt;overflow-x:auto}
+  ul,ol{margin:6pt 0;padding-left:20pt}
+  hr{border:none;border-top:1px solid #ddd;margin:14pt 0}
+"""
+_HTML_WRAP = (
+    '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">'
+    '<title>{name}</title><style>{css}</style></head><body>{body}</body></html>'
+)
+
+
+def _md_to_html(content):
+    import markdown as md_lib
+    return md_lib.markdown(content, extensions=['tables', 'fenced_code', 'nl2br'])
+
+
+def _content_to_bytes(content, name, fmt, is_html=False):
+    """Convierte contenido markdown o HTML al formato pedido."""
+
     if fmt == 'html':
-        import markdown as md_lib
-        html_body = md_lib.markdown(content, extensions=['tables', 'fenced_code'])
-        html = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-<title>{name}</title>
-<style>body{{font-family:Arial,sans-serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.6}}
-h1,h2,h3{{color:#1a202c}}table{{border-collapse:collapse;width:100%}}
-td,th{{border:1px solid #ccc;padding:8px}}@media print{{body{{margin:0}}}}</style>
-</head><body>{html_body}</body></html>"""
+        if is_html:
+            return content.encode('utf-8'), 'html'
+        body = _md_to_html(content)
+        html = _HTML_WRAP.format(
+            name=name, css='body{font-family:Arial,sans-serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.6}h1,h2,h3{color:#1a202c}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:8px}@media print{body{margin:0}}',
+            body=body
+        )
         return html.encode('utf-8'), 'html'
 
     if fmt == 'pdf':
-        import markdown as md_lib
         from weasyprint import HTML as WH
-        html_body = md_lib.markdown(content, extensions=['tables', 'fenced_code'])
-        html = f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-<title>{name}</title>
-<style>
-  @page {{margin:2cm}}
-  body{{font-family:Arial,sans-serif;font-size:11pt;line-height:1.6;color:#111}}
-  h1{{font-size:18pt;border-bottom:2px solid #c47a5a;padding-bottom:4pt;color:#1a202c}}
-  h2{{font-size:14pt;color:#2d3748;margin-top:16pt}}
-  h3{{font-size:12pt;color:#4a5568}}
-  table{{border-collapse:collapse;width:100%;margin:10pt 0}}
-  td,th{{border:1px solid #ccc;padding:6pt 8pt;font-size:10pt}}
-  th{{background:#f5f0eb;font-weight:bold}}
-  tr:nth-child(even){{background:#faf6f1}}
-  code{{background:#f0ede8;padding:1pt 4pt;border-radius:3pt;font-size:9.5pt}}
-  pre{{background:#f0ede8;padding:10pt;border-radius:5pt;overflow-x:auto}}
-  ul,ol{{margin:6pt 0;padding-left:20pt}}
-  hr{{border:none;border-top:1px solid #ddd;margin:14pt 0}}
-</style>
-</head><body>{html_body}</body></html>"""
+        body = content if is_html else _md_to_html(content)
+        html = _HTML_WRAP.format(name=name, css=_PDF_CSS, body=body)
         return WH(string=html).write_pdf(), 'pdf'
 
     if fmt == 'docx':
-        from docx import Document
-        doc = Document()
-        doc.add_heading(name, 0)
-        for line in content.split('\n'):
-            stripped = line.strip()
-            if stripped.startswith('# '):
-                doc.add_heading(stripped[2:], level=1)
-            elif stripped.startswith('## '):
-                doc.add_heading(stripped[3:], level=2)
-            elif stripped.startswith('### '):
-                doc.add_heading(stripped[4:], level=3)
-            elif stripped.startswith('- ') or stripped.startswith('* '):
-                doc.add_paragraph(stripped[2:], style='List Bullet')
-            elif stripped == '---':
-                doc.add_paragraph('─' * 40)
-            elif stripped:
-                p = doc.add_paragraph()
-                parts = stripped.split('**')
-                for idx, part in enumerate(parts):
-                    run = p.add_run(part)
-                    run.bold = (idx % 2 == 1)
-            else:
-                doc.add_paragraph('')
-        b = io.BytesIO()
-        doc.save(b)
-        return b.getvalue(), 'docx'
+        return _build_docx(content, name, is_html), 'docx'
 
     # default: markdown
+    if is_html:
+        # Strip tags for plain MD download of HTML artifact
+        stripped = re.sub(r'<[^>]+>', '', content)
+        return stripped.encode('utf-8'), 'md'
     return content.encode('utf-8'), 'md'
+
+
+def _build_docx(content, name, is_html=False):
+    """Genera un DOCX desde markdown con formato completo."""
+    from docx import Document
+    from docx.shared import Pt, RGBColor
+    doc = Document()
+    doc.add_heading(name.replace('_', ' '), 0)
+
+    if is_html:
+        # Basic HTML → plain text for DOCX (strip tags)
+        plain = re.sub(r'<[^>]+>', '', content)
+        for line in plain.split('\n'):
+            if line.strip():
+                doc.add_paragraph(line.strip())
+    else:
+        in_code_block = False
+        code_lines = []
+        ol_counter = 0
+
+        for raw_line in content.split('\n'):
+            line = raw_line.rstrip()
+
+            # Code block toggle
+            if line.startswith('```'):
+                if in_code_block:
+                    p = doc.add_paragraph('\n'.join(code_lines))
+                    p.style = doc.styles['No Spacing']
+                    for run in p.runs:
+                        run.font.name = 'Courier New'
+                        run.font.size = Pt(9)
+                        run.font.color.rgb = RGBColor(0x44, 0x44, 0x44)
+                    code_lines = []
+                    in_code_block = False
+                else:
+                    in_code_block = True
+                continue
+
+            if in_code_block:
+                code_lines.append(line)
+                continue
+
+            stripped = line.strip()
+
+            # Headings
+            if stripped.startswith('#### '):
+                doc.add_heading(stripped[5:], level=4); ol_counter = 0; continue
+            if stripped.startswith('### '):
+                doc.add_heading(stripped[4:], level=3); ol_counter = 0; continue
+            if stripped.startswith('## '):
+                doc.add_heading(stripped[3:], level=2); ol_counter = 0; continue
+            if stripped.startswith('# '):
+                doc.add_heading(stripped[2:], level=1); ol_counter = 0; continue
+
+            # Horizontal rule
+            if re.match(r'^[-*_]{3,}$', stripped):
+                doc.add_paragraph('─' * 50); ol_counter = 0; continue
+
+            # Table row
+            if stripped.startswith('|') and stripped.endswith('|'):
+                cells = [c.strip() for c in stripped.strip('|').split('|')]
+                if re.match(r'^[\s\-:|]+$', stripped.replace('|', '')):
+                    continue  # separator row
+                t = doc.add_table(rows=1, cols=len(cells))
+                t.style = 'Table Grid'
+                for ci, cell in enumerate(cells):
+                    t.rows[0].cells[ci].text = cell
+                ol_counter = 0; continue
+
+            # Bullet list
+            if re.match(r'^[-*+] ', stripped):
+                _add_para_with_inline(doc, stripped[2:], style='List Bullet')
+                ol_counter = 0; continue
+
+            # Numbered list
+            m_ol = re.match(r'^(\d+)\. (.+)', stripped)
+            if m_ol:
+                _add_para_with_inline(doc, m_ol.group(2), style='List Number')
+                ol_counter += 1; continue
+
+            # Blockquote
+            if stripped.startswith('> '):
+                p = _add_para_with_inline(doc, stripped[2:])
+                p.paragraph_format.left_indent = Pt(20)
+                ol_counter = 0; continue
+
+            # Empty line
+            if not stripped:
+                doc.add_paragraph(''); ol_counter = 0; continue
+
+            # Normal paragraph with inline formatting
+            _add_para_with_inline(doc, stripped)
+            ol_counter = 0
+
+    b = io.BytesIO()
+    doc.save(b)
+    return b.getvalue()
+
+
+def _add_para_with_inline(doc, text, style=None):
+    """Añade un párrafo parseando **bold**, *italic*, `code` inline."""
+    from docx.shared import Pt, RGBColor
+    p = doc.add_paragraph(style=style) if style else doc.add_paragraph()
+    # Parse inline tokens: **bold**, *italic*, `code`
+    pattern = re.compile(r'(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)')
+    parts = pattern.split(text)
+    for part in parts:
+        if part.startswith('**') and part.endswith('**'):
+            run = p.add_run(part[2:-2])
+            run.bold = True
+        elif part.startswith('*') and part.endswith('*'):
+            run = p.add_run(part[1:-1])
+            run.italic = True
+        elif part.startswith('`') and part.endswith('`'):
+            run = p.add_run(part[1:-1])
+            run.font.name = 'Courier New'
+            run.font.size = Pt(9)
+            run.font.color.rgb = RGBColor(0x44, 0x44, 0x44)
+        elif part:
+            p.add_run(part)
+    return p
 
 
 @artifacts_bp.route('/api/artifacts/<case_id>/zip', methods=['GET'])
@@ -368,10 +488,13 @@ def download_case_zip(case_id):
         ) or []
         for r in rows:
             safe = (r.get('artifact_name') or 'documento').replace('/', '_').replace('\\', '_')
+            content_r = r.get('content') or ''
+            is_html_r = (r.get('artifact_type') == 'html' or
+                         (content_r.lstrip().startswith('<') and '</html>' in content_r.lower()))
             try:
-                data, ext = _content_to_bytes(r.get('content') or '', safe, fmt)
+                data, ext = _content_to_bytes(content_r, safe, fmt, is_html=is_html_r)
             except Exception:
-                data, ext = (r.get('content') or '').encode('utf-8'), 'md'
+                data, ext = content_r.encode('utf-8'), 'md'
             fname = unique_name(f"{safe}.{ext}")
             zf.writestr(fname, data)
 
@@ -471,6 +594,9 @@ def search_artifacts_content():
     results = [{'artifact_id': r['artifact_id'], 'name': r['name']}
                for r in sys_rows + usr_rows]
     return jsonify({"results": results, "count": len(results)})
+
+
+def _make_slug(name: str) -> str:
     s = name.lower().strip()
     for src, dst in [('á','a'),('é','e'),('í','i'),('ó','o'),('ú','u'),
                      ('ñ','n'),('ü','u'),('à','a'),('è','e'),('ì','i'),
@@ -478,6 +604,7 @@ def search_artifacts_content():
         s = s.replace(src, dst)
     s = re.sub(r'[^a-z0-9]+', '-', s).strip('-')
     return s[:100] or 'artefacto'
+
 
 def _unique_slug_art(base: str) -> str:
     slug, suffix = base, 2
