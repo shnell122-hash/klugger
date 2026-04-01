@@ -2552,10 +2552,10 @@ async function admLoadUsers() {
       <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">
         <label style="font-size:.74rem;color:var(--muted);display:block;margin-bottom:6px"><i class="fa-solid fa-image"></i> Logo de la organización</label>
         ${myOrg.logo_path ? `<img src="${esc(myOrg.logo_path)}" alt="Logo" style="max-height:52px;max-width:180px;object-fit:contain;border-radius:6px;margin-bottom:8px;display:block;background:var(--hover);padding:4px">` : '<div style="font-size:.74rem;color:var(--muted);margin-bottom:6px">Sin logo configurado</div>'}
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div style="display:flex;flex-direction:column;gap:8px">
           <input type="file" id="adm-logo-file" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
-            style="font-size:.74rem;color:var(--text);flex:1;min-width:0">
-          <button class="btn btn-sm" onclick="admUploadLogo()" style="background:var(--accent2);flex-shrink:0">
+            style="font-size:.74rem;color:var(--text);width:100%">
+          <button id="adm-logo-btn" class="btn btn-sm" onclick="admUploadLogo()" style="background:var(--accent2);width:100%">
             <i class="fa-solid fa-upload"></i> Subir logo
           </button>
         </div>
@@ -2655,14 +2655,22 @@ async function admSaveMyOrg() {
 async function admUploadLogo() {
   const inp = document.getElementById('adm-logo-file');
   if (!inp || !inp.files[0]) { toast('Selecciona una imagen primero', 'error'); return; }
-  const fd = new FormData();
-  fd.append('logo', inp.files[0]);
-  const r = await fetch(`${API}/admin/my-org/logo`, {method: 'POST', body: fd});
-  const d = await r.json();
-  if (!r.ok) { toast(d.error || 'Error al subir logo', 'error'); return; }
-  toast('Logo actualizado', 'success');
-  if (currentUser) _applyOrgBranding({...currentUser, logo_path: d.logo_path});
-  admLoadUsers();
+  const btn = document.getElementById('adm-logo-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Subiendo…'; }
+  try {
+    const fd = new FormData();
+    fd.append('logo', inp.files[0]);
+    const r = await fetch(`${API}/admin/my-org/logo`, {method: 'POST', body: fd});
+    const d = await r.json();
+    if (!r.ok) { toast(d.error || 'Error al subir logo', 'error'); return; }
+    toast('Logo actualizado', 'success');
+    if (currentUser) _applyOrgBranding({...currentUser, logo_path: d.logo_path});
+    admLoadUsers();
+  } catch(e) {
+    toast('Error de red: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-upload"></i> Subir logo'; }
+  }
 }
 
 async function admUpdateUser(user_id, patch) {
