@@ -307,7 +307,14 @@ input[type="range"]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;b
 .adm-badge-orgadmin{background:rgba(139,92,246,.2);color:var(--accent2)}
 .adm-badge-user{background:rgba(122,116,128,.15);color:var(--muted)}
 .adm-invite-url{font-size:.68rem;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:4px 7px;word-break:break-all;color:var(--muted);margin-top:4px}
-@media(max-width:640px){.adm-grid{grid-template-columns:1fr}.adm-table td,.adm-table th{padding:4px 5px}}
+@media(max-width:640px){
+  .adm-grid{grid-template-columns:1fr}
+  .adm-table td,.adm-table th{padding:4px 5px;font-size:.7rem}
+  .adm-section{max-width:100%}
+  #admin-panel > div:nth-child(2){overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .adm-tab{padding:7px 10px;font-size:.72rem}
+  .adm-tab i{display:none}
+}
 </style>
 </head>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -872,23 +879,37 @@ function _renderUserDash(el, d) {
 }
 
 // ── Init ─────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', async () => {
-  _applyTheme(_resolvedTheme());
-  const authed = await checkAuth();
-  if (!authed) return;
+async function initApp() {
   healthCheck();
   loadCases();
   setupUpload();
   autoResizeTextarea();
-  setInterval(healthCheck, 30000);
-
   // Scroll-to-bottom button
   const msgs = document.getElementById('chat-messages');
   const scrollBtn = document.getElementById('scroll-btn');
-  msgs.addEventListener('scroll', () => {
-    const atBottom = msgs.scrollTop + msgs.clientHeight >= msgs.scrollHeight - 80;
-    scrollBtn.style.display = atBottom ? 'none' : 'flex';
-  });
+  if (msgs && scrollBtn) {
+    msgs.addEventListener('scroll', () => {
+      const atBottom = msgs.scrollTop + msgs.clientHeight >= msgs.scrollHeight - 80;
+      scrollBtn.style.display = atBottom ? 'none' : 'flex';
+    });
+  }
+  setInterval(healthCheck, 30000);
+  // Si viene de magic link y no tiene contraseña → abrir perfil con prompt
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('welcome') === '1' && currentUser && !currentUser.has_password) {
+    setTimeout(() => {
+      openProfileModal();
+      toast('Bienvenido. Establece una contraseña para entrar más fácilmente la próxima vez.', 'info');
+    }, 800);
+    history.replaceState({}, '', window.location.pathname);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  _applyTheme(_resolvedTheme());
+  const authed = await checkAuth();
+  if (!authed) return;
+  await initApp();
 });
 
 // ── Health ────────────────────────────────────────────────
@@ -1852,7 +1873,9 @@ async function sendMessage(e) {
               cost = `· ${_fmtMXN(mxn)} MXN`;
             }
           }
-          chip.innerHTML = `📊 <span class="tc-model">${esc(evt.model)}</span> · ${inK}k→${outK}k ${cost}`;
+          const isMaster = currentUser && currentUser.role === 'admin';
+          const modelLabel = isMaster ? esc(evt.model) : 'Agente IA';
+          chip.innerHTML = `📊 <span class="tc-model">${modelLabel}</span> · ${inK}k→${outK}k ${cost}`;
 
         } else if (evt.type === 'diagnosis') {
           const panel = document.createElement('div');
