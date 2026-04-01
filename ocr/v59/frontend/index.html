@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer"/>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -328,7 +329,8 @@ input[type="range"]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;b
   <div style="display:flex;align-items:center;gap:10px">
     <button id="sidebar-toggle" onclick="toggleSidebar()" title="Archivos">☰</button>
     <div id="health-dot" title="API status"></div>
-    <h1>VILAR Legal OS <span>v59</span></h1>
+    <h1 id="header-title">VILAR Legal OS <span>v59</span></h1>
+    <img id="org-logo" src="" alt="" style="display:none;max-height:32px;object-fit:contain">
   </div>
   <div id="case-selector">
     <select id="case-select">
@@ -407,10 +409,18 @@ input[type="range"]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;b
         <div class="msg-avatar">AI</div>
         <div>
           <div class="msg-bubble">
-            Bienvenido a VILAR Legal OS v59. Sube documentos y úsalos como contexto para el análisis jurídico con Claude.
+            Bienvenido a VILAR Legal OS v59. Sube documentos y úsalos como contexto para el análisis jurídico con el agente de IA.
           </div>
         </div>
       </div>
+    </div>
+    <div id="reconnect-bar" style="display:none;align-items:center;gap:10px;padding:8px 14px;background:rgba(196,122,90,0.15);border-top:1px solid var(--accent);font-size:.8rem;color:var(--text)">
+      <span id="reconnect-spin" style="animation:badge-spin 1s linear infinite;display:inline-block">↻</span>
+      <span>El agente siguió trabajando mientras estabas fuera.</span>
+      <button class="btn btn-sm" style="margin-left:auto;background:var(--accent);color:#fff;border:none" onclick="_doReconnect()">
+        <i class="fa-solid fa-rotate-right"></i> Recargar respuesta
+      </button>
+      <button onclick="_hideReconnectBar()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;padding:0 4px">✕</button>
     </div>
     <div id="chat-input-area">
       <div id="ctx-chips"></div>
@@ -713,6 +723,34 @@ function _setUserUI(user) {
   if (adminBtn) adminBtn.style.display = (user.role === 'admin' || user.is_org_admin) ? '' : 'none';
   const sbn = document.getElementById('sidebar-user-name');
   if (sbn) sbn.textContent = user.name || user.email;
+  _applyOrgBranding(user);
+}
+
+function _applyOrgBranding(user) {
+  if (!user) return;
+  const root = document.documentElement;
+  if (user.primary_color) root.style.setProperty('--accent', user.primary_color);
+  if (user.accent_color)  root.style.setProperty('--accent2', user.accent_color);
+  const logo  = document.getElementById('org-logo');
+  const title = document.getElementById('header-title');
+  if (logo && user.logo_path) {
+    logo.src = user.logo_path;
+    logo.style.display = 'block';
+    if (title) title.style.display = 'none';
+  }
+}
+
+function _showReconnectBar() {
+  const bar = document.getElementById('reconnect-bar');
+  if (bar) bar.style.display = 'flex';
+}
+function _hideReconnectBar() {
+  const bar = document.getElementById('reconnect-bar');
+  if (bar) bar.style.display = 'none';
+}
+async function _doReconnect() {
+  _hideReconnectBar();
+  if (currentCase) await loadChatHistory();
 }
 
 async function checkAuth() {
@@ -897,6 +935,29 @@ async function initApp() {
     });
   }
   setInterval(healthCheck, 30000);
+  // Session persistence: reconnect bar + history reload when user returns to tab
+  let _leftWhileStreaming = false;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      // User leaving: track if a stream was active
+      if (_isStreaming) _leftWhileStreaming = true;
+    } else {
+      // User returning
+      if (_leftWhileStreaming) {
+        _leftWhileStreaming = false;
+        _showReconnectBar();
+        // Also auto-reload after brief delay so the bar is visible
+        setTimeout(() => { if (currentCase) loadChatHistory().then(_hideReconnectBar); }, 1200);
+      } else {
+        // Regular return: reload if there was a network error bubble
+        const bubbles = document.querySelectorAll('.msg-bubble');
+        const last = bubbles[bubbles.length - 1];
+        if (last && (last.textContent.includes('Conexión interrumpida') || last.textContent.includes('Load failed'))) {
+          setTimeout(() => loadChatHistory(), 800);
+        }
+      }
+    }
+  });
   // Si viene de magic link y no tiene contraseña → abrir perfil con prompt
   const params = new URLSearchParams(window.location.search);
   if (params.get('welcome') === '1' && currentUser && !currentUser.has_password) {
@@ -1173,6 +1234,29 @@ async function viewArtifact(id) {
       </div>` : '';
     const header = `<div class="viewer-filename"><span>${esc(name)}</span>${dlBtn}</div>`;
     vc.innerHTML = header + `<img id="vw-img-${id}" src="${API}/artifacts/file/${id}" alt="${esc(name)}" style="max-width:100%;border-radius:6px;margin-top:6px">` + degradeControls;
+    return;
+  }
+
+  // ── xlsx viewer (SheetJS) ────────────────────────────────────────────────────
+  const _xlsMime = a.mime_type && (a.mime_type.includes('spreadsheet') || a.mime_type.includes('ms-excel'));
+  const _xlsExt  = /\.xlsx?$/i.test(a.filename || '');
+  if ((_xlsMime || _xlsExt) && typeof XLSX !== 'undefined') {
+    const dlBtn = `<a class="btn btn-ghost btn-sm" href="${API}/artifacts/file/${id}" download="${esc(name)}">⬇ Excel</a>`;
+    const hdr   = `<div class="viewer-filename"><span>${esc(name)}</span>${dlBtn}</div>`;
+    vc.innerHTML = hdr + `<div style="color:var(--muted);padding:16px;font-size:.8rem">Cargando hoja de cálculo…</div>`;
+    try {
+      const resp = await fetch(`${API}/artifacts/file/${id}`);
+      const buf  = await resp.arrayBuffer();
+      const wb   = XLSX.read(buf, {type: 'array'});
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const tbl  = XLSX.utils.sheet_to_html(ws, {id: 'xlsx-tbl', editable: false});
+      vc.innerHTML = hdr + `<div style="overflow:auto;max-height:580px;font-size:.76rem;margin-top:4px">
+        <style>#xlsx-tbl{border-collapse:collapse;width:100%;background:var(--panel)}
+        #xlsx-tbl td,#xlsx-tbl th{border:1px solid var(--border);padding:3px 8px;white-space:nowrap;color:var(--text)}</style>
+        ${tbl}</div>`;
+    } catch (e) {
+      vc.innerHTML = hdr + `<div style="color:var(--red);padding:16px">Error al cargar xlsx: ${esc(String(e))}</div>`;
+    }
     return;
   }
 
@@ -1988,17 +2072,7 @@ async function sendMessage(e) {
   }
 }
 
-// Recuperar historial al volver a la página (iOS background kill)
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && currentCase) {
-    // Si el último mensaje muestra un error de red, recargar historial
-    const bubbles = document.querySelectorAll('.msg-bubble');
-    const last = bubbles[bubbles.length - 1];
-    if (last && (last.textContent.includes('Conexión interrumpida') || last.textContent.includes('Load failed'))) {
-      setTimeout(() => loadChatHistory(), 800);
-    }
-  }
-});
+// (visibilitychange is handled in initApp)
 
 // Texto acumulado de la sección actual de streaming
 let _currentSectionText = '';

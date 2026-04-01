@@ -983,7 +983,7 @@ def chat_stream():
         agent_cfg    = _AGENT_CONFIGS.get(agent_key, _AGENT_CONFIGS['general'])
         _model       = agent_cfg['model'] or model
         _agent_tools = _filter_tool_defs(agent_cfg.get('tools'))
-        mshort       = _MODEL_SHORT.get(_model, _model)
+        mshort       = _MODEL_SHORT.get(_model, _model) if user_role == 'admin' else 'IA'
         agent_icon   = agent_cfg['icon']
         agent_label  = agent_cfg['label']
         # Añadir foco del agente al system prompt dinámico

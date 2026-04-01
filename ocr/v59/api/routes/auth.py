@@ -278,6 +278,19 @@ def logout():
 def me():
     if 'user_id' not in session:
         return jsonify({'authenticated': False}), 401
+    org_id = session.get('org_id')
+    org_branding = {}
+    if org_id:
+        org_row = query(
+            "SELECT primary_color, accent_color, logo_path FROM organizations WHERE org_id=%s",
+            (org_id,)
+        )
+        if org_row:
+            org_branding = {
+                'primary_color': org_row.get('primary_color'),
+                'accent_color':  org_row.get('accent_color'),
+                'logo_path':     org_row.get('logo_path'),
+            }
     return jsonify({
         'authenticated': True,
         'user_id':       session['user_id'],
@@ -286,11 +299,12 @@ def me():
         'picture':       session.get('user_pic', ''),
         'role':          session['user_role'],
         'is_org_admin':     session.get('is_org_admin', False),
-        'org_id':           session.get('org_id'),
+        'org_id':           org_id,
         'token_limit':      session.get('token_limit'),
         'has_password':     session.get('has_password', False),
         'can_create_cases': session.get('can_create_cases', True),
         'case_access':      session.get('case_access', 'all'),
+        **org_branding,
     })
 
 
