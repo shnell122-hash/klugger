@@ -18,7 +18,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
 from routes.upload     import upload_bp
 from routes.chat       import chat_bp
-from routes.cases      import cases_bp
+from routes.cases      import cases_bp, _init_cases_table
 from routes.artifacts  import artifacts_bp
 from routes.imagen     import imagen_bp
 from routes.transcribe import transcribe_bp
@@ -69,6 +69,10 @@ with app.app_context():
         init_org_tables()
     except Exception as e:
         logging.getLogger('app').warning('init_org_tables: %s', e)
+    try:
+        _init_cases_table()
+    except Exception as e:
+        logging.getLogger('app').warning('_init_cases_table: %s', e)
 
 
 @app.route('/api/health')

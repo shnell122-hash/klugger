@@ -10,6 +10,18 @@ def _is_admin():
     return session.get('user_role') == 'admin'
 
 
+def _init_cases_table():
+    """Agrega org_id a cases si no existe (idempotente)."""
+    try:
+        execute("ALTER TABLE cases ADD COLUMN org_id VARCHAR(36) DEFAULT NULL")
+    except Exception:
+        pass
+    try:
+        execute("ALTER TABLE cases ADD INDEX idx_cases_org (org_id)")
+    except Exception:
+        pass
+
+
 @cases_bp.route('/api/cases', methods=['GET'])
 @cases_bp.route('/api/v1/cases', methods=['GET'])
 @cases_bp.route('/api/v1/matters', methods=['GET'])
@@ -17,17 +29,35 @@ def _is_admin():
 def list_cases():
     if _is_admin():
         rows = query(
-            "SELECT case_id, case_name, matter_type, status, created_at, updated_at, owner_email "
+            "SELECT case_id, case_name, matter_type, status, created_at, updated_at, owner_email, org_id "
             "FROM cases ORDER BY updated_at DESC LIMIT 100",
             many=True
         )
     else:
-        email = session.get('user_email', '')
-        rows = query(
-            "SELECT case_id, case_name, matter_type, status, created_at, updated_at, owner_email "
-            "FROM cases WHERE owner_email=%s ORDER BY updated_at DESC LIMIT 100",
-            (email,), many=True
-        )
+        email   = session.get('user_email', '')
+        org_id  = session.get('org_id')
+        is_org_admin = session.get('is_org_admin', 0)
+        if org_id and is_org_admin:
+            # Org admin: ve todos los expedientes de su organización
+            rows = query(
+                "SELECT case_id, case_name, matter_type, status, created_at, updated_at, owner_email, org_id "
+                "FROM cases WHERE org_id=%s OR owner_email=%s ORDER BY updated_at DESC LIMIT 100",
+                (org_id, email), many=True
+            )
+        elif org_id:
+            # Usuario normal en org: ve los suyos + los de la org sin dueño específico
+            rows = query(
+                "SELECT case_id, case_name, matter_type, status, created_at, updated_at, owner_email, org_id "
+                "FROM cases WHERE owner_email=%s OR (org_id=%s AND owner_email IS NULL) "
+                "ORDER BY updated_at DESC LIMIT 100",
+                (email, org_id), many=True
+            )
+        else:
+            rows = query(
+                "SELECT case_id, case_name, matter_type, status, created_at, updated_at, owner_email, org_id "
+                "FROM cases WHERE owner_email=%s ORDER BY updated_at DESC LIMIT 100",
+                (email,), many=True
+            )
     return jsonify({"cases": rows or []})
 
 
@@ -42,15 +72,16 @@ def create_case():
     if not name:
         return jsonify({"error": "case_name requerido"}), 400
 
-    email = session.get('user_email', '')
-    cid   = str(uuid.uuid4())
+    email  = session.get('user_email', '')
+    org_id = session.get('org_id')
+    cid    = str(uuid.uuid4())
     execute(
-        "INSERT INTO cases (case_id, case_name, matter_type, status, owner_email) "
-        "VALUES (%s,%s,%s,'active',%s)",
-        (cid, name, mtype, email)
+        "INSERT INTO cases (case_id, case_name, matter_type, status, owner_email, org_id) "
+        "VALUES (%s,%s,%s,'active',%s,%s)",
+        (cid, name, mtype, email, org_id)
     )
     return jsonify({"case_id": cid, "case_name": name, "matter_type": mtype,
-                    "status": "active", "owner_email": email}), 201
+                    "status": "active", "owner_email": email, "org_id": org_id}), 201
 
 
 @cases_bp.route('/api/cases/<case_id>', methods=['GET'])
@@ -61,8 +92,13 @@ def get_case(case_id):
     row = query("SELECT * FROM cases WHERE case_id=%s", (case_id,))
     if not row:
         return jsonify({"error": "Caso no encontrado"}), 404
-    if not _is_admin() and row.get('owner_email') != session.get('user_email'):
-        return jsonify({"error": "Sin acceso"}), 403
+    email  = session.get('user_email', '')
+    org_id = session.get('org_id')
+    if not _is_admin():
+        owns = row.get('owner_email') == email
+        same_org = org_id and row.get('org_id') == org_id
+        if not owns and not same_org:
+            return jsonify({"error": "Sin acceso"}), 403
     return jsonify({"case": row})
 
 
@@ -93,3 +129,4 @@ def update_case(case_id):
 def delete_case(case_id):
     execute("DELETE FROM cases WHERE case_id=%s", (case_id,))
     return jsonify({"status": "deleted"})
+
