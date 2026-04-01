@@ -76,19 +76,22 @@ def _verify_password(plain: str, stored_hash: str, salt: str) -> bool:
 def _load_user_session(user_id, email, name, picture, role):
     """Carga datos completos del usuario a la sesión, incluyendo org y permisos."""
     row = query(
-        "SELECT org_id, is_org_admin, approved, token_limit, password_hash FROM users WHERE user_id=%s",
+        "SELECT org_id, is_org_admin, approved, token_limit, password_hash, "
+        "can_create_cases, case_access FROM users WHERE user_id=%s",
         (user_id,)
     ) or {}
-    session.permanent       = True
-    session['user_id']      = user_id
-    session['user_email']   = email
-    session['user_name']    = name
-    session['user_pic']     = picture
-    session['user_role']    = role
-    session['org_id']       = row.get('org_id')
-    session['is_org_admin'] = bool(row.get('is_org_admin', 0))
-    session['token_limit']  = row.get('token_limit')
-    session['has_password'] = bool(row.get('password_hash'))
+    session.permanent          = True
+    session['user_id']         = user_id
+    session['user_email']      = email
+    session['user_name']       = name
+    session['user_pic']        = picture
+    session['user_role']       = role
+    session['org_id']          = row.get('org_id')
+    session['is_org_admin']    = bool(row.get('is_org_admin', 0))
+    session['token_limit']     = row.get('token_limit')
+    session['has_password']    = bool(row.get('password_hash'))
+    session['can_create_cases']= bool(row.get('can_create_cases', 1))
+    session['case_access']     = row.get('case_access') or 'all'
 
 
 def require_login(f):
@@ -274,10 +277,12 @@ def me():
         'name':          session['user_name'],
         'picture':       session.get('user_pic', ''),
         'role':          session['user_role'],
-        'is_org_admin':  session.get('is_org_admin', False),
-        'org_id':        session.get('org_id'),
-        'token_limit':   session.get('token_limit'),
-        'has_password':  session.get('has_password', False),
+        'is_org_admin':     session.get('is_org_admin', False),
+        'org_id':           session.get('org_id'),
+        'token_limit':      session.get('token_limit'),
+        'has_password':     session.get('has_password', False),
+        'can_create_cases': session.get('can_create_cases', True),
+        'case_access':      session.get('case_access', 'all'),
     })
 
 

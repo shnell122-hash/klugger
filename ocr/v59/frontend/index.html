@@ -2444,7 +2444,10 @@ async function admLoadUsers() {
           <thead><tr>
             <th>Usuario</th><th>Correo</th>
             ${isMaster ? '<th>Organización</th>' : ''}
-            <th>Rol</th><th>Activo</th><th>Límite tokens</th><th></th>
+            <th>Rol</th><th>Activo</th><th>Tokens</th>
+            <th title="¿Puede crear expedientes?">Crear exp.</th>
+            <th title="Qué expedientes puede ver">Acceso</th>
+            <th></th>
           </tr></thead>
           <tbody>
             ${_admUsers.map(u => `
@@ -2472,6 +2475,18 @@ async function admLoadUsers() {
                 </td>
                 <td><input type="number" value="${u.token_limit||''}" placeholder="∞" style="width:70px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 5px;font-size:.72rem"
                   onchange="admUpdateUser('${u.user_id}',{token_limit:this.value||null})"></td>
+                <td style="text-align:center">
+                  <button class="btn btn-ghost btn-sm" style="font-size:.65rem" onclick="admToggleCanCreate('${u.user_id}',${u.can_create_cases?0:1})" title="${u.can_create_cases?'Sí, puede crear':'No puede crear'}">
+                    ${u.can_create_cases!==false&&u.can_create_cases!==0?'<i class="fa-solid fa-circle-check" style="color:var(--green)"></i>':'<i class="fa-solid fa-circle-xmark" style="color:var(--red)"></i>'}
+                  </button>
+                </td>
+                <td>
+                  <select onchange="admSetCaseAccess('${u.user_id}',this.value)" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 5px;font-size:.72rem" data-access="${u.case_access||'all'}">
+                    <option value="all">Todos</option>
+                    <option value="assigned">Asignados</option>
+                  </select>
+                  ${(u.case_access==='assigned')?`<button class="btn btn-ghost btn-sm" style="font-size:.65rem;padding:1px 5px;margin-left:3px" onclick="admManageUserCases('${u.user_id}','${esc(u.name||u.email)}')"><i class="fa-solid fa-list-check"></i></button>`:''}
+                </td>
                 <td>
                   <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="admDeleteUser('${u.user_id}','${esc(u.email)}')"><i class="fa-solid fa-trash-can"></i></button>
                 </td>
@@ -2482,8 +2497,17 @@ async function admLoadUsers() {
     </div>`;
   // Set org select values
   _admUsers.forEach(u => {
-    const sel = document.querySelector(`#adm-user-${u.user_id} select`);
-    if (sel && u.org_id) sel.value = u.org_id;
+    const orgSel = document.querySelector(`#adm-user-${u.user_id} select`);
+    if (orgSel && u.org_id && orgSel.name !== 'case_access') orgSel.value = u.org_id;
+    // Set case_access select
+    const row = document.getElementById(`adm-user-${u.user_id}`);
+    if (row) {
+      const selects = row.querySelectorAll('select');
+      selects.forEach(s => {
+        if (s.dataset.access !== undefined) s.value = u.case_access || 'all';
+        else if (u.org_id) s.value = u.org_id;
+      });
+    }
   });
 }
 
@@ -2509,6 +2533,84 @@ async function admDeleteUser(user_id, email) {
   if (!r.ok) { toast((await r.json()).error,'error'); return; }
   toast('Usuario eliminado','success');
   admLoadUsers();
+}
+
+async function admToggleCanCreate(user_id, val) {
+  await admUpdateUser(user_id, {can_create_cases: val});
+  admLoadUsers();
+}
+
+async function admSetCaseAccess(user_id, val) {
+  await admUpdateUser(user_id, {case_access: val});
+  admLoadUsers();
+}
+
+// Modal: gestionar expedientes asignados a un usuario
+async function admManageUserCases(user_id, userName) {
+  // Cargar expedientes asignados + todos los de la org
+  const [assignedR, allCasesR] = await Promise.all([
+    fetch(`${API}/admin/users/${user_id}/cases`),
+    fetch(`${API}/admin/cases`),
+  ]);
+  const assigned = assignedR.ok ? (await assignedR.json()).cases || [] : [];
+  const allCases = allCasesR.ok ? (await allCasesR.json()).cases || [] : [];
+  const assignedIds = new Set(assigned.map(c => c.case_id));
+  const available = allCases.filter(c => !assignedIds.has(c.case_id));
+
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = `
+    <div style="background:var(--sidebar);border-radius:10px;padding:24px;width:100%;max-width:500px;max-height:80vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="margin:0;font-size:1rem">Expedientes asignados a <em>${esc(userName)}</em></h3>
+        <button onclick="this.closest('[style*=fixed]').remove()" style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer">✕</button>
+      </div>
+      <div id="adm-uca-list" style="margin-bottom:16px">
+        ${assigned.length === 0
+          ? '<p style="color:var(--muted);font-size:.8rem">Ningún expediente asignado aún.</p>'
+          : assigned.map(c => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+              <span style="font-size:.85rem">${esc(c.case_name)}</span>
+              <button class="btn btn-ghost btn-sm" style="color:var(--red);font-size:.7rem" onclick="admRemoveUserCase('${user_id}','${c.case_id}',this)"><i class="fa-solid fa-xmark"></i> Quitar</button>
+            </div>`).join('')}
+      </div>
+      ${available.length > 0 ? `
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="adm-uca-add-sel" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 8px;font-size:.8rem">
+          <option value="">— Agregar expediente —</option>
+          ${available.map(c => `<option value="${c.case_id}">${esc(c.case_name)}</option>`).join('')}
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="admAddUserCase('${user_id}')">Agregar</button>
+      </div>` : '<p style="color:var(--muted);font-size:.75rem">Todos los expedientes ya están asignados.</p>'}
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+async function admAddUserCase(user_id) {
+  const sel = document.getElementById('adm-uca-add-sel');
+  if (!sel || !sel.value) return;
+  const case_id = sel.value;
+  const caseName = sel.options[sel.selectedIndex].text;
+  const r = await fetch(`${API}/admin/users/${user_id}/cases`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({case_id})
+  });
+  if (!r.ok) { toast((await r.json()).error || 'Error', 'error'); return; }
+  toast('Expediente asignado', 'success');
+  // Re-open modal with fresh data
+  const modal = sel.closest('[style*=fixed]');
+  if (modal) modal.remove();
+  const u = _admUsers.find(x => x.user_id === user_id);
+  admManageUserCases(user_id, u ? (u.name || u.email) : user_id);
+}
+
+async function admRemoveUserCase(user_id, case_id, btn) {
+  const r = await fetch(`${API}/admin/users/${user_id}/cases/${case_id}`, {method:'DELETE'});
+  if (!r.ok) { toast((await r.json()).error || 'Error', 'error'); return; }
+  toast('Acceso revocado', 'success');
+  // Remove row from modal
+  btn.closest('div').remove();
 }
 
 // ── Invitations ────────────────────────────────────────────────

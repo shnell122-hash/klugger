@@ -30,7 +30,17 @@ def _is_any_admin():
 
 
 def _my_org():
-    return session.get('org_id')
+    org = session.get('org_id')
+    if org:
+        return org
+    # Fallback: re-read from DB if session is stale (e.g. org assigned after login)
+    user_id = session.get('user_id')
+    if user_id:
+        row = query("SELECT org_id FROM users WHERE user_id=%s", (user_id,))
+        if row and row.get('org_id'):
+            session['org_id'] = row['org_id']
+            return row['org_id']
+    return None
 
 
 def _require_admin(f):
@@ -82,12 +92,22 @@ def init_org_tables():
         created_by  VARCHAR(255) NOT NULL,
         created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
     )""")
+    execute("""CREATE TABLE IF NOT EXISTS user_case_access (
+        id          INT          AUTO_INCREMENT PRIMARY KEY,
+        user_id     VARCHAR(36)  NOT NULL,
+        case_id     VARCHAR(36)  NOT NULL,
+        granted_by  VARCHAR(255),
+        granted_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY  uk_uca (user_id, case_id)
+    )""")
     # Idempotent columns on users
     for col_sql in [
-        "ALTER TABLE users ADD COLUMN org_id        VARCHAR(36)   DEFAULT NULL",
-        "ALTER TABLE users ADD COLUMN is_org_admin  TINYINT(1)    DEFAULT 0",
-        "ALTER TABLE users ADD COLUMN approved      TINYINT(1)    DEFAULT 1",
-        "ALTER TABLE users ADD COLUMN token_limit   INT           DEFAULT NULL",
+        "ALTER TABLE users ADD COLUMN org_id           VARCHAR(36)   DEFAULT NULL",
+        "ALTER TABLE users ADD COLUMN is_org_admin     TINYINT(1)    DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN approved         TINYINT(1)    DEFAULT 1",
+        "ALTER TABLE users ADD COLUMN token_limit      INT           DEFAULT NULL",
+        "ALTER TABLE users ADD COLUMN can_create_cases TINYINT(1)    DEFAULT 1",
+        "ALTER TABLE users ADD COLUMN case_access      VARCHAR(20)   DEFAULT 'all'",
     ]:
         try:
             execute(col_sql)
@@ -186,13 +206,14 @@ def list_users():
 def update_user(user_id):
     body = request.get_json(force=True) or {}
     if _is_master():
-        allowed = ('org_id', 'is_org_admin', 'approved', 'token_limit', 'role')
+        allowed = ('org_id', 'is_org_admin', 'approved', 'token_limit', 'role',
+                   'can_create_cases', 'case_access')
     else:
         # Org admins can only manage users in their own org
         target = query("SELECT org_id FROM users WHERE user_id=%s", (user_id,))
         if not target or target.get('org_id') != _my_org():
             return jsonify({'error': 'Acceso denegado'}), 403
-        allowed = ('approved', 'token_limit', 'is_org_admin')
+        allowed = ('approved', 'token_limit', 'is_org_admin', 'can_create_cases', 'case_access')
 
     fields, vals = [], []
     for f in allowed:
@@ -214,6 +235,60 @@ def delete_user(user_id):
         if not target or target.get('org_id') != _my_org():
             return jsonify({'error': 'Acceso denegado'}), 403
     execute("DELETE FROM users WHERE user_id=%s", (user_id,))
+    return jsonify({'ok': True})
+
+
+# ── Per-user case access ───────────────────────────────────────────────────────
+
+@admin_bp.route('/api/admin/users/<user_id>/cases', methods=['GET'])
+@_require_admin
+def list_user_assigned_cases(user_id):
+    """Lista los expedientes asignados explícitamente a un usuario."""
+    if not _is_master():
+        target = query("SELECT org_id FROM users WHERE user_id=%s", (user_id,))
+        if not target or target.get('org_id') != _my_org():
+            return jsonify({'error': 'Acceso denegado'}), 403
+    rows = query(
+        "SELECT c.case_id, c.case_name, c.matter_type, c.status, uca.granted_at "
+        "FROM user_case_access uca "
+        "JOIN cases c ON c.case_id=uca.case_id "
+        "WHERE uca.user_id=%s ORDER BY c.case_name",
+        (user_id,), many=True
+    ) or []
+    return jsonify({'cases': rows})
+
+
+@admin_bp.route('/api/admin/users/<user_id>/cases', methods=['POST'])
+@_require_admin
+def add_user_case(user_id):
+    """Asigna un expediente específico a un usuario."""
+    if not _is_master():
+        target = query("SELECT org_id FROM users WHERE user_id=%s", (user_id,))
+        if not target or target.get('org_id') != _my_org():
+            return jsonify({'error': 'Acceso denegado'}), 403
+    body    = request.get_json(force=True) or {}
+    case_id = (body.get('case_id') or '').strip()
+    if not case_id:
+        return jsonify({'error': 'case_id requerido'}), 400
+    execute(
+        "INSERT IGNORE INTO user_case_access (user_id, case_id, granted_by) VALUES (%s,%s,%s)",
+        (user_id, case_id, session.get('user_email'))
+    )
+    return jsonify({'ok': True})
+
+
+@admin_bp.route('/api/admin/users/<user_id>/cases/<case_id>', methods=['DELETE'])
+@_require_admin
+def remove_user_case(user_id, case_id):
+    """Quita el acceso de un usuario a un expediente específico."""
+    if not _is_master():
+        target = query("SELECT org_id FROM users WHERE user_id=%s", (user_id,))
+        if not target or target.get('org_id') != _my_org():
+            return jsonify({'error': 'Acceso denegado'}), 403
+    execute(
+        "DELETE FROM user_case_access WHERE user_id=%s AND case_id=%s",
+        (user_id, case_id)
+    )
     return jsonify({'ok': True})
 
 

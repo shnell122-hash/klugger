@@ -45,13 +45,25 @@ def list_cases():
                 (org_id, email), many=True
             )
         elif org_id:
-            # Usuario normal en org: ve los suyos + los de la org sin dueño específico
-            rows = query(
-                "SELECT case_id, case_name, matter_type, status, created_at, updated_at, owner_email, org_id "
-                "FROM cases WHERE owner_email=%s OR (org_id=%s AND owner_email IS NULL) "
-                "ORDER BY updated_at DESC LIMIT 100",
-                (email, org_id), many=True
-            )
+            case_access = session.get('case_access', 'all')
+            if case_access == 'assigned':
+                # Usuario con acceso restringido: solo expedientes asignados explícitamente
+                rows = query(
+                    "SELECT c.case_id, c.case_name, c.matter_type, c.status, "
+                    "       c.created_at, c.updated_at, c.owner_email, c.org_id "
+                    "FROM cases c "
+                    "INNER JOIN user_case_access uca ON uca.case_id=c.case_id AND uca.user_id=%s "
+                    "WHERE c.org_id=%s ORDER BY c.updated_at DESC LIMIT 100",
+                    (session.get('user_id'), org_id), many=True
+                )
+            else:
+                # Usuario normal en org: ve los suyos + los de la org sin dueño específico
+                rows = query(
+                    "SELECT case_id, case_name, matter_type, status, created_at, updated_at, owner_email, org_id "
+                    "FROM cases WHERE owner_email=%s OR (org_id=%s AND owner_email IS NULL) "
+                    "ORDER BY updated_at DESC LIMIT 100",
+                    (email, org_id), many=True
+                )
         else:
             rows = query(
                 "SELECT case_id, case_name, matter_type, status, created_at, updated_at, owner_email, org_id "
@@ -71,6 +83,9 @@ def create_case():
     mtype = body.get('matter_type', 'general').strip()
     if not name:
         return jsonify({"error": "case_name requerido"}), 400
+
+    if not _is_admin() and not session.get('can_create_cases', True):
+        return jsonify({"error": "No tienes permiso para crear expedientes"}), 403
 
     email  = session.get('user_email', '')
     org_id = session.get('org_id')
