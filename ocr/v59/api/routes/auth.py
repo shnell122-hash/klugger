@@ -262,3 +262,118 @@ def me():
         'token_limit':   session.get('token_limit'),
     })
 
+
+# ── Email helper ──────────────────────────────────────────────────────────────
+
+def _send_magic_link_email(to_email: str, invite_url: str, name: str = ''):
+    """
+    Envía el magic link por email usando SMTP.
+    Variables en .env requeridas:
+      SMTP_HOST, SMTP_PORT (default 587), SMTP_USER, SMTP_PASS
+      SMTP_FROM  (default SMTP_USER)
+    """
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    host  = os.getenv('SMTP_HOST', '')
+    port  = int(os.getenv('SMTP_PORT', 587))
+    user  = os.getenv('SMTP_USER', '')
+    pwd   = os.getenv('SMTP_PASS', '')
+    from_ = os.getenv('SMTP_FROM', user)
+
+    if not host or not user or not pwd:
+        raise RuntimeError('SMTP no configurado (faltan SMTP_HOST, SMTP_USER o SMTP_PASS en .env)')
+
+    greeting = f'Hola {name},' if name else 'Hola,'
+    html_body = f"""<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"></head>
+<body style="font-family:Arial,sans-serif;max-width:520px;margin:40px auto;color:#1a202c">
+  <h2 style="color:#c47a5a">Acceso a VILAR Legal OS</h2>
+  <p>{greeting}</p>
+  <p>Tu enlace de acceso (válido por 7 días):</p>
+  <p style="margin:24px 0">
+    <a href="{invite_url}"
+       style="background:#c47a5a;color:#fff;padding:12px 28px;border-radius:6px;
+              text-decoration:none;font-weight:bold;display:inline-block">
+      Entrar a VILAR Legal OS
+    </a>
+  </p>
+  <p style="font-size:.8rem;color:#718096">
+    Si el botón no funciona, copia este enlace en tu navegador:<br>
+    <span style="word-break:break-all">{invite_url}</span>
+  </p>
+  <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0">
+  <p style="font-size:.75rem;color:#a0aec0">
+    Este enlace es de uso único y personal. No lo compartas.<br>
+    Si no solicitaste este acceso, ignora este mensaje.
+  </p>
+</body></html>"""
+
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = 'Tu enlace de acceso — VILAR Legal OS'
+    msg['From']    = f'VILAR Legal OS <{from_}>'
+    msg['To']      = to_email
+    msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+
+    with smtplib.SMTP(host, port, timeout=15) as smtp:
+        smtp.ehlo()
+        smtp.starttls()
+        smtp.login(user, pwd)
+        smtp.sendmail(from_, [to_email], msg.as_string())
+    log.info('magic link enviado a %s', to_email)
+
+
+# ── Self-service: solicitar magic link ───────────────────────────────────────
+
+@auth_bp.route('/api/auth/request-link', methods=['POST'])
+def request_magic_link():
+    """
+    Endpoint público. El usuario ingresa su correo; si está registrado
+    se genera un nuevo magic link y se envía por email.
+    Rate-limit simple: máx 3 solicitudes por correo cada 15 minutos.
+    """
+    from datetime import datetime, timedelta
+
+    body  = request.get_json(force=True, silent=True) or {}
+    email = (body.get('email') or '').strip().lower()
+    if not email or '@' not in email:
+        return jsonify({'error': 'Correo inválido'}), 400
+
+    # Verificar que el usuario está registrado
+    user_row = query("SELECT user_id, name, org_id FROM users WHERE email=%s", (email,))
+    if not user_row:
+        # Respuesta genérica: no revelar si el correo existe o no
+        return jsonify({'ok': True, 'msg': 'Si el correo está registrado recibirás el enlace en breve.'})
+
+    # Rate-limit: máx 3 solicitudes en 15 min
+    recent = query(
+        """SELECT COUNT(*) AS n FROM invitations
+           WHERE email=%s AND created_by='self-service'
+             AND created_at > DATE_SUB(NOW(), INTERVAL 15 MINUTE)""",
+        (email,)
+    )
+    if (recent or {}).get('n', 0) >= 3:
+        return jsonify({'error': 'Demasiadas solicitudes. Espera 15 minutos e intenta de nuevo.'}), 429
+
+    # Generar nuevo magic link (7 días de vigencia)
+    token     = secrets.token_urlsafe(32)
+    invite_id = str(uuid.uuid4())
+    expires   = datetime.utcnow() + timedelta(days=7)
+    org_id    = user_row.get('org_id')
+    execute(
+        "INSERT INTO invitations (invite_id, email, org_id, role, token, expires_at, created_by) "
+        "VALUES (%s,%s,%s,'user',%s,%s,'self-service')",
+        (invite_id, email, org_id, token, expires.strftime('%Y-%m-%d %H:%M:%S'))
+    )
+
+    base_url   = os.getenv('APP_BASE_URL', 'https://ocr.ruby.lease')
+    invite_url = f"{base_url}/OCR/v59/api/auth/invite?token={token}"
+
+    try:
+        _send_magic_link_email(email, invite_url, name=user_row.get('name', ''))
+    except Exception as e:
+        log.error('Error enviando magic link a %s: %s', email, e)
+        return jsonify({'error': f'No se pudo enviar el correo: {e}'}), 500
+
+    return jsonify({'ok': True, 'msg': 'Enlace enviado. Revisa tu correo (y la carpeta de spam).'})

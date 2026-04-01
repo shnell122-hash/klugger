@@ -2673,6 +2673,40 @@ async function admCaseStatus(case_id, status) {
 document.querySelectorAll('.modal-overlay').forEach(o => {
   o.addEventListener('click', e => { if (e.target === o) o.classList.add('hidden'); });
 });
+
+async function requestMagicLink() {
+  const emailEl = document.getElementById('auth-req-email');
+  const msgEl   = document.getElementById('auth-req-msg');
+  const email   = (emailEl.value || '').trim();
+  if (!email || !email.includes('@')) {
+    msgEl.style.display = 'block';
+    msgEl.style.color   = 'var(--red)';
+    msgEl.textContent   = 'Ingresa un correo válido.';
+    return;
+  }
+  msgEl.style.display = 'block';
+  msgEl.style.color   = 'var(--muted)';
+  msgEl.textContent   = 'Enviando…';
+  try {
+    const r = await fetch(`${API}/auth/request-link`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email})
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      msgEl.style.color = 'var(--red)';
+      msgEl.textContent = d.error || 'Error al enviar.';
+    } else {
+      msgEl.style.color = 'var(--green)';
+      msgEl.textContent = d.msg || 'Enlace enviado. Revisa tu correo.';
+      emailEl.value = '';
+    }
+  } catch {
+    msgEl.style.color = 'var(--red)';
+    msgEl.textContent = 'Error de red. Intenta de nuevo.';
+  }
+}
 </script>
 <!-- Auth overlay -->
 <div id="auth-overlay" style="display:none;position:fixed;inset:0;z-index:500;background:var(--bg);
@@ -2698,6 +2732,24 @@ document.querySelectorAll('.modal-overlay').forEach(o => {
       Continuar con Google
     </button>
     <div id="auth-error-msg" style="display:none;margin-top:14px;color:var(--red);font-size:.78rem"></div>
+    <!-- Solicitar magic link por correo -->
+    <div style="margin-top:18px;border-top:1px solid var(--border);padding-top:16px">
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:10px;text-align:center">
+        ¿No tienes cuenta Google o tu sesión expiró?
+      </p>
+      <div style="display:flex;gap:6px">
+        <input id="auth-req-email" type="email" placeholder="tu@correo.com"
+          style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);
+                 border-radius:8px;padding:9px 12px;font-size:.82rem;outline:none;font-family:inherit"
+          onkeydown="if(event.key==='Enter')requestMagicLink()">
+        <button onclick="requestMagicLink()"
+          style="background:var(--accent2);color:#fff;border:none;border-radius:8px;
+                 padding:9px 16px;font-size:.82rem;cursor:pointer;white-space:nowrap;font-family:inherit">
+          Enviar enlace
+        </button>
+      </div>
+      <div id="auth-req-msg" style="display:none;margin-top:8px;font-size:.76rem;text-align:center"></div>
+    </div>
   </div>
   <p style="font-size:.72rem;color:var(--muted)">v59 · Solo usuarios autorizados</p>
 </div>
