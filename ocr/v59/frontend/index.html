@@ -2634,7 +2634,7 @@ async function admLoadInvites() {
   try {
   const [invR, orgR] = await Promise.all([
     fetch(`${API}/admin/invitations`),
-    currentUser.role==='admin' ? fetch(`${API}/admin/organizations`) : Promise.resolve(null)
+    currentUser?.role==='admin' ? fetch(`${API}/admin/organizations`) : Promise.resolve(null)
   ]);
   if (!invR.ok) { c.innerHTML = `<div style="color:var(--red)">Error ${invR.status}: ${(await invR.text()).substring(0,200)}</div>`; return; }
   _admInvites = (await invR.json()).invitations || [];
