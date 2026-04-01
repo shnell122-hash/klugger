@@ -265,28 +265,9 @@ def me():
 
 # ── Email helper ──────────────────────────────────────────────────────────────
 
-def _send_magic_link_email(to_email: str, invite_url: str, name: str = ''):
-    """
-    Envía el magic link por email usando SMTP.
-    Variables en .env requeridas:
-      SMTP_HOST, SMTP_PORT (default 587), SMTP_USER, SMTP_PASS
-      SMTP_FROM  (default SMTP_USER)
-    """
-    import smtplib
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.text import MIMEText
-
-    host  = os.getenv('SMTP_HOST', '')
-    port  = int(os.getenv('SMTP_PORT', 587))
-    user  = os.getenv('SMTP_USER', '')
-    pwd   = os.getenv('SMTP_PASS', '')
-    from_ = os.getenv('SMTP_FROM', user)
-
-    if not host or not user or not pwd:
-        raise RuntimeError('SMTP no configurado (faltan SMTP_HOST, SMTP_USER o SMTP_PASS en .env)')
-
+def _build_email_html(invite_url: str, name: str) -> str:
     greeting = f'Hola {name},' if name else 'Hola,'
-    html_body = f"""<!DOCTYPE html>
+    return f"""<!DOCTYPE html>
 <html lang="es"><head><meta charset="UTF-8"></head>
 <body style="font-family:Arial,sans-serif;max-width:520px;margin:40px auto;color:#1a202c">
   <h2 style="color:#c47a5a">Acceso a VILAR Legal OS</h2>
@@ -310,18 +291,74 @@ def _send_magic_link_email(to_email: str, invite_url: str, name: str = ''):
   </p>
 </body></html>"""
 
+
+def _send_magic_link_email(to_email: str, invite_url: str, name: str = ''):
+    """
+    Envía el magic link. Prioridad:
+      1. SendGrid HTTP API  → SENDGRID_API_KEY en .env  (recomendado en DO)
+      2. SMTP               → SMTP_HOST + SMTP_USER + SMTP_PASS en .env
+    """
+    sg_key = os.getenv('SENDGRID_API_KEY', '')
+    if sg_key:
+        _send_via_sendgrid(to_email, invite_url, name, sg_key)
+    else:
+        _send_via_smtp(to_email, invite_url, name)
+
+
+def _send_via_sendgrid(to_email: str, invite_url: str, name: str, api_key: str):
+    import urllib.request, json as _json
+    from_email = os.getenv('SMTP_FROM') or os.getenv('SENDGRID_FROM', 'noreply@ocr.ruby.lease')
+    payload = _json.dumps({
+        'personalizations': [{'to': [{'email': to_email}]}],
+        'from': {'email': from_email, 'name': 'VILAR Legal OS'},
+        'subject': 'Tu enlace de acceso — VILAR Legal OS',
+        'content': [{'type': 'text/html', 'value': _build_email_html(invite_url, name)}],
+    }).encode('utf-8')
+    req = urllib.request.Request(
+        'https://api.sendgrid.com/v3/mail/send',
+        data=payload,
+        headers={
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json',
+        },
+        method='POST'
+    )
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        status = resp.status
+    if status not in (200, 202):
+        raise RuntimeError(f'SendGrid respondió con status {status}')
+    log.info('magic link enviado via SendGrid a %s', to_email)
+
+
+def _send_via_smtp(to_email: str, invite_url: str, name: str):
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    host  = os.getenv('SMTP_HOST', '')
+    port  = int(os.getenv('SMTP_PORT', 587))
+    user  = os.getenv('SMTP_USER', '')
+    pwd   = os.getenv('SMTP_PASS', '')
+    from_ = os.getenv('SMTP_FROM', user)
+
+    if not host or not user or not pwd:
+        raise RuntimeError(
+            'Email no configurado. Agrega SENDGRID_API_KEY o '
+            'SMTP_HOST+SMTP_USER+SMTP_PASS al .env'
+        )
+
     msg = MIMEMultipart('alternative')
     msg['Subject'] = 'Tu enlace de acceso — VILAR Legal OS'
     msg['From']    = f'VILAR Legal OS <{from_}>'
     msg['To']      = to_email
-    msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+    msg.attach(MIMEText(_build_email_html(invite_url, name), 'html', 'utf-8'))
 
     with smtplib.SMTP(host, port, timeout=15) as smtp:
         smtp.ehlo()
         smtp.starttls()
         smtp.login(user, pwd)
         smtp.sendmail(from_, [to_email], msg.as_string())
-    log.info('magic link enviado a %s', to_email)
+    log.info('magic link enviado via SMTP a %s', to_email)
 
 
 # ── Self-service: solicitar magic link ───────────────────────────────────────
