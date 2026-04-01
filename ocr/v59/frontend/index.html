@@ -329,7 +329,7 @@ input[type="range"]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;b
     <button id="header-admin-btn" class="btn btn-ghost btn-sm" onclick="openAdminPanel()" title="Administración" style="display:none"><i class="fa-solid fa-shield-halved"></i></button>
     <button class="btn btn-ghost btn-sm" id="theme-btn" onclick="toggleTheme()" title="Cambiar tema">☀</button>
     <div id="user-info">
-      <img id="user-avatar" src="" alt="" style="display:none" onclick="confirmLogout()">
+      <img id="user-avatar" src="" alt="" style="display:none" onclick="openProfileModal()">
       <span id="user-name-label" style="display:none"></span>
     </div>
   </div>
@@ -644,6 +644,22 @@ let currentUser = null;
 
 function loginWithGoogle() {
   window.location.href = `${API}/auth/google`;
+}
+
+function openProfileModal() {
+  if (!currentUser) return;
+  document.getElementById('prof-avatar').src = currentUser.picture || '';
+  document.getElementById('prof-name').textContent  = currentUser.name  || currentUser.email;
+  document.getElementById('prof-email').textContent = currentUser.email || '';
+  document.getElementById('prof-org').textContent   = currentUser.org_id ? '🏢 Organización asignada' : '';
+  const hasPwd = !!currentUser.has_password;
+  document.getElementById('prof-pwd-hint').style.display    = hasPwd ? 'none' : '';
+  document.getElementById('prof-cur-pwd-row').style.display = hasPwd ? ''     : 'none';
+  document.getElementById('prof-pwd-msg').textContent = '';
+  document.getElementById('prof-new-pwd').value  = '';
+  document.getElementById('prof-conf-pwd').value = '';
+  if (document.getElementById('prof-cur-pwd')) document.getElementById('prof-cur-pwd').value = '';
+  document.getElementById('profile-modal').classList.remove('hidden');
 }
 
 async function confirmLogout() {
@@ -2681,12 +2697,12 @@ async function requestMagicLink() {
   if (!email || !email.includes('@')) {
     msgEl.style.display = 'block';
     msgEl.style.color   = 'var(--red)';
-    msgEl.textContent   = 'Ingresa un correo válido.';
+    msgEl.innerHTML     = 'Ingresa un correo válido.';
     return;
   }
   msgEl.style.display = 'block';
   msgEl.style.color   = 'var(--muted)';
-  msgEl.textContent   = 'Enviando…';
+  msgEl.innerHTML     = 'Generando enlace…';
   try {
     const r = await fetch(`${API}/auth/request-link`, {
       method: 'POST',
@@ -2696,15 +2712,83 @@ async function requestMagicLink() {
     const d = await r.json();
     if (!r.ok) {
       msgEl.style.color = 'var(--red)';
-      msgEl.textContent = d.error || 'Error al enviar.';
+      msgEl.innerHTML   = d.error || 'Error al generar enlace.';
+    } else if (d.invite_url) {
+      // Email no disponible — mostrar link directamente en pantalla
+      msgEl.style.color = 'var(--green)';
+      msgEl.innerHTML   = `${d.msg}<br><a href="${d.invite_url}"
+        style="display:inline-block;margin-top:8px;background:var(--accent);color:#fff;
+               padding:8px 18px;border-radius:6px;text-decoration:none;font-weight:600;font-size:.82rem">
+        Entrar ahora →</a>`;
+      emailEl.value = '';
     } else {
       msgEl.style.color = 'var(--green)';
-      msgEl.textContent = d.msg || 'Enlace enviado. Revisa tu correo.';
+      msgEl.innerHTML   = d.msg || 'Enlace enviado. Revisa tu correo.';
       emailEl.value = '';
     }
   } catch {
     msgEl.style.color = 'var(--red)';
+    msgEl.innerHTML   = 'Error de red. Intenta de nuevo.';
+  }
+}
+
+async function loginWithPassword() {
+  const email = (document.getElementById('auth-pwd-email').value || '').trim();
+  const pwd   = (document.getElementById('auth-pwd-pass').value  || '');
+  const msgEl = document.getElementById('auth-pwd-msg');
+  if (!email || !pwd) {
+    msgEl.style.display = 'block'; msgEl.style.color = 'var(--red)';
+    msgEl.textContent = 'Ingresa correo y contraseña.'; return;
+  }
+  msgEl.style.display = 'block'; msgEl.style.color = 'var(--muted)';
+  msgEl.textContent = 'Verificando…';
+  try {
+    const r = await fetch(`${API}/auth/login-password`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email, password: pwd})
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      msgEl.style.color = 'var(--red)';
+      msgEl.textContent = d.error || 'Error al iniciar sesión.';
+    } else {
+      hideAuthOverlay();
+      await initApp();
+    }
+  } catch {
+    msgEl.style.color = 'var(--red)';
     msgEl.textContent = 'Error de red. Intenta de nuevo.';
+  }
+}
+
+async function savePassword() {
+  const newPwd  = (document.getElementById('prof-new-pwd').value  || '').trim();
+  const curPwd  = (document.getElementById('prof-cur-pwd')?.value || '').trim();
+  const confPwd = (document.getElementById('prof-conf-pwd').value || '').trim();
+  const msgEl   = document.getElementById('prof-pwd-msg');
+  if (newPwd !== confPwd) {
+    msgEl.style.color = 'var(--red)'; msgEl.textContent = 'Las contraseñas no coinciden.'; return;
+  }
+  if (newPwd.length < 8) {
+    msgEl.style.color = 'var(--red)'; msgEl.textContent = 'Mínimo 8 caracteres.'; return;
+  }
+  const body = {password: newPwd};
+  if (curPwd) body.current_password = curPwd;
+  const r = await fetch(`${API}/auth/set-password`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  });
+  const d = await r.json();
+  if (!r.ok) {
+    msgEl.style.color = 'var(--red)'; msgEl.textContent = d.error || 'Error.';
+  } else {
+    msgEl.style.color = 'var(--green)'; msgEl.textContent = '¡Contraseña guardada!';
+    currentUser.has_password = true;
+    document.getElementById('prof-cur-pwd-row') && (document.getElementById('prof-cur-pwd-row').style.display = '');
+    document.getElementById('prof-pwd-hint') && (document.getElementById('prof-pwd-hint').style.display = 'none');
+    document.getElementById('prof-new-pwd').value = '';
+    document.getElementById('prof-conf-pwd').value = '';
+    if (document.getElementById('prof-cur-pwd')) document.getElementById('prof-cur-pwd').value = '';
   }
 }
 </script>
@@ -2732,10 +2816,28 @@ async function requestMagicLink() {
       Continuar con Google
     </button>
     <div id="auth-error-msg" style="display:none;margin-top:14px;color:var(--red);font-size:.78rem"></div>
-    <!-- Solicitar magic link por correo -->
+    <!-- Login con contraseña -->
     <div style="margin-top:18px;border-top:1px solid var(--border);padding-top:16px">
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:10px;text-align:center">¿Tienes contraseña?</p>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <input id="auth-pwd-email" type="email" placeholder="correo@empresa.com"
+          style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 12px;font-size:.82rem;outline:none;font-family:inherit">
+        <div style="display:flex;gap:6px">
+          <input id="auth-pwd-pass" type="password" placeholder="Contraseña"
+            style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 12px;font-size:.82rem;outline:none;font-family:inherit"
+            onkeydown="if(event.key==='Enter')loginWithPassword()">
+          <button onclick="loginWithPassword()"
+            style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:.82rem;cursor:pointer;font-family:inherit">
+            Entrar
+          </button>
+        </div>
+      </div>
+      <div id="auth-pwd-msg" style="display:none;margin-top:6px;font-size:.76rem;text-align:center"></div>
+    </div>
+    <!-- Solicitar magic link por correo -->
+    <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
       <p style="font-size:.78rem;color:var(--muted);margin-bottom:10px;text-align:center">
-        ¿No tienes cuenta Google o tu sesión expiró?
+        ¿Primera vez o sin contraseña?
       </p>
       <div style="display:flex;gap:6px">
         <input id="auth-req-email" type="email" placeholder="tu@correo.com"
@@ -2752,6 +2854,54 @@ async function requestMagicLink() {
     </div>
   </div>
   <p style="font-size:.72rem;color:var(--muted)">v59 · Solo usuarios autorizados</p>
+</div>
+
+<!-- Profile modal -->
+<div class="modal-overlay hidden" id="profile-modal">
+  <div class="modal" style="max-width:420px;width:96vw">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="font-size:.95rem;font-weight:700">Mi perfil</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('profile-modal')">✕</button>
+    </div>
+    <!-- User info -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+      <img id="prof-avatar" src="" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid var(--border)">
+      <div>
+        <div id="prof-name" style="font-weight:600;font-size:.9rem"></div>
+        <div id="prof-email" style="font-size:.78rem;color:var(--muted)"></div>
+        <div id="prof-org" style="font-size:.72rem;color:var(--accent);margin-top:2px"></div>
+      </div>
+    </div>
+    <!-- Password section -->
+    <div>
+      <h4 style="font-size:.8rem;font-weight:700;margin-bottom:10px;color:var(--accent)">
+        <i class="fa-solid fa-lock"></i> Contraseña
+      </h4>
+      <div id="prof-pwd-hint" style="font-size:.78rem;color:var(--muted);margin-bottom:10px;padding:8px;background:rgba(196,122,90,.08);border-radius:6px;border-left:3px solid var(--accent)">
+        Establece una contraseña para poder entrar sin magic link la próxima vez.
+      </div>
+      <div id="prof-cur-pwd-row" style="display:none;margin-bottom:8px">
+        <label style="font-size:.74rem;color:var(--muted);display:block;margin-bottom:3px">Contraseña actual</label>
+        <input id="prof-cur-pwd" type="password" placeholder="••••••••"
+          style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 10px;font-size:.82rem;outline:none;font-family:inherit;box-sizing:border-box">
+      </div>
+      <div style="margin-bottom:8px">
+        <label style="font-size:.74rem;color:var(--muted);display:block;margin-bottom:3px">Nueva contraseña</label>
+        <input id="prof-new-pwd" type="password" placeholder="Mínimo 8 caracteres"
+          style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 10px;font-size:.82rem;outline:none;font-family:inherit;box-sizing:border-box">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:.74rem;color:var(--muted);display:block;margin-bottom:3px">Confirmar contraseña</label>
+        <input id="prof-conf-pwd" type="password" placeholder="Repite la contraseña"
+          style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 10px;font-size:.82rem;outline:none;font-family:inherit;box-sizing:border-box">
+      </div>
+      <div id="prof-pwd-msg" style="font-size:.76rem;margin-bottom:8px;min-height:18px"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <button class="btn btn-ghost btn-sm" onclick="confirmLogout()" style="color:var(--red)">↩ Cerrar sesión</button>
+        <button class="btn btn-sm" onclick="savePassword()" style="background:var(--accent);color:#fff;border:none">Guardar contraseña</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Dashboard modal -->

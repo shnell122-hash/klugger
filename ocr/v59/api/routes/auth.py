@@ -50,6 +50,8 @@ def init_tables():
         "ALTER TABLE users ADD COLUMN is_org_admin  TINYINT(1)   DEFAULT 0",
         "ALTER TABLE users ADD COLUMN approved      TINYINT(1)   DEFAULT 1",
         "ALTER TABLE users ADD COLUMN token_limit   INT          DEFAULT NULL",
+        "ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) DEFAULT NULL",
+        "ALTER TABLE users ADD COLUMN password_salt VARCHAR(64)  DEFAULT NULL",
     ]:
         try:
             execute(col_sql)
@@ -57,10 +59,24 @@ def init_tables():
             pass
 
 
+# ── Password helpers (stdlib only, no bcrypt needed) ─────────────────────────
+
+def _hash_password(plain: str, salt: str = None):
+    import hashlib, os
+    salt = salt or os.urandom(32).hex()
+    h = hashlib.pbkdf2_hmac('sha256', plain.encode('utf-8'), salt.encode('utf-8'), 200_000)
+    return h.hex(), salt
+
+
+def _verify_password(plain: str, stored_hash: str, salt: str) -> bool:
+    h, _ = _hash_password(plain, salt)
+    return h == stored_hash
+
+
 def _load_user_session(user_id, email, name, picture, role):
     """Carga datos completos del usuario a la sesión, incluyendo org y permisos."""
     row = query(
-        "SELECT org_id, is_org_admin, approved, token_limit FROM users WHERE user_id=%s",
+        "SELECT org_id, is_org_admin, approved, token_limit, password_hash FROM users WHERE user_id=%s",
         (user_id,)
     ) or {}
     session.permanent       = True
@@ -72,6 +88,7 @@ def _load_user_session(user_id, email, name, picture, role):
     session['org_id']       = row.get('org_id')
     session['is_org_admin'] = bool(row.get('is_org_admin', 0))
     session['token_limit']  = row.get('token_limit')
+    session['has_password'] = bool(row.get('password_hash'))
 
 
 def require_login(f):
@@ -260,7 +277,67 @@ def me():
         'is_org_admin':  session.get('is_org_admin', False),
         'org_id':        session.get('org_id'),
         'token_limit':   session.get('token_limit'),
+        'has_password':  session.get('has_password', False),
     })
+
+
+# ── Password login ────────────────────────────────────────────────────────────
+
+@auth_bp.route('/api/auth/login-password', methods=['POST'])
+def login_password():
+    """Login con email + contraseña."""
+    body     = request.get_json(force=True, silent=True) or {}
+    email    = (body.get('email') or '').strip().lower()
+    password = (body.get('password') or '')
+    if not email or not password:
+        return jsonify({'error': 'Correo y contraseña requeridos'}), 400
+
+    row = query(
+        "SELECT user_id, name, picture, role, password_hash, password_salt FROM users WHERE email=%s",
+        (email,)
+    )
+    if not row or not row.get('password_hash'):
+        return jsonify({'error': 'Correo no registrado o sin contraseña configurada'}), 401
+
+    if not _verify_password(password, row['password_hash'], row['password_salt']):
+        return jsonify({'error': 'Contraseña incorrecta'}), 401
+
+    _load_user_session(row['user_id'], email, row.get('name', ''), row.get('picture', ''), row.get('role', 'user'))
+    log.info('password login ok: %s', email)
+    return jsonify({'ok': True})
+
+
+@auth_bp.route('/api/auth/set-password', methods=['POST'])
+def set_password():
+    """Establece o cambia la contraseña del usuario autenticado."""
+    if 'user_id' not in session:
+        return jsonify({'error': 'No autenticado'}), 401
+
+    body         = request.get_json(force=True, silent=True) or {}
+    new_password = (body.get('password') or '').strip()
+    current_pwd  = (body.get('current_password') or '').strip()
+
+    if len(new_password) < 8:
+        return jsonify({'error': 'La contraseña debe tener al menos 8 caracteres'}), 400
+
+    user_id = session['user_id']
+    row = query("SELECT password_hash, password_salt FROM users WHERE user_id=%s", (user_id,))
+    if not row:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+
+    # Si ya tiene contraseña, verificar la actual
+    if row.get('password_hash'):
+        if not current_pwd:
+            return jsonify({'error': 'Ingresa tu contraseña actual para cambiarla'}), 400
+        if not _verify_password(current_pwd, row['password_hash'], row['password_salt']):
+            return jsonify({'error': 'Contraseña actual incorrecta'}), 401
+
+    new_hash, new_salt = _hash_password(new_password)
+    execute("UPDATE users SET password_hash=%s, password_salt=%s WHERE user_id=%s",
+            (new_hash, new_salt, user_id))
+    session['has_password'] = True
+    log.info('password set for user %s', user_id)
+    return jsonify({'ok': True})
 
 
 # ── Email helper ──────────────────────────────────────────────────────────────
@@ -407,10 +484,16 @@ def request_magic_link():
     base_url   = os.getenv('APP_BASE_URL', 'https://ocr.ruby.lease')
     invite_url = f"{base_url}/OCR/v59/api/auth/invite?token={token}"
 
+    # Intentar envío por email; si falla, devolver el link directamente
+    email_sent = False
     try:
         _send_magic_link_email(email, invite_url, name=user_row.get('name', ''))
+        email_sent = True
     except Exception as e:
-        log.error('Error enviando magic link a %s: %s', email, e)
-        return jsonify({'error': f'No se pudo enviar el correo: {e}'}), 500
+        log.warning('Email no enviado a %s (%s) — devolviendo link en respuesta', email, e)
 
-    return jsonify({'ok': True, 'msg': 'Enlace enviado. Revisa tu correo (y la carpeta de spam).'})
+    if email_sent:
+        return jsonify({'ok': True, 'msg': 'Enlace enviado. Revisa tu correo (y la carpeta de spam).'})
+    else:
+        return jsonify({'ok': True, 'invite_url': invite_url,
+                        'msg': 'Copia este enlace y ábrelo en tu navegador:'})
