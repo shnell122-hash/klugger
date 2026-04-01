@@ -286,6 +286,64 @@ def revoke_invitation(invite_id):
     return jsonify({'ok': True})
 
 
+# ── Cases assignment ──────────────────────────────────────────────────────────
+
+@admin_bp.route('/api/admin/cases', methods=['GET'])
+@_require_admin
+def admin_list_cases():
+    if _is_master():
+        rows = query(
+            """SELECT c.case_id, c.case_name, c.matter_type, c.status,
+                      c.owner_email, c.org_id, c.created_at, c.updated_at,
+                      o.org_name
+               FROM cases c
+               LEFT JOIN organizations o ON c.org_id = o.org_id
+               ORDER BY c.updated_at DESC LIMIT 200""",
+            many=True
+        ) or []
+    else:
+        rows = query(
+            """SELECT c.case_id, c.case_name, c.matter_type, c.status,
+                      c.owner_email, c.org_id, c.created_at, c.updated_at,
+                      o.org_name
+               FROM cases c
+               LEFT JOIN organizations o ON c.org_id = o.org_id
+               WHERE c.org_id=%s
+               ORDER BY c.updated_at DESC LIMIT 200""",
+            (_my_org(),), many=True
+        ) or []
+    return jsonify({'cases': rows})
+
+
+@admin_bp.route('/api/admin/cases/<case_id>', methods=['PUT'])
+@_require_admin
+def admin_update_case(case_id):
+    body = request.get_json(force=True) or {}
+    fields, vals = [], []
+
+    if 'org_id' in body:
+        # Verify org_admin only assigns to their own org
+        if not _is_master() and body['org_id'] != _my_org():
+            return jsonify({'error': 'Solo puedes asignar expedientes a tu organización'}), 403
+        fields.append('org_id=%s')
+        vals.append(body['org_id'] or None)
+
+    if 'owner_email' in body and _is_master():
+        fields.append('owner_email=%s')
+        vals.append(body['owner_email'] or None)
+
+    if 'status' in body:
+        fields.append('status=%s')
+        vals.append(body['status'])
+
+    if not fields:
+        return jsonify({'error': 'Nada que actualizar'}), 400
+
+    vals.append(case_id)
+    execute(f"UPDATE cases SET {','.join(fields)} WHERE case_id=%s", vals)
+    return jsonify({'ok': True})
+
+
 # ── Stats for admin dashboard ─────────────────────────────────────────────────
 
 @admin_bp.route('/api/admin/stats', methods=['GET'])

@@ -575,6 +575,7 @@ input[type="range"]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;b
     <button class="adm-tab active" data-tab="orgs"    onclick="admTab('orgs')"><i class="fa-solid fa-building"></i> Organizaciones</button>
     <button class="adm-tab"        data-tab="users"   onclick="admTab('users')"><i class="fa-solid fa-users"></i> Usuarios</button>
     <button class="adm-tab"        data-tab="invites" onclick="admTab('invites')"><i class="fa-solid fa-envelope-open-text"></i> Invitaciones</button>
+    <button class="adm-tab"        data-tab="cases"   onclick="admTab('cases')"><i class="fa-solid fa-folder-open"></i> Expedientes</button>
   </div>
   <!-- Tab content -->
   <div id="adm-content" style="flex:1;overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch"></div>
@@ -2296,11 +2297,11 @@ function openAdminPanel() {
   const isMaster = currentUser && currentUser.role === 'admin';
   const isOrgAdm = currentUser && currentUser.is_org_admin;
   document.getElementById('adm-role-badge').textContent = isMaster ? 'Master Admin' : 'Org Admin';
-  // Hide orgs tab for org admins
+  // Master admin ve todo; org admin no ve el tab de Organizaciones
   document.querySelectorAll('.adm-tab').forEach(t => {
     if (t.dataset.tab === 'orgs') t.style.display = isMaster ? '' : 'none';
   });
-  admTab(isMaster ? 'orgs' : 'users');
+  admTab(isMaster ? 'orgs' : 'cases');
 }
 
 function closeAdminPanel() {
@@ -2314,6 +2315,7 @@ function admTab(tab) {
   if (tab === 'orgs')    admLoadOrgs();
   if (tab === 'users')   admLoadUsers();
   if (tab === 'invites') admLoadInvites();
+  if (tab === 'cases')   admLoadCases();
 }
 
 // ── Organizations ──────────────────────────────────────────────
@@ -2558,6 +2560,113 @@ async function admRevokeInvite(invite_id) {
   await fetch(`${API}/admin/invitations/${invite_id}`, {method:'DELETE'});
   toast('Invitación revocada','success');
   admLoadInvites();
+}
+
+// ── Cases (admin) ──────────────────────────────────────────────
+let _admCases = [];
+async function admLoadCases() {
+  const c = document.getElementById('adm-content');
+  c.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Cargando…</div>';
+  const isMaster = currentUser && currentUser.role === 'admin';
+  const [caseR, orgR] = await Promise.all([
+    fetch(`${API}/admin/cases`),
+    isMaster ? fetch(`${API}/admin/organizations`) : Promise.resolve(null)
+  ]);
+  if (!caseR.ok) { c.innerHTML = `<div style="color:var(--red)">Error al cargar expedientes</div>`; return; }
+  _admCases = (await caseR.json()).cases || [];
+  if (orgR) _admOrgs = ((await orgR.json()).organizations) || [];
+
+  const orgOptions = _admOrgs.map(o =>
+    `<option value="${o.org_id}">${esc(o.org_name)}</option>`).join('');
+
+  c.innerHTML = `
+    <div class="adm-section">
+      <div style="margin-bottom:10px;display:flex;align-items:center;gap:8px">
+        <input id="adm-cases-filter" placeholder="Filtrar por nombre o correo…"
+          oninput="admFilterCases()"
+          style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 10px;font-size:.8rem;outline:none">
+        <span style="font-size:.75rem;color:var(--muted)" id="adm-cases-count">${_admCases.length} expedientes</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="adm-table" id="adm-cases-table">
+          <thead><tr>
+            <th>Expediente</th>
+            <th>Propietario actual</th>
+            <th>Organización</th>
+            <th>Estado</th>
+            <th></th>
+          </tr></thead>
+          <tbody id="adm-cases-tbody">
+            ${_admCases.map(cs => admCaseRow(cs, orgOptions, isMaster)).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function admCaseRow(cs, orgOptions, isMaster) {
+  const orgSel = `<select onchange="admAssignCaseOrg('${cs.case_id}',this.value)"
+    style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:3px 6px;font-size:.75rem;max-width:160px">
+    <option value="">— Sin org —</option>
+    ${orgOptions.replace(`value="${cs.org_id}"`, `value="${cs.org_id}" selected`)}
+  </select>`;
+  const ownerCell = isMaster
+    ? `<input value="${esc(cs.owner_email||'')}" onblur="admAssignCaseOwner('${cs.case_id}',this.value)"
+        style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:3px 6px;font-size:.75rem;width:170px">`
+    : `<span style="color:var(--muted);font-size:.75rem">${esc(cs.owner_email||'—')}</span>`;
+  const statusBadge = cs.status === 'active'
+    ? `<span class="adm-badge adm-badge-admin">activo</span>`
+    : `<span class="adm-badge adm-badge-user">${esc(cs.status)}</span>`;
+  return `<tr data-name="${esc((cs.case_name||'').toLowerCase())}" data-owner="${esc((cs.owner_email||'').toLowerCase())}">
+    <td style="font-weight:500">${esc(cs.case_name||'Sin nombre')}</td>
+    <td>${ownerCell}</td>
+    <td>${orgSel}</td>
+    <td>${statusBadge}</td>
+    <td style="white-space:nowrap">
+      ${cs.status==='active'
+        ? `<button class="btn btn-ghost btn-sm" style="font-size:.68rem;padding:2px 7px" onclick="admCaseStatus('${cs.case_id}','closed')">Cerrar</button>`
+        : `<button class="btn btn-ghost btn-sm" style="font-size:.68rem;padding:2px 7px" onclick="admCaseStatus('${cs.case_id}','active')">Reabrir</button>`}
+    </td>
+  </tr>`;
+}
+
+function admFilterCases() {
+  const q = document.getElementById('adm-cases-filter').value.toLowerCase();
+  let shown = 0;
+  document.querySelectorAll('#adm-cases-tbody tr').forEach(tr => {
+    const match = !q || tr.dataset.name.includes(q) || tr.dataset.owner.includes(q);
+    tr.style.display = match ? '' : 'none';
+    if (match) shown++;
+  });
+  document.getElementById('adm-cases-count').textContent = `${shown} expedientes`;
+}
+
+async function admAssignCaseOrg(case_id, org_id) {
+  const r = await fetch(`${API}/admin/cases/${case_id}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({org_id: org_id || null})
+  });
+  if (!r.ok) { toast((await r.json()).error || 'Error al asignar', 'error'); return; }
+  toast('Organización actualizada','success');
+}
+
+async function admAssignCaseOwner(case_id, email) {
+  const r = await fetch(`${API}/admin/cases/${case_id}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({owner_email: email.trim() || null})
+  });
+  if (!r.ok) { toast((await r.json()).error || 'Error al asignar', 'error'); return; }
+  toast('Propietario actualizado','success');
+}
+
+async function admCaseStatus(case_id, status) {
+  const r = await fetch(`${API}/admin/cases/${case_id}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({status})
+  });
+  if (!r.ok) { toast((await r.json()).error || 'Error', 'error'); return; }
+  toast(status === 'active' ? 'Expediente reabierto' : 'Expediente cerrado', 'success');
+  admLoadCases();
 }
 
 // Close modals on overlay click
