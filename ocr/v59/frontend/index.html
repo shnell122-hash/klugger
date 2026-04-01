@@ -369,9 +369,9 @@ input[type="range"]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;b
     <div id="artifact-list"></div>
     <label id="upload-drop" for="upload-input">
       <div>📎 Arrastra archivos o haz clic</div>
-      <div style="font-size:.68rem;margin-top:3px">PDF · JPG · DOCX · TXT · ZIP · MP3 · MP4 · M4A · WAV</div>
+      <div style="font-size:.68rem;margin-top:3px">PDF · JPG · DOCX · XLSX · TXT · ZIP · MP3 · MP4 · M4A · WAV</div>
     </label>
-    <input type="file" id="upload-input" multiple accept=".pdf,.jpg,.jpeg,.png,.docx,.txt,.doc,.zip,.html,.htm,.mp3,.mp4,.m4a,.wav,.ogg,.webm,.aac,.flac,.mov,.avi">
+    <input type="file" id="upload-input" multiple accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.xls,.pptx,.ppt,.txt,.doc,.zip,.html,.htm,.mp3,.mp4,.m4a,.wav,.ogg,.webm,.aac,.flac,.mov,.avi">
     <div id="artifact-actions">
       <button class="btn btn-ghost btn-sm" style="flex:1" onclick="selectAllArtifacts()">Todos al ctx</button>
       <button class="btn btn-ghost btn-sm" style="flex:1" onclick="clearContext()">Limpiar ctx</button>
@@ -2619,13 +2619,14 @@ async function admRemoveUserCase(user_id, case_id, btn) {
 async function admLoadInvites() {
   const c = document.getElementById('adm-content');
   c.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Cargando…</div>';
+  try {
   const [invR, orgR] = await Promise.all([
     fetch(`${API}/admin/invitations`),
     currentUser.role==='admin' ? fetch(`${API}/admin/organizations`) : Promise.resolve(null)
   ]);
-  if (!invR.ok) { c.innerHTML = `<div style="color:var(--red)">Error</div>`; return; }
+  if (!invR.ok) { c.innerHTML = `<div style="color:var(--red)">Error ${invR.status}: ${(await invR.text()).substring(0,200)}</div>`; return; }
   _admInvites = (await invR.json()).invitations || [];
-  if (orgR) _admOrgs = ((await orgR.json()).organizations) || [];
+  if (orgR && orgR.ok) _admOrgs = ((await orgR.json()).organizations) || [];
   const isMaster = currentUser && currentUser.role === 'admin';
   const orgOptions = _admOrgs.map(o => `<option value="${o.org_id}">${esc(o.org_name)}</option>`).join('');
   c.innerHTML = `
@@ -2669,6 +2670,9 @@ async function admLoadInvites() {
           </div>
         </div>`).join('')}
     </div>`;
+  } catch(e) {
+    c.innerHTML = `<div style="color:var(--red);padding:12px">Error al cargar invitaciones: ${esc(String(e))}</div>`;
+  }
 }
 
 async function admCreateInvite() {

@@ -11,8 +11,12 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 ALLOWED_MIME = {
     'application/pdf', 'image/jpeg', 'image/png', 'image/webp',
     'image/gif', 'image/tiff',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',  # docx
+    'application/msword',                                                         # doc
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',         # xlsx
+    'application/vnd.ms-excel',                                                   # xls
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation', # pptx
+    'application/vnd.ms-powerpoint',                                              # ppt
     'text/plain', 'text/html',
     # Audio y video
     'audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/wav', 'audio/x-wav',
@@ -21,8 +25,16 @@ ALLOWED_MIME = {
 }
 ZIP_MIMES = {'application/zip', 'application/x-zip-compressed'}
 
+# Extensiones de formatos Office Open XML (son ZIP internamente pero NO deben
+# abrirse como ZIP — deben procesarse como documentos completos)
+_OFFICE_EXTS = {'.docx', '.docm', '.xlsx', '.xlsm', '.pptx', '.pptm',
+                '.odt', '.ods', '.odp'}
+
 def _is_zip(raw: bytes, filename: str, mime: str) -> bool:
-    """Detecta ZIP por firma de bytes (PK\\x03\\x04), no solo por MIME."""
+    """Detecta ZIP por firma de bytes (PK\\x03\\x04), excluyendo Office Open XML."""
+    ext = os.path.splitext(filename.lower())[1]
+    if ext in _OFFICE_EXTS:
+        return False  # Documento Office — procesar como un solo archivo
     return raw[:4] == b'PK\x03\x04' or filename.lower().endswith('.zip')
 
 def _process_file(case_id, filename, raw, mime):
