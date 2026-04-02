@@ -264,6 +264,29 @@ def invite_login():
         )
 
     execute("UPDATE invitations SET used=1 WHERE invite_id=%s", (invite['invite_id'],))
+
+    # Si la invitación fue pre-marcada como sub master, aplicar y transferir tasas
+    if invite.get('is_sub_master'):
+        execute("UPDATE users SET is_sub_master=1 WHERE user_id=%s", (user_id,))
+        # Mover tasas pre-almacenadas bajo el email al user_id real
+        pre_rates = query(
+            "SELECT cost_mxn_per_usd, price_mxn_per_usd FROM sub_master_rates WHERE sub_master_id=%s",
+            (email,)
+        )
+        if pre_rates:
+            execute(
+                "INSERT INTO sub_master_rates (sub_master_id, cost_mxn_per_usd, price_mxn_per_usd) "
+                "VALUES (%s,%s,%s) ON DUPLICATE KEY UPDATE "
+                "cost_mxn_per_usd=%s, price_mxn_per_usd=%s",
+                (user_id,
+                 float(pre_rates['cost_mxn_per_usd'] or 19.0),
+                 float(pre_rates['price_mxn_per_usd'] or 104.5),
+                 float(pre_rates['cost_mxn_per_usd'] or 19.0),
+                 float(pre_rates['price_mxn_per_usd'] or 104.5))
+            )
+            execute("DELETE FROM sub_master_rates WHERE sub_master_id=%s", (email,))
+        log.info('sub_master flag applied from invite: %s uid=%s', email, user_id)
+
     _load_user_session(user_id, email, name, picture, role)
     log.info('invite login ok: %s role_tag=%s', email, role_tag)
     return redirect('/OCR/v59/frontend/?welcome=1')

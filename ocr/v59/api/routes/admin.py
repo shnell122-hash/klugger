@@ -34,8 +34,24 @@ def _is_master():
     return session.get('user_email', '') in MASTER_EMAILS
 
 
+def _is_sub_master():
+    return bool(session.get('is_sub_master', False))
+
+
+def _sm_org_ids():
+    """IDs de orgs asignadas al sub master actual."""
+    sm_id = session.get('user_id')
+    if not sm_id:
+        return []
+    rows = query(
+        "SELECT org_id FROM organizations WHERE sub_master_id=%s AND is_active=1",
+        (sm_id,), many=True
+    ) or []
+    return [r['org_id'] for r in rows]
+
+
 def _is_any_admin():
-    return _is_master() or bool(session.get('is_org_admin'))
+    return _is_master() or bool(session.get('is_org_admin')) or _is_sub_master()
 
 
 def _my_org():
@@ -126,6 +142,7 @@ def init_org_tables():
         "ALTER TABLE users ADD COLUMN case_access      VARCHAR(20)   DEFAULT 'all'",
         "ALTER TABLE users ADD COLUMN is_sub_master    TINYINT(1)    DEFAULT 0",
         "ALTER TABLE organizations ADD COLUMN sub_master_id VARCHAR(36) DEFAULT NULL",
+        "ALTER TABLE invitations ADD COLUMN is_sub_master TINYINT(1) DEFAULT 0",
     ]:
         try:
             execute(col_sql)
@@ -319,17 +336,57 @@ def list_sub_masters():
 @admin_bp.route('/api/admin/sub-masters/promote', methods=['POST'])
 @_require_master
 def promote_sub_master_by_email():
-    """Promueve a sub master buscando por email."""
+    """Promueve a sub master buscando por email (registrado o invitación pendiente)."""
     body  = request.get_json(force=True) or {}
     email = (body.get('email') or '').strip().lower()
+    cost  = body.get('cost_mxn_per_usd')
+    price = body.get('price_mxn_per_usd')
     if not email:
         return jsonify({'error': 'Email requerido'}), 400
-    row = query("SELECT user_id, name FROM users WHERE LOWER(email)=%s", (email,))
-    if not row:
-        return jsonify({'error': f'Usuario "{email}" no encontrado'}), 404
-    execute("UPDATE users SET is_sub_master=1 WHERE user_id=%s", (row['user_id'],))
-    log.info('promoted to sub_master: %s', email)
-    return jsonify({'ok': True, 'user_id': row['user_id'], 'name': row['name']})
+
+    user_row = query("SELECT user_id, name FROM users WHERE LOWER(email)=%s", (email,))
+    if user_row:
+        uid  = user_row['user_id']
+        name = user_row['name']
+        execute("UPDATE users SET is_sub_master=1 WHERE user_id=%s", (uid,))
+        # Upsert rates if provided
+        if cost is not None or price is not None:
+            existing = query("SELECT sub_master_id FROM sub_master_rates WHERE sub_master_id=%s", (uid,))
+            if existing:
+                execute(
+                    "UPDATE sub_master_rates SET cost_mxn_per_usd=%s, price_mxn_per_usd=%s WHERE sub_master_id=%s",
+                    (float(cost or 19.0), float(price or 104.5), uid)
+                )
+            else:
+                execute(
+                    "INSERT INTO sub_master_rates (sub_master_id, cost_mxn_per_usd, price_mxn_per_usd) VALUES (%s,%s,%s)",
+                    (uid, float(cost or 19.0), float(price or 104.5))
+                )
+        log.info('promoted to sub_master: %s uid=%s', email, uid)
+        return jsonify({'ok': True, 'user_id': uid, 'name': name})
+
+    # User hasn't registered yet — mark their pending invitation
+    invite_row = query(
+        "SELECT invite_id FROM invitations WHERE LOWER(email)=%s AND used=0 AND expires_at > NOW()",
+        (email,)
+    )
+    if invite_row:
+        execute("UPDATE invitations SET is_sub_master=1 WHERE invite_id=%s", (invite_row['invite_id'],))
+        # Pre-store rates keyed by email so they can be applied at registration
+        # We store in sub_master_rates using email as a temporary key; auth.py will fix the key after registration
+        if cost is not None or price is not None:
+            execute(
+                "INSERT INTO sub_master_rates (sub_master_id, cost_mxn_per_usd, price_mxn_per_usd, notes) "
+                "VALUES (%s,%s,%s,'pending') ON DUPLICATE KEY UPDATE "
+                "cost_mxn_per_usd=%s, price_mxn_per_usd=%s, notes='pending'",
+                (email, float(cost or 19.0), float(price or 104.5),
+                 float(cost or 19.0), float(price or 104.5))
+            )
+        log.info('pre-marked invite as sub_master: %s', email)
+        return jsonify({'ok': True, 'user_id': None, 'name': email,
+                        'pending': True, 'msg': 'Invitación marcada. Será Sub Master al registrarse.'})
+
+    return jsonify({'error': f'No existe usuario ni invitación activa para "{email}"'}), 404
 
 
 @admin_bp.route('/api/admin/sub-masters/<sm_id>', methods=['PUT'])
@@ -371,6 +428,23 @@ def update_sub_master(sm_id):
 
     log.info('sub_master updated: %s', sm_id)
     return jsonify({'ok': True})
+
+
+@admin_bp.route('/api/admin/sm/my-orgs', methods=['GET'])
+@_require_admin
+def sm_my_orgs():
+    """Orgs asignadas al sub master actual (para poblar dropdown de invitaciones)."""
+    if not _is_sub_master():
+        return jsonify({'orgs': []})
+    org_ids = _sm_org_ids()
+    if not org_ids:
+        return jsonify({'orgs': []})
+    ph = ','.join(['%s'] * len(org_ids))
+    rows = query(
+        f"SELECT org_id, org_name FROM organizations WHERE org_id IN ({ph}) ORDER BY org_name",
+        org_ids, many=True
+    ) or []
+    return jsonify({'orgs': rows})
 
 
 # ── Users ─────────────────────────────────────────────────────────────────────
@@ -500,6 +574,18 @@ def list_invitations():
             "ORDER BY i.created_at DESC",
             many=True
         ) or []
+    elif _is_sub_master():
+        org_ids = _sm_org_ids()
+        if not org_ids:
+            rows = []
+        else:
+            ph = ','.join(['%s'] * len(org_ids))
+            rows = query(
+                f"SELECT i.*, o.org_name FROM invitations i "
+                f"LEFT JOIN organizations o ON i.org_id=o.org_id "
+                f"WHERE i.org_id IN ({ph}) ORDER BY i.created_at DESC",
+                org_ids, many=True
+            ) or []
     else:
         rows = query(
             "SELECT i.*, o.org_name FROM invitations i "
@@ -528,8 +614,13 @@ def create_invitation():
     if role not in valid_roles:
         return jsonify({'error': f'Rol inválido: {role}'}), 400
 
+    # Sub masters can invite into any of their assigned orgs
+    if _is_sub_master():
+        allowed = set(_sm_org_ids())
+        if not org_id or org_id not in allowed:
+            return jsonify({'error': 'Solo puedes invitar a tus organizaciones asignadas'}), 403
     # Org admins can only invite into their own org
-    if not _is_master():
+    elif not _is_master():
         org_id = _my_org()
 
     token     = secrets.token_urlsafe(32)

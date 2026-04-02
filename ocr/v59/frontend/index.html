@@ -2442,7 +2442,7 @@ function openAdminPanel() {
     if (tab === 'cases')      t.style.display = (isMaster || isSubMstr || isOrgAdm) ? '' : 'none';
   });
   if (isMaster)       admTab('orgs');
-  else if (isSubMstr) admTab('utilities');
+  else if (isSubMstr) admTab('invites');
   else                admTab('users');
 }
 
@@ -2561,7 +2561,19 @@ async function admLoadSubMasters() {
               <input id="sm-email" type="email" placeholder="usuario@dominio.com"
                 style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.78rem;width:100%">
             </div>
-            <button class="btn btn-sm" style="background:var(--accent)" onclick="admPromoteToSubMaster()">Promover</button>
+            <button class="btn btn-sm" style="background:var(--accent);align-self:end" onclick="admPromoteToSubMaster()">Promover</button>
+            <div class="adm-field" style="grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
+              <div>
+                <label style="font-size:.7rem;color:var(--muted)">Costo MXN/USD (su costo)</label>
+                <input id="sm-new-cost" type="number" step="0.01" placeholder="19.00"
+                  style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.78rem;width:100%">
+              </div>
+              <div>
+                <label style="font-size:.7rem;color:var(--muted)">Precio MXN/USD (lo que cobra)</label>
+                <input id="sm-new-price" type="number" step="0.01" placeholder="104.50"
+                  style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.78rem;width:100%">
+              </div>
+            </div>
           </div>
         </div>
         ${smRows ? `<table style="width:100%;border-collapse:collapse;font-size:.78rem">
@@ -2618,14 +2630,21 @@ async function admLoadSubMasters() {
 async function admPromoteToSubMaster() {
   const email = document.getElementById('sm-email')?.value?.trim();
   if (!email) { toast('Ingresa el correo del usuario', 'error'); return; }
+  const cost  = parseFloat(document.getElementById('sm-new-cost')?.value)  || null;
+  const price = parseFloat(document.getElementById('sm-new-price')?.value) || null;
   const r = await fetch(`${API}/admin/sub-masters/promote`, {
     method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({email})
+    body: JSON.stringify({email, cost_mxn_per_usd: cost, price_mxn_per_usd: price})
   });
   const d = await r.json().catch(() => ({}));
   if (!r.ok) { toast(d.error || 'Error al promover', 'error'); return; }
-  document.getElementById('sm-email').value = '';
-  toast(`${d.name || email} promovido a Sub Master`, 'success');
+  document.getElementById('sm-email').value   = '';
+  document.getElementById('sm-new-cost').value  = '';
+  document.getElementById('sm-new-price').value = '';
+  const msg = d.pending
+    ? `Invitación marcada — ${d.name} será Sub Master al registrarse`
+    : `${d.name || email} promovido a Sub Master`;
+  toast(msg, 'success');
   admLoadSubMasters();
 }
 
@@ -2996,14 +3015,19 @@ async function admLoadInvites() {
   const c = document.getElementById('adm-content');
   c.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Cargando…</div>';
   try {
+  const isMaster  = currentUser?.is_master === true;
+  const isSubMstr = currentUser?.is_sub_master === true;
   const [invR, orgR] = await Promise.all([
     fetch(`${API}/admin/invitations`),
-    currentUser?.role==='admin' ? fetch(`${API}/admin/organizations`) : Promise.resolve(null)
+    isMaster    ? fetch(`${API}/admin/organizations`) :
+    isSubMstr   ? fetch(`${API}/admin/sm/my-orgs`)   : Promise.resolve(null)
   ]);
   if (!invR.ok) { c.innerHTML = `<div style="color:var(--red)">Error ${invR.status}: ${(await invR.text()).substring(0,200)}</div>`; return; }
   _admInvites = (await invR.json()).invitations || [];
-  if (orgR && orgR.ok) _admOrgs = ((await orgR.json()).organizations) || [];
-  const isMaster = currentUser && currentUser.role === 'admin';
+  if (orgR && orgR.ok) {
+    const od = await orgR.json();
+    _admOrgs = od.organizations || od.orgs || [];
+  }
   const orgOptions = _admOrgs.map(o => `<option value="${o.org_id}">${esc(o.org_name)}</option>`).join('');
   c.innerHTML = `
     <div class="adm-section">
@@ -3018,7 +3042,7 @@ async function admLoadInvites() {
               ${isMaster ? '<option value="master_admin">Master Admin</option>' : ''}
             </select>
           </div>
-          ${isMaster ? `<div class="adm-field" style="grid-column:1/-1"><label>Organización</label>
+          ${(isMaster || isSubMstr) ? `<div class="adm-field" style="grid-column:1/-1"><label>Organización</label>
             <select id="adm-inv-org"><option value="">— Sin organización —</option>${orgOptions}</select>
           </div>` : ''}
         </div>
@@ -3052,11 +3076,12 @@ async function admLoadInvites() {
 }
 
 async function admCreateInvite() {
-  const isMaster = currentUser && currentUser.role === 'admin';
+  const isMaster  = currentUser?.is_master === true;
+  const isSubMstr = currentUser?.is_sub_master === true;
   const body = {
     email:  document.getElementById('adm-inv-email').value.trim(),
     role:   document.getElementById('adm-inv-role').value,
-    org_id: isMaster ? (document.getElementById('adm-inv-org')?.value || null) : null,
+    org_id: (isMaster || isSubMstr) ? (document.getElementById('adm-inv-org')?.value || null) : null,
   };
   if (!body.email) { toast('Correo requerido','error'); return; }
   const r = await fetch(`${API}/admin/invitations`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
