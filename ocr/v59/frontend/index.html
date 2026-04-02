@@ -722,7 +722,7 @@ function _setUserUI(user) {
   nm.style.display = 'inline';
   // Show admin button for master admin and org admins
   const adminBtn = document.getElementById('header-admin-btn');
-  if (adminBtn) adminBtn.style.display = (user.role === 'admin' || user.is_org_admin) ? '' : 'none';
+  if (adminBtn) adminBtn.style.display = (user.is_master || user.is_sub_master || user.is_org_admin) ? '' : 'none';
   const sbn = document.getElementById('sidebar-user-name');
   if (sbn) sbn.textContent = user.name || user.email;
   _applyOrgBranding(user);
