@@ -3142,7 +3142,10 @@ async function admCreateInvite() {
   if (!r.ok) { toast(d.error,'error'); return; }
   document.getElementById('adm-inv-url').textContent = d.url;
   document.getElementById('adm-inv-result').style.display = 'block';
-  toast('Enlace generado','success');
+  const msg = d.email_sent
+    ? 'Enlace enviado por correo al usuario'
+    : 'Enlace generado — cópialo y envíalo al usuario (el email no pudo enviarse)';
+  toast(msg, d.email_sent ? 'success' : 'info');
 }
 
 async function admUploadInvLogo(orgId, idx) {

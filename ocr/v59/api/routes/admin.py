@@ -10,6 +10,7 @@ import os, uuid, secrets, logging, mimetypes
 from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify, session, send_file
 from tools.db import query, execute
+from routes.auth import _send_magic_link_email
 
 admin_bp = Blueprint('admin', __name__)
 log = logging.getLogger('admin')
@@ -666,11 +667,19 @@ def create_invitation():
          expires.strftime('%Y-%m-%d %H:%M:%S'), session.get('user_email'))
     )
     invite_url = f"{APP_BASE_URL}/OCR/v59/api/auth/invite?token={token}"
+    email_sent = False
+    if email:
+        try:
+            _send_magic_link_email(email, invite_url)
+            email_sent = True
+        except Exception as e:
+            log.warning('invite email failed for %s: %s', email, e)
     return jsonify({
         'invite_id':  invite_id,
         'url':        invite_url,
         'role':       role,
         'expires_at': expires.isoformat(),
+        'email_sent': email_sent,
     })
 
 

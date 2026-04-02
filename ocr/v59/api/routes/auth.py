@@ -95,6 +95,7 @@ def _load_user_session(user_id, email, name, picture, role):
         "can_create_cases, case_access FROM users WHERE user_id=%s",
         (user_id,)
     ) or {}
+    session.clear()   # evita que keys de sesión anterior contaminen la nueva
     session.permanent          = True
     session['user_id']         = user_id
     session['user_email']      = email

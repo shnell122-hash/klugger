@@ -4,7 +4,7 @@ from tools.db import execute
 
 imagen_bp = Blueprint('imagen', __name__)
 
-FAL_URL   = 'https://fal.run/fal-ai/flux/dev'
+FAL_URL   = 'https://fal.run/fal-ai/flux-2-pro'
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'uploads')
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -57,35 +57,38 @@ def generate_image():
     if not prompt:
         return jsonify(error='prompt requerido'), 400
 
+    # Flux 2 Pro usa nombres de tamaño, no dimensiones explícitas
     sizes = {
-        'portrait':  {'width': 768,  'height': 1024},
-        'landscape': {'width': 1024, 'height': 768},
-        'square':    {'width': 1024, 'height': 1024},
+        'portrait':  'portrait_4_3',
+        'landscape': 'landscape_4_3',
+        'square':    'square_hd',
     }
-    size = sizes.get(aspect, sizes['portrait'])
+    image_size = sizes.get(aspect, 'portrait_4_3')
 
     headers = {'Authorization': f'Key {fal_key}', 'Content-Type': 'application/json'}
+    # Flux 2 Pro es zero-config: sin steps, sin guidance_scale, sin num_images
     payload = {
-        'prompt':              f"{prompt}, {_STYLE_SUFFIX}",
-        'negative_prompt':     _NEGATIVE,
-        'num_images':          count,
-        'image_size':          size,
-        'num_inference_steps': 28,
-        'guidance_scale':      3.5,
-        'enable_safety_checker': True,
-        'output_format':       'jpeg',
+        'prompt':            f"{prompt}, {_STYLE_SUFFIX}",
+        'image_size':        image_size,
+        'safety_tolerance':  '2',
+        'output_format':     'jpeg',
     }
 
+    # Flux 2 Pro genera una imagen por llamada; iterar para count > 1
+    images_out = []
     try:
-        resp = requests.post(FAL_URL, json=payload, headers=headers, timeout=120)
-        resp.raise_for_status()
-        fal_data = resp.json()
+        for _ in range(count):
+            resp = requests.post(FAL_URL, json=payload, headers=headers, timeout=120)
+            resp.raise_for_status()
+            fal_data = resp.json()
+            imgs = fal_data.get('images', [])
+            if imgs:
+                images_out.extend(imgs)
     except requests.exceptions.HTTPError as e:
         return jsonify(error=f'fal.ai error: {e.response.status_code} — {e.response.text[:300]}'), 502
     except Exception as e:
         return jsonify(error=f'Error llamando fal.ai: {str(e)}'), 502
 
-    images_out = fal_data.get('images', [])
     if not images_out:
         return jsonify(error='fal.ai no devolvió imágenes'), 502
 
