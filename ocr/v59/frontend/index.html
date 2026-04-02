@@ -1248,8 +1248,9 @@ async function viewArtifact(id) {
     vc.innerHTML = hdr + `<div style="color:var(--muted);padding:16px;font-size:.8rem">Cargando hoja de cálculo…</div>`;
     try {
       const resp = await fetch(`${API}/artifacts/file/${id}`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const buf  = await resp.arrayBuffer();
-      const wb   = XLSX.read(buf, {type: 'array'});
+      const wb   = XLSX.read(new Uint8Array(buf), {type: 'array'});
       const ws   = wb.Sheets[wb.SheetNames[0]];
       const tbl  = XLSX.utils.sheet_to_html(ws, {id: 'xlsx-tbl', editable: false});
       vc.innerHTML = hdr + `<div style="overflow:auto;max-height:580px;font-size:.76rem;margin-top:4px">
