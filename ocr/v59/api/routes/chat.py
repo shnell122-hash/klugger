@@ -906,6 +906,8 @@ def chat_stream():
     selected_ids  = body.get('selected_artifacts', [])
     user_id       = session.get('user_id')
     user_role     = session.get('user_role', 'user')
+    user_email    = session.get('user_email', '')
+    _is_master    = user_email in {'vilarkptl@gmail.com'}   # solo el master ve nombres de proveedores
 
     if not message:
         return jsonify({"error": "message requerido"}), 400
@@ -970,7 +972,7 @@ def chat_stream():
 
         def _pub_msg(msg: str) -> str:
             """Oculta nombres de proveedores a usuarios no-master."""
-            if not msg or user_role == 'admin':
+            if not msg or _is_master:
                 return msg
             return (msg
                     .replace('Whisper API', 'transcripción')
@@ -992,7 +994,7 @@ def chat_stream():
         agent_cfg    = _AGENT_CONFIGS.get(agent_key, _AGENT_CONFIGS['general'])
         _model       = agent_cfg['model'] or model
         _agent_tools = _filter_tool_defs(agent_cfg.get('tools'))
-        mshort       = _MODEL_SHORT.get(_model, _model) if user_role == 'admin' else 'IA'
+        mshort       = _MODEL_SHORT.get(_model, _model) if _is_master else 'IA'
         agent_icon   = agent_cfg['icon']
         agent_label  = agent_cfg['label']
         # Añadir foco del agente al system prompt dinámico

@@ -1890,7 +1890,7 @@ async function sendMessage(e) {
           // Línea de estado dinámica para TODAS las herramientas
           const statusLine = document.createElement('div');
           statusLine.className = 'tool-status-line';
-          const _isMaster = currentUser?.role === 'admin';
+          const _isMaster = currentUser?.is_master === true;
           const _rawInit  = TOOL_STATUS_INIT[evt.tool] || 'Procesando…';
           const initMsg   = _isMaster ? _rawInit
             : _rawInit.replace('Flux.1 (fal.ai)', 'motor de generación').replace('Whisper API', 'transcripción');
@@ -1966,7 +1966,7 @@ async function sendMessage(e) {
           const outK = (evt.output / 1000).toFixed(1);
           let cost = '';
           if (evt.cost_usd) {
-            const isAdmin = currentUser && currentUser.role === 'admin';
+            const isAdmin = currentUser && currentUser.is_master === true;
             if (isAdmin) {
               cost = `· $${evt.cost_usd.toFixed(4)}`;
             } else {
@@ -1974,7 +1974,7 @@ async function sendMessage(e) {
               cost = `· ${_fmtMXN(mxn)} MXN`;
             }
           }
-          const isMaster = currentUser && currentUser.role === 'admin';
+          const isMaster = currentUser && currentUser.is_master === true;
           const modelLabel = isMaster ? esc(evt.model) : 'Agente IA';
           chip.innerHTML = `📊 <span class="tc-model">${modelLabel}</span> · ${inK}k→${outK}k ${cost}`;
 
@@ -2349,7 +2349,7 @@ async function generateImages() {
   const status = document.getElementById('imagen-status');
   btn.disabled = true;
   btn.textContent = 'Generando…';
-  status.textContent = currentUser?.role === 'admin'
+  status.textContent = currentUser?.is_master === true
     ? 'Llamando a Flux.1 — esto tarda 10-30 segundos…'
     : 'Generando imagen, esto puede tardar 10-30 segundos…';
 

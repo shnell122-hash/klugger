@@ -298,6 +298,7 @@ def me():
         'name':          session['user_name'],
         'picture':       session.get('user_pic', ''),
         'role':          session['user_role'],
+        'is_master':        session.get('user_email', '') in ADMIN_EMAILS,
         'is_org_admin':     session.get('is_org_admin', False),
         'org_id':           org_id,
         'token_limit':      session.get('token_limit'),
