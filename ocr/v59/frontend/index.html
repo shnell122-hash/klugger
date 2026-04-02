@@ -1890,7 +1890,10 @@ async function sendMessage(e) {
           // Línea de estado dinámica para TODAS las herramientas
           const statusLine = document.createElement('div');
           statusLine.className = 'tool-status-line';
-          const initMsg = TOOL_STATUS_INIT[evt.tool] || 'Procesando…';
+          const _isMaster = currentUser?.role === 'admin';
+          const _rawInit  = TOOL_STATUS_INIT[evt.tool] || 'Procesando…';
+          const initMsg   = _isMaster ? _rawInit
+            : _rawInit.replace('Flux.1 (fal.ai)', 'motor de generación').replace('Whisper API', 'transcripción');
           statusLine.innerHTML = `<span class="tool-status-dot"></span><span>${initMsg}</span>`;
           bubble.appendChild(statusLine);
           _toolStatusEls[evt.tool] = statusLine;
@@ -2346,7 +2349,9 @@ async function generateImages() {
   const status = document.getElementById('imagen-status');
   btn.disabled = true;
   btn.textContent = 'Generando…';
-  status.textContent = 'Llamando a Flux.1 — esto tarda 10-30 segundos…';
+  status.textContent = currentUser?.role === 'admin'
+    ? 'Llamando a Flux.1 — esto tarda 10-30 segundos…'
+    : 'Generando imagen, esto puede tardar 10-30 segundos…';
 
   const count   = parseInt(document.getElementById('img-count').value);
   const aspect  = document.getElementById('img-aspect').value;

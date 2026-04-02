@@ -968,6 +968,15 @@ def chat_stream():
             """Emite un evento de log operacional al frontend."""
             q.put(('op_log', {'icon': icon, 'msg': msg, 'detail': detail, 'level': level}))
 
+        def _pub_msg(msg: str) -> str:
+            """Oculta nombres de proveedores a usuarios no-master."""
+            if not msg or user_role == 'admin':
+                return msg
+            return (msg
+                    .replace('Whisper API', 'transcripción')
+                    .replace('Flux.1 (fal.ai)', 'motor de generación')
+                    .replace('fal.ai', 'motor de generación'))
+
         # ── Clasificar intención → seleccionar agente especializado ──────────
         # Incluir contexto del historial para mensajes cortos de continuación
         # (ej: "sí", "hazlo", "genéralo") que no tienen suficiente info solos
@@ -1089,7 +1098,7 @@ def chat_stream():
                                     _steps_e = _STATUS_STEPS.get(tname, [])
                                     init_msg = _GEN_STATUS.get(tname, [(0, None)])[0][1]
                                     if init_msg:
-                                        q.put(('tool_status', {'tool': tname, 'msg': init_msg}))
+                                        q.put(('tool_status', {'tool': tname, 'msg': _pub_msg(init_msg)}))
                                     _ka_time[0]       = time.time()
                                     _gen_tool[0]      = tname
                                     _gen_start[0]     = time.time()
@@ -1253,7 +1262,7 @@ def chat_stream():
                             q.put(('tool_start', b.name))
                             _steps0 = _STATUS_STEPS.get(b.name, [])
                             if _steps0:
-                                q.put(('tool_status', {'tool': b.name, 'msg': _steps0[0][1]}))
+                                q.put(('tool_status', {'tool': b.name, 'msg': _pub_msg(_steps0[0][1])}))
                         emit_op('🔧', f'Ejecutando: {b.name}',
                                 detail=f'Input keys: {list(dict(b.input).keys())}')
 
@@ -1288,7 +1297,7 @@ def chat_stream():
                                         break
                                 if smsg and smsg != _last_stat.get(b_.name):
                                     _last_stat[b_.name] = smsg
-                                    q.put(('tool_status', {'tool': b_.name, 'msg': smsg}))
+                                    q.put(('tool_status', {'tool': b_.name, 'msg': _pub_msg(smsg)}))
 
                     _exec.shutdown(wait=False)
 
