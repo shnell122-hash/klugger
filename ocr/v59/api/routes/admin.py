@@ -316,6 +316,22 @@ def list_sub_masters():
     return jsonify({'sub_masters': rows, 'all_orgs': all_orgs})
 
 
+@admin_bp.route('/api/admin/sub-masters/promote', methods=['POST'])
+@_require_master
+def promote_sub_master_by_email():
+    """Promueve a sub master buscando por email."""
+    body  = request.get_json(force=True) or {}
+    email = (body.get('email') or '').strip().lower()
+    if not email:
+        return jsonify({'error': 'Email requerido'}), 400
+    row = query("SELECT user_id, name FROM users WHERE LOWER(email)=%s", (email,))
+    if not row:
+        return jsonify({'error': f'Usuario "{email}" no encontrado'}), 404
+    execute("UPDATE users SET is_sub_master=1 WHERE user_id=%s", (row['user_id'],))
+    log.info('promoted to sub_master: %s', email)
+    return jsonify({'ok': True, 'user_id': row['user_id'], 'name': row['name']})
+
+
 @admin_bp.route('/api/admin/sub-masters/<sm_id>', methods=['PUT'])
 @_require_master
 def update_sub_master(sm_id):
