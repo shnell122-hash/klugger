@@ -738,6 +738,25 @@ def admin_update_case(case_id):
     execute(f"UPDATE cases SET {','.join(fields)} WHERE case_id=%s", vals)
     return jsonify({'ok': True})
 
+@admin_bp.route('/api/admin/set-my-branding', methods=['POST'])
+@_require_master
+def set_my_branding():
+    """Master admin: asigna un org_id para cargar su branding en el encabezado."""
+    body   = request.get_json(force=True) or {}
+    org_id = body.get('org_id') or None
+    user_id = session.get('user_id')
+    execute("UPDATE users SET org_id=%s WHERE user_id=%s", (org_id, user_id))
+    session['org_id'] = org_id
+    branding = {}
+    if org_id:
+        row = query(
+            "SELECT primary_color, accent_color, logo_path FROM organizations WHERE org_id=%s",
+            (org_id,)
+        )
+        if row:
+            branding = {k: row[k] for k in ('primary_color', 'accent_color', 'logo_path')}
+    return jsonify({'ok': True, **branding})
+
 
 # ── Stats for admin dashboard ─────────────────────────────────────────────────
 

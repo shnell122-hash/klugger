@@ -2724,9 +2724,10 @@ async function admLoadOrgs() {
                 ${o.token_limit ? `${o.token_limit.toLocaleString()} tokens` : 'Sin límite tokens'}
               </div>
             </div>
-            <div style="display:flex;gap:6px;flex-shrink:0">
+            <div style="display:flex;gap:6px;flex-shrink:0;align-items:center">
               <span style="width:14px;height:14px;border-radius:50%;background:${esc(o.primary_color||'#c47a5a')};display:inline-block"></span>
               <span style="width:14px;height:14px;border-radius:50%;background:${esc(o.accent_color||'#8b5cf6')};display:inline-block"></span>
+              <button class="btn btn-ghost btn-sm" style="font-size:.65rem" title="Usar logo de esta org en el encabezado" onclick="admSetMyBranding('${o.org_id}')"><i class="fa-solid fa-paintbrush"></i></button>
               <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="admDeleteOrg('${o.org_id}','${esc(o.org_name)}')"><i class="fa-solid fa-trash-can"></i></button>
             </div>
           </div>
@@ -2757,6 +2758,23 @@ async function admDeleteOrg(id, name) {
   if (!r.ok) { toast((await r.json()).error,'error'); return; }
   toast('Organización eliminada','success');
   admLoadOrgs();
+}
+
+async function admSetMyBranding(orgId) {
+  const r = await fetch(`${API}/admin/set-my-branding`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({org_id: orgId})
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) { toast(d.error || 'Error', 'error'); return; }
+  if (currentUser) {
+    currentUser.org_id       = orgId;
+    currentUser.primary_color = d.primary_color;
+    currentUser.accent_color  = d.accent_color;
+    currentUser.logo_path     = d.logo_path;
+    _applyOrgBranding(currentUser);
+  }
+  toast('Branding aplicado al encabezado', 'success');
 }
 
 // ── Users ──────────────────────────────────────────────────────
