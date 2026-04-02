@@ -908,6 +908,21 @@ def chat_stream():
     user_role     = session.get('user_role', 'user')
     user_email    = session.get('user_email', '')
     _is_master    = user_email in {'vilarkptl@gmail.com'}   # solo el master ve nombres de proveedores
+    _is_sub_master = session.get('is_sub_master', False)
+
+    # Pre-fetch sub master rates for token_usage MXN computation (rates never leave the server)
+    _SM_COST_RATE  = None
+    _SM_PRICE_RATE = None
+    if _is_sub_master and user_id:
+        from tools.db import query as _q
+        _smr = _q("SELECT cost_mxn_per_usd, price_mxn_per_usd FROM sub_master_rates WHERE sub_master_id=%s",
+                   (user_id,))
+        if _smr:
+            _SM_COST_RATE  = float(_smr['cost_mxn_per_usd']  or 19.0)
+            _SM_PRICE_RATE = float(_smr['price_mxn_per_usd'] or 104.5)
+
+    _MXN_PER_USD = 19.0
+    _USER_MARKUP  = 5.5
 
     if not message:
         return jsonify({"error": "message requerido"}), 400
@@ -1156,15 +1171,24 @@ def chat_stream():
                 emit_op('📊',
                         f'Tokens · {u.input_tokens:,} entrada + {u.output_tokens:,} salida',
                         detail=f'Cache: {cached:,} · Costo: {cost_label} · Modelo: {mshort}')
-                q.put(('token_usage', {
-                    'model':      mshort,
-                    'iteration':  iteration + 1,
-                    'input':      u.input_tokens,
-                    'output':     u.output_tokens,
-                    'cache':      cached,
-                    'cost_usd':   round(cost_, 6),
-                    'stop':       final_msg.stop_reason,
-                }))
+                _tok = {
+                    'model':     mshort,
+                    'iteration': iteration + 1,
+                    'input':     u.input_tokens,
+                    'output':    u.output_tokens,
+                    'cache':     cached,
+                    'stop':      final_msg.stop_reason,
+                }
+                if _is_master:
+                    _tok['cost_usd'] = round(cost_, 6)
+                elif _SM_COST_RATE is not None:
+                    # Sub master: only sees their assigned MXN rates, never cost_usd
+                    _tok['costo_mxn']  = round(cost_ * _SM_COST_RATE,  2)
+                    _tok['precio_mxn'] = round(cost_ * _SM_PRICE_RATE, 2)
+                else:
+                    # Regular user: server-computed MXN price, no raw USD
+                    _tok['price_mxn'] = round(cost_ * _USER_MARKUP * _MXN_PER_USD, 2)
+                q.put(('token_usage', _tok))
 
                 if final_msg.stop_reason != 'tool_use':
                     # ── Detectar truncamiento de tool call por max_tokens ─────────

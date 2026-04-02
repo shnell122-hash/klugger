@@ -592,10 +592,12 @@ input[type="range"]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;b
   </div>
   <!-- Tabs -->
   <div style="display:flex;gap:0;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--sidebar)">
-    <button class="adm-tab active" data-tab="orgs"    onclick="admTab('orgs')"><i class="fa-solid fa-building"></i> Organizaciones</button>
-    <button class="adm-tab"        data-tab="users"   onclick="admTab('users')"><i class="fa-solid fa-users"></i> Usuarios</button>
-    <button class="adm-tab"        data-tab="invites" onclick="admTab('invites')"><i class="fa-solid fa-envelope-open-text"></i> Invitaciones</button>
-    <button class="adm-tab"        data-tab="cases"   onclick="admTab('cases')"><i class="fa-solid fa-folder-open"></i> Expedientes</button>
+    <button class="adm-tab" data-tab="utilities" onclick="admTab('utilities')"><i class="fa-solid fa-chart-line"></i> Utilidades</button>
+    <button class="adm-tab" data-tab="submasters" onclick="admTab('submasters')"><i class="fa-solid fa-user-tie"></i> Sub Masters</button>
+    <button class="adm-tab active" data-tab="orgs" onclick="admTab('orgs')"><i class="fa-solid fa-building"></i> Organizaciones</button>
+    <button class="adm-tab" data-tab="users"   onclick="admTab('users')"><i class="fa-solid fa-users"></i> Usuarios</button>
+    <button class="adm-tab" data-tab="invites" onclick="admTab('invites')"><i class="fa-solid fa-envelope-open-text"></i> Invitaciones</button>
+    <button class="adm-tab" data-tab="cases"   onclick="admTab('cases')"><i class="fa-solid fa-folder-open"></i> Expedientes</button>
   </div>
   <!-- Tab content -->
   <div id="adm-content" style="flex:1;overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch"></div>
@@ -1965,16 +1967,14 @@ async function sendMessage(e) {
           const inK  = (evt.input  / 1000).toFixed(1);
           const outK = (evt.output / 1000).toFixed(1);
           let cost = '';
-          if (evt.cost_usd) {
-            const isAdmin = currentUser && currentUser.is_master === true;
-            if (isAdmin) {
-              cost = `· $${evt.cost_usd.toFixed(4)}`;
-            } else {
-              const mxn = evt.cost_usd * 5.5 * 19;
-              cost = `· ${_fmtMXN(mxn)} MXN`;
-            }
+          if (currentUser?.is_master && evt.cost_usd != null) {
+            cost = `· $${evt.cost_usd.toFixed(4)}`;
+          } else if (currentUser?.is_sub_master && evt.costo_mxn != null) {
+            cost = `· ${_fmtMXN(evt.costo_mxn)} costo · ${_fmtMXN(evt.precio_mxn)} precio`;
+          } else if (evt.price_mxn != null) {
+            cost = `· ${_fmtMXN(evt.price_mxn)} MXN`;
           }
-          const isMaster = currentUser && currentUser.is_master === true;
+          const isMaster = currentUser?.is_master === true;
           const modelLabel = isMaster ? esc(evt.model) : 'Agente IA';
           chip.innerHTML = `📊 <span class="tc-model">${modelLabel}</span> · ${inK}k→${outK}k ${cost}`;
 
@@ -2426,14 +2426,24 @@ let _admOrgs = [], _admUsers = [], _admInvites = [], _admCurrentTab = 'orgs';
 
 function openAdminPanel() {
   document.getElementById('admin-panel').style.display = 'flex';
-  const isMaster = currentUser && currentUser.role === 'admin';
-  const isOrgAdm = currentUser && currentUser.is_org_admin;
-  document.getElementById('adm-role-badge').textContent = isMaster ? 'Master Admin' : 'Org Admin';
-  // Master admin ve todo; org admin no ve el tab de Organizaciones
+  const isMaster  = currentUser?.is_master === true;
+  const isSubMstr = currentUser?.is_sub_master === true;
+  const isOrgAdm  = currentUser?.is_org_admin === true;
+  document.getElementById('adm-role-badge').textContent =
+    isMaster ? 'Master Admin' : isSubMstr ? 'Sub Master' : 'Org Admin';
+  // Visibility rules per tab
   document.querySelectorAll('.adm-tab').forEach(t => {
-    if (t.dataset.tab === 'orgs') t.style.display = isMaster ? '' : 'none';
+    const tab = t.dataset.tab;
+    if (tab === 'utilities')  t.style.display = isSubMstr ? '' : 'none';
+    if (tab === 'submasters') t.style.display = isMaster  ? '' : 'none';
+    if (tab === 'orgs')       t.style.display = isMaster  ? '' : 'none';
+    if (tab === 'users')      t.style.display = (isMaster || isSubMstr || isOrgAdm) ? '' : 'none';
+    if (tab === 'invites')    t.style.display = (isMaster || isSubMstr || isOrgAdm) ? '' : 'none';
+    if (tab === 'cases')      t.style.display = (isMaster || isSubMstr || isOrgAdm) ? '' : 'none';
   });
-  admTab(isMaster ? 'orgs' : 'cases');
+  if (isMaster)       admTab('orgs');
+  else if (isSubMstr) admTab('utilities');
+  else                admTab('users');
 }
 
 function closeAdminPanel() {
@@ -2444,10 +2454,211 @@ function admTab(tab) {
   _admCurrentTab = tab;
   document.querySelectorAll('.adm-tab').forEach(b =>
     b.classList.toggle('active', b.dataset.tab === tab));
-  if (tab === 'orgs')    admLoadOrgs();
-  if (tab === 'users')   admLoadUsers();
-  if (tab === 'invites') admLoadInvites();
-  if (tab === 'cases')   admLoadCases();
+  if (tab === 'utilities')  admLoadUtilities();
+  if (tab === 'submasters') admLoadSubMasters();
+  if (tab === 'orgs')       admLoadOrgs();
+  if (tab === 'users')      admLoadUsers();
+  if (tab === 'invites')    admLoadInvites();
+  if (tab === 'cases')      admLoadCases();
+}
+
+// ── Utilities (Sub Master) ─────────────────────────────────────
+async function admLoadUtilities() {
+  const c = document.getElementById('adm-content');
+  c.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Cargando…</div>';
+  try {
+    const r = await fetch(`${API}/dashboard/costs`);
+    const d = await r.json();
+    if (!r.ok || d.role !== 'sub_master') {
+      c.innerHTML = `<div style="color:var(--red);padding:16px">Error al cargar utilidades</div>`; return;
+    }
+    const t = d.totals;
+    const fmxn = v => _fmtMXN(v);
+    const utilColor = v => v >= 0 ? 'var(--green)' : 'var(--red)';
+    const orgCards = (d.orgs || []).map(o => `
+      <div class="adm-card" style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-weight:600;font-size:.85rem">${esc(o.org_name)}</span>
+          <span style="font-size:.75rem;color:${utilColor(o.utilidad_mxn)};font-weight:700">${fmxn(o.utilidad_mxn)} utilidad</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div style="font-size:.75rem;color:var(--muted)">Costo: <strong style="color:var(--text)">${fmxn(o.costo_mxn)}</strong></div>
+          <div style="font-size:.75rem;color:var(--muted)">Precio: <strong style="color:var(--text)">${fmxn(o.precio_mxn)}</strong></div>
+        </div>
+        ${o.users && o.users.length ? `<details style="margin-top:4px">
+          <summary style="font-size:.72rem;color:var(--muted);cursor:pointer">Ver ${o.users.length} usuario(s)</summary>
+          <table style="width:100%;border-collapse:collapse;font-size:.72rem;margin-top:6px">
+            <thead><tr style="color:var(--muted)">
+              <th style="text-align:left;padding:3px 6px">Usuario</th>
+              <th style="text-align:right;padding:3px 6px">Costo</th>
+              <th style="text-align:right;padding:3px 6px">Precio</th>
+              <th style="text-align:right;padding:3px 6px">Utilidad</th>
+            </tr></thead>
+            <tbody>${o.users.map(u => `<tr style="border-top:1px solid var(--border)">
+              <td style="padding:3px 6px">${esc(u.name)}<br><span style="color:var(--muted);font-size:.65rem">${esc(u.email)}</span></td>
+              <td style="text-align:right;padding:3px 6px">${fmxn(u.costo_mxn)}</td>
+              <td style="text-align:right;padding:3px 6px">${fmxn(u.precio_mxn)}</td>
+              <td style="text-align:right;padding:3px 6px;color:${utilColor(u.utilidad_mxn)};font-weight:600">${fmxn(u.utilidad_mxn)}</td>
+            </tr>`).join('')}</tbody>
+          </table>
+        </details>` : '<div style="font-size:.72rem;color:var(--muted)">Sin uso registrado</div>'}
+      </div>`).join('');
+    c.innerHTML = `
+      <div class="adm-section">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+          <div class="adm-card" style="text-align:center">
+            <div style="font-size:.65rem;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Costo total</div>
+            <div style="font-size:1.1rem;font-weight:700;color:var(--text)">${fmxn(t.costo_mxn)}</div>
+          </div>
+          <div class="adm-card" style="text-align:center">
+            <div style="font-size:.65rem;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Precio total</div>
+            <div style="font-size:1.1rem;font-weight:700;color:var(--text)">${fmxn(t.precio_mxn)}</div>
+          </div>
+          <div class="adm-card" style="text-align:center">
+            <div style="font-size:.65rem;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Utilidad</div>
+            <div style="font-size:1.1rem;font-weight:700;color:${utilColor(t.utilidad_mxn)}">${fmxn(t.utilidad_mxn)}</div>
+          </div>
+        </div>
+        ${orgCards || '<div style="color:var(--muted);font-size:.8rem">Sin organizaciones asignadas</div>'}
+      </div>`;
+  } catch(e) {
+    c.innerHTML = `<div style="color:var(--red);padding:16px">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+// ── Sub Masters (Master Admin only) ───────────────────────────
+let _admSubMasters = [], _admAllOrgsForSM = [];
+
+async function admLoadSubMasters() {
+  const c = document.getElementById('adm-content');
+  c.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Cargando…</div>';
+  try {
+    const r = await fetch(`${API}/admin/sub-masters`);
+    const d = await r.json();
+    _admSubMasters    = d.sub_masters    || [];
+    _admAllOrgsForSM  = d.all_orgs       || [];
+    const orgOpts = _admAllOrgsForSM.map(o => `<option value="${o.org_id}">${esc(o.org_name)}${o.sub_master_id ? ' ✓' : ''}</option>`).join('');
+    const smRows = _admSubMasters.map(sm => {
+      const assignedIds = (sm.org_ids || '').split(',').filter(Boolean);
+      const assignedNames = (sm.org_names || '').split('|').filter(Boolean).join(', ');
+      return `<tr style="border-top:1px solid var(--border)">
+        <td style="padding:6px 8px">${esc(sm.name)}<br><span style="font-size:.7rem;color:var(--muted)">${esc(sm.email)}</span></td>
+        <td style="padding:6px 8px;font-size:.75rem">${_fmtMXN(sm.cost_mxn_per_usd || 0)}/USD</td>
+        <td style="padding:6px 8px;font-size:.75rem">${_fmtMXN(sm.price_mxn_per_usd || 0)}/USD</td>
+        <td style="padding:6px 8px;font-size:.72rem;color:var(--muted)">${esc(assignedNames || '—')}</td>
+        <td style="padding:6px 8px">
+          <button class="btn btn-ghost btn-sm" style="font-size:.65rem" onclick="admEditSubMaster('${sm.user_id}')">Editar</button>
+        </td>
+      </tr>`;
+    }).join('');
+    c.innerHTML = `
+      <div class="adm-section">
+        <div class="adm-card" style="margin-bottom:14px">
+          <h4 style="margin:0 0 10px;font-size:.82rem"><i class="fa-solid fa-user-tie"></i> Promover usuario a Sub Master</h4>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end">
+            <div class="adm-field">
+              <label>Correo del usuario</label>
+              <input id="sm-email" type="email" placeholder="usuario@dominio.com"
+                style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.78rem;width:100%">
+            </div>
+            <button class="btn btn-sm" style="background:var(--accent)" onclick="admPromoteToSubMaster()">Promover</button>
+          </div>
+        </div>
+        ${smRows ? `<table style="width:100%;border-collapse:collapse;font-size:.78rem">
+          <thead><tr style="color:var(--muted);font-size:.7rem;text-transform:uppercase">
+            <th style="text-align:left;padding:4px 8px">Usuario</th>
+            <th style="text-align:left;padding:4px 8px">Costo/USD</th>
+            <th style="text-align:left;padding:4px 8px">Precio/USD</th>
+            <th style="text-align:left;padding:4px 8px">Orgs asignadas</th>
+            <th></th>
+          </tr></thead>
+          <tbody>${smRows}</tbody>
+        </table>` : '<div style="color:var(--muted);font-size:.8rem">Sin sub masters configurados</div>'}
+      </div>
+      <!-- Edit modal overlay -->
+      <div id="sm-edit-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;align-items:center;justify-content:center">
+        <div style="background:var(--panel);border-radius:12px;padding:20px;width:min(480px,94vw);max-height:80vh;overflow-y:auto">
+          <h4 style="margin:0 0 14px;font-size:.88rem" id="sm-edit-title">Configurar Sub Master</h4>
+          <input type="hidden" id="sm-edit-id">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div class="adm-field">
+              <label>Costo MXN por USD de API</label>
+              <input id="sm-edit-cost" type="number" step="0.01" placeholder="19.00"
+                style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.78rem;width:100%">
+            </div>
+            <div class="adm-field">
+              <label>Precio MXN por USD de API</label>
+              <input id="sm-edit-price" type="number" step="0.01" placeholder="104.50"
+                style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.78rem;width:100%">
+            </div>
+          </div>
+          <div class="adm-field" style="margin-bottom:10px">
+            <label>Notas internas (no visibles al sub master)</label>
+            <input id="sm-edit-notes" type="text" placeholder="Ej: Cliente incorp.com.mx - contrato 2025"
+              style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.78rem;width:100%">
+          </div>
+          <div class="adm-field" style="margin-bottom:14px">
+            <label>Organizaciones asignadas</label>
+            <select id="sm-edit-orgs" multiple style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px;font-size:.78rem;width:100%;min-height:80px">
+              ${orgOpts}
+            </select>
+            <div style="font-size:.67rem;color:var(--muted);margin-top:3px">Mantén Ctrl/Cmd para seleccionar múltiples</div>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('sm-edit-overlay').style.display='none'">Cancelar</button>
+            <button class="btn btn-sm" style="background:var(--accent)" onclick="admSaveSubMaster()">Guardar</button>
+          </div>
+        </div>
+      </div>`;
+  } catch(e) {
+    c.innerHTML = `<div style="color:var(--red);padding:16px">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+async function admPromoteToSubMaster() {
+  const email = document.getElementById('sm-email')?.value?.trim();
+  if (!email) { toast('Ingresa el correo del usuario', 'error'); return; }
+  const users = await fetch(`${API}/admin/users`).then(r => r.json()).catch(() => ({}));
+  const user = (users.users || []).find(u => u.email === email);
+  if (!user) { toast('Usuario no encontrado', 'error'); return; }
+  const r = await fetch(`${API}/admin/sub-masters/${user.user_id}`, {
+    method: 'PUT', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({is_sub_master: 1})
+  });
+  if (!r.ok) { toast((await r.json()).error || 'Error', 'error'); return; }
+  toast('Usuario promovido a Sub Master', 'success');
+  admLoadSubMasters();
+}
+
+function admEditSubMaster(sm_id) {
+  const sm = _admSubMasters.find(s => s.user_id === sm_id);
+  if (!sm) return;
+  document.getElementById('sm-edit-id').value    = sm_id;
+  document.getElementById('sm-edit-title').textContent = `Sub Master: ${sm.name}`;
+  document.getElementById('sm-edit-cost').value  = sm.cost_mxn_per_usd  || '';
+  document.getElementById('sm-edit-price').value = sm.price_mxn_per_usd || '';
+  document.getElementById('sm-edit-notes').value = sm.notes || '';
+  const assignedIds = (sm.org_ids || '').split(',').filter(Boolean);
+  const sel = document.getElementById('sm-edit-orgs');
+  if (sel) Array.from(sel.options).forEach(o => { o.selected = assignedIds.includes(o.value); });
+  document.getElementById('sm-edit-overlay').style.display = 'flex';
+}
+
+async function admSaveSubMaster() {
+  const sm_id = document.getElementById('sm-edit-id').value;
+  const cost  = parseFloat(document.getElementById('sm-edit-cost').value)  || null;
+  const price = parseFloat(document.getElementById('sm-edit-price').value) || null;
+  const notes = document.getElementById('sm-edit-notes').value;
+  const sel   = document.getElementById('sm-edit-orgs');
+  const org_ids = sel ? Array.from(sel.selectedOptions).map(o => o.value) : [];
+  const r = await fetch(`${API}/admin/sub-masters/${sm_id}`, {
+    method: 'PUT', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({cost_mxn_per_usd: cost, price_mxn_per_usd: price, notes, org_ids})
+  });
+  if (!r.ok) { toast((await r.json()).error || 'Error', 'error'); return; }
+  toast('Sub Master actualizado', 'success');
+  document.getElementById('sm-edit-overlay').style.display = 'none';
+  admLoadSubMasters();
 }
 
 // ── Organizations ──────────────────────────────────────────────

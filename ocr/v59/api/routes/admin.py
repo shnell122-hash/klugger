@@ -90,6 +90,13 @@ def init_org_tables():
         is_active          TINYINT(1)     DEFAULT 1,
         created_at         TIMESTAMP      DEFAULT CURRENT_TIMESTAMP
     )""")
+    execute("""CREATE TABLE IF NOT EXISTS sub_master_rates (
+        sub_master_id       VARCHAR(36)   PRIMARY KEY,
+        cost_mxn_per_usd    DECIMAL(10,4) NOT NULL DEFAULT 19.0,
+        price_mxn_per_usd   DECIMAL(10,4) NOT NULL DEFAULT 104.5,
+        notes               VARCHAR(500),
+        updated_at          TIMESTAMP     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )""")
     execute("""CREATE TABLE IF NOT EXISTS invitations (
         invite_id   VARCHAR(36)  PRIMARY KEY,
         email       VARCHAR(255),
@@ -117,6 +124,8 @@ def init_org_tables():
         "ALTER TABLE users ADD COLUMN token_limit      INT           DEFAULT NULL",
         "ALTER TABLE users ADD COLUMN can_create_cases TINYINT(1)    DEFAULT 1",
         "ALTER TABLE users ADD COLUMN case_access      VARCHAR(20)   DEFAULT 'all'",
+        "ALTER TABLE users ADD COLUMN is_sub_master    TINYINT(1)    DEFAULT 0",
+        "ALTER TABLE organizations ADD COLUMN sub_master_id VARCHAR(36) DEFAULT NULL",
     ]:
         try:
             execute(col_sql)
@@ -280,6 +289,74 @@ def delete_org(org_id):
     return jsonify({'ok': True})
 
 
+# ── Sub Master Admins ─────────────────────────────────────────────────────────
+
+@admin_bp.route('/api/admin/sub-masters', methods=['GET'])
+@_require_master
+def list_sub_masters():
+    rows = query(
+        """SELECT u.user_id, u.name, u.email, u.approved,
+                  smr.cost_mxn_per_usd, smr.price_mxn_per_usd, smr.notes,
+                  GROUP_CONCAT(o.org_id ORDER BY o.org_name SEPARATOR ',')   AS org_ids,
+                  GROUP_CONCAT(o.org_name ORDER BY o.org_name SEPARATOR '|') AS org_names
+           FROM users u
+           LEFT JOIN sub_master_rates smr ON u.user_id = smr.sub_master_id
+           LEFT JOIN organizations o ON o.sub_master_id = u.user_id
+           WHERE u.is_sub_master = 1
+           GROUP BY u.user_id, u.name, u.email, u.approved,
+                    smr.cost_mxn_per_usd, smr.price_mxn_per_usd, smr.notes
+           ORDER BY u.name""",
+        many=True
+    ) or []
+    # Also return all orgs for the assignment UI
+    all_orgs = query(
+        "SELECT org_id, org_name, sub_master_id FROM organizations WHERE is_active=1 ORDER BY org_name",
+        many=True
+    ) or []
+    return jsonify({'sub_masters': rows, 'all_orgs': all_orgs})
+
+
+@admin_bp.route('/api/admin/sub-masters/<sm_id>', methods=['PUT'])
+@_require_master
+def update_sub_master(sm_id):
+    """Promueve/configura un sub master admin: flags, rates y orgs asignadas."""
+    body = request.get_json(force=True) or {}
+
+    # Promote / demote
+    if 'is_sub_master' in body:
+        execute("UPDATE users SET is_sub_master=%s WHERE user_id=%s",
+                (int(bool(body['is_sub_master'])), sm_id))
+
+    # Upsert rates (only master sees/sets these — sub master never receives them)
+    cost  = body.get('cost_mxn_per_usd')
+    price = body.get('price_mxn_per_usd')
+    notes = body.get('notes', '')
+    if cost is not None or price is not None:
+        existing = query("SELECT sub_master_id FROM sub_master_rates WHERE sub_master_id=%s", (sm_id,))
+        if existing:
+            fields, vals = [], []
+            if cost  is not None: fields.append('cost_mxn_per_usd=%s');  vals.append(cost)
+            if price is not None: fields.append('price_mxn_per_usd=%s'); vals.append(price)
+            if 'notes' in body:   fields.append('notes=%s');              vals.append(notes)
+            vals.append(sm_id)
+            execute(f"UPDATE sub_master_rates SET {','.join(fields)} WHERE sub_master_id=%s", vals)
+        else:
+            execute(
+                "INSERT INTO sub_master_rates (sub_master_id, cost_mxn_per_usd, price_mxn_per_usd, notes) "
+                "VALUES (%s,%s,%s,%s)",
+                (sm_id, cost or 19.0, price or 104.5, notes)
+            )
+
+    # Re-assign orgs
+    if 'org_ids' in body:
+        execute("UPDATE organizations SET sub_master_id=NULL WHERE sub_master_id=%s", (sm_id,))
+        for oid in (body['org_ids'] or []):
+            execute("UPDATE organizations SET sub_master_id=%s WHERE org_id=%s", (sm_id, oid))
+
+    log.info('sub_master updated: %s', sm_id)
+    return jsonify({'ok': True})
+
+
 # ── Users ─────────────────────────────────────────────────────────────────────
 
 @admin_bp.route('/api/admin/users', methods=['GET'])
@@ -309,7 +386,7 @@ def list_users():
 def update_user(user_id):
     body = request.get_json(force=True) or {}
     if _is_master():
-        allowed = ('org_id', 'is_org_admin', 'approved', 'token_limit', 'role',
+        allowed = ('org_id', 'is_org_admin', 'is_sub_master', 'approved', 'token_limit', 'role',
                    'can_create_cases', 'case_access')
     else:
         # Org admins can only manage users in their own org

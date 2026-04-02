@@ -91,7 +91,7 @@ def _apply_org_to_user(user_id: str, email: str, org_id: str):
 def _load_user_session(user_id, email, name, picture, role):
     """Carga datos completos del usuario a la sesión, incluyendo org y permisos."""
     row = query(
-        "SELECT org_id, is_org_admin, approved, token_limit, password_hash, "
+        "SELECT org_id, is_org_admin, is_sub_master, approved, token_limit, password_hash, "
         "can_create_cases, case_access FROM users WHERE user_id=%s",
         (user_id,)
     ) or {}
@@ -103,6 +103,7 @@ def _load_user_session(user_id, email, name, picture, role):
     session['user_role']       = role
     session['org_id']          = row.get('org_id')
     session['is_org_admin']    = bool(row.get('is_org_admin', 0))
+    session['is_sub_master']   = bool(row.get('is_sub_master', 0))
     session['token_limit']     = row.get('token_limit')
     session['has_password']    = bool(row.get('password_hash'))
     session['can_create_cases']= bool(row.get('can_create_cases', 1))
@@ -299,6 +300,7 @@ def me():
         'picture':       session.get('user_pic', ''),
         'role':          session['user_role'],
         'is_master':        session.get('user_email', '') in ADMIN_EMAILS,
+        'is_sub_master':    session.get('is_sub_master', False),
         'is_org_admin':     session.get('is_org_admin', False),
         'org_id':           org_id,
         'token_limit':      session.get('token_limit'),

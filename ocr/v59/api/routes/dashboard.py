@@ -1,7 +1,7 @@
 import os, logging
 from flask import Blueprint, jsonify, session
 from tools.db import query
-from routes.auth import require_login
+from routes.auth import require_login, ADMIN_EMAILS
 
 dashboard_bp = Blueprint('dashboard', __name__)
 log = logging.getLogger('dashboard')
@@ -24,9 +24,15 @@ def _pmxn(cost_usd) -> float:
 @dashboard_bp.route('/api/dashboard/costs')
 @require_login
 def costs():
-    role    = session.get('user_role', 'user')
-    user_id = session.get('user_id')
-    return _admin_dashboard() if role == 'admin' else _user_dashboard(user_id)
+    user_id    = session.get('user_id')
+    user_email = session.get('user_email', '')
+    is_master  = user_email in ADMIN_EMAILS
+    is_sm      = session.get('is_sub_master', False)
+    if is_master:
+        return _admin_dashboard()
+    if is_sm:
+        return _sub_master_dashboard(user_id)
+    return _user_dashboard(user_id)
 
 
 # ── Admin ────────────────────────────────────────────────────────────────────
@@ -220,8 +226,6 @@ def _user_dashboard(user_id):
         'input_tokens':  int(totals.get('total_input')  or 0),
         'output_tokens': int(totals.get('total_output') or 0),
         'price_mxn':     _pmxn(cost_usd),
-        'markup':        USER_MARKUP,
-        'fx':            MXN_PER_USD,
         'by_case': [{
             'case_id':     r['case_id'],
             'case_name':   r['case_name'] or '',
@@ -230,4 +234,94 @@ def _user_dashboard(user_id):
             'time_series': ts_idx.get(r['case_id'], []),
             'artifacts':   art_idx.get(r['case_id'], []),
         } for r in by_case_rows],
+    })
+
+
+# ── Sub Master ───────────────────────────────────────────────────────────────
+
+def _sub_master_dashboard(sm_id):
+    """Dashboard para sub master admin: solo MXN, nunca expone tasas ni cost_usd."""
+    rates = query(
+        "SELECT cost_mxn_per_usd, price_mxn_per_usd FROM sub_master_rates WHERE sub_master_id=%s",
+        (sm_id,)
+    ) or {}
+    cost_rate  = float(rates.get('cost_mxn_per_usd')  or MXN_PER_USD)
+    price_rate = float(rates.get('price_mxn_per_usd') or MXN_PER_USD * USER_MARKUP)
+
+    orgs = query(
+        "SELECT org_id, org_name FROM organizations WHERE sub_master_id=%s AND is_active=1 ORDER BY org_name",
+        (sm_id,), many=True
+    ) or []
+    if not orgs:
+        return jsonify({'role': 'sub_master', 'orgs': [],
+                        'totals': {'costo_mxn': 0, 'precio_mxn': 0, 'utilidad_mxn': 0}})
+
+    org_ids = [o['org_id'] for o in orgs]
+    ph = ','.join(['%s'] * len(org_ids))
+
+    usage = query(
+        f"""SELECT u.user_id, u.name, u.email, u.org_id,
+                   c.case_id, c.case_name,
+                   COALESCE(SUM(au.input_tokens),0)  AS inp,
+                   COALESCE(SUM(au.output_tokens),0) AS out_,
+                   COALESCE(SUM(au.cost_usd),0)      AS cost_usd
+            FROM api_usage au
+            JOIN users u ON au.user_id = u.user_id
+            LEFT JOIN cases c ON au.case_id COLLATE utf8mb4_unicode_ci = c.case_id
+            WHERE u.org_id IN ({ph})
+            GROUP BY u.user_id, u.name, u.email, u.org_id, c.case_id, c.case_name""",
+        tuple(org_ids), many=True
+    ) or []
+
+    org_map = {o['org_id']: {'org_name': o['org_name'], 'costo': 0.0, 'precio': 0.0, 'users': {}}
+               for o in orgs}
+
+    for r in usage:
+        oid  = r['org_id'] or ''
+        uid  = r['user_id']
+        cost = float(r['cost_usd'] or 0)
+        if oid not in org_map:
+            continue
+        costo  = cost * cost_rate
+        precio = cost * price_rate
+        om = org_map[oid]
+        om['costo']  += costo
+        om['precio'] += precio
+        ud = om['users'].setdefault(uid, {'name': r['name'] or r['email'] or '',
+                                          'email': r['email'] or '',
+                                          'costo': 0.0, 'precio': 0.0, 'tokens': 0})
+        ud['costo']  += costo
+        ud['precio'] += precio
+        ud['tokens'] += int(r['inp'] or 0) + int(r['out_'] or 0)
+
+    orgs_out, total_c, total_p = [], 0.0, 0.0
+    for oid, od in org_map.items():
+        c, p = round(od['costo'], 2), round(od['precio'], 2)
+        total_c += c; total_p += p
+        orgs_out.append({
+            'org_id':       oid,
+            'org_name':     od['org_name'],
+            'costo_mxn':    c,
+            'precio_mxn':   p,
+            'utilidad_mxn': round(p - c, 2),
+            'users': sorted([{
+                'name':         u['name'],
+                'email':        u['email'],
+                'costo_mxn':    round(u['costo'], 2),
+                'precio_mxn':   round(u['precio'], 2),
+                'utilidad_mxn': round(u['precio'] - u['costo'], 2),
+                'tokens':       u['tokens'],
+            } for u in od['users'].values()],
+            key=lambda x: x['costo_mxn'], reverse=True),
+        })
+    orgs_out.sort(key=lambda o: o['costo_mxn'], reverse=True)
+
+    return jsonify({
+        'role': 'sub_master',
+        'totals': {
+            'costo_mxn':    round(total_c, 2),
+            'precio_mxn':   round(total_p, 2),
+            'utilidad_mxn': round(total_p - total_c, 2),
+        },
+        'orgs': orgs_out,
     })
