@@ -214,13 +214,25 @@ def update_org(org_id):
 @admin_bp.route('/api/admin/my-org', methods=['GET'])
 @_require_admin
 def get_my_org():
-    """Org admin: lee los datos de su propia organización."""
+    """Org admin / sub master: lee los datos de su(s) organización(es)."""
+    if _is_sub_master():
+        # Sub master: devuelve todas sus orgs asignadas con logo_path
+        org_ids = _sm_org_ids()
+        if not org_ids:
+            return jsonify({'error': 'Sin organizaciones asignadas'}), 404
+        ph = ','.join(['%s'] * len(org_ids))
+        rows = query(
+            f"SELECT org_id, org_name, domain, monthly_budget_mxn, token_limit, "
+            f"primary_color, accent_color, logo_path FROM organizations WHERE org_id IN ({ph})",
+            org_ids, many=True
+        ) or []
+        return jsonify({'org': rows[0] if len(rows) == 1 else None, 'orgs': rows})
     org_id = _my_org()
     if not org_id:
         return jsonify({'error': 'Sin organización asignada'}), 404
     row = query(
         "SELECT org_id, org_name, domain, monthly_budget_mxn, token_limit, "
-        "primary_color, accent_color FROM organizations WHERE org_id=%s", (org_id,)
+        "primary_color, accent_color, logo_path FROM organizations WHERE org_id=%s", (org_id,)
     )
     if not row:
         return jsonify({'error': 'Organización no encontrada'}), 404
@@ -230,11 +242,16 @@ def get_my_org():
 @admin_bp.route('/api/admin/my-org', methods=['PUT'])
 @_require_admin
 def update_my_org():
-    """Org admin: actualiza límites de su propia organización (solo budget y tokens)."""
-    org_id = _my_org()
-    if not org_id:
-        return jsonify({'error': 'Sin organización asignada'}), 404
-    body   = request.get_json(force=True) or {}
+    """Org admin / sub master: actualiza límites de organización."""
+    body = request.get_json(force=True) or {}
+    if _is_sub_master():
+        org_id = body.get('org_id')
+        if not org_id or org_id not in set(_sm_org_ids()):
+            return jsonify({'error': 'Org no válida o no asignada'}), 403
+    else:
+        org_id = _my_org()
+        if not org_id:
+            return jsonify({'error': 'Sin organización asignada'}), 404
     # Org admins only allowed to change budget/token limits, not name/domain/colors
     allowed = ('monthly_budget_mxn', 'token_limit')
     fields, vals = [], []
@@ -252,10 +269,15 @@ def update_my_org():
 @admin_bp.route('/api/admin/my-org/logo', methods=['POST'])
 @_require_admin
 def upload_org_logo():
-    """Org admin: sube el logo de su organización."""
-    org_id = _my_org()
-    if not org_id:
-        return jsonify({'error': 'Sin organización asignada'}), 404
+    """Org admin / sub master: sube el logo de una organización."""
+    if _is_sub_master():
+        org_id = request.args.get('org_id') or (request.form.get('org_id'))
+        if not org_id or org_id not in set(_sm_org_ids()):
+            return jsonify({'error': 'Org no válida o no asignada'}), 403
+    else:
+        org_id = _my_org()
+        if not org_id:
+            return jsonify({'error': 'Sin organización asignada'}), 404
     f = request.files.get('logo')
     if not f:
         return jsonify({'error': 'No se envió archivo'}), 400

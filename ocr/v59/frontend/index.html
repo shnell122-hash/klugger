@@ -2429,8 +2429,17 @@ function openAdminPanel() {
   const isMaster  = currentUser?.is_master === true;
   const isSubMstr = currentUser?.is_sub_master === true;
   const isOrgAdm  = currentUser?.is_org_admin === true;
-  document.getElementById('adm-role-badge').textContent =
-    isMaster ? 'Master Admin' : isSubMstr ? 'Sub Master' : 'Org Admin';
+  const badge = document.getElementById('adm-role-badge');
+  if (isMaster) {
+    badge.textContent = 'Master Admin';
+    badge.style.background = 'var(--accent)';
+  } else if (isSubMstr) {
+    badge.textContent = 'Administrador';
+    badge.style.background = '#1e40af';  /* azul oscuro — distinto del master */
+  } else {
+    badge.textContent = 'Org Admin';
+    badge.style.background = 'var(--accent)';
+  }
   // Visibility rules per tab
   document.querySelectorAll('.adm-tab').forEach(t => {
     const tab = t.dataset.tab;
@@ -2754,48 +2763,55 @@ async function admDeleteOrg(id, name) {
 async function admLoadUsers() {
   const c = document.getElementById('adm-content');
   c.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Cargando…</div>';
-  const isMaster = currentUser?.role === 'admin';
+  const isMaster  = currentUser?.is_master === true;
+  const isSubMstr = currentUser?.is_sub_master === true;
   const [usersR, myOrgR] = await Promise.all([
     fetch(`${API}/admin/users`),
     !isMaster ? fetch(`${API}/admin/my-org`) : Promise.resolve(null),
   ]);
   if (!usersR.ok) { c.innerHTML = `<div style="color:var(--red)">Error</div>`; return; }
   _admUsers = (await usersR.json()).users || [];
-  const myOrg = (myOrgR && myOrgR.ok) ? (await myOrgR.json()).org : null;
+  const myOrgData = (myOrgR && myOrgR.ok) ? await myOrgR.json() : {};
+  // Sub master puede tener varias orgs asignadas
+  const myOrgs = isSubMstr
+    ? (myOrgData.orgs || (myOrgData.org ? [myOrgData.org] : []))
+    : (myOrgData.org ? [myOrgData.org] : []);
+  const myOrg = myOrgs[0] || null;  // backward compat para la tabla
   const orgOptions = _admOrgs.map(o => `<option value="${o.org_id}">${esc(o.org_name)}</option>`).join('');
-  const orgLimitsCard = myOrg ? `
+  const _orgCard = (org, idx) => `
     <div class="adm-card" style="margin-bottom:14px">
-      <h4 style="margin:0 0 10px;font-size:.82rem"><i class="fa-solid fa-building"></i> ${esc(myOrg.org_name)} — Configuración de la organización</h4>
+      <h4 style="margin:0 0 10px;font-size:.82rem"><i class="fa-solid fa-building"></i> ${esc(org.org_name)} — Configuración de la organización</h4>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div class="adm-field">
           <label>Presupuesto mensual (MXN)</label>
-          <input id="adm-myorg-budget" type="number" placeholder="Sin límite"
-            value="${myOrg.monthly_budget_mxn||''}"
+          <input id="adm-myorg-budget-${idx}" type="number" placeholder="Sin límite"
+            value="${org.monthly_budget_mxn||''}"
             style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.78rem;width:100%">
         </div>
         <div class="adm-field">
           <label>Límite de tokens (org)</label>
-          <input id="adm-myorg-tokens" type="number" placeholder="Sin límite"
-            value="${myOrg.token_limit||''}"
+          <input id="adm-myorg-tokens-${idx}" type="number" placeholder="Sin límite"
+            value="${org.token_limit||''}"
             style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.78rem;width:100%">
         </div>
       </div>
       <div style="text-align:right;margin-top:8px">
-        <button class="btn btn-sm" onclick="admSaveMyOrg()" style="background:var(--accent)">Guardar límites</button>
+        <button class="btn btn-sm" onclick="admSaveMyOrg('${org.org_id}',${idx})" style="background:var(--accent)">Guardar límites</button>
       </div>
       <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">
         <label style="font-size:.74rem;color:var(--muted);display:block;margin-bottom:6px"><i class="fa-solid fa-image"></i> Logo de la organización</label>
-        ${myOrg.logo_path ? `<img src="${esc(myOrg.logo_path)}" alt="Logo" style="max-height:52px;max-width:180px;object-fit:contain;border-radius:6px;margin-bottom:8px;display:block;background:var(--hover);padding:4px">` : '<div style="font-size:.74rem;color:var(--muted);margin-bottom:6px">Sin logo configurado</div>'}
+        ${org.logo_path ? `<img src="${esc(org.logo_path)}" alt="Logo" style="max-height:52px;max-width:180px;object-fit:contain;border-radius:6px;margin-bottom:8px;display:block;background:var(--hover);padding:4px">` : '<div style="font-size:.74rem;color:var(--muted);margin-bottom:6px">Sin logo configurado</div>'}
         <div style="display:flex;flex-direction:column;gap:8px">
-          <input type="file" id="adm-logo-file" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+          <input type="file" id="adm-logo-file-${idx}" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
             style="font-size:.74rem;color:var(--text);width:100%">
-          <button id="adm-logo-btn" class="btn btn-sm" onclick="admUploadLogo()" style="background:#7c3aed;color:#fff;width:100%">
+          <button id="adm-logo-btn-${idx}" class="btn btn-sm" onclick="admUploadLogo('${org.org_id}',${idx})" style="background:#7c3aed;color:#fff;width:100%">
             <i class="fa-solid fa-upload"></i> Subir logo
           </button>
         </div>
         <div style="font-size:.68rem;color:var(--muted);margin-top:4px">PNG, JPG, SVG · máx 2 MB · reemplaza el título en el encabezado</div>
       </div>
-    </div>` : '';
+    </div>`;
+  const orgLimitsCard = myOrgs.map((o, i) => _orgCard(o, i)).join('');
   c.innerHTML = `
     <div class="adm-section">
       ${orgLimitsCard}
@@ -2871,30 +2887,31 @@ async function admLoadUsers() {
   });
 }
 
-async function admSaveMyOrg() {
-  const budget = document.getElementById('adm-myorg-budget')?.value;
-  const tokens = document.getElementById('adm-myorg-tokens')?.value;
+async function admSaveMyOrg(orgId, idx = 0) {
+  const sfx    = orgId ? `-${idx}` : '';
+  const budget = document.getElementById(`adm-myorg-budget${sfx}`)?.value;
+  const tokens = document.getElementById(`adm-myorg-tokens${sfx}`)?.value;
+  const body   = {monthly_budget_mxn: budget || null, token_limit: tokens || null};
+  if (orgId) body.org_id = orgId;
   const r = await fetch(`${API}/admin/my-org`, {
-    method: 'PUT',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
-      monthly_budget_mxn: budget || null,
-      token_limit: tokens || null,
-    })
+    method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
   });
   if (!r.ok) { toast((await r.json()).error || 'Error', 'error'); return; }
   toast('Límites guardados', 'success');
 }
 
-async function admUploadLogo() {
-  const inp = document.getElementById('adm-logo-file');
+async function admUploadLogo(orgId, idx = 0) {
+  const sfx = orgId ? `-${idx}` : '';
+  const inp = document.getElementById(`adm-logo-file${sfx}`);
   if (!inp || !inp.files[0]) { toast('Selecciona una imagen primero', 'error'); return; }
-  const btn = document.getElementById('adm-logo-btn');
+  const btn = document.getElementById(`adm-logo-btn${sfx}`);
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Subiendo…'; }
   try {
     const fd = new FormData();
     fd.append('logo', inp.files[0]);
-    const r = await fetch(`${API}/admin/my-org/logo`, {method: 'POST', body: fd});
+    if (orgId) fd.append('org_id', orgId);
+    const url = orgId ? `${API}/admin/my-org/logo?org_id=${encodeURIComponent(orgId)}` : `${API}/admin/my-org/logo`;
+    const r = await fetch(url, {method: 'POST', body: fd});
     let d = {};
     try { d = await r.json(); } catch { d = {error: `Error HTTP ${r.status}`}; }
     if (!r.ok) { toast(d.error || 'Error al subir logo', 'error'); return; }
