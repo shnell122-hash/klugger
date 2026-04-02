@@ -216,8 +216,11 @@ def update_org(org_id):
 def get_my_org():
     """Org admin / sub master: lee los datos de su(s) organización(es)."""
     if _is_sub_master():
-        # Sub master: devuelve todas sus orgs asignadas con logo_path
+        # Orgs asignadas por el master (sub_master_id) más la propia org del usuario (fallback)
         org_ids = _sm_org_ids()
+        own_org = _my_org()
+        if own_org and own_org not in org_ids:
+            org_ids = org_ids + [own_org]
         if not org_ids:
             return jsonify({'error': 'Sin organizaciones asignadas'}), 404
         ph = ','.join(['%s'] * len(org_ids))
@@ -271,8 +274,12 @@ def update_my_org():
 def upload_org_logo():
     """Org admin / sub master: sube el logo de una organización."""
     if _is_sub_master():
-        org_id = request.args.get('org_id') or (request.form.get('org_id'))
-        if not org_id or org_id not in set(_sm_org_ids()):
+        org_id = request.args.get('org_id') or request.form.get('org_id')
+        allowed = set(_sm_org_ids())
+        own_org = _my_org()
+        if own_org:
+            allowed.add(own_org)
+        if not org_id or org_id not in allowed:
             return jsonify({'error': 'Org no válida o no asignada'}), 403
     else:
         org_id = _my_org()
@@ -455,15 +462,19 @@ def update_sub_master(sm_id):
 @admin_bp.route('/api/admin/sm/my-orgs', methods=['GET'])
 @_require_admin
 def sm_my_orgs():
-    """Orgs asignadas al sub master actual (para poblar dropdown de invitaciones)."""
+    """Orgs asignadas al sub master actual (incluye logo_path para mostrar en panel)."""
     if not _is_sub_master():
         return jsonify({'orgs': []})
     org_ids = _sm_org_ids()
+    own_org = _my_org()
+    if own_org and own_org not in org_ids:
+        org_ids = org_ids + [own_org]
     if not org_ids:
         return jsonify({'orgs': []})
     ph = ','.join(['%s'] * len(org_ids))
     rows = query(
-        f"SELECT org_id, org_name FROM organizations WHERE org_id IN ({ph}) ORDER BY org_name",
+        f"SELECT org_id, org_name, logo_path, primary_color, accent_color, "
+        f"monthly_budget_mxn, token_limit FROM organizations WHERE org_id IN ({ph}) ORDER BY org_name",
         org_ids, many=True
     ) or []
     return jsonify({'orgs': rows})
