@@ -248,11 +248,11 @@ def _generate_image(inputs: dict) -> dict:
         return {"error": "case_id y prompt son requeridos"}
 
     sizes = {
-        'portrait':  {'width': 768,  'height': 1024},
-        'landscape': {'width': 1024, 'height': 768},
-        'square':    {'width': 1024, 'height': 1024},
+        'portrait':  'portrait_4_3',
+        'landscape': 'landscape_4_3',
+        'square':    'square_hd',
     }
-    size = sizes.get(aspect, sizes['portrait'])
+    image_size = sizes.get(aspect, 'portrait_4_3')
 
     upload_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
     os.makedirs(upload_dir, exist_ok=True)
@@ -261,39 +261,35 @@ def _generate_image(inputs: dict) -> dict:
         "shot on a smartphone, candid documentary photo, natural lighting, "
         "slightly imperfect framing, photorealistic, no text overlays"
     )
-    negative = (
-        "painting, illustration, cartoon, render, cgi, watermark, logo, text, "
-        "signature, border, frame, artistic, stylized"
-    )
 
     payload = {
-        'prompt':              f"{prompt}, {style_suffix}",
-        'negative_prompt':     negative,
-        'num_images':          count,
-        'image_size':          size,
-        'num_inference_steps': 28,
-        'guidance_scale':      3.5,
-        'enable_safety_checker': True,
-        'output_format':       'jpeg',
+        'prompt':           f"{prompt}, {style_suffix}",
+        'image_size':       image_size,
+        'safety_tolerance': '2',
+        'output_format':    'jpeg',
     }
     headers = {
         'Authorization': f'Key {fal_key}',
         'Content-Type':  'application/json',
     }
 
+    images_out = []
     try:
-        resp = requests.post(
-            'https://fal.run/fal-ai/flux/dev',
-            json=payload, headers=headers, timeout=120
-        )
-        resp.raise_for_status()
-        fal_data = resp.json()
+        for _ in range(count):
+            resp = requests.post(
+                'https://fal.run/fal-ai/flux-2-pro',
+                json=payload, headers=headers, timeout=120
+            )
+            resp.raise_for_status()
+            fal_data = resp.json()
+            imgs = fal_data.get('images', [])
+            if imgs:
+                images_out.extend(imgs)
     except requests.exceptions.HTTPError as e:
         return {"error": f"fal.ai HTTP {e.response.status_code}: {e.response.text[:200]}"}
     except Exception as e:
         return {"error": f"Error llamando fal.ai: {str(e)}"}
 
-    images_out = fal_data.get('images', [])
     if not images_out:
         return {"error": "fal.ai no devolvió imágenes"}
 
