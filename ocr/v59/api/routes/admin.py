@@ -255,8 +255,8 @@ def update_my_org():
         org_id = _my_org()
         if not org_id:
             return jsonify({'error': 'Sin organización asignada'}), 404
-    # Org admins only allowed to change budget/token limits, not name/domain/colors
-    allowed = ('monthly_budget_mxn', 'token_limit')
+    # Org admins can change budget/token limits and branding colors
+    allowed = ('monthly_budget_mxn', 'token_limit', 'primary_color', 'accent_color')
     fields, vals = [], []
     for f in allowed:
         if f in body:

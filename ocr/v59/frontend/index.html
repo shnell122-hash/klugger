@@ -795,7 +795,9 @@ async function openDashboard() {
       throw new Error(`HTTP ${r.status}: ${txt.slice(0,200)}`);
     }
     const d = await r.json();
-    if (d.role === 'admin') { _renderAdminDash(el, d); }
+    if (d.role === 'admin')      { _renderAdminDash(el, d); }
+    else if (d.role === 'sub_master') { _renderSubMasterDash(el, d); }
+    else if (d.role === 'org_admin')  { _renderOrgAdminDash(el, d); }
     else { _renderUserDash(el, d); }
   } catch (err) {
     el.innerHTML = `<div style="color:var(--red);padding:16px;font-size:.8rem;white-space:pre-wrap">Error: ${esc(err.message)}</div>`;
@@ -919,6 +921,94 @@ function _renderUserDash(el, d) {
     </div>
     <div style="font-size:.78rem;font-weight:600;color:var(--text);margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px">Por expediente</div>
     ${caseCards}`;
+}
+
+function _renderSubMasterDash(el, d) {
+  const t = d.totals || {};
+  const fmxn = v => _fmtMXN(v);
+  const utilColor = v => (+v) >= 0 ? 'var(--green)' : 'var(--red)';
+  const orgCards = (d.orgs || []).map(o => `
+    <div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-weight:600;font-size:.85rem">${esc(o.org_name)}</span>
+        <span style="font-size:.75rem;color:${utilColor(o.utilidad_mxn)};font-weight:700">${fmxn(o.utilidad_mxn)} utilidad</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div style="font-size:.75rem;color:var(--muted)">Costo: <strong style="color:var(--text)">${fmxn(o.costo_mxn)}</strong></div>
+        <div style="font-size:.75rem;color:var(--muted)">Precio: <strong style="color:var(--text)">${fmxn(o.precio_mxn)}</strong></div>
+      </div>
+      ${o.users && o.users.length ? `<details style="margin-top:4px">
+        <summary style="font-size:.72rem;color:var(--muted);cursor:pointer">Ver ${o.users.length} usuario(s)</summary>
+        <table style="width:100%;border-collapse:collapse;font-size:.72rem;margin-top:6px">
+          <thead><tr style="color:var(--muted)">
+            <th style="text-align:left;padding:3px 6px">Usuario</th>
+            <th style="text-align:right;padding:3px 6px">Costo</th>
+            <th style="text-align:right;padding:3px 6px">Precio</th>
+            <th style="text-align:right;padding:3px 6px">Utilidad</th>
+          </tr></thead>
+          <tbody>${(o.users||[]).map(u => `<tr style="border-top:1px solid var(--border)">
+            <td style="padding:3px 6px">${esc(u.name)}<br><span style="color:var(--muted);font-size:.65rem">${esc(u.email)}</span></td>
+            <td style="text-align:right;padding:3px 6px">${fmxn(u.costo_mxn)}</td>
+            <td style="text-align:right;padding:3px 6px">${fmxn(u.precio_mxn)}</td>
+            <td style="text-align:right;padding:3px 6px;color:${utilColor(u.utilidad_mxn)};font-weight:600">${fmxn(u.utilidad_mxn)}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </details>` : '<div style="font-size:.72rem;color:var(--muted)">Sin uso registrado</div>'}
+    </div>`).join('');
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+      ${_statCard('Costo total', fmxn(t.costo_mxn||0), '', 'var(--muted)')}
+      ${_statCard('Precio total', fmxn(t.precio_mxn||0), '', 'var(--accent)')}
+      ${_statCard('Utilidad', fmxn(t.utilidad_mxn||0), '', utilColor(t.utilidad_mxn||0))}
+    </div>
+    <div style="font-size:.78rem;font-weight:600;color:var(--text);margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px">Por organización</div>
+    ${orgCards || '<div style="color:var(--muted);font-size:.8rem">Sin organizaciones asignadas</div>'}`;
+}
+
+function _renderOrgAdminDash(el, d) {
+  const t = d.totals || {};
+  const tok = `${_fmtTok(t.input_tokens||0)} in · ${_fmtTok(t.output_tokens||0)} out`;
+  const users = d.by_user || [];
+  const userSections = users.map(u => {
+    const caseRows = (u.by_case||[]).map(c=>`
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:7px 10px;font-size:.78rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.case_name)}</td>
+        <td style="padding:7px 10px;font-size:.76rem;text-align:right;color:var(--accent);font-weight:600">${_fmtMXN(c.price_mxn)}</td>
+        <td style="padding:7px 10px;font-size:.7rem;text-align:right;color:var(--muted)">${_fmtTok(c.tokens)}</td>
+        <td style="padding:7px 10px;font-size:.6rem;max-width:160px">${_artBadges(c.artifacts)}</td>
+      </tr>`).join('') ||
+      '<tr><td colspan="4" style="padding:8px 10px;color:var(--muted);font-size:.75rem">Sin expedientes con costo</td></tr>';
+    const utok = _fmtTok((u.input_tokens||0)+(u.output_tokens||0));
+    return `<details style="margin-bottom:10px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+      <summary style="padding:11px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:var(--hover);list-style:none;user-select:none">
+        <div style="min-width:0;flex:1;overflow:hidden">
+          <span style="font-size:.83rem;font-weight:600">${esc(u.name||u.email)}</span>
+          <span style="font-size:.7rem;color:var(--muted);margin-left:8px">${esc(u.email)}</span>
+        </div>
+        <div style="display:flex;gap:14px;font-size:.78rem;flex-shrink:0;margin-left:12px">
+          <span style="color:var(--accent);font-weight:600">${_fmtMXN(u.price_mxn)}</span>
+          <span style="color:var(--muted)">${utok}</span>
+        </div>
+      </summary>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;white-space:nowrap">
+          <thead><tr style="border-bottom:1px solid var(--border);background:var(--bg)">
+            <th style="padding:5px 10px;font-size:.64rem;color:var(--muted);text-align:left">Expediente</th>
+            <th style="padding:5px 10px;font-size:.64rem;color:var(--muted);text-align:right">Precio MXN</th>
+            <th style="padding:5px 10px;font-size:.64rem;color:var(--muted);text-align:right">Tokens</th>
+            <th style="padding:5px 10px;font-size:.64rem;color:var(--muted)">Artefactos</th>
+          </tr></thead>
+          <tbody>${caseRows}</tbody>
+        </table>
+      </div>
+    </details>`;
+  }).join('');
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px">
+      ${_statCard('Consumo org', `${_fmtMXN(t.price_mxn||0)} MXN`, tok)}
+    </div>
+    <div style="font-size:.78rem;font-weight:600;color:var(--text);margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px">Por usuario</div>
+    ${userSections || '<div style="text-align:center;color:var(--muted);padding:24px">Sin consumo registrado</div>'}`;
 }
 
 // ── Init ─────────────────────────────────────────────────
@@ -2479,58 +2569,20 @@ async function admLoadUtilities() {
   try {
     const r = await fetch(`${API}/dashboard/costs`);
     const d = await r.json();
-    if (!r.ok || d.role !== 'sub_master') {
+    if (!r.ok) {
       c.innerHTML = `<div style="color:var(--red);padding:16px">Error al cargar utilidades</div>`; return;
     }
-    const t = d.totals;
-    const fmxn = v => _fmtMXN(v);
-    const utilColor = v => v >= 0 ? 'var(--green)' : 'var(--red)';
-    const orgCards = (d.orgs || []).map(o => `
-      <div class="adm-card" style="margin-bottom:12px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span style="font-weight:600;font-size:.85rem">${esc(o.org_name)}</span>
-          <span style="font-size:.75rem;color:${utilColor(o.utilidad_mxn)};font-weight:700">${fmxn(o.utilidad_mxn)} utilidad</span>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-          <div style="font-size:.75rem;color:var(--muted)">Costo: <strong style="color:var(--text)">${fmxn(o.costo_mxn)}</strong></div>
-          <div style="font-size:.75rem;color:var(--muted)">Precio: <strong style="color:var(--text)">${fmxn(o.precio_mxn)}</strong></div>
-        </div>
-        ${o.users && o.users.length ? `<details style="margin-top:4px">
-          <summary style="font-size:.72rem;color:var(--muted);cursor:pointer">Ver ${o.users.length} usuario(s)</summary>
-          <table style="width:100%;border-collapse:collapse;font-size:.72rem;margin-top:6px">
-            <thead><tr style="color:var(--muted)">
-              <th style="text-align:left;padding:3px 6px">Usuario</th>
-              <th style="text-align:right;padding:3px 6px">Costo</th>
-              <th style="text-align:right;padding:3px 6px">Precio</th>
-              <th style="text-align:right;padding:3px 6px">Utilidad</th>
-            </tr></thead>
-            <tbody>${o.users.map(u => `<tr style="border-top:1px solid var(--border)">
-              <td style="padding:3px 6px">${esc(u.name)}<br><span style="color:var(--muted);font-size:.65rem">${esc(u.email)}</span></td>
-              <td style="text-align:right;padding:3px 6px">${fmxn(u.costo_mxn)}</td>
-              <td style="text-align:right;padding:3px 6px">${fmxn(u.precio_mxn)}</td>
-              <td style="text-align:right;padding:3px 6px;color:${utilColor(u.utilidad_mxn)};font-weight:600">${fmxn(u.utilidad_mxn)}</td>
-            </tr>`).join('')}</tbody>
-          </table>
-        </details>` : '<div style="font-size:.72rem;color:var(--muted)">Sin uso registrado</div>'}
-      </div>`).join('');
-    c.innerHTML = `
-      <div class="adm-section">
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
-          <div class="adm-card" style="text-align:center">
-            <div style="font-size:.65rem;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Costo total</div>
-            <div style="font-size:1.1rem;font-weight:700;color:var(--text)">${fmxn(t.costo_mxn)}</div>
-          </div>
-          <div class="adm-card" style="text-align:center">
-            <div style="font-size:.65rem;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Precio total</div>
-            <div style="font-size:1.1rem;font-weight:700;color:var(--text)">${fmxn(t.precio_mxn)}</div>
-          </div>
-          <div class="adm-card" style="text-align:center">
-            <div style="font-size:.65rem;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Utilidad</div>
-            <div style="font-size:1.1rem;font-weight:700;color:${utilColor(t.utilidad_mxn)}">${fmxn(t.utilidad_mxn)}</div>
-          </div>
-        </div>
-        ${orgCards || '<div style="color:var(--muted);font-size:.8rem">Sin organizaciones asignadas</div>'}
-      </div>`;
+    const wrap = document.createElement('div');
+    wrap.className = 'adm-section';
+    if (d.role === 'sub_master') {
+      _renderSubMasterDash(wrap, d);
+    } else if (d.role === 'org_admin') {
+      _renderOrgAdminDash(wrap, d);
+    } else {
+      wrap.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Sin datos de utilidades disponibles</div>';
+    }
+    c.innerHTML = '';
+    c.appendChild(wrap);
   } catch(e) {
     c.innerHTML = `<div style="color:var(--red);padding:16px">Error: ${esc(e.message)}</div>`;
   }
@@ -2814,8 +2866,32 @@ async function admLoadUsers() {
             style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.78rem;width:100%">
         </div>
       </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+        <div class="adm-field">
+          <label>Color primario</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input id="adm-myorg-color1-${idx}" type="color" value="${org.primary_color||'#c47a5a'}"
+              oninput="document.getElementById('adm-myorg-color1-hex-${idx}').value=this.value"
+              style="width:36px;height:28px;border:1px solid var(--border);border-radius:4px;padding:1px;background:var(--bg);cursor:pointer">
+            <input id="adm-myorg-color1-hex-${idx}" type="text" value="${org.primary_color||'#c47a5a'}"
+              oninput="document.getElementById('adm-myorg-color1-${idx}').value=this.value"
+              style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.78rem">
+          </div>
+        </div>
+        <div class="adm-field">
+          <label>Color acento</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input id="adm-myorg-color2-${idx}" type="color" value="${org.accent_color||'#8b5cf6'}"
+              oninput="document.getElementById('adm-myorg-color2-hex-${idx}').value=this.value"
+              style="width:36px;height:28px;border:1px solid var(--border);border-radius:4px;padding:1px;background:var(--bg);cursor:pointer">
+            <input id="adm-myorg-color2-hex-${idx}" type="text" value="${org.accent_color||'#8b5cf6'}"
+              oninput="document.getElementById('adm-myorg-color2-${idx}').value=this.value"
+              style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.78rem">
+          </div>
+        </div>
+      </div>
       <div style="text-align:right;margin-top:8px">
-        <button class="btn btn-sm" onclick="admSaveMyOrg('${org.org_id}',${idx})" style="background:var(--accent)">Guardar límites</button>
+        <button class="btn btn-sm" onclick="admSaveMyOrg('${org.org_id}',${idx})" style="background:var(--accent)">Guardar</button>
       </div>
       <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">
         <label style="font-size:.74rem;color:var(--muted);display:block;margin-bottom:6px"><i class="fa-solid fa-image"></i> Logo de la organización</label>
@@ -2907,16 +2983,29 @@ async function admLoadUsers() {
 }
 
 async function admSaveMyOrg(orgId, idx = 0) {
-  const sfx    = orgId ? `-${idx}` : '';
+  const sfx    = idx !== undefined ? `-${idx}` : '';
   const budget = document.getElementById(`adm-myorg-budget${sfx}`)?.value;
   const tokens = document.getElementById(`adm-myorg-tokens${sfx}`)?.value;
+  const color1 = document.getElementById(`adm-myorg-color1-hex${sfx}`)?.value ||
+                 document.getElementById(`adm-myorg-color1${sfx}`)?.value;
+  const color2 = document.getElementById(`adm-myorg-color2-hex${sfx}`)?.value ||
+                 document.getElementById(`adm-myorg-color2${sfx}`)?.value;
   const body   = {monthly_budget_mxn: budget || null, token_limit: tokens || null};
+  if (color1) body.primary_color = color1;
+  if (color2) body.accent_color  = color2;
   if (orgId) body.org_id = orgId;
   const r = await fetch(`${API}/admin/my-org`, {
     method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
   });
   if (!r.ok) { toast((await r.json()).error || 'Error', 'error'); return; }
-  toast('Límites guardados', 'success');
+  toast('Guardado', 'success');
+  if (color1 || color2) {
+    if (currentUser) {
+      if (color1) currentUser.primary_color = color1;
+      if (color2) currentUser.accent_color  = color2;
+      _applyOrgBranding(currentUser);
+    }
+  }
 }
 
 async function admUploadLogo(orgId, idx = 0) {
@@ -3157,6 +3246,7 @@ async function admUploadInvLogo(orgId, idx) {
     const d = await r.json().catch(() => ({}));
     if (!r.ok) { toast(d.error || 'Error al subir logo', 'error'); return; }
     toast('Logo actualizado', 'success');
+    if (currentUser && d.logo_path) _applyOrgBranding({...currentUser, logo_path: d.logo_path});
     admLoadInvites();
   } catch(e) { toast('Error: ' + e.message, 'error');
   } finally {

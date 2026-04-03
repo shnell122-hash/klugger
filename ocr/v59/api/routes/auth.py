@@ -307,14 +307,21 @@ def me():
     org_branding = {}
     if org_id:
         org_row = query(
-            "SELECT primary_color, accent_color, logo_path FROM organizations WHERE org_id=%s",
+            """SELECT o1.primary_color, o1.accent_color, o1.logo_path,
+                      o2.primary_color AS sm_primary_color,
+                      o2.accent_color  AS sm_accent_color,
+                      o2.logo_path     AS sm_logo_path
+               FROM organizations o1
+               LEFT JOIN users sm_u ON o1.sub_master_id = sm_u.user_id
+               LEFT JOIN organizations o2 ON sm_u.org_id = o2.org_id
+               WHERE o1.org_id = %s""",
             (org_id,)
         )
         if org_row:
             org_branding = {
-                'primary_color': org_row.get('primary_color'),
-                'accent_color':  org_row.get('accent_color'),
-                'logo_path':     org_row.get('logo_path'),
+                'primary_color': org_row.get('primary_color') or org_row.get('sm_primary_color'),
+                'accent_color':  org_row.get('accent_color')  or org_row.get('sm_accent_color'),
+                'logo_path':     org_row.get('logo_path')     or org_row.get('sm_logo_path'),
             }
     return jsonify({
         'authenticated': True,
