@@ -124,8 +124,8 @@ def generate_image():
             'artifact_id': artifact_id,
             'filename':    filename,
             'url':         f'/OCR/v59/api/artifacts/file/{artifact_id}',
-            'width':       img_info.get('width', size['width']),
-            'height':      img_info.get('height', size['height']),
+            'width':       img_info.get('width', 0),
+            'height':      img_info.get('height', 0),
         })
 
     if not saved:
