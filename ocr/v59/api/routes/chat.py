@@ -191,7 +191,8 @@ def _classify_intent(client, message: str) -> str:
         )
         text = resp.content[0].text.strip() if resp.content else '{}'
         return json.loads(text).get('a', 'general')
-    except Exception:
+    except Exception as e:
+        log.warning('_classify_intent error (model=%s): %s', _MODEL_HAIKU, e)
         return 'general'
 
 def _filter_tool_defs(allowed: set | None) -> list:
@@ -1384,6 +1385,8 @@ def chat_stream():
                             _force_tool = True
 
         except anthropic.APIError as e:
+            log.error('chat_stream API error (model=%s): %s | body=%s',
+                      _model, type(e).__name__, getattr(e, 'body', None) or str(e)[:400])
             diag = _auto_diagnose(traceback.format_exc(), model, artifact_type, max_tokens)
             emit_op('❌', f'Error API Anthropic: {str(e)[:120]}', level='error')
             q.put(('diagnosis', diag))
