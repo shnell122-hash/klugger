@@ -68,8 +68,8 @@ _STATUS_STEPS = {
 }
 
 # ── Modelos disponibles ────────────────────────────────────────────────────────
-_MODEL_HAIKU  = "claude-3-5-haiku-20241022"
-_MODEL_SONNET = "claude-3-5-sonnet-20241022"
+_MODEL_HAIKU  = "claude-haiku-4-5-20251001"
+_MODEL_SONNET = "claude-sonnet-4-6"
 _MODEL_OPUS   = "claude-opus-4-6"
 
 # Modelo por tipo de artefacto
