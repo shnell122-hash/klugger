@@ -342,25 +342,89 @@ def _content_to_bytes(content, name, fmt, is_html=False):
 
 
 def _build_docx(content, name, is_html=False):
-    """Genera un DOCX desde markdown con formato completo."""
+    """Genera un DOCX desde markdown o HTML con tablas completas."""
     from docx import Document
     from docx.shared import Pt, RGBColor
     doc = Document()
     doc.add_heading(name.replace('_', ' '), 0)
 
     if is_html:
-        # Basic HTML → plain text for DOCX (strip tags)
-        plain = re.sub(r'<[^>]+>', '', content)
-        for line in plain.split('\n'):
-            if line.strip():
-                doc.add_paragraph(line.strip())
+        # Intentar conversión HTML→DOCX con htmldocx (tablas, estilos)
+        try:
+            from htmldocx import HtmlToDocx
+            HtmlToDocx().add_html_to_document(content, doc)
+        except ImportError:
+            # Fallback: extraer texto y tablas manualmente con html.parser
+            from html.parser import HTMLParser
+
+            class _TableCollector(HTMLParser):
+                def __init__(self):
+                    super().__init__()
+                    self.blocks = []          # lista de ('text'|'table', data)
+                    self._in_table = False
+                    self._rows = []
+                    self._cur_row = []
+                    self._cur_cell = []
+                    self._buf = []
+
+                def handle_starttag(self, tag, attrs):
+                    if tag == 'table':
+                        if self._buf:
+                            self.blocks.append(('text', ''.join(self._buf).strip()))
+                            self._buf = []
+                        self._in_table = True; self._rows = []
+                    elif tag == 'tr':
+                        self._cur_row = []
+                    elif tag in ('td', 'th'):
+                        self._cur_cell = []
+
+                def handle_endtag(self, tag):
+                    if tag == 'table':
+                        self._in_table = False
+                        self.blocks.append(('table', self._rows))
+                        self._rows = []
+                    elif tag == 'tr':
+                        if self._cur_row:
+                            self._rows.append(self._cur_row)
+                    elif tag in ('td', 'th'):
+                        self._cur_row.append(''.join(self._cur_cell).strip())
+                        self._cur_cell = []
+
+                def handle_data(self, data):
+                    if self._in_table:
+                        self._cur_cell.append(data)
+                    else:
+                        self._buf.append(data)
+
+                def close(self):
+                    super().close()
+                    if self._buf:
+                        self.blocks.append(('text', ''.join(self._buf).strip()))
+
+            p = _TableCollector()
+            p.feed(content)
+            p.close()
+            for kind, data in p.blocks:
+                if kind == 'text':
+                    for line in data.split('\n'):
+                        if line.strip():
+                            doc.add_paragraph(line.strip())
+                elif kind == 'table' and data:
+                    ncols = max(len(r) for r in data)
+                    t = doc.add_table(rows=len(data), cols=ncols)
+                    t.style = 'Table Grid'
+                    for ri, row in enumerate(data):
+                        for ci, cell in enumerate(row):
+                            if ci < ncols:
+                                t.rows[ri].cells[ci].text = cell
     else:
+        # Markdown: parseo línea a línea con soporte correcto de tablas multi-fila
         in_code_block = False
         code_lines = []
-        ol_counter = 0
-
-        for raw_line in content.split('\n'):
-            line = raw_line.rstrip()
+        lines = content.split('\n')
+        i = 0
+        while i < len(lines):
+            line = lines[i].rstrip()
 
             # Code block toggle
             if line.startswith('```'):
@@ -375,63 +439,74 @@ def _build_docx(content, name, is_html=False):
                     in_code_block = False
                 else:
                     in_code_block = True
-                continue
+                i += 1; continue
 
             if in_code_block:
                 code_lines.append(line)
-                continue
+                i += 1; continue
 
             stripped = line.strip()
 
             # Headings
             if stripped.startswith('#### '):
-                doc.add_heading(stripped[5:], level=4); ol_counter = 0; continue
+                doc.add_heading(stripped[5:], level=4); i += 1; continue
             if stripped.startswith('### '):
-                doc.add_heading(stripped[4:], level=3); ol_counter = 0; continue
+                doc.add_heading(stripped[4:], level=3); i += 1; continue
             if stripped.startswith('## '):
-                doc.add_heading(stripped[3:], level=2); ol_counter = 0; continue
+                doc.add_heading(stripped[3:], level=2); i += 1; continue
             if stripped.startswith('# '):
-                doc.add_heading(stripped[2:], level=1); ol_counter = 0; continue
+                doc.add_heading(stripped[2:], level=1); i += 1; continue
 
             # Horizontal rule
             if re.match(r'^[-*_]{3,}$', stripped):
-                doc.add_paragraph('─' * 50); ol_counter = 0; continue
+                doc.add_paragraph('─' * 50); i += 1; continue
 
-            # Table row
+            # Table: recolectar todas las filas consecutivas → una sola tabla
             if stripped.startswith('|') and stripped.endswith('|'):
-                cells = [c.strip() for c in stripped.strip('|').split('|')]
-                if re.match(r'^[\s\-:|]+$', stripped.replace('|', '')):
-                    continue  # separator row
-                t = doc.add_table(rows=1, cols=len(cells))
-                t.style = 'Table Grid'
-                for ci, cell in enumerate(cells):
-                    t.rows[0].cells[ci].text = cell
-                ol_counter = 0; continue
+                table_rows = []
+                while i < len(lines):
+                    tr = lines[i].strip()
+                    if not (tr.startswith('|') and tr.endswith('|')):
+                        break
+                    # Ignorar filas separadoras (|---|---|)
+                    if not re.match(r'^[\s\-:|]+$', tr.replace('|', '')):
+                        cells = [c.strip() for c in tr.strip('|').split('|')]
+                        table_rows.append(cells)
+                    i += 1
+                if table_rows:
+                    ncols = max(len(r) for r in table_rows)
+                    t = doc.add_table(rows=len(table_rows), cols=ncols)
+                    t.style = 'Table Grid'
+                    for ri, row in enumerate(table_rows):
+                        for ci, cell in enumerate(row):
+                            if ci < ncols:
+                                t.rows[ri].cells[ci].text = cell
+                continue
 
             # Bullet list
             if re.match(r'^[-*+] ', stripped):
                 _add_para_with_inline(doc, stripped[2:], style='List Bullet')
-                ol_counter = 0; continue
+                i += 1; continue
 
             # Numbered list
             m_ol = re.match(r'^(\d+)\. (.+)', stripped)
             if m_ol:
                 _add_para_with_inline(doc, m_ol.group(2), style='List Number')
-                ol_counter += 1; continue
+                i += 1; continue
 
             # Blockquote
             if stripped.startswith('> '):
                 p = _add_para_with_inline(doc, stripped[2:])
                 p.paragraph_format.left_indent = Pt(20)
-                ol_counter = 0; continue
+                i += 1; continue
 
             # Empty line
             if not stripped:
-                doc.add_paragraph(''); ol_counter = 0; continue
+                doc.add_paragraph(''); i += 1; continue
 
             # Normal paragraph with inline formatting
             _add_para_with_inline(doc, stripped)
-            ol_counter = 0
+            i += 1
 
     b = io.BytesIO()
     doc.save(b)
