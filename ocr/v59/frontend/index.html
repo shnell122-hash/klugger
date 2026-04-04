@@ -738,7 +738,9 @@ function _applyOrgBranding(user) {
   if (logo && user.logo_path) {
     logo.onerror = () => { logo.style.display = 'none'; if (title) title.style.display = ''; };
     logo.onload  = () => { logo.style.display = 'block'; if (title) title.style.display = 'none'; };
-    logo.src = user.logo_path;
+    // Normalize legacy paths stored as /api/... → /OCR/v59/api/...
+    const _logoSrc = user.logo_path.startsWith('/api/') ? API + user.logo_path.slice(4) : user.logo_path;
+    logo.src = _logoSrc;
   }
 }
 

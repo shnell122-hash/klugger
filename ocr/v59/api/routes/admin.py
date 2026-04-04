@@ -16,7 +16,8 @@ log = logging.getLogger('admin')
 
 MASTER_EMAILS = {'vilarkptl@gmail.com'}
 INVITE_TTL_DAYS = 7
-APP_BASE_URL = os.getenv('APP_BASE_URL', 'https://ocr.ruby.lease')
+APP_BASE_URL  = os.getenv('APP_BASE_URL', 'https://ocr.ruby.lease')
+APP_BASE_PATH = os.getenv('APP_BASE_PATH', '/OCR/v59')
 
 # Directorio correcto: admin.py está en api/routes/, necesitamos subir 3 niveles para llegar a v59/
 _V59_ROOT  = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -307,7 +308,7 @@ def upload_org_logo():
     except OSError as e:
         log.error('logo write failed: %s', e)
         return jsonify({'error': f'Error al guardar: {e}'}), 500
-    logo_url = f'/api/admin/org-logo/{filename}'
+    logo_url = f'{APP_BASE_PATH}/api/admin/org-logo/{filename}'
     execute("UPDATE organizations SET logo_path=%s WHERE org_id=%s", (logo_url, org_id))
     log.info('org logo saved: org=%s url=%s', org_id, logo_url)
     return jsonify({'ok': True, 'logo_path': logo_url})
