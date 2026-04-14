@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
 # ────────────────────────────────────────────────────────────────
 # Setup script for ai-monitor on vilar-desarrollo
-# Run as root (or with sudo) from /home/user/agentic-repo
-# Usage: bash deploy/setup-server.sh
+# Run as root from /var/www/html/vilarkptl.com/ai-monitor
+#
+# First-time clone (SSH):
+#   cd /var/www/html/vilarkptl.com
+#   git clone git@github.com:vilarkptl-lang/agentic-repo.git ai-monitor
+#   cd ai-monitor && git checkout claude/agent-monitoring-dashboard-4v8iq
+#
+# Usage: DB_PASS=VilarRoot2026! bash deploy/setup-server.sh
 # ────────────────────────────────────────────────────────────────
 set -e
 
