@@ -17,8 +17,7 @@ DB_NAME="ai_monitoring"
 DB_USER="root"
 DB_PASS="${DB_PASS:-VilarRoot2026!}"  # override via env var
 LOG_DIR="/var/log/ai-monitor"
-NGINX_SITES="/etc/nginx/sites-available"
-NGINX_ENABLED="/etc/nginx/sites-enabled"
+APACHE_SITES="/etc/apache2/sites-available"
 
 echo "╔══════════════════════════════════════════╗"
 echo "║   ai.vilarkptl.com — Monitor Setup       ║"
@@ -58,18 +57,19 @@ pm2 start deploy/ecosystem.config.js
 pm2 save
 echo "  ✓ pm2 process ai-monitor started"
 
-# 6. Nginx config
-echo "→ Configuring Nginx..."
-cp "$REPO_DIR/deploy/nginx-ai.vilarkptl.com.conf" \
-   "$NGINX_SITES/ai.vilarkptl.com"
-ln -sf "$NGINX_SITES/ai.vilarkptl.com" "$NGINX_ENABLED/" 2>/dev/null || true
-nginx -t && systemctl reload nginx
-echo "  ✓ Nginx configured for ai.vilarkptl.com"
+# 6. Apache config
+echo "→ Configuring Apache..."
+cp "$REPO_DIR/deploy/apache-ai.vilarkptl.com.conf" \
+   "$APACHE_SITES/ai.vilarkptl.com.conf"
+a2enmod proxy proxy_http proxy_wstunnel rewrite 2>/dev/null || true
+a2ensite ai.vilarkptl.com 2>/dev/null || true
+apachectl configtest && systemctl reload apache2
+echo "  ✓ Apache configured for ai.vilarkptl.com"
 
 # 7. SSL (optional — requires domain to point to this server)
 echo ""
-echo "→ To enable SSL run:"
-echo "  certbot --nginx -d ai.vilarkptl.com"
+echo "→ Para SSL ejecuta:"
+echo "  certbot --apache -d ai.vilarkptl.com"
 
 # 8. Install hooks for the current user
 echo ""
