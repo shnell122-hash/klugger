@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash /home/user/agentic-repo/hooks/hook-pre.sh"
+            "command": "bash /var/www/html/vilarkptl.com/ai-monitor/hooks/hook-pre.sh"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash /home/user/agentic-repo/hooks/hook-post.sh"
+            "command": "bash /var/www/html/vilarkptl.com/ai-monitor/hooks/hook-post.sh"
           }
         ]
       }
@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash /home/user/agentic-repo/hooks/hook-stop.sh"
+            "command": "bash /var/www/html/vilarkptl.com/ai-monitor/hooks/hook-stop.sh"
           }
         ]
       }

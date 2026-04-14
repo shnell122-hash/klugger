@@ -6,7 +6,7 @@
 # ────────────────────────────────────────────────────────────────
 set -e
 
-REPO_DIR="/home/user/agentic-repo"
+REPO_DIR="/var/www/html/vilarkptl.com/ai-monitor"
 DB_NAME="ai_monitoring"
 DB_USER="root"
 DB_PASS="${DB_PASS:-VilarRoot2026!}"  # override via env var
@@ -67,10 +67,10 @@ echo "  certbot --nginx -d ai.vilarkptl.com"
 
 # 8. Install hooks for the current user
 echo ""
-echo "→ To activate hooks for Claude Code (local user):"
-echo "  cp $REPO_DIR/.claude/settings.json ~/.claude/settings.json"
-echo "  # Or for the claude-agent user:"
-echo "  cp $REPO_DIR/.claude/settings.json /home/claude-agent/.claude/settings.json"
+echo "→ Para activar hooks de Claude Code (usuario root):"
+echo "  mkdir -p ~/.claude && cp $REPO_DIR/.claude/settings.json ~/.claude/settings.json"
+echo "  # Para el usuario claude-agent (relay FiscalAI):"
+echo "  mkdir -p /home/claude-agent/.claude && cp $REPO_DIR/.claude/settings.json /home/claude-agent/.claude/settings.json"
 
 echo ""
 echo "╔══════════════════════════════════════════╗"

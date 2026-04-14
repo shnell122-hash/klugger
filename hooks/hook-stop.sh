@@ -4,7 +4,7 @@
 # { "session_id": "...", "stop_hook_active": true }
 # May also include usage stats if available
 
-MONITOR_URL="${CLAUDE_MONITOR_URL:-http://localhost:3010}"
+MONITOR_URL="${CLAUDE_MONITOR_URL:-http://127.0.0.1:3010}"
 
 INPUT=$(cat)
 

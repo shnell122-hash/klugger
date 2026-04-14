@@ -7,7 +7,7 @@ module.exports = {
     {
       name:        'ai-monitor',
       script:      'backend/server.js',
-      cwd:         '/home/user/agentic-repo',
+      cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
       instances:   1,
       autorestart: true,
       watch:       false,
