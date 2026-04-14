@@ -1,0 +1,263 @@
+/* ai.vilarkptl.com — Agent Monitoring Dashboard */
+
+:root {
+  --bg:          #0d1117;
+  --bg2:         #161b22;
+  --bg3:         #21262d;
+  --border:      #30363d;
+  --text:        #e6edf3;
+  --text-muted:  #8b949e;
+  --accent:      #58a6ff;
+  --green:       #3fb950;
+  --yellow:      #d29922;
+  --red:         #f85149;
+  --purple:      #bc8cff;
+  --orange:      #ffa657;
+  --radius:      8px;
+  --font:        'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* ── Header ── */
+header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+header .logo {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: -0.5px;
+}
+header .logo span { color: var(--text-muted); font-weight: 400; }
+
+.stat-pill {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.stat-pill .label { color: var(--text-muted); }
+.stat-pill .value { color: var(--text); font-weight: 600; }
+.stat-pill .value.cost { color: var(--yellow); }
+.stat-pill .value.active { color: var(--green); }
+
+.conn-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+  transition: background 0.3s;
+}
+.conn-dot.connected { background: var(--green); }
+
+/* ── Main layout ── */
+main {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 0;
+  height: calc(100vh - 57px);
+  overflow: hidden;
+}
+
+/* ── Left: Live event feed ── */
+#feed-panel {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 10px 16px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.panel-header .title { color: var(--text); font-weight: 600; }
+
+#event-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.event-item {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: 26px 1fr auto;
+  gap: 10px;
+  align-items: start;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.event-item:hover { background: var(--bg2); }
+.event-item.pre  { border-left: 3px solid var(--accent); }
+.event-item.post { border-left: 3px solid var(--green); }
+.event-item.stop { border-left: 3px solid var(--orange); }
+
+.tool-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.event-body .tool-name {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 12px;
+}
+.event-body .session-id {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+.event-body .summary {
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 520px;
+}
+
+.event-meta {
+  text-align: right;
+  flex-shrink: 0;
+}
+.event-meta .time {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+.event-meta .cost {
+  color: var(--yellow);
+  font-size: 10px;
+  margin-top: 2px;
+}
+
+/* ── Right panel: sessions + cost chart ── */
+#right-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#sessions-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+}
+
+#session-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.session-item {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.session-item:hover { background: var(--bg3); }
+
+.session-item.active .session-id-label::after {
+  content: ' ●';
+  color: var(--green);
+}
+
+.session-id-label {
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
+}
+.session-meta {
+  display: flex;
+  gap: 10px;
+  margin-top: 3px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.session-meta .cost { color: var(--yellow); }
+.session-meta .tools { color: var(--purple); }
+
+/* ── Chart panel ── */
+#chart-panel {
+  height: 180px;
+  padding: 10px 16px;
+  flex-shrink: 0;
+  background: var(--bg2);
+}
+
+#chart-panel .panel-header { margin: -10px -16px 8px; padding: 8px 16px; }
+
+#cost-chart {
+  width: 100%;
+  height: 130px;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ── Tool icon colors ── */
+.icon-bash    { background: #1f3a1f; color: var(--green); }
+.icon-read    { background: #1a2a3a; color: var(--accent); }
+.icon-write   { background: #2a1a3a; color: var(--purple); }
+.icon-edit    { background: #2a2a1a; color: var(--yellow); }
+.icon-grep    { background: #3a1a2a; color: #ff79c6; }
+.icon-glob    { background: #1a3a3a; color: #8be9fd; }
+.icon-agent   { background: #2a1a1a; color: var(--red); }
+.icon-default { background: var(--bg3); color: var(--text-muted); }
+
+/* ── Empty state ── */
+.empty-state {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 40px 20px;
+  font-size: 12px;
+}
+.empty-state .emoji { font-size: 32px; display: block; margin-bottom: 8px; }

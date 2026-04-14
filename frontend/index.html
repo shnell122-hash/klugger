@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Monitor · vilarkptl</title>
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <!-- Socket.io client from CDN -->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <div class="logo">ai<span>.vilarkptl.com</span></div>
+
+  <div class="stat-pill">
+    <span class="label">Hoy</span>
+    <span class="value cost" id="stat-cost">$0.00000</span>
+  </div>
+
+  <div class="stat-pill">
+    <span class="label">Sesiones activas</span>
+    <span class="value active" id="stat-active">0</span>
+  </div>
+
+  <div class="stat-pill">
+    <span class="label">Eventos</span>
+    <span class="value" id="stat-events">0</span>
+  </div>
+
+  <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+    <div class="conn-dot" id="conn-dot"></div>
+    <span style="color: var(--text-muted); font-size: 11px;">live</span>
+  </div>
+</header>
+
+<!-- ── Main ── -->
+<main>
+
+  <!-- Left: Live event feed -->
+  <div id="feed-panel">
+    <div class="panel-header">
+      <span class="title">Tool calls en vivo</span>
+      <span id="feed-count" style="color: var(--text-muted)">0 eventos</span>
+    </div>
+    <div id="event-list"></div>
+  </div>
+
+  <!-- Right: Sessions + Chart -->
+  <div id="right-panel">
+
+    <!-- Sessions -->
+    <div id="sessions-panel">
+      <div class="panel-header">
+        <span class="title">Sesiones</span>
+      </div>
+      <div id="session-list"></div>
+    </div>
+
+    <!-- Cost chart -->
+    <div id="chart-panel">
+      <div class="panel-header">
+        <span class="title">Costo últimas 24h</span>
+      </div>
+      <canvas id="cost-chart"></canvas>
+    </div>
+
+  </div>
+</main>
+
+<script src="/js/dashboard.js"></script>
+</body>
+</html>
