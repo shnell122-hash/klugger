@@ -423,3 +423,19 @@ main().catch(e => {
   console.error('FATAL:', e);
   process.exit(1);
 });
+
+// ─── Graceful shutdown — espera a que terminen las tareas ──
+process.on('SIGTERM', () => {
+  log(null, 'SIGTERM recibido — esperando tareas activas antes de salir…');
+  const wait = setInterval(() => {
+    const locks = (() => { try { return require('fs').readdirSync('/tmp').filter(f => f.startsWith('relay-lock-')); } catch(_){ return []; } })();
+    if (!locks.length) {
+      log(null, 'Sin tareas activas — saliendo limpiamente');
+      clearInterval(wait);
+      process.exit(0);
+    }
+    log(null, `Esperando locks: ${locks.join(', ')}`);
+  }, 5000);
+  // Forzar salida después de 10 minutos
+  setTimeout(() => { log(null, 'Timeout graceful — forzando salida'); process.exit(0); }, 600000);
+});
