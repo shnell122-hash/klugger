@@ -40,7 +40,7 @@ const GITHUB_TOKEN    = process.env.GITHUB_TOKEN;
 const CLAUDE_BIN      = process.env.CLAUDE_BIN || '/usr/local/bin/claude';
 const CLAUDE_USER     = process.env.CLAUDE_USER || 'claude-agent';
 const POLL_MS         = parseInt(process.env.POLL_MS || '15000');
-const MAX_RESULT_LINES= 150;
+const CLAUDE_TIMEOUT_MS = parseInt(process.env.CLAUDE_TIMEOUT_MS || '1800000'); // 30 min default
 
 // ─── Logging (CST = America/Mexico_City) ──────────────────
 function ts() {
@@ -211,9 +211,11 @@ ${taskContent}`;
     ${CLAUDE_BIN} --dangerously-skip-permissions --print \\"$(cat ${taskFile})\\" < /dev/null > ${resultFile} 2>&1
   "`;
 
-  const child = exec(cmd, { timeout: 600000 }, (err) => {
+  const child = exec(cmd, { timeout: CLAUDE_TIMEOUT_MS }, (err) => {
     let result = '';
     try { result = fs.readFileSync(resultFile, 'utf8'); } catch (_) {}
+    const timedOut = err && err.killed;
+    if (timedOut) result = `[TIMEOUT después de ${CLAUDE_TIMEOUT_MS/60000}min]\n` + result;
     callback(err ? 1 : 0, result);
   });
 }
@@ -316,7 +318,7 @@ async function processProject(project, hashes) {
       const outContent =
         `# Relay Outbox — ${project.name}\n` +
         `_${timestamp} | ${duration}s | exit:${exitCode}_\n\n` +
-        resultRaw.split('\n').slice(0, MAX_RESULT_LINES).join('\n');
+        resultRaw.split('\n').slice(0, 200).join('\n');
       fs.writeFileSync(project.outbox, outContent);
 
       if (project.repo && project.branch) {
