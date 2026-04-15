@@ -32,9 +32,17 @@ if [ -n "$GITHUB_TOKEN" ]; then
 fi
 
 log "=== AI Monitor Relay iniciado ==="
+
+# Ver si hay tarea pendiente en inbox
+PENDING_TITLE=$(grep -E '^#{1,3} ' "$INBOX" 2>/dev/null | grep -v 'Relay Inbox' | head -1 | sed 's/^#* //')
+PENDING_NOTE=""
+[ -n "$PENDING_TITLE" ] && PENDING_NOTE="
+📋 Tarea pendiente detectada: <i>$PENDING_TITLE</i>"
+
 tg "🟢 <b>ai-monitor-relay iniciado</b>
-Monitoreando inbox.md cada 15s
-Dashboard: http://ia.vilarkptl.com"
+📡 Monitoreando inbox.md cada 15s
+🖥 Servidor: vilar-desarrollo
+🌐 Dashboard: http://ia.vilarkptl.com${PENDING_NOTE}"
 
 LAST_HASH=$(cat "$LAST_HASH_FILE" 2>/dev/null || echo "")
 
@@ -47,18 +55,33 @@ while true; do
     LAST_HASH="$CURRENT_HASH"
     echo "$LAST_HASH" > "$LAST_HASH_FILE"
 
-    # Leer tarea y extraer primera línea como resumen
+    # Leer tarea
     TASK_FULL=$(cat "$INBOX")
-    TASK_SUMMARY=$(echo "$TASK_FULL" | grep -v '^#' | grep -v '^_' | grep -v '^$' | head -3 | tr '\n' ' ' | cut -c1-200)
 
-    log "Nueva tarea: $TASK_SUMMARY"
+    # Título: primera línea ## o # que no sea el header del archivo
+    TASK_TITLE=$(echo "$TASK_FULL" | grep -E '^#{1,3} ' | grep -v 'Relay Inbox' | head -1 | sed 's/^#* //')
+    [ -z "$TASK_TITLE" ] && TASK_TITLE="Tarea sin título"
 
-    # ── 1. Telegram: inicio ──────────────────────────────────
+    # Extraer lista numerada o con guión (las tareas concretas)
+    TASK_ITEMS=$(echo "$TASK_FULL" | grep -E '^[0-9]+\. |^- ' | head -10)
+
+    # Formatear lista para Telegram
+    TASK_LIST_TG=""
+    while IFS= read -r line; do
+      # Convertir "1. Hacer X" → "  1. Hacer X"
+      TASK_LIST_TG="${TASK_LIST_TG}  ${line}
+"
+    done <<< "$TASK_ITEMS"
+
+    log "Nueva tarea: $TASK_TITLE"
+
+    # ── 1. Telegram: inicio con desglose ─────────────────────
     tg "📨 <b>Nueva tarea desde Chat Claude</b>
+🗂 <b>$TASK_TITLE</b>
 
-📋 $TASK_SUMMARY
-
-⏳ Ejecutando en servidor…"
+<b>Tareas a ejecutar:</b>
+<code>$TASK_LIST_TG</code>
+⏳ Ejecutando ahora en el servidor…"
 
     cp "$INBOX" /home/claude-agent/task.md 2>/dev/null
     START_TIME=$(date +%s)
