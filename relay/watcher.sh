@@ -52,6 +52,7 @@ while true; do
       /usr/local/bin/claude --dangerously-skip-permissions \
         --print \
         \"\$(cat /home/claude-agent/task.md)\" \
+        < /dev/null \
         > /home/claude-agent/result.txt 2>&1
     " && EXITCODE=0 || EXITCODE=1
 
