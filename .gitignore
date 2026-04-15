@@ -1,0 +1,17 @@
+# Archivos sensibles — nunca commitear
+backend/.env
+relay/.env
+*.env
+
+# Logs
+*.log
+logs/
+/var/log/ai-monitor/
+
+# Node
+node_modules/
+backend/node_modules/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,8 +1,9 @@
 'use strict';
 
-const express = require('express');
-const router  = express.Router();
-const db      = require('../db/mysql');
+const express  = require('express');
+const router   = express.Router();
+const db       = require('../db/mysql');
+const telegram = require('../telegram');
 
 // Claude Sonnet 4.6 pricing
 const PRICING = {
@@ -120,6 +121,23 @@ router.post('/end', async (req, res) => {
     const io = req.app.get('io');
     if (io && session) {
       io.emit('session:ended', session);
+    }
+
+    // Telegram notification
+    if (session) {
+      telegram.sessionEnded(session);
+
+      // Cost alert if daily spend exceeds limit
+      const dailyLimit = parseFloat(process.env.DAILY_COST_LIMIT_USD || '10');
+      if (dailyLimit > 0) {
+        const [[today]] = await db.query(
+          `SELECT ROUND(SUM(total_cost_usd),4) AS total
+           FROM agent_sessions WHERE DATE(started_at) = CURDATE()`
+        );
+        if (parseFloat(today?.total || 0) >= dailyLimit) {
+          telegram.costAlert(today.total, dailyLimit);
+        }
+      }
     }
 
     res.json({ ok: true });

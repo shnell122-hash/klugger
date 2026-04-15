@@ -5,6 +5,18 @@
 module.exports = {
   apps: [
     {
+      name:        'ai-monitor-relay',
+      script:      'relay/watcher.sh',
+      interpreter: 'bash',
+      cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
+      instances:   1,
+      autorestart: true,
+      watch:       false,
+      error_file:  '/var/log/ai-monitor/relay-error.log',
+      out_file:    '/var/log/ai-monitor/relay-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss',
+    },
+    {
       name:        'ai-monitor',
       script:      'backend/server.js',
       cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
