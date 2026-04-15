@@ -254,12 +254,12 @@ main {
 .rtab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
 /* ── Sessions panel ── */
-#sessions-panel, #costs-panel, #providers-panel {
+#sessions-panel, #costs-panel, #providers-panel, #projects-panel {
   flex: 1;
   overflow-y: auto;
   display: none;
 }
-#sessions-panel.visible, #costs-panel.visible, #providers-panel.visible {
+#sessions-panel.visible, #costs-panel.visible, #providers-panel.visible, #projects-panel.visible {
   display: block;
 }
 
@@ -499,6 +499,7 @@ main {
   #sessions-panel  { display: block; flex: 1; overflow-y: auto; }
   #costs-panel     { display: none; }
   #providers-panel { display: none; }
+  #projects-panel  { display: none; }
 
   .event-body .summary { max-width: 180px; }
 

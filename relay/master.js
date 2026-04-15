@@ -203,10 +203,14 @@ ${taskContent}`;
 
   fs.writeFileSync(taskFile, context);
 
+  // Point Claude to the ai-monitor hooks config so pre/post tool events reach the dashboard
+  const HOOKS_CONFIG_DIR = path.join(__dirname, '..');  // agentic-repo root has .claude/settings.json
+
   const cmd = `su - ${CLAUDE_USER} -c "
     export ANTHROPIC_API_KEY='${ANTHROPIC_KEY}'
     export CLAUDE_MONITOR_URL='${MONITOR_API}'
     export CLAUDE_CHAT_SOURCE='relay-${project.id}'
+    export CLAUDE_CONFIG_DIR='${HOOKS_CONFIG_DIR}'
     cd ${project.repo || '/var/www/html'}
     ${CLAUDE_BIN} --dangerously-skip-permissions --print \\"$(cat ${taskFile})\\" < /dev/null > ${resultFile} 2>&1
   "`;
