@@ -20,7 +20,7 @@ LOG_DIR="/var/log/ai-monitor"
 APACHE_SITES="/etc/apache2/sites-available"
 
 echo "╔══════════════════════════════════════════╗"
-echo "║   ai.vilarkptl.com — Monitor Setup       ║"
+echo "║   ia.vilarkptl.com — Monitor Setup       ║"
 echo "╚══════════════════════════════════════════╝"
 
 # 1. Create log directory
@@ -59,17 +59,17 @@ echo "  ✓ pm2 process ai-monitor started"
 
 # 6. Apache config
 echo "→ Configuring Apache..."
-cp "$REPO_DIR/deploy/apache-ai.vilarkptl.com.conf" \
-   "$APACHE_SITES/ai.vilarkptl.com.conf"
+cp "$REPO_DIR/deploy/apache-ia.vilarkptl.com.conf" \
+   "$APACHE_SITES/ia.vilarkptl.com.conf"
 a2enmod proxy proxy_http proxy_wstunnel rewrite 2>/dev/null || true
-a2ensite ai.vilarkptl.com 2>/dev/null || true
+a2ensite ia.vilarkptl.com 2>/dev/null || true
 apachectl configtest && systemctl reload apache2
-echo "  ✓ Apache configured for ai.vilarkptl.com"
+echo "  ✓ Apache configured for ia.vilarkptl.com"
 
 # 7. SSL (optional — requires domain to point to this server)
 echo ""
 echo "→ Para SSL ejecuta:"
-echo "  certbot --apache -d ai.vilarkptl.com"
+echo "  certbot --apache -d ia.vilarkptl.com"
 
 # 8. Install hooks for the current user
 echo ""
@@ -81,6 +81,6 @@ echo "  mkdir -p /home/claude-agent/.claude && cp $REPO_DIR/.claude/settings.jso
 echo ""
 echo "╔══════════════════════════════════════════╗"
 echo "║   Setup complete!                        ║"
-echo "║   Dashboard: http://ai.vilarkptl.com     ║"
+echo "║   Dashboard: http://ia.vilarkptl.com     ║"
 echo "║   API:       http://localhost:3010/api   ║"
 echo "╚══════════════════════════════════════════╝"
