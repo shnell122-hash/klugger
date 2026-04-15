@@ -2,68 +2,124 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Monitor · vilarkptl</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>ia.vilarkptl — AI Monitor</title>
   <link rel="stylesheet" href="/css/dashboard.css">
-  <!-- Socket.io client from CDN -->
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
 <!-- ── Header ── -->
 <header>
-  <div class="logo">ai<span>.vilarkptl.com</span></div>
+  <div class="logo">ia<span>.vilarkptl.com</span></div>
 
   <div class="stat-pill">
     <span class="label">Hoy</span>
     <span class="value cost" id="stat-cost">$0.00000</span>
   </div>
-
   <div class="stat-pill">
-    <span class="label">Sesiones activas</span>
+    <span class="label">Activas</span>
     <span class="value active" id="stat-active">0</span>
   </div>
-
   <div class="stat-pill">
     <span class="label">Eventos</span>
     <span class="value" id="stat-events">0</span>
   </div>
 
-  <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+  <div class="header-right">
     <div class="conn-dot" id="conn-dot"></div>
-    <span style="color: var(--text-muted); font-size: 11px;">live</span>
+    <span style="color:var(--text-muted);font-size:10px">live</span>
   </div>
 </header>
+
+<!-- ── Mobile tab bar ── -->
+<div id="tab-bar">
+  <button class="tab-btn active" data-panel="feed">Feed</button>
+  <button class="tab-btn" data-panel="sessions">Sesiones</button>
+  <button class="tab-btn" data-panel="costs">Costos</button>
+  <button class="tab-btn" data-panel="providers">APIs</button>
+</div>
 
 <!-- ── Main ── -->
 <main>
 
   <!-- Left: Live event feed -->
-  <div id="feed-panel">
+  <div id="feed-panel" class="mobile-active">
     <div class="panel-header">
       <span class="title">Tool calls en vivo</span>
-      <span id="feed-count" style="color: var(--text-muted)">0 eventos</span>
+      <span id="feed-count" style="color:var(--text-muted)">0 eventos</span>
     </div>
     <div id="event-list"></div>
   </div>
 
-  <!-- Right: Sessions + Chart -->
+  <!-- Right panel -->
   <div id="right-panel">
 
+    <!-- Desktop tabs -->
+    <div id="right-tabs">
+      <button class="rtab active" data-rtab="sessions">Sesiones</button>
+      <button class="rtab" data-rtab="costs">Costos</button>
+      <button class="rtab" data-rtab="providers">APIs</button>
+    </div>
+
     <!-- Sessions -->
-    <div id="sessions-panel">
-      <div class="panel-header">
-        <span class="title">Sesiones</span>
-      </div>
+    <div id="sessions-panel" class="visible">
       <div id="session-list"></div>
     </div>
 
-    <!-- Cost chart -->
-    <div id="chart-panel">
-      <div class="panel-header">
-        <span class="title">Costo últimas 24h</span>
+    <!-- Costs -->
+    <div id="costs-panel">
+      <div class="cost-section">
+        <h3>Hoy</h3>
+        <div class="cost-row"><span class="label">Total USD</span><span class="val" id="cost-today">—</span></div>
+        <div class="cost-row"><span class="label">Sesiones</span><span class="val" id="cost-today-sessions">—</span></div>
+        <div class="cost-row"><span class="label">Eventos</span><span class="val" id="cost-today-events">—</span></div>
       </div>
-      <canvas id="cost-chart"></canvas>
+      <div class="cost-section">
+        <h3>Esta semana</h3>
+        <div class="cost-row"><span class="label">Total USD</span><span class="val" id="cost-week">—</span></div>
+        <div class="cost-row"><span class="label">Sesiones</span><span class="val" id="cost-week-sessions">—</span></div>
+      </div>
+      <div class="chart-container">
+        <h3>Costo últimas 24h</h3>
+        <canvas id="cost-chart-line" height="110"></canvas>
+      </div>
+      <div class="cost-section">
+        <h3>Por tool (24h)</h3>
+        <div id="cost-by-tool"></div>
+      </div>
+    </div>
+
+    <!-- Providers / API Keys -->
+    <div id="providers-panel">
+      <div id="add-provider-form">
+        <h3>Agregar API Key</h3>
+        <div class="form-row">
+          <label>Proveedor</label>
+          <select id="fp-provider">
+            <option value="anthropic">Anthropic (Claude)</option>
+            <option value="openai">OpenAI</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="fal">FAL.ai</option>
+            <option value="elevenlabs">ElevenLabs</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Proyecto</label>
+          <input type="text" id="fp-project" placeholder="FiscalAI, DeCabeceraTax…">
+        </div>
+        <div class="form-row">
+          <label>API Key (solo guardamos últimos 6 chars)</label>
+          <input type="password" id="fp-key" placeholder="sk-…">
+        </div>
+        <div class="form-row">
+          <label>Límite mensual USD (0 = sin límite)</label>
+          <input type="number" id="fp-limit" placeholder="0" step="1" min="0">
+        </div>
+        <button class="btn-primary" id="fp-save">Guardar</button>
+      </div>
+      <div id="provider-list"></div>
     </div>
 
   </div>

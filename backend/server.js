@@ -8,9 +8,10 @@ const { Server }= require('socket.io');
 const cors      = require('cors');
 const path      = require('path');
 
-const eventsRouter   = require('./routes/events');
-const sessionsRouter = require('./routes/sessions');
-const costsRouter    = require('./routes/costs');
+const eventsRouter    = require('./routes/events');
+const sessionsRouter  = require('./routes/sessions');
+const costsRouter     = require('./routes/costs');
+const providersRouter = require('./routes/providers');
 
 const PORT = process.env.PORT || 3010;
 
@@ -31,9 +32,10 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
 
 // API routes
-app.use('/api/events',   eventsRouter);
-app.use('/api/sessions', sessionsRouter);
-app.use('/api/costs',    costsRouter);
+app.use('/api/events',    eventsRouter);
+app.use('/api/sessions',  sessionsRouter);
+app.use('/api/costs',     costsRouter);
+app.use('/api/providers', providersRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {
