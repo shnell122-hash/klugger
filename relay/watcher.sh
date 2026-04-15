@@ -2,9 +2,6 @@
 # ─────────────────────────────────────────────────────────────
 # relay/watcher.sh — AI Monitor relay watcher
 # pm2 process: ai-monitor-relay
-#
-# Detecta cambios en relay/inbox.md cada 15s y ejecuta Claude.
-# Equivalente al relay de FiscalAI pero para este proyecto.
 # ─────────────────────────────────────────────────────────────
 
 REPO_DIR="/var/www/html/vilarkptl.com/ai-monitor"
@@ -12,38 +9,61 @@ INBOX="$REPO_DIR/relay/inbox.md"
 ENV_FILE="$REPO_DIR/relay/.env"
 WATCHER_LOG="$REPO_DIR/relay/watcher.log"
 LAST_HASH_FILE="/tmp/ai-monitor-inbox-hash"
+BRANCH="claude/agent-monitoring-dashboard-4v8iq"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$WATCHER_LOG"; }
 
-# Cargar variables de entorno del relay
+tg() {
+  # tg "<message>" — send plain text to Telegram (URL-safe)
+  local MSG="$1"
+  [ -z "$TELEGRAM_BOT_TOKEN" ] && return
+  curl -s -o /dev/null -X POST \
+    "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+    --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+    --data-urlencode "text=${MSG}" \
+    -d "parse_mode=HTML"
+}
+
 [ -f "$ENV_FILE" ] && source "$ENV_FILE"
 
-# Configurar git remote con token para push/pull sin passphrase
 if [ -n "$GITHUB_TOKEN" ]; then
   cd "$REPO_DIR"
   git remote set-url origin "https://${GITHUB_TOKEN}@github.com/vilarkptl-lang/agentic-repo.git" 2>/dev/null
 fi
 
 log "=== AI Monitor Relay iniciado ==="
-log "Monitoreando: $INBOX"
+tg "🟢 <b>ai-monitor-relay iniciado</b>
+Monitoreando inbox.md cada 15s
+Dashboard: http://ia.vilarkptl.com"
 
 LAST_HASH=$(cat "$LAST_HASH_FILE" 2>/dev/null || echo "")
 
 while true; do
-  # Pull silencioso
-  cd "$REPO_DIR" && git pull origin claude/agent-monitoring-dashboard-4v8iq --quiet 2>/dev/null
+  cd "$REPO_DIR" && git pull origin "$BRANCH" --quiet 2>/dev/null
 
   CURRENT_HASH=$(md5sum "$INBOX" 2>/dev/null | cut -d' ' -f1)
 
   if [ "$CURRENT_HASH" != "$LAST_HASH" ] && [ -n "$CURRENT_HASH" ]; then
     LAST_HASH="$CURRENT_HASH"
     echo "$LAST_HASH" > "$LAST_HASH_FILE"
-    log "inbox.md cambió — ejecutando Claude..."
 
-    # Crear task.md para claude-agent
+    # Leer tarea y extraer primera línea como resumen
+    TASK_FULL=$(cat "$INBOX")
+    TASK_SUMMARY=$(echo "$TASK_FULL" | grep -v '^#' | grep -v '^_' | grep -v '^$' | head -3 | tr '\n' ' ' | cut -c1-200)
+
+    log "Nueva tarea: $TASK_SUMMARY"
+
+    # ── 1. Telegram: inicio ──────────────────────────────────
+    tg "📨 <b>Nueva tarea desde Chat Claude</b>
+
+📋 $TASK_SUMMARY
+
+⏳ Ejecutando en servidor…"
+
     cp "$INBOX" /home/claude-agent/task.md 2>/dev/null
+    START_TIME=$(date +%s)
 
-    # Ejecutar como claude-agent (no-root, --dangerously-skip-permissions)
+    # ── 2. Ejecutar Claude ───────────────────────────────────
     su - claude-agent -c "
       source /home/claude-agent/.bashrc 2>/dev/null
       export ANTHROPIC_API_KEY='$ANTHROPIC_API_KEY'
@@ -56,37 +76,66 @@ while true; do
         > /home/claude-agent/result.txt 2>&1
     " && EXITCODE=0 || EXITCODE=1
 
-    RESULT=$(cat /home/claude-agent/result.txt 2>/dev/null | head -200)
+    END_TIME=$(date +%s)
+    DURATION=$((END_TIME - START_TIME))
     TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S CST')
+    RESULT_RAW=$(cat /home/claude-agent/result.txt 2>/dev/null)
 
-    # Escribir outbox.md
-    cat > "$REPO_DIR/relay/outbox.md" << EOF
+    # Extraer líneas de todos completados (✅ o - [x])
+    TODOS_DONE=$(echo "$RESULT_RAW" | grep -E '(✅|☑|DONE|completad|✓|\[x\])' | head -10)
+
+    # Detectar si necesita intervención
+    NEEDS_INTERVENTION=$(echo "$RESULT_RAW" | grep -iE '(error|failed|no pude|requiere|aprobación|manual|bloqueado|exception)' | head -3)
+
+    # ── 3. Escribir outbox.md ────────────────────────────────
+    cat > "$REPO_DIR/relay/outbox.md" << OUTEOF
 # AI Monitor — Relay Outbox
-_Resultado: $TIMESTAMP_
+_Resultado: $TIMESTAMP | Duración: ${DURATION}s | Exit: $EXITCODE_
 
-$RESULT
-EOF
+$RESULT_RAW
+OUTEOF
 
-    # Commit y push
+    # ── 4. Commit y push ─────────────────────────────────────
     cd "$REPO_DIR"
     git add relay/outbox.md
     git commit -m "relay: resultado $TIMESTAMP" --quiet
-    git push origin claude/agent-monitoring-dashboard-4v8iq --quiet 2>&1 | tee -a "$WATCHER_LOG"
+    git push origin "$BRANCH" --quiet 2>&1 | tee -a "$WATCHER_LOG"
 
-    # Notificar via Telegram
-    if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
-      if [ "$EXITCODE" -eq 0 ]; then
-        MSG="✅ *ai-monitor relay completado*%0A$(echo "$RESULT" | head -5 | sed 's/$/\\n/' | tr -d '\n')"
+    # ── 5. Telegram: resultado ───────────────────────────────
+    if [ "$EXITCODE" -ne 0 ] || [ -n "$NEEDS_INTERVENTION" ]; then
+      # ERROR o necesita intervención
+      ERROR_SNIPPET=$(echo "$RESULT_RAW" | tail -8 | head -5)
+      tg "⚠️ <b>Requiere tu intervención</b>
+
+📋 Tarea: $TASK_SUMMARY
+⏱ ${DURATION}s
+
+❌ Problema detectado:
+<code>$NEEDS_INTERVENTION</code>
+
+Ver detalles: relay/outbox.md en GitHub
+Dashboard: http://ia.vilarkptl.com"
+
+    else
+      # ÉXITO — listar todos completados
+      if [ -n "$TODOS_DONE" ]; then
+        TODOS_LIST=$(echo "$TODOS_DONE" | sed 's/^/✅ /' | head -8)
       else
-        MSG="❌ *ai-monitor relay ERROR*%0A$(echo "$RESULT" | tail -5 | sed 's/$/\\n/' | tr -d '\n')"
+        TODOS_LIST="✅ Tarea ejecutada sin errores"
       fi
-      curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-        -d "chat_id=${TELEGRAM_CHAT_ID}" \
-        -d "text=${MSG}" \
-        -d "parse_mode=Markdown" > /dev/null 2>&1
+
+      tg "✅ <b>Tarea completada</b>
+📨 Origen: Chat Claude
+⏱ ${DURATION}s
+
+<b>Completado:</b>
+$TODOS_LIST
+
+Ver resultado completo en relay/outbox.md
+Dashboard: http://ia.vilarkptl.com"
     fi
 
-    log "Relay completado (exit: $EXITCODE)"
+    log "Relay completado (exit: $EXITCODE, ${DURATION}s)"
   fi
 
   sleep 15

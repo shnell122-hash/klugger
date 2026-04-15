@@ -17,6 +17,8 @@ data['event_type'] = 'stop'
 data['timestamp'] = datetime.now(timezone.utc).isoformat()
 data['working_dir'] = os.environ.get('PWD', '')
 data['agent_user'] = os.environ.get('USER', '')
+data['chat_source'] = os.environ.get('CLAUDE_CHAT_SOURCE', 'claude-code-cli')
+data['chat_id'] = os.environ.get('CLAUDE_SESSION_ID', data.get('session_id', ''))
 
 print(json.dumps(data))
 " 2>/dev/null)

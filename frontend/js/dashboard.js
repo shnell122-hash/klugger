@@ -131,6 +131,8 @@ function renderSession(s) {
   const active = s.is_active ? 'active' : '';
   const proj   = s.project_name
     ? `<span class="proj">📁 ${esc(s.project_name)}</span>` : '';
+  const src    = s.chat_source && s.chat_source !== 'claude-code-cli'
+    ? `<span style="color:var(--purple);font-size:9px">💬 ${esc(s.chat_source)}</span>` : '';
   return `
   <div class="session-item ${active}">
     <div class="sid" title="${esc(s.id)}">${shortId(s.id)}</div>
@@ -138,7 +140,7 @@ function renderSession(s) {
       <span>${esc(s.agent_user || '?')}</span>
       ${cost ? `<span class="cost">${cost}</span>` : ''}
       <span class="tools">🔩 ${s.tool_call_count || 0}</span>
-      ${proj}
+      ${proj}${src}
       <span>${providerBadge(s.api_provider)}</span>
       <span>${timeLabel(s.started_at)}</span>
     </div>
