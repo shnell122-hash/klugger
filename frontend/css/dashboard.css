@@ -391,6 +391,49 @@ main {
 #chart-panel .panel-header { margin: -10px -14px 8px; padding: 7px 14px; }
 #cost-chart { width: 100% !important; height: 110px !important; }
 
+/* ── Project cards with screenshots ── */
+#projects-panel { padding: 10px; overflow-y: auto; }
+.project-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.project-card .proj-screenshot {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  object-position: top;
+  display: block;
+  background: var(--bg3);
+}
+.project-card .proj-screenshot-placeholder {
+  width: 100%; height: 140px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); font-size: 11px;
+  background: var(--bg3);
+}
+.project-card .proj-body { padding: 10px 12px; }
+.project-card .proj-name {
+  font-size: 13px; font-weight: 700; color: var(--text);
+  display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+}
+.project-card .proj-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--text-muted); flex-shrink: 0;
+}
+.project-card .proj-dot.active { background: var(--green); }
+.project-card .proj-stats {
+  display: flex; gap: 16px; font-size: 10px; color: var(--text-muted);
+}
+.project-card .proj-stats span b { color: var(--text); }
+.project-card .proj-url {
+  font-size: 10px; color: var(--accent); margin-top: 5px;
+  text-decoration: none; display: block;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg); }

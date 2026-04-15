@@ -345,7 +345,8 @@ function initTabs() {
         document.getElementById('right-panel').classList.add('mobile-active');
         // Activate the right sub-panel
         switchRightTab(panel === 'sessions' ? 'sessions' :
-                       panel === 'costs'    ? 'costs'    : 'providers');
+                       panel === 'costs'    ? 'costs'    :
+                       panel === 'projects' ? 'projects' : 'providers');
       }
     });
   });
@@ -361,12 +362,63 @@ function initTabs() {
 }
 
 function switchRightTab(tab) {
-  ['sessions','costs','providers'].forEach(t => {
+  ['sessions','costs','providers','projects'].forEach(t => {
     const el = document.getElementById(t + '-panel');
     if (el) el.classList.toggle('visible', t === tab);
   });
   if (tab === 'costs' && costData) refreshCostsPanel(costData);
   if (tab === 'providers') loadProviders();
+  if (tab === 'projects') loadProjects();
+}
+
+// ─── Projects panel ───────────────────────────────────────
+async function loadProjects() {
+  try {
+    const r = await fetch(`${API}/api/projects`);
+    const projects = await r.json();
+    renderProjects(projects);
+  } catch (err) {
+    console.warn('[projects] load error:', err.message);
+  }
+}
+
+function renderProjects(projects) {
+  const list = document.getElementById('project-list');
+  if (!list) return;
+  if (!projects || !projects.length) {
+    list.innerHTML = `<div class="empty-state"><span class="emoji">📁</span>Sin proyectos</div>`;
+    return;
+  }
+  list.innerHTML = projects.map(p => {
+    const shotUrl   = `/screenshots/${p.id}.png`;
+    const cost      = parseFloat(p.total_cost_usd || 0).toFixed(4);
+    const sessions  = p.total_sessions || 0;
+    const toolCalls = p.total_tool_calls || 0;
+    const lastAct   = p.last_activity
+      ? new Date(p.last_activity).toLocaleString('es-MX', { timeZone: 'America/Mexico_City', hour12: false })
+      : 'Sin actividad';
+
+    return `
+    <div class="project-card">
+      <img class="proj-screenshot" src="${shotUrl}"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+           alt="screenshot ${esc(p.name)}">
+      <div class="proj-screenshot-placeholder" style="display:none">📷 Sin screenshot aún</div>
+      <div class="proj-body">
+        <div class="proj-name">
+          <span class="proj-dot ${p.is_active ? 'active' : ''}"></span>
+          ${esc(p.name)}
+        </div>
+        <div class="proj-stats">
+          <span>💰 <b>$${cost}</b></span>
+          <span>🔁 <b>${sessions}</b> sesiones</span>
+          <span>🔧 <b>${toolCalls}</b> tools</span>
+        </div>
+        ${p.url ? `<a href="${esc(p.url)}" target="_blank" class="proj-url">🌐 ${esc(p.url)}</a>` : ''}
+        <div style="font-size:9px;color:var(--text-muted);margin-top:4px">Última actividad: ${lastAct}</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ─── Data loading ─────────────────────────────────────────
