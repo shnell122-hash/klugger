@@ -30,7 +30,7 @@ const https   = require('https');
 
 // ─── Config ───────────────────────────────────────────────
 const PROJECTS_FILE   = path.join(__dirname, 'projects.json');
-const HASHES_FILE     = '/tmp/relay-master-hashes.json';
+const HASHES_FILE     = `/tmp/relay-master-hashes-${process.getuid?.() ?? 'x'}.json`;
 const LOCK_FILE       = '/tmp/relay-claude-lock';
 const MONITOR_API     = process.env.MONITOR_API_URL || 'http://127.0.0.1:3010';
 const BOT_TOKEN       = process.env.TELEGRAM_BOT_TOKEN;
@@ -42,11 +42,17 @@ const CLAUDE_USER     = process.env.CLAUDE_USER || 'claude-agent';
 const POLL_MS         = parseInt(process.env.POLL_MS || '15000');
 const MAX_RESULT_LINES= 150;
 
-// ─── Logging ──────────────────────────────────────────────
+// ─── Logging (CST = America/Mexico_City) ──────────────────
+function ts() {
+  return new Intl.DateTimeFormat('sv', {
+    timeZone: 'America/Mexico_City',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).format(new Date()).replace(',', '');
+}
 function log(project, msg) {
-  const ts = new Date().toISOString().replace('T',' ').slice(0,19);
   const tag = project ? `[${project}]` : '[master]';
-  console.log(`${ts} ${tag} ${msg}`);
+  console.log(`${ts()} ${tag} ${msg}`);
 }
 
 // ─── Telegram ─────────────────────────────────────────────
@@ -66,6 +72,52 @@ function tg(text) {
   req.on('error', () => {});
   req.write(body);
   req.end();
+}
+
+// ─── Telegram: enviar foto (screenshot) ───────────────────
+function tgPhoto(imagePath, caption) {
+  if (!BOT_TOKEN || !CHAT_ID) return;
+  try {
+    const imgData = fs.readFileSync(imagePath);
+    const boundary = '----RelayBoundary' + Date.now();
+    const CRLF = '\r\n';
+    const head =
+      `--${boundary}${CRLF}` +
+      `Content-Disposition: form-data; name="chat_id"${CRLF}${CRLF}${CHAT_ID}${CRLF}` +
+      `--${boundary}${CRLF}` +
+      `Content-Disposition: form-data; name="caption"${CRLF}${CRLF}${String(caption).slice(0,1024)}${CRLF}` +
+      `--${boundary}${CRLF}` +
+      `Content-Disposition: form-data; name="photo"; filename="screenshot.png"${CRLF}` +
+      `Content-Type: image/png${CRLF}${CRLF}`;
+    const tail = `${CRLF}--${boundary}--${CRLF}`;
+    const headBuf = Buffer.from(head);
+    const tailBuf = Buffer.from(tail);
+    const body = Buffer.concat([headBuf, imgData, tailBuf]);
+    const req = https.request({
+      hostname: 'api.telegram.org',
+      path:     `/bot${BOT_TOKEN}/sendPhoto`,
+      method:   'POST',
+      headers:  {
+        'Content-Type':   `multipart/form-data; boundary=${boundary}`,
+        'Content-Length': body.length,
+      },
+    });
+    req.on('error', () => {});
+    req.write(body);
+    req.end();
+  } catch (_) {}
+}
+
+// ─── Screenshot via Chromium headless ─────────────────────
+const CHROMIUM_BIN = process.env.CHROMIUM_BIN ||
+  ['/usr/bin/chromium-browser', '/usr/bin/chromium', '/usr/bin/google-chrome']
+    .find(b => { try { return require('fs').existsSync(b); } catch(_){return false;} }) || '';
+
+function screenshot(url, outPath, callback) {
+  if (!CHROMIUM_BIN || !url) return callback(null);
+  const cmd = `${CHROMIUM_BIN} --headless --no-sandbox --disable-gpu ` +
+    `--screenshot="${outPath}" --window-size=1280,800 "${url}" 2>/dev/null`;
+  exec(cmd, { timeout: 20000 }, (err) => callback(err ? null : outPath));
 }
 
 // ─── Monitor API ──────────────────────────────────────────
@@ -294,13 +346,21 @@ Ver outbox.md en GitHub`);
       const doneList = todosLines.length
         ? todosLines.map(l => `✅ ${l.replace(/✅|☑|✓|\[x\]/g,'').trim()}`).join('\n')
         : '✅ Ejecutado sin errores';
-      tg(`✅ <b>Completado — ${project.name}</b>
-📨 Chat Claude → Servidor
-⏱ ${duration}s
+      const successMsg =
+        `✅ <b>Completado — ${project.name}</b>\n` +
+        `📨 Chat Claude → Servidor\n` +
+        `⏱ ${duration}s\n\n` +
+        `${doneList}\n\n` +
+        `🌐 ${project.url || 'ia.vilarkptl.com'}`;
 
-${doneList}
-
-🌐 ${project.url || 'ia.vilarkptl.com'}`);
+      // Send text first, then screenshot if URL available
+      tg(successMsg);
+      if (project.url) {
+        const shotPath = `/tmp/relay-screenshot-${project.id}.png`;
+        screenshot(project.url, shotPath, (filePath) => {
+          if (filePath) tgPhoto(filePath, `📸 ${project.name} — ${ts()}`);
+        });
+      }
     }
 
     log(project.id, `Completado (exit:${exitCode}, ${duration}s)`);
