@@ -12,10 +12,18 @@
  * pm2: relay-master
  */
 
-require('dotenv').config({ path: __dirname + '/.env' });
-
 const fs      = require('fs');
 const path    = require('path');
+
+// Load relay/.env without requiring the dotenv npm package
+(function loadEnv(file) {
+  try {
+    fs.readFileSync(file, 'utf8').split('\n').forEach(line => {
+      const m = line.match(/^([^=#\s][^=]*?)\s*=\s*(.*)\s*$/);
+      if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^['"]|['"]$/g, '');
+    });
+  } catch (_) {}
+})(path.join(__dirname, '.env'));
 const crypto  = require('crypto');
 const { execSync, exec } = require('child_process');
 const https   = require('https');
