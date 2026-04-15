@@ -178,6 +178,11 @@ function gitPull(repoPath, branch) {
 
 function gitPushOutbox(repoPath, branch, outboxPath, timestamp) {
   try {
+    // Pull --rebase first to avoid conflicts with Chat Claude pushing inbox.md
+    execSync(
+      `cd ${repoPath} && git pull origin ${branch} --rebase --quiet 2>/dev/null || true`,
+      { stdio: 'ignore', timeout: 30000 }
+    );
     execSync(
       `cd ${repoPath} && git add ${outboxPath} && git commit -m "relay: resultado ${timestamp}" --quiet && git push origin ${branch} --quiet`,
       { stdio: 'ignore', timeout: 30000 }
