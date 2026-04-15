@@ -19,13 +19,18 @@ function estimateTokens(text) {
 }
 
 // Ensure session row exists (upsert)
-async function upsertSession(sessionId, workingDir, agentUser) {
+async function upsertSession(sessionId, workingDir, agentUser, projectName, apiProvider) {
   if (!sessionId) return;
   await db.query(
-    `INSERT INTO agent_sessions (id, started_at, working_dir, agent_user, is_active)
-     VALUES (?, NOW(3), ?, ?, 1)
-     ON DUPLICATE KEY UPDATE is_active = 1`,
-    [sessionId, workingDir || null, agentUser || null]
+    `INSERT INTO agent_sessions
+       (id, started_at, working_dir, agent_user, project_name, api_provider, is_active)
+     VALUES (?, NOW(3), ?, ?, ?, ?, 1)
+     ON DUPLICATE KEY UPDATE
+       is_active    = 1,
+       project_name = COALESCE(project_name, VALUES(project_name)),
+       api_provider = COALESCE(api_provider, VALUES(api_provider))`,
+    [sessionId, workingDir || null, agentUser || null,
+     projectName || null, apiProvider || 'anthropic']
   );
 }
 
@@ -42,13 +47,15 @@ router.post('/', async (req, res) => {
       timestamp,
       working_dir,
       agent_user,
+      project_name,
+      api_provider,
     } = req.body;
 
     if (!session_id || !event_type) {
       return res.status(400).json({ error: 'session_id and event_type required' });
     }
 
-    await upsertSession(session_id, working_dir, agent_user);
+    await upsertSession(session_id, working_dir, agent_user, project_name, api_provider);
 
     // Estimate cost from combined input/response text
     const combinedText = (tool_input_summary || '') + (tool_response_summary || '');
@@ -63,17 +70,20 @@ router.post('/', async (req, res) => {
     const [result] = await db.query(
       `INSERT INTO agent_events
          (session_id, event_type, tool_name, tool_input_summary, tool_response_summary,
-          timestamp, working_dir, agent_user, estimated_tokens, estimated_cost_usd)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          timestamp, working_dir, agent_user, project_name, api_provider,
+          estimated_tokens, estimated_cost_usd)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         session_id,
         event_type,
         tool_name || null,
-        tool_input_summary   ? tool_input_summary.substring(0, 500)   : null,
+        tool_input_summary    ? tool_input_summary.substring(0, 500)    : null,
         tool_response_summary ? tool_response_summary.substring(0, 500) : null,
         ts,
-        working_dir || null,
-        agent_user  || null,
+        working_dir   || null,
+        agent_user    || null,
+        project_name  || null,
+        api_provider  || 'anthropic',
         estimatedTokens,
         estimatedCost.toFixed(8),
       ]
@@ -103,6 +113,8 @@ router.post('/', async (req, res) => {
         timestamp:            ts.toISOString(),
         working_dir,
         agent_user,
+        project_name,
+        api_provider:         api_provider || 'anthropic',
         estimated_tokens:     estimatedTokens,
         estimated_cost_usd:   estimatedCost,
       });
