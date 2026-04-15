@@ -1,12 +1,13 @@
 # Relay Outbox — AI Monitor
-_15/4/2026, 4:08:49 p.m. | 21s | exit:0_
+_15/4/2026, 4:19:32 p.m. | 34s | exit:0_
 
-Listo. Soy el agente de servidor para el proyecto **AI Monitor** (`/var/www/html/vilarkptl.com/ai-monitor`).
+El servidor ya está corriendo en el puerto 3010 y responde correctamente.
 
-**Estado actual del proyecto:**
-- Backend Express en puerto 3010 con Socket.io
-- Rutas API: `/api/events`, `/api/sessions`, `/api/costs`, `/api/providers`, `/api/projects`
-- Frontend dashboard con tab de Proyectos + screenshots
-- Último commit: ejecución paralela de proyectos con lock por proyecto
+Listo. Soy el agente de servidor para el proyecto **AI Monitor** (`ai.vilarkptl.com`). El stack es:
 
-¿Qué necesitas que haga?
+- **Backend**: Node.js + Express + Socket.io en puerto 3010
+- **DB**: MySQL (`ai_monitoring`) — sesiones, eventos, costos, proyectos
+- **Frontend**: Dashboard estático en `/frontend/`
+- **Relay**: `master.js` + `watcher.sh` para coordinación entre proyectos
+
+El servidor está activo y saludable. ¿Qué necesitas?
