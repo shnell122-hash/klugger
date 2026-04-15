@@ -1,17 +1,14 @@
 # Tarea desde Chat Claude — 2026-04-15
 
-## Deploy: relay-master + schema update + backend restart
+## Escaneo de API keys + limpieza relay duplicado
 
-1. Hacer `git pull --rebase origin claude/agent-monitoring-dashboard-4v8iq` en `/var/www/html/vilarkptl.com/ai-monitor`
-2. Aplicar schema nuevo (tabla `projects`): `mysql -u root ai_monitoring < /var/www/html/vilarkptl.com/ai-monitor/backend/db/schema.sql`
-3. Crear `/var/log/ai-monitor/` si no existe: `mkdir -p /var/log/ai-monitor`
-4. Copiar env del relay antiguo: asegurarse que `/var/www/html/vilarkptl.com/ai-monitor/relay/.env` existe con GITHUB_TOKEN, ANTHROPIC_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
-5. Verificar que `relay/.env` tiene MONITOR_API_URL=http://127.0.0.1:3010
-6. Detener procesos viejos: `pm2 delete ai-monitor-relay 2>/dev/null; pm2 delete claude-relay 2>/dev/null; true`
-7. Iniciar relay-master: `cd /var/www/html/vilarkptl.com/ai-monitor && pm2 start deploy/ecosystem.config.js --only relay-master`
-8. Reiniciar backend: `pm2 restart ai-monitor`
-9. Esperar 5 segundos y verificar: `pm2 list`
-10. Health check: `curl -s http://127.0.0.1:3010/api/health`
-11. Verificar proyectos API: `curl -s http://127.0.0.1:3010/api/projects | head -c 500`
-12. Guardar pm2 startup: `pm2 save`
-13. Reportar resultado de cada paso en outbox.md
+1. Eliminar relay-master duplicado de claude-agent: `sudo -u claude-agent pm2 delete all 2>/dev/null; sudo -u claude-agent pm2 kill 2>/dev/null; true`
+2. Verificar que solo hay UN relay-master en root pm2: `pm2 list | grep relay-master`
+3. Buscar todos los archivos .env en el servidor: `find /var/www/html /home -name ".env" -not -path "*/node_modules/*" -not -path "*/.git/*" 2>/dev/null`
+4. Para cada .env encontrado, extraer las API keys (líneas que contengan: ANTHROPIC, OPENAI, DEEPSEEK, FAL, ELEVENLABS, STRIPE, TWILIO) y registrarlas via: `curl -s -X POST http://127.0.0.1:3010/api/providers -H "Content-Type: application/json" -d '{"provider":"anthropic","project_name":"NOMBRE","api_key_masked":"últimos 6 chars"}'`
+5. Verificar permisos de outbox.md para relay-master: `ls -la /var/www/html/vilarkptl.com/ai-monitor/relay/outbox.md`
+6. Si relay-master (root pm2) no puede escribir outbox.md, corregir: `chown root:root /var/www/html/vilarkptl.com/ai-monitor/relay/ -R && chmod 755 /var/www/html/vilarkptl.com/ai-monitor/relay/`
+7. Verificar que relay-master en root pm2 recibe correctamente ANTHROPIC_API_KEY: `pm2 env 15 | grep ANTHROPIC`
+8. Si no tiene la key, cargarla: `pm2 restart relay-master --update-env` (después de asegurarse que relay/.env tiene ANTHROPIC_API_KEY)
+9. Listar todos los providers registrados: `curl -s http://127.0.0.1:3010/api/providers`
+10. Reportar en outbox.md: qué .env encontraste, qué keys hay (solo nombre de variable + últimos 4 chars del valor), y estado de relay-master
