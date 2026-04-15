@@ -5,15 +5,18 @@
 module.exports = {
   apps: [
     {
-      name:        'ai-monitor-relay',
-      script:      'relay/watcher.sh',
-      interpreter: 'bash',
+      // Master relay — replaces ai-monitor-relay + claude-relay (FiscalAI)
+      // Manages ALL projects from relay/projects.json
+      name:        'relay-master',
+      script:      'relay/master.js',
       cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
       instances:   1,
       autorestart: true,
       watch:       false,
-      error_file:  '/var/log/ai-monitor/relay-error.log',
-      out_file:    '/var/log/ai-monitor/relay-out.log',
+      max_memory_restart: '128M',
+      env_file:    '/var/www/html/vilarkptl.com/ai-monitor/relay/.env',
+      error_file:  '/var/log/ai-monitor/relay-master-error.log',
+      out_file:    '/var/log/ai-monitor/relay-master-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
     },
     {

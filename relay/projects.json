@@ -1,0 +1,90 @@
+[
+  {
+    "id": "ai-monitor",
+    "name": "AI Monitor",
+    "inbox":  "/var/www/html/vilarkptl.com/ai-monitor/relay/inbox.md",
+    "outbox": "/var/www/html/vilarkptl.com/ai-monitor/relay/outbox.md",
+    "repo":   "/var/www/html/vilarkptl.com/ai-monitor",
+    "branch": "claude/agent-monitoring-dashboard-4v8iq",
+    "github": "vilarkptl-lang/agentic-repo",
+    "url":    "http://ia.vilarkptl.com",
+    "active": true
+  },
+  {
+    "id": "fiscalai",
+    "name": "FiscalAI / DeCabeceraTax",
+    "inbox":  "/var/www/html/vilarkptl.com/DeCabeceraTax/relay/inbox.md",
+    "outbox": "/var/www/html/vilarkptl.com/DeCabeceraTax/relay/outbox.md",
+    "repo":   "/var/www/html/vilarkptl.com/DeCabeceraTax",
+    "branch": "claude/ml-backend-69bis-module-5iap0",
+    "github": "vilarkptl-lang/ryby.lease",
+    "url":    "https://fiscalai.mx",
+    "active": true
+  },
+  {
+    "id": "credito",
+    "name": "credito.vilarkptl.com",
+    "inbox":  "",
+    "outbox": "",
+    "repo":   "",
+    "branch": "",
+    "github": "",
+    "url":    "https://credito.vilarkptl.com",
+    "active": false
+  },
+  {
+    "id": "voltic",
+    "name": "voltic.mx",
+    "inbox":  "",
+    "outbox": "",
+    "repo":   "",
+    "branch": "",
+    "github": "",
+    "url":    "https://voltic.mx",
+    "active": false
+  },
+  {
+    "id": "ocr",
+    "name": "ocr.ryby.lease",
+    "inbox":  "",
+    "outbox": "",
+    "repo":   "",
+    "branch": "",
+    "github": "",
+    "url":    "https://ocr.ryby.lease",
+    "active": false
+  },
+  {
+    "id": "tareas",
+    "name": "tareas.ryby.lease",
+    "inbox":  "",
+    "outbox": "",
+    "repo":   "",
+    "branch": "",
+    "github": "",
+    "url":    "https://tareas.ryby.lease",
+    "active": false
+  },
+  {
+    "id": "noticias",
+    "name": "noticias.ryby.lease",
+    "inbox":  "",
+    "outbox": "",
+    "repo":   "",
+    "branch": "",
+    "github": "",
+    "url":    "https://noticias.ryby.lease",
+    "active": false
+  },
+  {
+    "id": "telegram-inversiones",
+    "name": "Telegram Bot Inversiones",
+    "inbox":  "",
+    "outbox": "",
+    "repo":   "",
+    "branch": "",
+    "github": "",
+    "url":    "",
+    "active": false
+  }
+]

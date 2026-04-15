@@ -87,7 +87,35 @@ CREATE TABLE IF NOT EXISTS agent_events (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- -------------------------------------------------------
+-- -------------------------------------------------------
+-- Projects registry (mirrors relay/projects.json in DB)
+-- -------------------------------------------------------
+CREATE TABLE IF NOT EXISTS projects (
+  id           VARCHAR(64)   PRIMARY KEY,
+  name         VARCHAR(128)  NOT NULL,
+  github_repo  VARCHAR(256),
+  url          VARCHAR(256),
+  branch       VARCHAR(128),
+  is_active    TINYINT(1)    NOT NULL DEFAULT 0,
+  created_at   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Seed from projects.json
+INSERT IGNORE INTO projects (id, name, github_repo, url, branch, is_active)
+VALUES
+  ('ai-monitor',            'AI Monitor',                  'vilarkptl-lang/agentic-repo', 'http://ia.vilarkptl.com',       'claude/agent-monitoring-dashboard-4v8iq', 1),
+  ('fiscalai',              'FiscalAI / DeCabeceraTax',    'vilarkptl-lang/ryby.lease',   'https://fiscalai.mx',           'claude/ml-backend-69bis-module-5iap0',    1),
+  ('credito',               'credito.vilarkptl.com',       NULL, 'https://credito.vilarkptl.com',  NULL, 0),
+  ('voltic',                'voltic.mx',                   NULL, 'https://voltic.mx',              NULL, 0),
+  ('ocr',                   'ocr.ryby.lease',              NULL, 'https://ocr.ryby.lease',         NULL, 0),
+  ('tareas',                'tareas.ryby.lease',           NULL, 'https://tareas.ryby.lease',      NULL, 0),
+  ('noticias',              'noticias.ryby.lease',         NULL, 'https://noticias.ryby.lease',    NULL, 0),
+  ('telegram-inversiones',  'Telegram Bot Inversiones',    NULL, NULL,                             NULL, 0);
+
+-- -------------------------------------------------------
 -- Cost aggregates by hour + provider + project
+-- -------------------------------------------------------
 -- -------------------------------------------------------
 CREATE TABLE IF NOT EXISTS cost_hourly (
   hour_bucket          DATETIME      NOT NULL,
