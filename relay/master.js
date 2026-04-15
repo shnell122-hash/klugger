@@ -31,7 +31,7 @@ const https   = require('https');
 // ─── Config ───────────────────────────────────────────────
 const PROJECTS_FILE   = path.join(__dirname, 'projects.json');
 const HASHES_FILE     = `/tmp/relay-master-hashes-${process.getuid?.() ?? 'x'}.json`;
-const LOCK_FILE       = '/tmp/relay-claude-lock';
+// Per-project lock files: /tmp/relay-lock-{projectId} (parallel execution)
 const MONITOR_API     = process.env.MONITOR_API_URL || 'http://127.0.0.1:3010';
 const BOT_TOKEN       = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT_ID         = process.env.TELEGRAM_CHAT_ID;
@@ -154,23 +154,22 @@ function fileHash(filePath) {
   } catch (_) { return null; }
 }
 
-// ─── Lock (one Claude at a time per server) ───────────────
+// ─── Lock per project (parallel execution allowed) ────────
 function acquireLock(projectId) {
+  const lockFile = `/tmp/relay-lock-${projectId}`;
   try {
-    // Check if lock exists and is less than 10 minutes old
-    if (fs.existsSync(LOCK_FILE)) {
-      const stat = fs.statSync(LOCK_FILE);
-      const ageSec = (Date.now() - stat.mtimeMs) / 1000;
-      if (ageSec < 600) return false;  // locked by another project
-      fs.unlinkSync(LOCK_FILE);         // stale lock, remove
+    if (fs.existsSync(lockFile)) {
+      const ageSec = (Date.now() - fs.statSync(lockFile).mtimeMs) / 1000;
+      if (ageSec < 600) return false;  // this project already running
+      fs.unlinkSync(lockFile);          // stale lock, remove
     }
-    fs.writeFileSync(LOCK_FILE, projectId);
+    fs.writeFileSync(lockFile, String(process.pid));
     return true;
   } catch (_) { return false; }
 }
 
-function releaseLock() {
-  try { fs.unlinkSync(LOCK_FILE); } catch (_) {}
+function releaseLock(projectId) {
+  try { fs.unlinkSync(`/tmp/relay-lock-${projectId}`); } catch (_) {}
 }
 
 // ─── Parse inbox tasks ────────────────────────────────────
@@ -259,9 +258,9 @@ async function processProject(project, hashes) {
   if (!currentHash) return;
   if (hashes[project.id] === currentHash) return;  // no change
 
-  // Changed! Try to acquire lock
+  // Changed! Try to acquire per-project lock (other projects run in parallel)
   if (!acquireLock(project.id)) {
-    log(project.id, 'Inbox cambió pero Claude está ocupado en otro proyecto — esperando');
+    log(project.id, 'Tarea en curso — esperando que termine antes de lanzar otra');
     return;
   }
 
@@ -298,7 +297,7 @@ async function processProject(project, hashes) {
 
   // ── Execute Claude ────────────────────────────────────
   runClaude(project, taskContent, (exitCode, resultRaw) => {
-    releaseLock();
+    releaseLock(project.id);
     const duration = Math.round((Date.now() - startTime) / 1000);
     const timestamp = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
 
