@@ -184,9 +184,13 @@ function parseInbox(content) {
 
 // ─── Execute Claude for a project ────────────────────────
 function runClaude(project, taskContent, callback) {
-  const taskFile   = `/tmp/relay-task-${project.id}.md`;
-  const resultFile = `/tmp/relay-result-${project.id}.txt`;
+  const uid        = process.getuid?.() ?? '0';
+  const taskFile   = `/tmp/relay-task-${uid}-${project.id}.md`;
+  const resultFile = `/tmp/relay-result-${uid}-${project.id}.txt`;
 
+  // Remove stale files from other users before writing
+  try { fs.unlinkSync(taskFile); }   catch (_) {}
+  try { fs.unlinkSync(resultFile); } catch (_) {}
   fs.writeFileSync(taskFile, taskContent);
 
   // Build context: repo path + project name for Claude
@@ -356,7 +360,9 @@ Ver outbox.md en GitHub`);
       // Send text first, then screenshot if URL available
       tg(successMsg);
       if (project.url) {
-        const shotPath = `/tmp/relay-screenshot-${project.id}.png`;
+        const shotDir  = path.join(__dirname, '..', 'frontend', 'screenshots');
+        try { fs.mkdirSync(shotDir, { recursive: true }); } catch (_) {}
+        const shotPath = path.join(shotDir, `${project.id}.png`);
         screenshot(project.url, shotPath, (filePath) => {
           if (filePath) tgPhoto(filePath, `📸 ${project.name} — ${ts()}`);
         });
