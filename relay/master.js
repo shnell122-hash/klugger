@@ -206,13 +206,15 @@ ${taskContent}`;
   // Point Claude to the ai-monitor hooks config so pre/post tool events reach the dashboard
   const HOOKS_CONFIG_DIR = path.join(__dirname, '..');  // agentic-repo root has .claude/settings.json
 
+  // Pass task via stdin to avoid shell quoting issues with special chars in content
+  // (project names with quotes, backticks, $ signs in inbox.md all break $(cat file) substitution)
   const cmd = `su - ${CLAUDE_USER} -c "
     export ANTHROPIC_API_KEY='${ANTHROPIC_KEY}'
     export CLAUDE_MONITOR_URL='${MONITOR_API}'
     export CLAUDE_CHAT_SOURCE='relay-${project.id}'
     export CLAUDE_CONFIG_DIR='${HOOKS_CONFIG_DIR}'
     cd ${project.repo || '/var/www/html'}
-    ${CLAUDE_BIN} --dangerously-skip-permissions --print \\"$(cat ${taskFile})\\" < /dev/null > ${resultFile} 2>&1
+    ${CLAUDE_BIN} --dangerously-skip-permissions --print < ${taskFile} > ${resultFile} 2>&1
   "`;
 
   const child = exec(cmd, { timeout: CLAUDE_TIMEOUT_MS }, (err) => {
