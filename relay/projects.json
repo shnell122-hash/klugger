@@ -12,9 +12,20 @@
   },
   {
     "id": "fiscalai",
-    "name": "FiscalAI / DeCabeceraTax",
+    "name": "FiscalAI — Backend",
     "inbox":  "/var/www/html/vilarkptl.com/DeCabeceraTax/relay/inbox.md",
     "outbox": "/var/www/html/vilarkptl.com/DeCabeceraTax/relay/outbox.md",
+    "repo":   "/var/www/html/vilarkptl.com/DeCabeceraTax",
+    "branch": "claude/ml-backend-69bis-module-5iap0",
+    "github": "vilarkptl-lang/ryby.lease",
+    "url":    "https://fiscalai.mx",
+    "active": true
+  },
+  {
+    "id": "fiscalai-front",
+    "name": "FiscalAI — Frontend",
+    "inbox":  "/var/www/html/vilarkptl.com/DeCabeceraTax/relay/inbox-front.md",
+    "outbox": "/var/www/html/vilarkptl.com/DeCabeceraTax/relay/outbox-front.md",
     "repo":   "/var/www/html/vilarkptl.com/DeCabeceraTax",
     "branch": "claude/ml-backend-69bis-module-5iap0",
     "github": "vilarkptl-lang/ryby.lease",
