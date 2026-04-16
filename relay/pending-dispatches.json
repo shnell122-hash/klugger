@@ -1,11 +1,1 @@
-[
-  {
-    "id": "test-bidir-001",
-    "project": "fiscalai",
-    "task": "# Test de comunicación bidireccional\n\n## Objetivo\nVerificar que el pipeline ia.vilarkptl.com → FiscalAI funciona end-to-end.\n\n## Plan\n1. Verificar que sat-api está corriendo con `pm2 list`\n2. Hacer curl a http://localhost:3003/api/health\n3. Reportar el status\n\n## Criterios de aceptación\n- [ ] sat-api aparece en pm2 list con status online\n- [ ] /api/health responde {\"status\":\"ok\"}\n\n## Resultados\n_(el agente llena esta sección)_",
-    "status": "pending",
-    "priority": "normal",
-    "created_at": "2026-04-16T14:45:00.000Z",
-    "source": "ia.vilarkptl.com"
-  }
-]
+[]
