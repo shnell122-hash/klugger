@@ -46,6 +46,22 @@ const CLAUDE_USER     = process.env.CLAUDE_USER || 'claude-agent';
 const POLL_MS         = parseInt(process.env.POLL_MS || '15000');
 const CLAUDE_TIMEOUT_MS = parseInt(process.env.CLAUDE_TIMEOUT_MS || '1800000'); // 30 min default
 
+// ─── Buzon IA (ia.vilarkptl.com → FiscalAI relay shared mailbox) ─────────────
+// When relay/buzon-ia.md in agentic-repo changes, relay-master mirrors it to
+// DeCabeceraTax (ryby.lease) so FiscalAI can read messages from ia.vilarkptl.com
+const BUZON_SRC  = path.join(__dirname, 'buzon-ia.md');
+const BUZON_DEST = process.env.BUZON_DEST_PATH ||
+  '/var/www/html/vilarkptl.com/DeCabeceraTax/relay/buzon-ia.md';
+const BUZON_REPO   = process.env.BUZON_DEST_REPO   ||
+  '/var/www/html/vilarkptl.com/DeCabeceraTax';
+const BUZON_BRANCH = process.env.BUZON_DEST_BRANCH ||
+  'claude/ml-backend-69bis-module-5iap0';
+let   _buzonHash   = null;
+// FiscalAI's reply file (DeCabeceraTax → read by ia.vilarkptl.com)
+const BUZON_FISCALAI_SRC  = '/var/www/html/vilarkptl.com/DeCabeceraTax/relay/buzon-fiscalai.md';
+const BUZON_FISCALAI_DEST = path.join(__dirname, 'buzon-fiscalai.md');
+let   _buzonFiscalaiHash  = null;
+
 // ─── Logging (CST = America/Mexico_City) ──────────────────
 function ts() {
   return new Intl.DateTimeFormat('sv', {
@@ -154,6 +170,69 @@ function postToMonitor(apiPath, payload) {
 
 function postEvent(payload) {
   postToMonitor('/api/events', payload);
+}
+
+// ─── Buzon IA sync ────────────────────────────────────────
+// • Mirrors relay/buzon-ia.md (agentic-repo) → DeCabeceraTax/relay/buzon-ia.md (ryby.lease)
+//   so FiscalAI can read messages from ia.vilarkptl.com.
+// • Also checks for FiscalAI's reply at DeCabeceraTax/relay/buzon-fiscalai.md
+//   and copies it to relay/buzon-fiscalai.md in agentic-repo.
+function syncBuzonIA() {
+  // ── Outgoing: ia.vilarkptl.com → FiscalAI ──────────────
+  if (fs.existsSync(BUZON_SRC)) {
+    const h = fileHash(BUZON_SRC);
+    if (h && h !== _buzonHash) {
+      _buzonHash = h;
+      try {
+        const destDir = path.dirname(BUZON_DEST);
+        try { fs.mkdirSync(destDir, { recursive: true }); } catch (_) {}
+        fs.copyFileSync(BUZON_SRC, BUZON_DEST);
+        log(null, `buzon-ia: cambio detectado — sincronizando a DeCabeceraTax`);
+
+        if (BUZON_REPO && fs.existsSync(BUZON_REPO)) {
+          try {
+            try {
+              execSync(
+                `cd ${BUZON_REPO} && git pull origin ${BUZON_BRANCH} --rebase --quiet 2>/dev/null`,
+                { stdio: 'pipe', timeout: 30000 }
+              );
+            } catch (_) {
+              execSync(
+                `cd ${BUZON_REPO} && git rebase --abort 2>/dev/null || true && git fetch origin ${BUZON_BRANCH} --quiet && git reset --hard origin/${BUZON_BRANCH} --quiet`,
+                { stdio: 'pipe', timeout: 30000 }
+              );
+            }
+            execSync(
+              `cd ${BUZON_REPO} && git add relay/buzon-ia.md && git diff --cached --quiet || git commit -m "relay: buzon-ia update" --quiet && git push origin ${BUZON_BRANCH} --quiet`,
+              { stdio: 'pipe', timeout: 30000 }
+            );
+            log(null, `buzon-ia: push OK → ryby.lease/${BUZON_BRANCH}`);
+            tg(`📬 <b>Buzón IA</b> — mensaje sincronizado a ryby.lease\nFiscalAI puede leerlo en <code>relay/buzon-ia.md</code>`);
+          } catch (err) {
+            log(null, `buzon-ia: push error: ${err.message?.slice(0, 200)}`);
+          }
+        }
+      } catch (err) {
+        log(null, `buzon-ia: sync error: ${err.message}`);
+      }
+    }
+  }
+
+  // ── Incoming: FiscalAI reply → ia.vilarkptl.com ────────
+  if (fs.existsSync(BUZON_FISCALAI_SRC)) {
+    const h2 = fileHash(BUZON_FISCALAI_SRC);
+    if (h2 && h2 !== _buzonFiscalaiHash) {
+      _buzonFiscalaiHash = h2;
+      try {
+        fs.copyFileSync(BUZON_FISCALAI_SRC, BUZON_FISCALAI_DEST);
+        const preview = fs.readFileSync(BUZON_FISCALAI_DEST, 'utf8').slice(0, 400);
+        log(null, `buzon-ia: respuesta de FiscalAI recibida`);
+        tg(`📨 <b>Respuesta de FiscalAI</b>\n<code>${preview}</code>`);
+      } catch (err) {
+        log(null, `buzon-ia: error leyendo respuesta FiscalAI: ${err.message}`);
+      }
+    }
+  }
 }
 
 // ─── Hash helpers ─────────────────────────────────────────
@@ -902,6 +981,11 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
       projects = JSON.parse(fs.readFileSync(PROJECTS_FILE, 'utf8'));
     } catch (_) {}
 
+    // Sync buzon-ia.md to DeCabeceraTax (ryby.lease) for FiscalAI communication
+    try { syncBuzonIA(); } catch (e) {
+      log(null, `ERROR syncBuzonIA: ${e.message}`);
+    }
+
     // Process dispatch queue first (coordinator writes here)
     try { await processDispatchQueue(projects); } catch (e) {
       log(null, `ERROR processDispatchQueue: ${e.message}`);
@@ -922,6 +1006,7 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
   }, POLL_MS);
 
   // Initial poll immediately
+  try { syncBuzonIA(); } catch (_) {}
   try { await processDispatchQueue(projects); } catch (_) {}
   for (const project of projects) {
     try { await processProject(project, hashes); } catch (_) {}
