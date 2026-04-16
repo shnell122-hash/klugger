@@ -94,15 +94,23 @@ Si el outbox está vacío o no fue actualizado después del dispatch:
 
 ## Cómo reportar resultados
 
-Escribe en:
+Escribe en (path local — ya tienes acceso de escritura):
 ```
-/var/www/html/vilarkptl.com/ai-monitor/relay/coordinator-outbox.md
+relay/coordinator-outbox.md
+```
+(relativo a tu directorio de trabajo: `/var/www/html/vilarkptl.com/DeCabeceraTax`)
+
+Luego commit + push para que Chat Claude pueda leerlo vía GitHub MCP:
+```bash
+git add relay/coordinator-outbox.md
+git commit -m "coordinator: resultado $(date '+%Y-%m-%d %H:%M')"
+git push origin claude/ml-backend-69bis-module-5iap0
 ```
 
-Luego commit + push:
-```bash
-cd /var/www/html/vilarkptl.com/ai-monitor
-git add relay/coordinator-outbox.md
-git commit -m "coordinator: resultado [fecha]"
-git push origin claude/agent-monitoring-dashboard-4v8iq
-```
+## Ventaja de tu ubicación en DeCabeceraTax
+
+Al correr en este repo tienes acceso directo a:
+- `relay/inbox.md` y `relay/outbox.md` (backend)
+- `relay/inbox-front.md` y `relay/outbox-front.md` (frontend)
+
+Puedes leer los outboxes SIN necesitar git pull adicional.
