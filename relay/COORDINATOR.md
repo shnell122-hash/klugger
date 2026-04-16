@@ -131,25 +131,35 @@ git push origin claude/ml-backend-69bis-module-5iap0
 
 relay-master detectará el cambio y te lanzará de nuevo para el paso 2.
 
-## Cómo reportar resultados
+## Cómo reportar resultados (DUAL WRITE — crítico)
 
-Escribe en (path local — ya tienes acceso de escritura):
+Escribe en:
 ```
 relay/coordinator-outbox.md
 ```
-(relativo a tu directorio de trabajo: `/var/www/html/vilarkptl.com/DeCabeceraTax`)
+(path relativo a tu directorio: `/var/www/html/vilarkptl.com/DeCabeceraTax`)
 
-Luego commit + push para que Chat Claude pueda leerlo vía GitHub MCP:
+**Luego haz DOBLE push** — Chat Claude lee ryby.lease, ia.vilarkptl.com lee agentic-repo:
+
 ```bash
+# 1. Push a ryby.lease (Chat Claude lo lee vía GitHub MCP)
+cd /var/www/html/vilarkptl.com/DeCabeceraTax
 git add relay/coordinator-outbox.md
 git commit -m "coordinator: resultado $(date '+%Y-%m-%d %H:%M')"
 git push origin claude/ml-backend-69bis-module-5iap0
+
+# 2. Mirror a agentic-repo (ia.vilarkptl.com lo lee vía GitHub MCP)
+cp relay/coordinator-outbox.md /var/www/html/vilarkptl.com/ai-monitor/relay/coordinator-outbox.md
+cd /var/www/html/vilarkptl.com/ai-monitor
+git add relay/coordinator-outbox.md
+git commit -m "coordinator: resultado mirror $(date '+%Y-%m-%d %H:%M')"
+git push origin claude/agent-monitoring-dashboard-4v8iq
+cd /var/www/html/vilarkptl.com/DeCabeceraTax
 ```
 
 ## Ventaja de tu ubicación en DeCabeceraTax
 
-Al correr en este repo tienes acceso directo a:
+Tienes acceso directo a todos los archivos del proyecto:
 - `relay/inbox.md` y `relay/outbox.md` (backend)
 - `relay/inbox-front.md` y `relay/outbox-front.md` (frontend)
-
-Puedes leer los outboxes SIN necesitar git pull adicional.
+- `relay/journals/` — lee journals de cada agente antes de despachar
