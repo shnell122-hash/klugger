@@ -485,6 +485,14 @@ async function processProject(project, hashes) {
   saveHashes(hashes);
 
   const taskContent = fs.readFileSync(project.inbox, 'utf8');
+
+  // Skip empty or placeholder inboxes
+  if (!taskContent.trim() || taskContent.trim().length < 20) {
+    log(project.id, 'Inbox vacío o placeholder — esperando tarea real');
+    releaseLock(project.id);
+    return;
+  }
+
   const { title, items } = parseInbox(taskContent);
   const startTime = Date.now();
 
