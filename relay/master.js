@@ -30,7 +30,9 @@ const https   = require('https');
 
 // ─── Config ───────────────────────────────────────────────
 const PROJECTS_FILE   = path.join(__dirname, 'projects.json');
-const DISPATCH_FILE   = path.join(__dirname, 'pending-dispatches.json');
+// Keep dispatch queue outside the git repo so gitPull never overwrites it
+const DISPATCH_FILE   = process.env.DISPATCH_FILE ||
+  `/var/lib/ai-monitor/pending-dispatches.json`;
 const HASHES_FILE     = `/tmp/relay-master-hashes-${process.getuid?.() ?? 'x'}.json`;
 // Per-project lock files: /tmp/relay-lock-{projectId} (parallel execution)
 // Outbox watchdog: track when each project last got an inbox dispatch

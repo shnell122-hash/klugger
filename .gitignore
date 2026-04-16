@@ -12,6 +12,11 @@ logs/
 node_modules/
 backend/node_modules/
 
+# Relay runtime state — must NOT be in git (gitPull would overwrite and re-trigger)
+relay/pending-dispatches.json
+relay/buzon-fiscalai.md
+relay/journals/
+
 # OS
 .DS_Store
 Thumbs.db
