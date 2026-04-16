@@ -18,6 +18,7 @@ data['event_type'] = 'pre_tool'
 data['timestamp'] = datetime.now(timezone.utc).isoformat()
 data['working_dir'] = os.environ.get('PWD', '')
 data['agent_user'] = os.environ.get('USER', '')
+data['project_name'] = os.environ.get('CLAUDE_CHAT_SOURCE') or os.environ.get('CLAUDE_PROJECT', '')
 
 # Truncate large fields to avoid bloating the DB
 if 'tool_input' in data and isinstance(data['tool_input'], dict):
