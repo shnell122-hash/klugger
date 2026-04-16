@@ -152,13 +152,18 @@ function screenshot(url, outPath, callback) {
 }
 
 // ─── Monitor API ──────────────────────────────────────────
-function postToMonitor(apiPath, payload) {
+// Supports http:// and https:// — uses MONITOR_API env var (defaults to 127.0.0.1:3010)
+function postToMonitor(apiPath, payload, monitorUrl) {
   try {
-    const body = JSON.stringify(payload);
-    const req = require('http').request({
-      hostname: '127.0.0.1',
-      port:     3010,
-      path:     apiPath,
+    const base   = monitorUrl || MONITOR_API;
+    const parsed = new URL(base + apiPath);
+    const isHttps = parsed.protocol === 'https:';
+    const body   = JSON.stringify(payload);
+    const mod    = isHttps ? require('https') : require('http');
+    const req    = mod.request({
+      hostname: parsed.hostname,
+      port:     parsed.port || (isHttps ? 443 : 80),
+      path:     parsed.pathname + (parsed.search || ''),
       method:   'POST',
       headers:  { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
     });
@@ -168,8 +173,8 @@ function postToMonitor(apiPath, payload) {
   } catch (_) {}
 }
 
-function postEvent(payload) {
-  postToMonitor('/api/events', payload);
+function postEvent(payload, monitorUrl) {
+  postToMonitor('/api/events', payload, monitorUrl);
 }
 
 // ─── Buzon IA sync ────────────────────────────────────────
@@ -225,11 +230,25 @@ function syncBuzonIA() {
       _buzonFiscalaiHash = h2;
       try {
         fs.copyFileSync(BUZON_FISCALAI_SRC, BUZON_FISCALAI_DEST);
-        const preview = fs.readFileSync(BUZON_FISCALAI_DEST, 'utf8').slice(0, 400);
-        log(null, `buzon-ia: respuesta de FiscalAI recibida`);
-        tg(`📨 <b>Respuesta de FiscalAI</b>\n<code>${preview}</code>`);
+        const response = fs.readFileSync(BUZON_FISCALAI_DEST, 'utf8');
+        const preview  = response.slice(0, 400);
+        log(null, `buzon-ia: respuesta de FiscalAI recibida — auto-procesando`);
+        tg(`📨 <b>Respuesta de FiscalAI recibida</b>\n<code>${preview}</code>\n\n⚙️ Procesando automáticamente…`);
+
+        // ── AUTO-LOOP: write to ai-monitor inbox to trigger agent ──
+        // The agent reads FiscalAI's response, acts on it, and may update
+        // buzon-ia.md with follow-up questions (which triggers a new cycle).
+        const autoTask =
+          `# Respuesta de FiscalAI — Procesar\n\n` +
+          `FiscalAI respondió al buzón de ia.vilarkptl.com.\n` +
+          `Lee la respuesta, extrae la información relevante e impleméntala.\n` +
+          `Si necesitas hacer una pregunta de seguimiento, actualiza relay/buzon-ia.md.\n` +
+          `Si la tarea está completa, NO actualices buzon-ia.md (para evitar loops).\n\n` +
+          `---\n\n${response}`;
+        fs.writeFileSync(BUZON_SRC.replace('buzon-ia.md', 'inbox.md'), autoTask);
+        log(null, `buzon-ia: auto-task escrito en ai-monitor inbox`);
       } catch (err) {
-        log(null, `buzon-ia: error leyendo respuesta FiscalAI: ${err.message}`);
+        log(null, `buzon-ia: error procesando respuesta FiscalAI: ${err.message}`);
       }
     }
   }
