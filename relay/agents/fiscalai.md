@@ -23,17 +23,19 @@ Eres el agente de **servidor/backend** para el proyecto FiscalAI (DeCabeceraTax)
 - [ ] [Otro criterio]
 ```
 
-**AL TERMINAR — resultados e issues:**
+**TU ÚLTIMO MENSAJE al terminar DEBE ser exactamente** (relay-master lo parsea para Telegram):
 ```
 ## Resultados
 ✅ [Tarea 1] — [qué cambió, línea, archivo]
-✅ [Tarea 2] — [evidencia concreta]
+✅ [Tarea 2] — [evidencia: curl output, log, comportamiento]
 ❌ [Tarea 3] — [error exacto: mensaje, stack, línea]
 ⚠️ [Tarea 4] — [qué falta, por qué es parcial]
 
 ## Issues
-- [Solo si hay algo que requiere atención: errores no críticos, advertencias]
+- [Solo si hay algo que requiere atención]
 ```
+
+> ⚠️ Este bloque debe aparecer en tu **respuesta final** (stdout), no solo en archivos.
 
 **Si necesitas intervención humana:**
 ```

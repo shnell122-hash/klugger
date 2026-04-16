@@ -23,7 +23,7 @@ Eres el agente de **frontend** para el proyecto FiscalAI.
 - [ ] [Qué debe verse en el screenshot]
 ```
 
-**AL TERMINAR — resultados + URL de verificación:**
+**TU ÚLTIMO MENSAJE al terminar DEBE ser exactamente** (relay-master lo parsea para Telegram + screenshots):
 ```
 ## Resultados
 ✅ [Archivo] — [línea modificada, selector, efecto]
@@ -40,7 +40,8 @@ https://fiscalai.mx/pages/index.html?id=VKP200224M58&eid=101848
 https://fiscalai.mx/pages/mis-rfcs.html?id=VKP200224M58
 ```
 
-Puedes agregar tantas secciones `## URL de verificación` como páginas modificadas. Cada una dispara un screenshot automático en Telegram.
+> ⚠️ Cada `## URL de verificación` dispara un screenshot automático. Incluye una por cada página modificada.
+> El bloque DEBE aparecer en tu **respuesta final** (stdout), no solo en archivos.
 
 **Si necesitas intervención humana:**
 ```
