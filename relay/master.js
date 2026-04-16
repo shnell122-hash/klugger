@@ -243,17 +243,31 @@ function gitPull(repoPath, branch) {
 }
 
 function gitPushOutbox(repoPath, branch, outboxPath, timestamp) {
+  const projectId = path.basename(repoPath);
   try {
-    // Pull --rebase first to avoid conflicts with Chat Claude pushing inbox.md
-    execSync(
-      `cd ${repoPath} && git pull origin ${branch} --rebase --quiet 2>/dev/null || true`,
-      { stdio: 'ignore', timeout: 30000 }
-    );
+    // Try rebase pull first; if it fails (diverged), reset hard to origin
+    try {
+      execSync(
+        `cd ${repoPath} && git pull origin ${branch} --rebase --quiet 2>/dev/null`,
+        { stdio: 'pipe', timeout: 30000 }
+      );
+    } catch (pullErr) {
+      log(projectId, `git pull --rebase falló, usando reset hard: ${pullErr.message?.slice(0,200)}`);
+      execSync(
+        `cd ${repoPath} && git rebase --abort 2>/dev/null || true && git fetch origin ${branch} --quiet && git reset --hard origin/${branch} --quiet`,
+        { stdio: 'pipe', timeout: 30000 }
+      );
+    }
     execSync(
       `cd ${repoPath} && git add ${outboxPath} && git commit -m "relay: resultado ${timestamp}" --quiet && git push origin ${branch} --quiet`,
-      { stdio: 'ignore', timeout: 30000 }
+      { stdio: 'pipe', timeout: 30000 }
     );
-  } catch (_) {}
+    log(projectId, `outbox push OK → ${branch}`);
+  } catch (err) {
+    const msg = err.message?.slice(0, 300) || 'unknown error';
+    log(projectId, `ERROR: outbox push falló: ${msg}`);
+    tg(`⚠️ <b>Outbox push falló — ${projectId}</b>\n<code>${msg}</code>`);
+  }
 }
 
 // ─── Process one project inbox ────────────────────────────
