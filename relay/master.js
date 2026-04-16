@@ -39,7 +39,10 @@ const HASHES_FILE     = `/tmp/relay-master-hashes-${process.getuid?.() ?? 'x'}.j
 const DISPATCH_TIMES  = {};   // { [projectId]: { dispatched_at: ms, dispatch_id: str } }
 // In-memory task tracking — avoids PID-based lock bug where relay-master's own
 // PID was written to lock files, making locks never expire (relay-master always alive).
-const ACTIVE_TASKS = new Set();
+const ACTIVE_TASKS      = new Set();
+const TASK_START_TIMES  = {};  // { [projectId]: timestamp when task started }
+const LAST_RUNNING_WARN = {};  // { [projectId]: timestamp of last "still running" TG alert }
+const RUNNING_WARN_MS   = parseInt(process.env.RUNNING_WARN_MS || '900000'); // 15 min
 const OUTBOX_TIMEOUT_MS = parseInt(process.env.OUTBOX_TIMEOUT_MS || '2100000'); // 35 min
 const MONITOR_API     = process.env.MONITOR_API_URL || 'http://127.0.0.1:3010';
 const BOT_TOKEN       = process.env.TELEGRAM_BOT_TOKEN;
@@ -282,13 +285,15 @@ function fileHash(filePath) {
 function acquireLock(projectId) {
   if (ACTIVE_TASKS.has(projectId)) return false;
   ACTIVE_TASKS.add(projectId);
-  // Write lock file for external monitoring only (not used for logic)
+  TASK_START_TIMES[projectId] = Date.now();
   try { fs.writeFileSync(`/tmp/relay-lock-${projectId}`, String(process.pid)); } catch (_) {}
   return true;
 }
 
 function releaseLock(projectId) {
   ACTIVE_TASKS.delete(projectId);
+  delete TASK_START_TIMES[projectId];
+  delete LAST_RUNNING_WARN[projectId];
   try { fs.unlinkSync(`/tmp/relay-lock-${projectId}`); } catch (_) {}
 }
 
@@ -777,7 +782,22 @@ async function processProject(project, hashes, pulledRepos = new Set()) {
 
   // Changed! Try to acquire per-project lock (other projects run in parallel)
   if (!acquireLock(project.id)) {
-    log(project.id, 'Tarea en curso — esperando que termine antes de lanzar otra');
+    const elapsed    = Date.now() - (TASK_START_TIMES[project.id] || Date.now());
+    const elapsedMin = Math.round(elapsed / 60000);
+    const lastWarn   = LAST_RUNNING_WARN[project.id] || 0;
+    if (elapsed > RUNNING_WARN_MS && Date.now() - lastWarn > RUNNING_WARN_MS) {
+      LAST_RUNNING_WARN[project.id] = Date.now();
+      const remainMin = Math.max(0, Math.round((CLAUDE_TIMEOUT_MS - elapsed) / 60000));
+      tg(`⏳ <b>Aún ejecutando — ${project.name}</b>
+🗂 En proceso por <b>${elapsedMin} min</b>
+
+La tarea sigue corriendo. Timeout automático en ${remainMin} min.
+
+Si crees que está colgado:
+  🔄 <code>pm2 restart relay-master</code>
+  ✍️ O escribe una nueva tarea para interrumpir`);
+    }
+    log(project.id, `Tarea en curso — ${elapsedMin}min transcurridos`);
     return;
   }
 
@@ -806,6 +826,18 @@ async function processProject(project, hashes, pulledRepos = new Set()) {
     const lastTask = journal.recent_tasks[0];
     if (lastTask && lastTask.title === title) {
       log(project.id, `JOURNAL STOP: 2 fallos consecutivos — tarea bloqueada`);
+      const failList = journal.recent_tasks
+        .filter(t => t.status === 'failed').slice(0, 3)
+        .map(t => `❌ ${t.title.slice(0, 60)} (${Math.round(t.duration_sec)}s)`);
+      tg(`🛑 <b>Agente detenido — ${project.name}</b>
+🗂 <b>${title}</b>
+
+2 fallos consecutivos — requiere intervención humana.
+
+<b>Historial de errores:</b>
+<code>${failList.join('\n') || 'Sin detalles'}</code>
+
+💬 Para continuar: escribe una tarea con <b>título diferente</b> en el inbox,\no corrige el problema y empuja el mismo inbox de nuevo.`);
       releaseLock(project.id);
       return;
     }
@@ -859,9 +891,12 @@ async function processProject(project, hashes, pulledRepos = new Set()) {
     const timestamp = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
 
     // Parse structured result items from ## Resultados section
+    const isTimeout   = resultRaw.startsWith('[TIMEOUT');
     const resultItems = parseResultSection(resultRaw);
     const issueItems  = parseIssuesSection(resultRaw);
-    const formatted   = formatResultItems(resultItems, exitCode);
+    const formatted   = isTimeout
+      ? [`❌ Timeout después de ${Math.round(CLAUDE_TIMEOUT_MS / 60000)} min`, `⚠️ Tarea interrumpida — no se completó`]
+      : formatResultItems(resultItems, exitCode);
 
     // Update journal FIRST (auto-stop logic runs here)
     const updatedJournal = updateJournal(project.id, {
@@ -872,7 +907,7 @@ async function processProject(project, hashes, pulledRepos = new Set()) {
     });
 
     // Check if agent requested human intervention
-    const needsHuman = /REQUIERE INTERVENCIÓN HUMANA/i.test(resultRaw) || updatedJournal.state === 'stopped';
+    const needsHuman = isTimeout || /REQUIERE INTERVENCIÓN HUMANA/i.test(resultRaw) || updatedJournal.state === 'stopped';
 
     // Write outbox — include full plan + results for coordinator reads
     if (project.outbox) {
@@ -915,8 +950,8 @@ async function processProject(project, hashes, pulledRepos = new Set()) {
       ? `\n\n<b>Issues:</b>\n<code>${issueItems.map(l=>`  ⚠️ ${l.replace(/^[-•*]\s*/,'')}`).join('\n')}</code>`
       : '';
     const journalLine = `🔁 Tarea #${updatedJournal.total_tasks} | ✅×${updatedJournal.consecutive_successes} ❌×${updatedJournal.consecutive_failures}`;
-    const statusIcon  = needsHuman ? '🆘' : exitCode !== 0 ? '⚠️' : '✅';
-    const statusWord  = needsHuman ? 'Requiere intervención' : exitCode !== 0 ? 'Con errores' : 'Completado';
+    const statusIcon  = isTimeout ? '⏰' : needsHuman ? '🆘' : exitCode !== 0 ? '⚠️' : '✅';
+    const statusWord  = isTimeout ? 'Timeout — interrumpido' : needsHuman ? 'Requiere intervención' : exitCode !== 0 ? 'Con errores' : 'Completado';
 
     // Extract verification URLs (agent may list multiple ## URL de verificación lines)
     const verifyUrls = [...resultRaw.matchAll(/## URL de verificaci[oó]n\s*\n(https?:\/\/\S+)/gi)]
@@ -942,11 +977,21 @@ async function processProject(project, hashes, pulledRepos = new Set()) {
 <b>Resultados:</b>
 <code>${resultList}</code>${issueBlock}${urlsBlock}${prodBlock}`);
 
-    if (needsHuman) {
+    if (isTimeout) {
+      tg(`⏰ <b>Intervención requerida — ${project.name}</b>
+🗂 ${title}
+
+La tarea se interrumpió por timeout (${Math.round(CLAUDE_TIMEOUT_MS / 60000)} min).
+
+<b>Opciones:</b>
+  ✂️ Divide la tarea en pasos más pequeños
+  🔄 <code>pm2 restart relay-master</code> + reescribe el inbox
+  📝 Informa qué falló para ajustar la estrategia`);
+    } else if (needsHuman) {
       const lines  = resultRaw.split('\n');
       const intIdx = lines.findIndex(l => /REQUIERE INTERVENCIÓN HUMANA/i.test(l));
       const intMsg = intIdx !== -1 ? lines.slice(intIdx, intIdx + 3).join('\n') : '';
-      tg(`🆘 <b>Acción requerida</b>\n<code>${intMsg.slice(0, 800)}</code>`);
+      tg(`🆘 <b>Acción requerida — ${project.name}</b>\n🗂 ${title}\n<code>${intMsg.slice(0, 800)}</code>`);
     }
 
     // ── Screenshots ───────────────────────────────────────
