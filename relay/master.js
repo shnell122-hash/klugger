@@ -203,8 +203,10 @@ ${taskContent}`;
 
   fs.writeFileSync(taskFile, context);
 
-  // Point Claude to the ai-monitor hooks config so pre/post tool events reach the dashboard
-  const HOOKS_CONFIG_DIR = path.join(__dirname, '..');  // agentic-repo root has .claude/settings.json
+  // CLAUDE_CONFIG_DIR must point to the .claude directory itself (not its parent)
+  // Claude Code looks for ${CLAUDE_CONFIG_DIR}/settings.json
+  const CLAUDE_CONFIG  = path.join(__dirname, '..', '.claude');  // .../ai-monitor/.claude
+  const CLAUDE_HOOKS   = path.join(__dirname, '..', 'hooks');    // .../ai-monitor/hooks
 
   // Pass task via stdin to avoid shell quoting issues with special chars in content
   // (project names with quotes, backticks, $ signs in inbox.md all break $(cat file) substitution)
@@ -212,7 +214,8 @@ ${taskContent}`;
     export ANTHROPIC_API_KEY='${ANTHROPIC_KEY}'
     export CLAUDE_MONITOR_URL='${MONITOR_API}'
     export CLAUDE_CHAT_SOURCE='relay-${project.id}'
-    export CLAUDE_CONFIG_DIR='${HOOKS_CONFIG_DIR}'
+    export CLAUDE_CONFIG_DIR='${CLAUDE_CONFIG}'
+    export CLAUDE_HOOKS_DIR='${CLAUDE_HOOKS}'
     cd ${project.repo || '/var/www/html'}
     ${CLAUDE_BIN} --dangerously-skip-permissions --print < ${taskFile} > ${resultFile} 2>&1
   "`;
