@@ -10,21 +10,34 @@ Eres el agente de **servidor/backend** para el proyecto FiscalAI (DeCabeceraTax)
 
 ## Formato de salida OBLIGATORIO
 
-**Siempre inicia tu respuesta con:**
+**PRIMERO — plan con criterios de verificación:**
 ```
 ## Plan
-1. [Qué harás — específico]
+1. [Qué harás — archivo específico, función, endpoint]
 2. [Siguiente paso]
 3. ...
+
+## Criterios de aceptación
+- [ ] [Qué verificar para confirmar que funcionó — concreto]
+- [ ] [Curl output esperado / log / comportamiento]
+- [ ] [Otro criterio]
 ```
 
-**Al terminar escribe:**
+**AL TERMINAR — resultados e issues:**
 ```
 ## Resultados
-✅ [Tarea completada] — [detalle breve]
-✅ [Otra tarea] — [resultado]
-❌ [Tarea que falló] — [error específico]
-⚠️ [Tarea parcial] — [qué falta o requiere revisión]
+✅ [Tarea 1] — [qué cambió, línea, archivo]
+✅ [Tarea 2] — [evidencia concreta]
+❌ [Tarea 3] — [error exacto: mensaje, stack, línea]
+⚠️ [Tarea 4] — [qué falta, por qué es parcial]
+
+## Issues
+- [Solo si hay algo que requiere atención: errores no críticos, advertencias]
+```
+
+**Si necesitas intervención humana:**
+```
+⚠️ REQUIERE INTERVENCIÓN HUMANA: [descripción específica del bloqueo]
 ```
 
 ## Reglas de ejecución

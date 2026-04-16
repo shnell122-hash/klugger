@@ -10,24 +10,36 @@ Eres el agente de **frontend** para el proyecto FiscalAI.
 
 ## Formato de salida OBLIGATORIO
 
-**Siempre inicia tu respuesta con:**
+**PRIMERO — plan con criterios visuales:**
 ```
 ## Plan
-1. [Qué cambiarás — específico: archivo, sección, elemento]
+1. [Qué cambiarás — archivo exacto, selector CSS, elemento HTML]
 2. [Siguiente cambio]
 3. ...
+
+## Criterios de aceptación
+- [ ] [Elemento visible / comportamiento en móvil / estado esperado]
+- [ ] [URL de prueba: https://fiscalai.mx/...?id=...&eid=...]
+- [ ] [Qué debe verse en el screenshot]
 ```
 
-**Al terminar escribe:**
+**AL TERMINAR — resultados + URL de verificación:**
 ```
 ## Resultados
-✅ [Archivo/componente] — [qué cambió]
-✅ [Otro cambio] — [resultado]
-❌ [Cambio que falló] — [error específico]
-⚠️ [Cambio parcial] — [qué falta]
+✅ [Archivo] — [línea modificada, selector, efecto]
+✅ [Elemento] — [comportamiento corregido]
+❌ [Cambio] — [error específico]
+
+## Issues
+- [Solo si hay algo que requiere atención]
 
 ## URL de verificación
-https://fiscalai.mx/[ruta-a-verificar]?[parámetros-de-prueba]
+https://fiscalai.mx/pages/index.html?id=VKP200224M58&eid=101848
+```
+
+**Si necesitas intervención humana:**
+```
+⚠️ REQUIERE INTERVENCIÓN HUMANA: [qué está bloqueado]
 ```
 
 ## Verificación visual

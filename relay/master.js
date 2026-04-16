@@ -182,37 +182,43 @@ function releaseLock(projectId) {
 
 // ─── Parse inbox tasks ────────────────────────────────────
 function parseInbox(content) {
-  const lines   = content.split('\n');
-  const title   = lines.find(l => /^#{1,3} /.test(l) && !/Relay Inbox|Tarea desde|Plan recibido/.test(l))
-                    ?.replace(/^#+ /, '') || 'Sin título';
-  const items   = lines.filter(l => /^[0-9]+\. |^- /.test(l)).slice(0, 12);
+  const lines = content.split('\n');
+  const title = lines.find(l => /^#{1,3} /.test(l) && !/Relay Inbox|Tarea desde|Plan recibido/.test(l))
+                  ?.replace(/^#+ /, '')
+                || lines.find(l => l.trim().length > 10)?.trim().slice(0, 80)
+                || 'Sin título';
+  const items = lines.filter(l => /^[0-9]+\. |^- /.test(l)).slice(0, 12);
   return { title, items };
 }
 
 // ─── Parse structured output sections ────────────────────
-// Extracts ## Plan items from task content
-function parsePlanSection(content) {
+function parseSectionItems(content, headerRe) {
   const lines = content.split('\n');
-  const start = lines.findIndex(l => /^## Plan/i.test(l));
-  if (start === -1) return lines.filter(l => /^[0-9]+\. |^- /.test(l)).slice(0, 8);
-  const after  = lines.slice(start + 1);
-  const end    = after.findIndex(l => /^## /.test(l));
-  return (end === -1 ? after : after.slice(0, end)).filter(l => l.trim()).slice(0, 10);
-}
-
-// Extracts ## Resultados items from agent output
-function parseResultSection(content) {
-  const lines   = content.split('\n');
-  // Find LAST occurrence of ## Resultados
   let start = -1;
-  lines.forEach((l, i) => { if (/^## Resultados|^## Results/i.test(l)) start = i; });
-  if (start === -1) {
-    // Fallback: lines starting with ✅ ❌ ⚠️
-    return lines.filter(l => /^[✅❌⚠️]/.test(l.trim())).slice(0, 10);
-  }
+  lines.forEach((l, i) => { if (headerRe.test(l)) start = i; });
+  if (start === -1) return [];
   const after = lines.slice(start + 1);
   const end   = after.findIndex(l => /^## /.test(l));
-  return (end === -1 ? after : after.slice(0, end)).filter(l => l.trim()).slice(0, 10);
+  return (end === -1 ? after : after.slice(0, end)).filter(l => l.trim()).slice(0, 12);
+}
+
+function parsePlanSection(content) {
+  const items = parseSectionItems(content, /^## Plan/i);
+  return items.length ? items : content.split('\n').filter(l => /^[0-9]+\. |^- /.test(l)).slice(0, 8);
+}
+
+function parseCriteriaSection(content) {
+  return parseSectionItems(content, /^## Criterios|^## Acceptance|^## Verificaci/i);
+}
+
+function parseResultSection(content) {
+  const items = parseSectionItems(content, /^## Resultados|^## Results/i);
+  if (items.length) return items;
+  return content.split('\n').filter(l => /^[✅❌⚠️]/.test(l.trim())).slice(0, 12);
+}
+
+function parseIssuesSection(content) {
+  return parseSectionItems(content, /^## Issues|^## Problemas|^## Bloqueante/i);
 }
 
 // Format result items for Telegram (ensure emoji prefix)
@@ -221,9 +227,10 @@ function formatResultItems(items, exitCode) {
     return exitCode === 0 ? ['✅ Ejecutado sin errores'] : ['❌ Terminó con error — ver outbox'];
   }
   return items.map(l => {
-    if (/^[✅❌⚠️]/.test(l)) return l;
-    if (/error|fail|❌/i.test(l)) return `❌ ${l.replace(/^[-*•]\s*/, '')}`;
-    return `✅ ${l.replace(/^[-*•]\s*/, '')}`;
+    const clean = l.replace(/^[-*•]\s*/, '').trim();
+    if (/^[✅❌⚠️🆘]/.test(clean)) return clean;
+    if (/error|fail|❌|bloqueado|no pude/i.test(clean)) return `❌ ${clean}`;
+    return `✅ ${clean}`;
   });
 }
 
@@ -231,6 +238,67 @@ function formatResultItems(items, exitCode) {
 function loadAgentContext(projectId) {
   const f = path.join(__dirname, 'agents', `${projectId}.md`);
   try { return fs.readFileSync(f, 'utf8'); } catch (_) { return ''; }
+}
+
+// ─── Journal system ───────────────────────────────────────
+const JOURNALS_DIR = path.join(__dirname, 'journals');
+try { fs.mkdirSync(JOURNALS_DIR, { recursive: true }); } catch (_) {}
+
+function loadJournal(projectId) {
+  const f = path.join(JOURNALS_DIR, `${projectId}.json`);
+  try {
+    return JSON.parse(fs.readFileSync(f, 'utf8'));
+  } catch (_) {
+    return {
+      project_id:            projectId,
+      state:                 'active',   // active | stopped
+      total_tasks:           0,
+      consecutive_successes: 0,
+      consecutive_failures:  0,
+      recent_tasks:          [],         // last 10
+    };
+  }
+}
+
+function saveJournal(projectId, journal) {
+  const f = path.join(JOURNALS_DIR, `${projectId}.json`);
+  try { fs.writeFileSync(f, JSON.stringify(journal, null, 2)); } catch (_) {}
+}
+
+function updateJournal(projectId, { title, exitCode, resultSummary, durationSec }) {
+  const journal = loadJournal(projectId);
+  const status  = exitCode === 0 ? 'success' : 'failed';
+
+  journal.total_tasks++;
+  journal.consecutive_failures  = status === 'failed'  ? journal.consecutive_failures  + 1 : 0;
+  journal.consecutive_successes = status === 'success' ? journal.consecutive_successes + 1 : 0;
+  journal.updated_at = new Date().toISOString();
+
+  journal.recent_tasks.unshift({
+    title,
+    status,
+    exit_code:      exitCode,
+    result_summary: (resultSummary || '').slice(0, 200),
+    duration_sec:   durationSec,
+    timestamp:      new Date().toISOString(),
+  });
+  journal.recent_tasks = journal.recent_tasks.slice(0, 10);
+
+  // Auto-stop: 2 consecutive failures
+  if (journal.consecutive_failures >= 2 && journal.state === 'active') {
+    journal.state = 'stopped';
+    tg(`🆘 <b>STOP automático — ${projectId}</b>
+2 intentos fallidos consecutivos.
+El agente no continuará solo.
+
+Revisa los outboxes y crea un plan corregido.
+<code>${(resultSummary || '').slice(0, 300)}</code>`);
+  } else if (status === 'success' && journal.state === 'stopped') {
+    journal.state = 'active';  // reset if new success
+  }
+
+  saveJournal(projectId, journal);
+  return journal;
 }
 
 // ─── Execute Claude for a project ────────────────────────
@@ -498,17 +566,43 @@ async function processProject(project, hashes) {
 
   log(project.id, `Nueva tarea: ${title}`);
 
-  // ── Telegram: inicio con plan detallado ──────────────
-  const planItems = parsePlanSection(taskContent);
-  const planList  = planItems.length
+  // ── Journal: check state before running ──────────────
+  const journal = loadJournal(project.id);
+  if (journal.state === 'stopped' && project.id !== 'coordinator') {
+    // Only block auto-chained tasks; user can always force by writing new inbox
+    // We check if this is a "new" task vs repeated attempt
+    const lastTask = journal.recent_tasks[0];
+    if (lastTask && lastTask.title === title) {
+      log(project.id, `JOURNAL STOP: 2 fallos consecutivos — tarea bloqueada`);
+      releaseLock(project.id);
+      return;
+    }
+    // Different title = user wrote a new task → reset state and run
+    journal.state = 'active';
+    saveJournal(project.id, journal);
+  }
+
+  // ── Telegram: inicio con plan + criterios ────────────
+  const planItems     = parsePlanSection(taskContent);
+  const criteriaItems = parseCriteriaSection(taskContent);
+
+  const planList = planItems.length
     ? planItems.map((l, i) => `  ${i+1}. ${l.replace(/^[0-9]+\. |^- /, '')}`).join('\n')
-    : (items.map(i => `  ${i}`).join('\n') || taskContent.slice(0, 400));
+    : (items.map(l => `  ${l}`).join('\n') || taskContent.split('\n').filter(l=>l.trim()).slice(0,5).join('\n'));
+
+  const criteriaBlock = criteriaItems.length
+    ? `\n\n<b>Verificar al terminar:</b>\n<code>${criteriaItems.map(l=>`  ${l.replace(/^[-•*]\s*/,'')}`).join('\n')}</code>`
+    : '';
+
+  const journalBlock = journal.total_tasks > 0
+    ? `\n🔁 Iteración #${journal.total_tasks + 1} | ✅×${journal.consecutive_successes} ❌×${journal.consecutive_failures}`
+    : '';
 
   tg(`📋 <b>${project.name}</b>
-🗂 <b>${title}</b>
+🗂 <b>${title}</b>${journalBlock}
 
 <b>Plan:</b>
-<code>${planList}</code>
+<code>${planList}</code>${criteriaBlock}
 
 ⏳ Ejecutando en servidor…`);
 
@@ -534,10 +628,19 @@ async function processProject(project, hashes) {
 
     // Parse structured result items from ## Resultados section
     const resultItems = parseResultSection(resultRaw);
+    const issueItems  = parseIssuesSection(resultRaw);
     const formatted   = formatResultItems(resultItems, exitCode);
 
+    // Update journal FIRST (auto-stop logic runs here)
+    const updatedJournal = updateJournal(project.id, {
+      title,
+      exitCode,
+      resultSummary: formatted.slice(0, 3).join(' | '),
+      durationSec:   duration,
+    });
+
     // Check if agent requested human intervention
-    const needsHuman = /REQUIERE INTERVENCIÓN HUMANA/i.test(resultRaw);
+    const needsHuman = /REQUIERE INTERVENCIÓN HUMANA/i.test(resultRaw) || updatedJournal.state === 'stopped';
 
     // Write outbox — include full plan + results for coordinator reads
     if (project.outbox) {
@@ -574,17 +677,21 @@ async function processProject(project, hashes) {
       delete DISPATCH_TIMES[project.id];
     }
 
-    // ── Telegram: resultados con ✅/❌ ───────────────────
-    const resultList = formatted.map(l => `  ${l}`).join('\n');
-    const statusIcon = needsHuman ? '🆘' : exitCode !== 0 ? '⚠️' : '✅';
-    const statusWord = needsHuman ? 'Requiere intervención' : exitCode !== 0 ? 'Con errores' : 'Completado';
+    // ── Telegram: resultados con ✅/❌ + issues + journal ──
+    const resultList  = formatted.map(l => `  ${l}`).join('\n');
+    const issueBlock  = issueItems.length
+      ? `\n\n<b>Issues:</b>\n<code>${issueItems.map(l=>`  ⚠️ ${l.replace(/^[-•*]\s*/,'')}`).join('\n')}</code>`
+      : '';
+    const journalLine = `🔁 Tarea #${updatedJournal.total_tasks} | ✅×${updatedJournal.consecutive_successes} ❌×${updatedJournal.consecutive_failures}`;
+    const statusIcon  = needsHuman ? '🆘' : exitCode !== 0 ? '⚠️' : '✅';
+    const statusWord  = needsHuman ? 'Requiere intervención' : exitCode !== 0 ? 'Con errores' : 'Completado';
 
     tg(`${statusIcon} <b>${statusWord} — ${project.name}</b>
 🗂 ${title}
-⏱ ${duration}s
+⏱ ${duration}s | ${journalLine}
 
 <b>Resultados:</b>
-<code>${resultList}</code>`);
+<code>${resultList}</code>${issueBlock}`);
 
     if (needsHuman) {
       // Extract the intervention message

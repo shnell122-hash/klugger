@@ -82,15 +82,54 @@ Si el outbox está vacío o no fue actualizado después del dispatch:
 - Espera 2 min y lee de nuevo
 - Si sigue sin actualizarse después de 5 min, reporta el timeout en tu outbox
 
+## Verifica el journal ANTES de despachar
+
+Cada agente tiene un journal con su historial de éxitos/fallos:
+
+```bash
+cat /var/www/html/vilarkptl.com/ai-monitor/relay/journals/fiscalai.json
+cat /var/www/html/vilarkptl.com/ai-monitor/relay/journals/fiscalai-front.json
+```
+
+**Regla crítica**: Si `consecutive_failures >= 2` o `state = "stopped"`, NO dispatches a ese agente. En su lugar:
+```
+⚠️ REQUIERE INTERVENCIÓN HUMANA: El agente fiscalai tiene 2 fallos consecutivos.
+Último error: [resumen de last task]
+Acción requerida: revisar outbox.md y crear plan corregido.
+```
+
 ## Reglas anti-loop
 
-1. **Máximo 3 iteraciones por agente** por sesión de coordinación
-2. **Si un agente falla 2 veces**, escríbelo en el outbox y escala al usuario vía:
-   ```
-   ⚠️ REQUIERE INTERVENCIÓN HUMANA: [descripción del bloqueo]
-   ```
-3. **No entres en bucles** — si ya despachaste una tarea y el outbox no llegó, reporta el timeout
-4. **Profundidad máxima de sub-tareas**: 2 niveles (coordinator → agent → sub-agent)
+1. **Lee el journal antes de despachar** — un agente con `state: stopped` no puede recibir tareas automáticas
+2. **Si outbox no llega en 5 min** — escala al usuario, no reintentes solo
+3. **Chaining permitido**: Puedes escribir tu propia continuación en `relay/coordinator-inbox.md` SI el resultado previo fue exitoso Y quedan tareas pendientes del plan
+4. **Profundidad máxima**: 2 niveles de sub-tareas
+5. **Nunca dispatches la misma tarea fallida** sin modificar el approach
+
+## Cómo encadenar tareas (session chaining)
+
+Si tienes un plan de múltiples pasos y la primera parte terminó bien:
+
+```bash
+cat > relay/coordinator-inbox.md << 'EOF'
+# Plan (continuación) — Paso 2 de 3
+
+[Contexto: paso 1 completado exitosamente]
+
+## Plan
+1. ...
+2. ...
+
+## Criterios de aceptación
+- [ ] ...
+EOF
+
+git add relay/coordinator-inbox.md
+git commit -m "coordinator: continua plan paso 2"
+git push origin claude/ml-backend-69bis-module-5iap0
+```
+
+relay-master detectará el cambio y te lanzará de nuevo para el paso 2.
 
 ## Cómo reportar resultados
 
