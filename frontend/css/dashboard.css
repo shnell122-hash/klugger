@@ -253,13 +253,13 @@ main {
 }
 .rtab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
-/* ── Sessions panel ── */
-#sessions-panel, #costs-panel, #providers-panel, #projects-panel {
+/* ── Right sub-panels ── */
+#agents-panel, #sessions-panel, #costs-panel, #providers-panel, #projects-panel {
   flex: 1;
   overflow-y: auto;
   display: none;
 }
-#sessions-panel.visible, #costs-panel.visible, #providers-panel.visible, #projects-panel.visible {
+#agents-panel.visible, #sessions-panel.visible, #costs-panel.visible, #providers-panel.visible, #projects-panel.visible {
   display: block;
 }
 
@@ -496,6 +496,7 @@ main {
   }
 
   /* Always show sessions on right panel mobile */
+  #agents-panel    { display: none; }
   #sessions-panel  { display: block; flex: 1; overflow-y: auto; }
   #costs-panel     { display: none; }
   #providers-panel { display: none; }
@@ -509,4 +510,80 @@ main {
 @media (max-width: 400px) {
   .stat-pill .label { display: none; }
   .event-body .summary { max-width: 120px; }
+}
+
+/* ── Dispatch / Agents panel ── */
+.dispatch-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin: 6px 0;
+  transition: border-color 0.15s;
+}
+.dispatch-card:hover { border-color: var(--accent); }
+
+.ds-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+.ds-icon { font-size: 14px; }
+.ds-project {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 10px;
+}
+.ds-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 9px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.ds-pending    { background: #2d2a0a; color: var(--yellow); border: 1px solid var(--yellow); }
+.ds-running    { background: #0d1f3c; color: var(--accent);  border: 1px solid var(--accent); }
+.ds-ok         { background: #0d2118; color: var(--green);   border: 1px solid var(--green); }
+.ds-failed     { background: #2d0e0e; color: var(--red);     border: 1px solid var(--red); }
+
+.ds-requester {
+  color: var(--purple);
+  font-size: 9px;
+}
+.ds-time {
+  margin-left: auto;
+  font-size: 9px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.ds-title {
+  font-size: 11px;
+  color: var(--text);
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ds-result {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#agents-panel .panel-header {
+  padding: 8px 0 6px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
 }

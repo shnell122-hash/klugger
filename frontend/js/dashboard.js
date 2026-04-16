@@ -8,6 +8,7 @@ let sessions  = {};
 let providers = [];
 let costData  = null;
 let lineChart = null;
+let dispatches = [];   // [{id, project, title, status, depth, parent_id, created_at, ...}]
 
 // ─── Tool icons ───────────────────────────────────────────
 const TOOL_ICONS = {
@@ -344,7 +345,8 @@ function initTabs() {
       } else {
         document.getElementById('right-panel').classList.add('mobile-active');
         // Activate the right sub-panel
-        switchRightTab(panel === 'sessions' ? 'sessions' :
+        switchRightTab(panel === 'agents'   ? 'agents'   :
+                       panel === 'sessions' ? 'sessions' :
                        panel === 'costs'    ? 'costs'    :
                        panel === 'projects' ? 'projects' : 'providers');
       }
@@ -362,13 +364,95 @@ function initTabs() {
 }
 
 function switchRightTab(tab) {
-  ['sessions','costs','providers','projects'].forEach(t => {
+  ['agents','sessions','costs','providers','projects'].forEach(t => {
     const el = document.getElementById(t + '-panel');
     if (el) el.classList.toggle('visible', t === tab);
   });
   if (tab === 'costs' && costData) refreshCostsPanel(costData);
   if (tab === 'providers') loadProviders();
   if (tab === 'projects') loadProjects();
+  if (tab === 'agents') loadDispatches();
+}
+
+// ─── Dispatch / Agents panel ──────────────────────────────
+const DISPATCH_STATUS = {
+  pending:    { label: 'pendiente', cls: 'ds-pending'    },
+  dispatched: { label: 'corriendo', cls: 'ds-running'    },
+  completed:  { label: 'ok',        cls: 'ds-ok'         },
+  failed:     { label: 'falló',     cls: 'ds-failed'     },
+  error:      { label: 'error',     cls: 'ds-failed'     },
+};
+
+const PROJECT_ICONS = {
+  coordinator:    '🧠',
+  fiscalai:       '⚙️',
+  'fiscalai-front':'🖥️',
+  'ai-monitor':   '📡',
+};
+
+function renderDispatchCard(d, depth = 0) {
+  const st     = DISPATCH_STATUS[d.status] || { label: d.status, cls: 'ds-pending' };
+  const icon   = PROJECT_ICONS[d.project] || '🤖';
+  const indent = depth > 0 ? `style="margin-left:${depth * 16}px;border-left:2px solid var(--border)"` : '';
+  const created = d.created_at ? timeLabel(d.created_at) : '';
+  const dur    = d.duration_sec ? `${d.duration_sec}s` : '';
+  const req    = d.requester && d.requester !== 'api' ? `<span class="ds-requester">← ${esc(d.requester)}</span>` : '';
+  const result = d.result_summary ? `<div class="ds-result">${esc(shortText(d.result_summary, 100))}</div>` : '';
+
+  return `
+  <div class="dispatch-card" data-id="${esc(d.id)}" ${indent}>
+    <div class="ds-header">
+      <span class="ds-icon">${icon}</span>
+      <span class="ds-project">${esc(d.project)}</span>
+      <span class="ds-badge ${st.cls}">${st.label}</span>
+      ${req}
+      <span class="ds-time">${created}${dur ? ' · ' + dur : ''}</span>
+    </div>
+    <div class="ds-title">${esc(d.title || d.id)}</div>
+    ${result}
+  </div>`;
+}
+
+function refreshDispatches() {
+  const list   = document.getElementById('dispatch-list');
+  const counter = document.getElementById('agents-count');
+  if (!list) return;
+
+  const pending = dispatches.filter(d => d.status === 'pending' || d.status === 'dispatched').length;
+  if (counter) counter.textContent = `${dispatches.length} tareas · ${pending} activas`;
+
+  if (!dispatches.length) {
+    list.innerHTML = `<div class="empty-state"><span class="emoji">🤖</span>Sin tareas despachadas aún</div>`;
+    return;
+  }
+
+  // Sort: pending/dispatched first, then by created_at DESC
+  const sorted = [...dispatches].sort((a, b) => {
+    const aPrio = (a.status === 'pending' || a.status === 'dispatched') ? 0 : 1;
+    const bPrio = (b.status === 'pending' || b.status === 'dispatched') ? 0 : 1;
+    if (aPrio !== bPrio) return aPrio - bPrio;
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
+
+  // Root tasks first, then subtasks indented under their parent
+  const roots = sorted.filter(d => !d.parent_id);
+  const html  = roots.map(root => {
+    const children = sorted.filter(d => d.parent_id === root.id);
+    return renderDispatchCard(root, 0) + children.map(c => renderDispatchCard(c, 1)).join('');
+  }).join('');
+
+  list.innerHTML = html || `<div class="empty-state"><span class="emoji">🤖</span>Sin tareas</div>`;
+}
+
+async function loadDispatches() {
+  try {
+    const r = await fetch(`${API}/api/relay/dispatch`);
+    if (!r.ok) return;
+    dispatches = await r.json();
+    refreshDispatches();
+  } catch (err) {
+    console.warn('[dispatches] load error:', err.message);
+  }
 }
 
 // ─── Projects panel ───────────────────────────────────────
@@ -499,6 +583,29 @@ function connectSocket() {
     refreshSessions();
     refreshStats();
   });
+
+  socket.on('dispatch:new', d => {
+    dispatches.unshift(d);
+    if (dispatches.length > 200) dispatches.pop();
+    const panel = document.getElementById('agents-panel');
+    if (panel && panel.classList.contains('visible')) refreshDispatches();
+    // Update badge count even when panel is hidden
+    const counter = document.getElementById('agents-count');
+    const pending = dispatches.filter(x => x.status === 'pending' || x.status === 'dispatched').length;
+    if (counter) counter.textContent = `${dispatches.length} tareas · ${pending} activas`;
+  });
+
+  socket.on('dispatch:complete', update => {
+    const idx = dispatches.findIndex(d => d.id === update.id);
+    if (idx !== -1) {
+      dispatches[idx] = { ...dispatches[idx], ...update };
+    }
+    const panel = document.getElementById('agents-panel');
+    if (panel && panel.classList.contains('visible')) refreshDispatches();
+    const counter = document.getElementById('agents-count');
+    const pending = dispatches.filter(x => x.status === 'pending' || x.status === 'dispatched').length;
+    if (counter) counter.textContent = `${dispatches.length} tareas · ${pending} activas`;
+  });
 }
 
 // ─── Init ─────────────────────────────────────────────────
@@ -507,6 +614,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initProviderForm();
   loadInitialData();
   loadProviders();
+  loadDispatches();
   connectSocket();
   refreshFeed();
 
