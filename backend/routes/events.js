@@ -34,6 +34,25 @@ async function upsertSession(sessionId, workingDir, agentUser, projectName, apiP
   );
 }
 
+// GET /api/events/recent — last N events for dashboard initial load
+router.get('/recent', async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit || '150', 10), 500);
+    const [rows] = await db.query(
+      `SELECT id, session_id, event_type, tool_name,
+              tool_input_summary, tool_response_summary,
+              timestamp, agent_user, project_name, api_provider,
+              estimated_cost_usd
+       FROM agent_events
+       ORDER BY timestamp DESC LIMIT ?`,
+      [limit]
+    );
+    res.json(rows.reverse()); // oldest first so feed renders chronologically
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/events
 // Receives pre_tool and post_tool events from Claude Code hooks
 router.post('/', async (req, res) => {

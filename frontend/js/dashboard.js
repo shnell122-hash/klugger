@@ -566,16 +566,20 @@ function renderProjects(projects) {
 // ─── Data loading ─────────────────────────────────────────
 async function loadInitialData() {
   try {
-    const [sessRes, costsRes] = await Promise.all([
+    const [sessRes, costsRes, eventsRes] = await Promise.all([
       fetch(`${API}/api/sessions`),
       fetch(`${API}/api/costs`),
+      fetch(`${API}/api/events/recent?limit=150`),
     ]);
-    const sessData  = await sessRes.json();
-    const costsData = await costsRes.json();
+    const sessData   = await sessRes.json();
+    const costsData  = await costsRes.json();
+    const eventsData = await eventsRes.json();
 
     sessData.forEach(s => { sessions[s.id] = s; });
     costData = costsData;
+    events   = eventsData;
 
+    refreshFeed();
     refreshSessions();
     refreshStats();
     refreshCostsPanel(costData);

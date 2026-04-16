@@ -25,7 +25,7 @@ const path    = require('path');
   } catch (_) {}
 })(path.join(__dirname, '.env'));
 const crypto  = require('crypto');
-const { execSync, exec } = require('child_process');
+const { execSync, exec, spawn } = require('child_process');
 const https   = require('https');
 
 // ─── Config ───────────────────────────────────────────────
@@ -312,22 +312,16 @@ Revisa los outboxes y crea un plan corregido.
   return journal;
 }
 
-// ─── Execute Claude for a project ────────────────────────
+// ─── Execute Claude for a project (stream-json for real-time events) ─────────
 function runClaude(project, taskContent, callback, dispatchMeta = {}) {
-  const uid        = process.getuid?.() ?? '0';
-  const taskFile   = `/tmp/relay-task-${uid}-${project.id}.md`;
-  const resultFile = `/tmp/relay-result-${uid}-${project.id}.txt`;
+  const uid      = process.getuid?.() ?? '0';
+  const taskFile = `/tmp/relay-task-${uid}-${project.id}.md`;
 
-  // Remove stale files from other users before writing
-  try { fs.unlinkSync(taskFile); }   catch (_) {}
-  try { fs.unlinkSync(resultFile); } catch (_) {}
-  fs.writeFileSync(taskFile, taskContent);
+  try { fs.unlinkSync(taskFile); } catch (_) {}
 
   // Build context: load agent-specific .md + task
   const agentCtx = loadAgentContext(project.id);
-  const isCoordinator = project.id === 'coordinator';
-
-  const context = agentCtx
+  const context  = agentCtx
     ? `${agentCtx}\n\n---\n\n## Tarea recibida\n\n${taskContent}`
     : `Eres el agente de servidor para el proyecto "${project.name}".
 Repo: ${project.repo || 'N/A'}
@@ -340,31 +334,137 @@ ${taskContent}`;
   fs.writeFileSync(taskFile, context);
 
   // CLAUDE_CONFIG_DIR must point to the .claude directory itself (not its parent)
-  const CLAUDE_CONFIG  = path.join(__dirname, '..', '.claude');
-  const CLAUDE_HOOKS   = path.join(__dirname, '..', 'hooks');
-  // Dispatch meta for sub-task delegation
+  const CLAUDE_CONFIG = path.join(__dirname, '..', '.claude');
+  const CLAUDE_HOOKS  = path.join(__dirname, '..', 'hooks');
   const taskId    = dispatchMeta.id    || `relay-${project.id}-${Date.now()}`;
   const taskDepth = dispatchMeta.depth ?? 0;
+  const sessionId = `relay-${project.id}-${Date.now()}`;
 
-  const cmd = `su - ${CLAUDE_USER} -c "
-    export ANTHROPIC_API_KEY='${ANTHROPIC_KEY}'
-    export CLAUDE_MONITOR_URL='${MONITOR_API}'
-    export CLAUDE_CHAT_SOURCE='relay-${project.id}'
-    export CLAUDE_CONFIG_DIR='${CLAUDE_CONFIG}'
-    export CLAUDE_HOOKS_DIR='${CLAUDE_HOOKS}'
-    export RELAY_DISPATCH_URL='${MONITOR_API}/api/relay/dispatch'
-    export RELAY_TASK_ID='${taskId}'
-    export RELAY_DEPTH='${taskDepth}'
-    cd ${project.repo || '/var/www/html'}
-    ${CLAUDE_BIN} --dangerously-skip-permissions --print < ${taskFile} > ${resultFile} 2>&1
-  "`;
+  // Build shell command for su -c (stdin redirect handled by shell)
+  const innerCmd = [
+    `export ANTHROPIC_API_KEY='${ANTHROPIC_KEY}'`,
+    `export CLAUDE_MONITOR_URL='${MONITOR_API}'`,
+    `export CLAUDE_CHAT_SOURCE='relay-${project.id}'`,
+    `export CLAUDE_CONFIG_DIR='${CLAUDE_CONFIG}'`,
+    `export CLAUDE_HOOKS_DIR='${CLAUDE_HOOKS}'`,
+    `export RELAY_DISPATCH_URL='${MONITOR_API}/api/relay/dispatch'`,
+    `export RELAY_TASK_ID='${taskId}'`,
+    `export RELAY_DEPTH='${taskDepth}'`,
+    `cd ${project.repo || '/var/www/html'}`,
+    `${CLAUDE_BIN} --dangerously-skip-permissions --output-format stream-json --print < ${taskFile}`,
+  ].join(' && ');
 
-  const child = exec(cmd, { timeout: CLAUDE_TIMEOUT_MS }, (err) => {
-    let result = '';
-    try { result = fs.readFileSync(resultFile, 'utf8'); } catch (_) {}
-    const timedOut = err && err.killed;
-    if (timedOut) result = `[TIMEOUT después de ${CLAUDE_TIMEOUT_MS/60000}min]\n` + result;
-    callback(err ? 1 : 0, result);
+  const child = spawn('su', ['-', CLAUDE_USER, '-c', innerCmd], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  let resultText  = '';
+  let lineBuffer  = '';
+  let timedOut    = false;
+  // Track pending tool calls for pre/post pairing
+  const pendingTools = {}; // { tool_use_id → { name, inputSummary } }
+
+  const timer = setTimeout(() => {
+    timedOut = true;
+    try { child.kill('SIGKILL'); } catch (_) {}
+  }, CLAUDE_TIMEOUT_MS);
+
+  function processLine(line) {
+    if (!line.trim()) return;
+    let evt;
+    try { evt = JSON.parse(line); } catch (_) {
+      // Non-JSON line (error output piped to stdout, etc.) — accumulate
+      resultText += line + '\n';
+      return;
+    }
+
+    // ── Real-time tool events → dashboard ──────────────────
+    if (evt.type === 'assistant' && Array.isArray(evt.message?.content)) {
+      for (const block of evt.message.content) {
+        if (block.type === 'text' && block.text) {
+          // Accumulate assistant text for final result
+          resultText += block.text;
+        }
+        if (block.type === 'tool_use') {
+          const inputSummary = typeof block.input === 'object'
+            ? JSON.stringify(block.input).slice(0, 500)
+            : String(block.input || '').slice(0, 500);
+
+          pendingTools[block.id] = { name: block.name, inputSummary };
+          log(project.id, `tool: ${block.name} — ${inputSummary.slice(0, 80)}`);
+
+          postEvent({
+            session_id:         sessionId,
+            event_type:         'pre_tool',
+            tool_name:          block.name,
+            tool_input_summary: inputSummary,
+            timestamp:          new Date().toISOString(),
+            project_name:       project.name,
+            api_provider:       'anthropic',
+            agent_user:         CLAUDE_USER,
+            working_dir:        project.repo || null,
+          });
+        }
+      }
+    }
+
+    // Tool result → post_tool event
+    if (evt.type === 'tool') {
+      const toolInfo = pendingTools[evt.tool_use_id] || {};
+      let content = '';
+      if (Array.isArray(evt.content)) {
+        content = evt.content.map(c => (typeof c === 'string' ? c : c.text || '')).join('').slice(0, 500);
+      } else {
+        content = String(evt.content || '').slice(0, 500);
+      }
+
+      postEvent({
+        session_id:            sessionId,
+        event_type:            'post_tool',
+        tool_name:             toolInfo.name || null,
+        tool_input_summary:    toolInfo.inputSummary || null,
+        tool_response_summary: content,
+        timestamp:             new Date().toISOString(),
+        project_name:          project.name,
+        api_provider:          'anthropic',
+        agent_user:            CLAUDE_USER,
+        working_dir:           project.repo || null,
+      });
+
+      delete pendingTools[evt.tool_use_id];
+    }
+
+    // Final result — overwrite accumulated text with clean result
+    if (evt.type === 'result') {
+      if (evt.result) resultText = evt.result;
+    }
+  }
+
+  child.stdout.on('data', (chunk) => {
+    lineBuffer += chunk.toString();
+    const lines = lineBuffer.split('\n');
+    lineBuffer  = lines.pop(); // keep last (possibly incomplete) line
+    for (const line of lines) processLine(line);
+  });
+
+  child.stderr.on('data', (chunk) => {
+    const text = chunk.toString().trim();
+    if (text) log(project.id, `claude stderr: ${text.slice(0, 300)}`);
+  });
+
+  child.on('close', (code) => {
+    clearTimeout(timer);
+    if (lineBuffer.trim()) processLine(lineBuffer);
+    if (timedOut) {
+      resultText = `[TIMEOUT después de ${CLAUDE_TIMEOUT_MS / 60000}min]\n` + resultText;
+    }
+    callback(timedOut ? 1 : (code || 0), resultText.trim());
+  });
+
+  child.on('error', (err) => {
+    clearTimeout(timer);
+    log(project.id, `runClaude error: ${err.message}`);
+    callback(1, `Error lanzando claude: ${err.message}`);
   });
 }
 
