@@ -183,14 +183,58 @@ function releaseLock(projectId) {
 // ─── Parse inbox tasks ────────────────────────────────────
 function parseInbox(content) {
   const lines   = content.split('\n');
-  const title   = lines.find(l => /^#{1,3} /.test(l) && !/Relay Inbox|Tarea desde/.test(l))
+  const title   = lines.find(l => /^#{1,3} /.test(l) && !/Relay Inbox|Tarea desde|Plan recibido/.test(l))
                     ?.replace(/^#+ /, '') || 'Sin título';
   const items   = lines.filter(l => /^[0-9]+\. |^- /.test(l)).slice(0, 12);
   return { title, items };
 }
 
+// ─── Parse structured output sections ────────────────────
+// Extracts ## Plan items from task content
+function parsePlanSection(content) {
+  const lines = content.split('\n');
+  const start = lines.findIndex(l => /^## Plan/i.test(l));
+  if (start === -1) return lines.filter(l => /^[0-9]+\. |^- /.test(l)).slice(0, 8);
+  const after  = lines.slice(start + 1);
+  const end    = after.findIndex(l => /^## /.test(l));
+  return (end === -1 ? after : after.slice(0, end)).filter(l => l.trim()).slice(0, 10);
+}
+
+// Extracts ## Resultados items from agent output
+function parseResultSection(content) {
+  const lines   = content.split('\n');
+  // Find LAST occurrence of ## Resultados
+  let start = -1;
+  lines.forEach((l, i) => { if (/^## Resultados|^## Results/i.test(l)) start = i; });
+  if (start === -1) {
+    // Fallback: lines starting with ✅ ❌ ⚠️
+    return lines.filter(l => /^[✅❌⚠️]/.test(l.trim())).slice(0, 10);
+  }
+  const after = lines.slice(start + 1);
+  const end   = after.findIndex(l => /^## /.test(l));
+  return (end === -1 ? after : after.slice(0, end)).filter(l => l.trim()).slice(0, 10);
+}
+
+// Format result items for Telegram (ensure emoji prefix)
+function formatResultItems(items, exitCode) {
+  if (!items.length) {
+    return exitCode === 0 ? ['✅ Ejecutado sin errores'] : ['❌ Terminó con error — ver outbox'];
+  }
+  return items.map(l => {
+    if (/^[✅❌⚠️]/.test(l)) return l;
+    if (/error|fail|❌/i.test(l)) return `❌ ${l.replace(/^[-*•]\s*/, '')}`;
+    return `✅ ${l.replace(/^[-*•]\s*/, '')}`;
+  });
+}
+
+// Load per-agent context file (relay/agents/{id}.md)
+function loadAgentContext(projectId) {
+  const f = path.join(__dirname, 'agents', `${projectId}.md`);
+  try { return fs.readFileSync(f, 'utf8'); } catch (_) { return ''; }
+}
+
 // ─── Execute Claude for a project ────────────────────────
-function runClaude(project, taskContent, callback) {
+function runClaude(project, taskContent, callback, dispatchMeta = {}) {
   const uid        = process.getuid?.() ?? '0';
   const taskFile   = `/tmp/relay-task-${uid}-${project.id}.md`;
   const resultFile = `/tmp/relay-result-${uid}-${project.id}.txt`;
@@ -200,15 +244,12 @@ function runClaude(project, taskContent, callback) {
   try { fs.unlinkSync(resultFile); } catch (_) {}
   fs.writeFileSync(taskFile, taskContent);
 
-  // Build context: coordinator gets COORDINATOR.md; other agents get standard context
+  // Build context: load agent-specific .md + task
+  const agentCtx = loadAgentContext(project.id);
   const isCoordinator = project.id === 'coordinator';
-  const coordinatorMd = path.join(__dirname, 'COORDINATOR.md');
-  const coordinatorCtx = isCoordinator
-    ? (() => { try { return fs.readFileSync(coordinatorMd, 'utf8'); } catch (_) { return ''; } })()
-    : '';
 
-  const context = isCoordinator
-    ? `${coordinatorCtx}\n\n---\n\n## Plan recibido\n\n${taskContent}`
+  const context = agentCtx
+    ? `${agentCtx}\n\n---\n\n## Tarea recibida\n\n${taskContent}`
     : `Eres el agente de servidor para el proyecto "${project.name}".
 Repo: ${project.repo || 'N/A'}
 URL: ${project.url || 'N/A'}
@@ -220,18 +261,21 @@ ${taskContent}`;
   fs.writeFileSync(taskFile, context);
 
   // CLAUDE_CONFIG_DIR must point to the .claude directory itself (not its parent)
-  // Claude Code looks for ${CLAUDE_CONFIG_DIR}/settings.json
-  const CLAUDE_CONFIG  = path.join(__dirname, '..', '.claude');  // .../ai-monitor/.claude
-  const CLAUDE_HOOKS   = path.join(__dirname, '..', 'hooks');    // .../ai-monitor/hooks
+  const CLAUDE_CONFIG  = path.join(__dirname, '..', '.claude');
+  const CLAUDE_HOOKS   = path.join(__dirname, '..', 'hooks');
+  // Dispatch meta for sub-task delegation
+  const taskId    = dispatchMeta.id    || `relay-${project.id}-${Date.now()}`;
+  const taskDepth = dispatchMeta.depth ?? 0;
 
-  // Pass task via stdin to avoid shell quoting issues with special chars in content
-  // (project names with quotes, backticks, $ signs in inbox.md all break $(cat file) substitution)
   const cmd = `su - ${CLAUDE_USER} -c "
     export ANTHROPIC_API_KEY='${ANTHROPIC_KEY}'
     export CLAUDE_MONITOR_URL='${MONITOR_API}'
     export CLAUDE_CHAT_SOURCE='relay-${project.id}'
     export CLAUDE_CONFIG_DIR='${CLAUDE_CONFIG}'
     export CLAUDE_HOOKS_DIR='${CLAUDE_HOOKS}'
+    export RELAY_DISPATCH_URL='${MONITOR_API}/api/relay/dispatch'
+    export RELAY_TASK_ID='${taskId}'
+    export RELAY_DEPTH='${taskDepth}'
     cd ${project.repo || '/var/www/html'}
     ${CLAUDE_BIN} --dangerously-skip-permissions --print < ${taskFile} > ${resultFile} 2>&1
   "`;
@@ -446,13 +490,17 @@ async function processProject(project, hashes) {
 
   log(project.id, `Nueva tarea: ${title}`);
 
-  // ── Telegram: inicio ─────────────────────────────────
-  const itemsList = items.map(i => `  ${i}`).join('\n');
-  tg(`📨 <b>Nueva tarea — ${project.name}</b>
+  // ── Telegram: inicio con plan detallado ──────────────
+  const planItems = parsePlanSection(taskContent);
+  const planList  = planItems.length
+    ? planItems.map((l, i) => `  ${i+1}. ${l.replace(/^[0-9]+\. |^- /, '')}`).join('\n')
+    : (items.map(i => `  ${i}`).join('\n') || taskContent.slice(0, 400));
+
+  tg(`📋 <b>${project.name}</b>
 🗂 <b>${title}</b>
 
-<b>Tareas a ejecutar:</b>
-<code>${itemsList || taskContent.slice(0, 300)}</code>
+<b>Plan:</b>
+<code>${planList}</code>
 
 ⏳ Ejecutando en servidor…`);
 
@@ -469,22 +517,21 @@ async function processProject(project, hashes) {
   });
 
   // ── Execute Claude ────────────────────────────────────
+  // Pass dispatch metadata so agent can use RELAY_TASK_ID for sub-tasks
+  const activeDM = DISPATCH_TIMES[project.id] || {};
   runClaude(project, taskContent, (exitCode, resultRaw) => {
     releaseLock(project.id);
-    const duration = Math.round((Date.now() - startTime) / 1000);
+    const duration  = Math.round((Date.now() - startTime) / 1000);
     const timestamp = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
 
-    // Detect todos completed
-    const todosLines = resultRaw.split('\n')
-      .filter(l => /✅|☑|✓|\[x\]|completad|DONE/i.test(l))
-      .slice(0, 8);
+    // Parse structured result items from ## Resultados section
+    const resultItems = parseResultSection(resultRaw);
+    const formatted   = formatResultItems(resultItems, exitCode);
 
-    // Detect intervention needed
-    const errorLines = resultRaw.split('\n')
-      .filter(l => /error|failed|bloqueado|no pude|exception|permission denied/i.test(l))
-      .slice(0, 3);
+    // Check if agent requested human intervention
+    const needsHuman = /REQUIERE INTERVENCIÓN HUMANA/i.test(resultRaw);
 
-    // Write outbox
+    // Write outbox — include full plan + results for coordinator reads
     if (project.outbox) {
       const outContent =
         `# Relay Outbox — ${project.name}\n` +
@@ -497,7 +544,7 @@ async function processProject(project, hashes) {
       }
     }
 
-    // Notify monitor API (events + dispatch completion)
+    // Notify monitor API
     postEvent({
       session_id:   `relay-${project.id}-${startTime}`,
       event_type:   'post_tool',
@@ -509,7 +556,7 @@ async function processProject(project, hashes) {
       agent_user:   CLAUDE_USER,
     });
 
-    // Mark any dispatched task for this project as completed
+    // Mark dispatch as completed
     if (DISPATCH_TIMES[project.id]) {
       const { dispatch_id } = DISPATCH_TIMES[project.id];
       postToMonitor(`/api/relay/dispatch/${dispatch_id}/complete`, {
@@ -519,40 +566,44 @@ async function processProject(project, hashes) {
       delete DISPATCH_TIMES[project.id];
     }
 
-    // ── Telegram: resultado ──────────────────────────────
-    if (exitCode !== 0 || errorLines.length > 0) {
-      tg(`⚠️ <b>Requiere intervención — ${project.name}</b>
+    // ── Telegram: resultados con ✅/❌ ───────────────────
+    const resultList = formatted.map(l => `  ${l}`).join('\n');
+    const statusIcon = needsHuman ? '🆘' : exitCode !== 0 ? '⚠️' : '✅';
+    const statusWord = needsHuman ? 'Requiere intervención' : exitCode !== 0 ? 'Con errores' : 'Completado';
+
+    tg(`${statusIcon} <b>${statusWord} — ${project.name}</b>
 🗂 ${title}
 ⏱ ${duration}s
 
-❌ <code>${errorLines.join('\n') || 'Error desconocido'}</code>
+<b>Resultados:</b>
+<code>${resultList}</code>`);
 
-Ver outbox.md en GitHub`);
-    } else {
-      const doneList = todosLines.length
-        ? todosLines.map(l => `✅ ${l.replace(/✅|☑|✓|\[x\]/g,'').trim()}`).join('\n')
-        : '✅ Ejecutado sin errores';
-      const successMsg =
-        `✅ <b>Completado — ${project.name}</b>\n` +
-        `📨 Chat Claude → Servidor\n` +
-        `⏱ ${duration}s\n\n` +
-        `${doneList}\n\n` +
-        `🌐 ${project.url || 'ia.vilarkptl.com'}`;
+    if (needsHuman) {
+      // Extract the intervention message
+      const lines  = resultRaw.split('\n');
+      const intIdx = lines.findIndex(l => /REQUIERE INTERVENCIÓN HUMANA/i.test(l));
+      const intMsg = intIdx !== -1 ? lines.slice(intIdx, intIdx + 3).join('\n') : '';
+      tg(`🆘 <b>Acción requerida</b>\n<code>${intMsg.slice(0, 800)}</code>`);
+    }
 
-      // Send text first, then screenshot if URL available
-      tg(successMsg);
-      if (project.url) {
-        const shotDir  = path.join(__dirname, '..', 'frontend', 'screenshots');
-        try { fs.mkdirSync(shotDir, { recursive: true }); } catch (_) {}
-        const shotPath = path.join(shotDir, `${project.id}.png`);
-        screenshot(project.url, shotPath, (filePath) => {
-          if (filePath) tgPhoto(filePath, `📸 ${project.name} — ${ts()}`);
-        });
-      }
+    // ── Screenshot: siempre para proyectos de frontend ───
+    // Also for any project URL when task completed successfully
+    const isFrontend  = /front/i.test(project.id) || /front/i.test(project.name);
+    // Extract custom verification URL from output if agent specified one
+    const urlMatch = resultRaw.match(/## URL de verificación\s*\n(https?:\/\/\S+)/i);
+    const verifyUrl = urlMatch?.[1] || (isFrontend && project.url) || null;
+
+    if (verifyUrl) {
+      const shotDir  = path.join(__dirname, '..', 'frontend', 'screenshots');
+      try { fs.mkdirSync(shotDir, { recursive: true }); } catch (_) {}
+      const shotPath = path.join(shotDir, `${project.id}-${Date.now()}.png`);
+      screenshot(verifyUrl, shotPath, (filePath) => {
+        if (filePath) tgPhoto(filePath, `📸 ${project.name} — ${verifyUrl}`);
+      });
     }
 
     log(project.id, `Completado (exit:${exitCode}, ${duration}s)`);
-  });
+  }, activeDM);
 }
 
 // ─── Main loop ────────────────────────────────────────────

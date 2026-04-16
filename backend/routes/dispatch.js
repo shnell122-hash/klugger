@@ -3,10 +3,9 @@
 /**
  * /api/relay — Multi-agent coordination bridge
  *
- * Allows any Claude Code session (or external caller) to dispatch tasks
- * to any relay agent without direct file access.
- *
- * relay-master polls relay/pending-dispatches.json and executes dispatches.
+ * Stores dispatch tasks in both:
+ *   - MySQL dispatch_tasks (history, dashboard)
+ *   - relay/pending-dispatches.json (relay-master polling)
  */
 
 const express = require('express');
@@ -14,6 +13,7 @@ const router  = express.Router();
 const fs      = require('fs');
 const path    = require('path');
 const crypto  = require('crypto');
+const db      = require('../db/mysql');
 
 const DISPATCH_FILE  = path.join(__dirname, '..', '..', 'relay', 'pending-dispatches.json');
 const PROJECTS_FILE  = path.join(__dirname, '..', '..', 'relay', 'projects.json');
@@ -24,7 +24,9 @@ function readQueue() {
 }
 
 function writeQueue(queue) {
-  fs.writeFileSync(DISPATCH_FILE, JSON.stringify(queue, null, 2) + '\n');
+  // Keep only last 200 entries; relay-master only needs pending ones
+  const trimmed = queue.slice(-200);
+  fs.writeFileSync(DISPATCH_FILE, JSON.stringify(trimmed, null, 2) + '\n');
 }
 
 function readProjects() {
@@ -33,33 +35,37 @@ function readProjects() {
 }
 
 // ── GET /api/relay/agents ─────────────────────────────────────
-// List available agents (active projects with inbox)
 router.get('/agents', (req, res) => {
   const projects = readProjects();
-  const agents = projects
-    .filter(p => p.active && p.inbox)
-    .map(p => ({
-      id:     p.id,
-      name:   p.name,
-      url:    p.url || null,
-      github: p.github || null,
-      status: 'idle',  // relay-master updates via events
-    }));
-  res.json(agents);
+  res.json(
+    projects
+      .filter(p => p.active && p.inbox)
+      .map(p => ({
+        id:     p.id,
+        name:   p.name,
+        url:    p.url || null,
+        github: p.github || null,
+        status: 'idle',
+      }))
+  );
 });
 
 // ── POST /api/relay/dispatch ──────────────────────────────────
-// Dispatch a task to a specific agent
-// Body: { project: string, task: string, requester?: string, chain_after?: string }
-router.post('/dispatch', (req, res) => {
-  const { project, task, requester, chain_after } = req.body;
+router.post('/dispatch', async (req, res) => {
+  const { project, task, requester, parent_id, depth, chain_after } = req.body;
 
   if (!project || !task) {
     return res.status(400).json({ error: 'project and task are required' });
   }
 
+  // Depth guard — prevent runaway sub-task chains
+  const taskDepth = parseInt(depth ?? 0, 10);
+  if (taskDepth > 3) {
+    return res.status(409).json({ error: 'max sub-task depth (3) reached — cannot dispatch deeper' });
+  }
+
   const projects = readProjects();
-  const target = projects.find(p => p.id === project);
+  const target   = projects.find(p => p.id === project);
   if (!target) {
     return res.status(404).json({ error: `Project '${project}' not found` });
   }
@@ -67,12 +73,19 @@ router.post('/dispatch', (req, res) => {
     return res.status(409).json({ error: `Project '${project}' has no active inbox` });
   }
 
+  // Extract title from task (first # heading)
+  const titleMatch = task.match(/^#{1,3}\s+(.+)/m);
+  const title = titleMatch?.[1] || task.slice(0, 80);
+
   const dispatch = {
     id:          crypto.randomUUID(),
+    parent_id:   parent_id || null,
     project,
+    title,
     task,
     requester:   requester || 'api',
-    chain_after: chain_after || null,   // project ID to trigger after this completes
+    depth:       taskDepth,
+    chain_after: chain_after || null,
     status:      'pending',
     created_at:  new Date().toISOString(),
     dispatched_at: null,
@@ -80,54 +93,111 @@ router.post('/dispatch', (req, res) => {
     result_summary: null,
   };
 
+  // 1) Write to JSON queue (relay-master polling)
   const queue = readQueue();
   queue.push(dispatch);
   writeQueue(queue);
 
-  // Broadcast via Socket.io
-  const io = req.app.get('io');
-  if (io) io.emit('dispatch:new', dispatch);
+  // 2) Write to DB (history + dashboard)
+  try {
+    await db.query(
+      `INSERT INTO dispatch_tasks
+         (id, parent_id, project, title, task, requester, depth, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', NOW())`,
+      [dispatch.id, dispatch.parent_id, project, title,
+       task.slice(0, 65535), dispatch.requester, taskDepth]
+    );
+  } catch (dbErr) {
+    // DB error is non-fatal — relay-master still works via JSON
+    console.error('[dispatch] DB insert error (non-fatal):', dbErr.message);
+  }
 
-  console.log(`[dispatch] Queued → ${project}: ${task.slice(0, 80)}`);
-  res.json({ ok: true, id: dispatch.id, project, status: 'pending' });
+  // 3) Broadcast via Socket.io
+  const io = req.app.get('io');
+  if (io) io.emit('dispatch:new', { ...dispatch, task: undefined });
+
+  console.log(`[dispatch] Queued (depth:${taskDepth}) → ${project}: ${title}`);
+  res.json({ ok: true, id: dispatch.id, project, status: 'pending', depth: taskDepth });
 });
 
 // ── GET /api/relay/dispatch ───────────────────────────────────
-// List dispatch queue (last 50)
-router.get('/dispatch', (req, res) => {
-  const queue = readQueue();
-  // Return newest first, last 50
-  res.json(queue.slice(-50).reverse());
+router.get('/dispatch', async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT id, parent_id, project, title, requester, depth, status,
+              plan_items, result_items, screenshot_url, exit_code, duration_sec,
+              created_at, dispatched_at, completed_at
+       FROM dispatch_tasks
+       ORDER BY created_at DESC LIMIT 100`
+    );
+    return res.json(rows);
+  } catch (_) {
+    // Fallback to JSON file if DB unavailable
+    const queue = readQueue();
+    res.json(queue.slice(-100).reverse());
+  }
 });
 
 // ── GET /api/relay/dispatch/:id ───────────────────────────────
-router.get('/dispatch/:id', (req, res) => {
-  const queue = readQueue();
-  const item = queue.find(d => d.id === req.params.id);
+router.get('/dispatch/:id', async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      'SELECT * FROM dispatch_tasks WHERE id = ?', [req.params.id]
+    );
+    if (rows.length) return res.json(rows[0]);
+  } catch (_) {}
+  // Fallback to JSON
+  const item = readQueue().find(d => d.id === req.params.id);
   if (!item) return res.status(404).json({ error: 'Not found' });
   res.json(item);
 });
 
 // ── POST /api/relay/dispatch/:id/complete ────────────────────
-// Called by relay-master when a dispatched task completes
-router.post('/dispatch/:id/complete', (req, res) => {
-  const { result_summary, exit_code } = req.body;
-  const queue = readQueue();
-  const idx = queue.findIndex(d => d.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: 'Not found' });
+router.post('/dispatch/:id/complete', async (req, res) => {
+  const { result_summary, exit_code, result_items, screenshot_url, duration_sec } = req.body;
+  const status = (exit_code === 0 || exit_code == null) ? 'completed' : 'failed';
 
-  queue[idx] = {
-    ...queue[idx],
-    status:         exit_code === 0 ? 'completed' : 'failed',
-    completed_at:   new Date().toISOString(),
-    result_summary: result_summary?.slice(0, 1000) || null,
-  };
-  writeQueue(queue);
+  // Update JSON queue
+  const queue  = readQueue();
+  const idx    = queue.findIndex(d => d.id === req.params.id);
+  if (idx !== -1) {
+    queue[idx] = { ...queue[idx], status, completed_at: new Date().toISOString(), result_summary };
+    writeQueue(queue);
+  }
+
+  // Update DB
+  try {
+    await db.query(
+      `UPDATE dispatch_tasks SET
+         status = ?, exit_code = ?, duration_sec = ?,
+         result_items = ?, screenshot_url = ?, completed_at = NOW()
+       WHERE id = ?`,
+      [status, exit_code ?? null, duration_sec ?? null,
+       result_items ? JSON.stringify(result_items) : null,
+       screenshot_url || null, req.params.id]
+    );
+  } catch (dbErr) {
+    console.error('[dispatch] DB complete error (non-fatal):', dbErr.message);
+  }
 
   const io = req.app.get('io');
-  if (io) io.emit('dispatch:complete', queue[idx]);
+  if (io) io.emit('dispatch:complete', { id: req.params.id, status, exit_code });
 
   res.json({ ok: true });
+});
+
+// ── GET /api/relay/dispatch/:id/subtasks ─────────────────────
+router.get('/dispatch/:id/subtasks', async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT id, project, title, status, depth, created_at, completed_at
+       FROM dispatch_tasks WHERE parent_id = ? ORDER BY created_at ASC`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;
