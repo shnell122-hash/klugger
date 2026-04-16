@@ -1,5 +1,16 @@
 [
   {
+    "id": "coordinator",
+    "name": "Orquestador Central",
+    "inbox":  "/var/www/html/vilarkptl.com/ai-monitor/relay/coordinator-inbox.md",
+    "outbox": "/var/www/html/vilarkptl.com/ai-monitor/relay/coordinator-outbox.md",
+    "repo":   "/var/www/html/vilarkptl.com/ai-monitor",
+    "branch": "claude/agent-monitoring-dashboard-4v8iq",
+    "github": "vilarkptl-lang/agentic-repo",
+    "url":    "http://ia.vilarkptl.com",
+    "active": true
+  },
+  {
     "id": "ai-monitor",
     "name": "AI Monitor",
     "inbox":  "/var/www/html/vilarkptl.com/ai-monitor/relay/inbox.md",

@@ -30,8 +30,12 @@ const https   = require('https');
 
 // ─── Config ───────────────────────────────────────────────
 const PROJECTS_FILE   = path.join(__dirname, 'projects.json');
+const DISPATCH_FILE   = path.join(__dirname, 'pending-dispatches.json');
 const HASHES_FILE     = `/tmp/relay-master-hashes-${process.getuid?.() ?? 'x'}.json`;
 // Per-project lock files: /tmp/relay-lock-{projectId} (parallel execution)
+// Outbox watchdog: track when each project last got an inbox dispatch
+const DISPATCH_TIMES  = {};   // { [projectId]: { dispatched_at: ms, dispatch_id: str } }
+const OUTBOX_TIMEOUT_MS = parseInt(process.env.OUTBOX_TIMEOUT_MS || '2100000'); // 35 min
 const MONITOR_API     = process.env.MONITOR_API_URL || 'http://127.0.0.1:3010';
 const BOT_TOKEN       = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT_ID         = process.env.TELEGRAM_CHAT_ID;
@@ -121,20 +125,24 @@ function screenshot(url, outPath, callback) {
 }
 
 // ─── Monitor API ──────────────────────────────────────────
-function postEvent(payload) {
+function postToMonitor(apiPath, payload) {
   try {
     const body = JSON.stringify(payload);
     const req = require('http').request({
       hostname: '127.0.0.1',
       port:     3010,
-      path:     '/api/events',
+      path:     apiPath,
       method:   'POST',
-      headers:  { 'Content-Type': 'application/json' },
+      headers:  { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
     });
     req.on('error', () => {});
     req.write(body);
     req.end();
   } catch (_) {}
+}
+
+function postEvent(payload) {
+  postToMonitor('/api/events', payload);
 }
 
 // ─── Hash helpers ─────────────────────────────────────────
@@ -192,8 +200,16 @@ function runClaude(project, taskContent, callback) {
   try { fs.unlinkSync(resultFile); } catch (_) {}
   fs.writeFileSync(taskFile, taskContent);
 
-  // Build context: repo path + project name for Claude
-  const context = `Eres el agente de servidor para el proyecto "${project.name}".
+  // Build context: coordinator gets COORDINATOR.md; other agents get standard context
+  const isCoordinator = project.id === 'coordinator';
+  const coordinatorMd = path.join(__dirname, 'COORDINATOR.md');
+  const coordinatorCtx = isCoordinator
+    ? (() => { try { return fs.readFileSync(coordinatorMd, 'utf8'); } catch (_) { return ''; } })()
+    : '';
+
+  const context = isCoordinator
+    ? `${coordinatorCtx}\n\n---\n\n## Plan recibido\n\n${taskContent}`
+    : `Eres el agente de servidor para el proyecto "${project.name}".
 Repo: ${project.repo || 'N/A'}
 URL: ${project.url || 'N/A'}
 Directorio de trabajo: ${project.repo || '/var/www/html'}
@@ -267,6 +283,138 @@ function gitPushOutbox(repoPath, branch, outboxPath, timestamp) {
     const msg = err.message?.slice(0, 300) || 'unknown error';
     log(projectId, `ERROR: outbox push falló: ${msg}`);
     tg(`⚠️ <b>Outbox push falló — ${projectId}</b>\n<code>${msg}</code>`);
+  }
+}
+
+// ─── Git push inbox (for dispatch) ───────────────────────
+function gitPushInbox(repoPath, branch, inboxPath, dispatchId) {
+  const projectId = path.basename(repoPath);
+  try {
+    try {
+      execSync(
+        `cd ${repoPath} && git pull origin ${branch} --rebase --quiet 2>/dev/null`,
+        { stdio: 'pipe', timeout: 30000 }
+      );
+    } catch (_) {
+      execSync(
+        `cd ${repoPath} && git rebase --abort 2>/dev/null || true && git fetch origin ${branch} --quiet && git reset --hard origin/${branch} --quiet`,
+        { stdio: 'pipe', timeout: 30000 }
+      );
+    }
+    execSync(
+      `cd ${repoPath} && git add ${inboxPath} && git commit -m "dispatch: tarea ${dispatchId}" --quiet && git push origin ${branch} --quiet`,
+      { stdio: 'pipe', timeout: 30000 }
+    );
+    log(projectId, `inbox push OK (dispatch ${dispatchId})`);
+  } catch (err) {
+    log(projectId, `inbox push falló (dispatch ${dispatchId}): ${err.message?.slice(0,200)}`);
+    // Continue anyway — relay-master will pick up the file change locally
+  }
+}
+
+// ─── Dispatch queue (pending-dispatches.json) ────────────
+function readDispatchQueue() {
+  try { return JSON.parse(fs.readFileSync(DISPATCH_FILE, 'utf8')); }
+  catch (_) { return []; }
+}
+function saveDispatchQueue(q) {
+  fs.writeFileSync(DISPATCH_FILE, JSON.stringify(q, null, 2) + '\n');
+}
+
+async function processDispatchQueue(projects) {
+  const queue = readDispatchQueue();
+  const pending = queue.filter(d => d.status === 'pending');
+  if (!pending.length) return;
+
+  const updated = [...queue];
+
+  for (const dispatch of pending) {
+    const target = projects.find(p => p.id === dispatch.project && p.active && p.inbox);
+    if (!target) {
+      log(null, `Dispatch ${dispatch.id}: proyecto '${dispatch.project}' no encontrado`);
+      const idx = updated.findIndex(d => d.id === dispatch.id);
+      updated[idx] = { ...dispatch, status: 'error', dispatched_at: new Date().toISOString() };
+      continue;
+    }
+
+    log(null, `Dispatch → ${target.name}: ${dispatch.task.slice(0, 80)}`);
+
+    // Write task to target inbox
+    try {
+      fs.writeFileSync(target.inbox, dispatch.task);
+    } catch (err) {
+      log(null, `Dispatch ${dispatch.id}: no pudo escribir inbox: ${err.message}`);
+      const idx = updated.findIndex(d => d.id === dispatch.id);
+      updated[idx] = { ...dispatch, status: 'error', dispatched_at: new Date().toISOString() };
+      continue;
+    }
+
+    // Push to GitHub if configured
+    if (target.repo && target.branch) {
+      gitPushInbox(target.repo, target.branch, target.inbox, dispatch.id);
+    }
+
+    // Track dispatch time for outbox watchdog
+    DISPATCH_TIMES[dispatch.project] = {
+      dispatched_at: Date.now(),
+      dispatch_id:   dispatch.id,
+    };
+
+    const idx = updated.findIndex(d => d.id === dispatch.id);
+    updated[idx] = { ...dispatch, status: 'dispatched', dispatched_at: new Date().toISOString() };
+
+    tg(`📤 <b>Tarea despachada — ${target.name}</b>\n<code>${dispatch.task.slice(0, 300)}</code>`);
+  }
+
+  saveDispatchQueue(updated);
+}
+
+// ─── Outbox watchdog (detects stuck agents) ───────────────
+function checkOutboxWatchdog(projects) {
+  const now = Date.now();
+  for (const [projectId, info] of Object.entries(DISPATCH_TIMES)) {
+    const elapsed = now - info.dispatched_at;
+    if (elapsed < OUTBOX_TIMEOUT_MS) continue;
+
+    const project = projects.find(p => p.id === projectId);
+    if (!project || !project.outbox) continue;
+
+    // Check if outbox was updated after dispatch
+    try {
+      const outboxMtime = fs.statSync(project.outbox).mtimeMs;
+      if (outboxMtime > info.dispatched_at) {
+        // Outbox updated — clear watchdog
+        delete DISPATCH_TIMES[projectId];
+        continue;
+      }
+    } catch (_) {}
+
+    // Outbox not updated in 35min → alert coordinator
+    log(projectId, `WATCHDOG: ${project.name} sin outbox después de ${Math.round(elapsed/60000)}min`);
+    tg(`⏰ <b>Watchdog — ${project.name}</b>\nSin respuesta después de ${Math.round(elapsed/60000)} min\nDispatch ID: <code>${info.dispatch_id}</code>`);
+
+    // Notify coordinator via dispatch
+    const queue = readDispatchQueue();
+    const coordinator = projects.find(p => p.id === 'coordinator' && p.active && p.inbox);
+    if (coordinator) {
+      try {
+        const alert =
+          `# Watchdog Alert — ${project.name}\n\n` +
+          `El agente "${project.name}" lleva ${Math.round(elapsed/60000)} min sin actualizar su outbox.\n` +
+          `Dispatch ID original: ${info.dispatch_id}\n\n` +
+          `Revisa el estado y decide si reintentar o escalar al usuario.`;
+        fs.writeFileSync(coordinator.inbox, alert);
+        if (coordinator.repo && coordinator.branch) {
+          gitPushInbox(coordinator.repo, coordinator.branch, coordinator.inbox, 'watchdog-' + projectId);
+        }
+        log(null, `Watchdog: alerta enviada al coordinador para ${projectId}`);
+      } catch (err) {
+        log(null, `Watchdog: error alertando coordinador: ${err.message}`);
+      }
+    }
+
+    // Remove from watchdog to avoid repeat alerts
+    delete DISPATCH_TIMES[projectId];
   }
 }
 
@@ -349,7 +497,7 @@ async function processProject(project, hashes) {
       }
     }
 
-    // Notify monitor API
+    // Notify monitor API (events + dispatch completion)
     postEvent({
       session_id:   `relay-${project.id}-${startTime}`,
       event_type:   'post_tool',
@@ -360,6 +508,16 @@ async function processProject(project, hashes) {
       api_provider: 'anthropic',
       agent_user:   CLAUDE_USER,
     });
+
+    // Mark any dispatched task for this project as completed
+    if (DISPATCH_TIMES[project.id]) {
+      const { dispatch_id } = DISPATCH_TIMES[project.id];
+      postToMonitor(`/api/relay/dispatch/${dispatch_id}/complete`, {
+        result_summary: resultRaw.slice(0, 1000),
+        exit_code: exitCode,
+      });
+      delete DISPATCH_TIMES[project.id];
+    }
 
     // ── Telegram: resultado ──────────────────────────────
     if (exitCode !== 0 || errorLines.length > 0) {
@@ -427,6 +585,16 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
       projects = JSON.parse(fs.readFileSync(PROJECTS_FILE, 'utf8'));
     } catch (_) {}
 
+    // Process dispatch queue first (coordinator writes here)
+    try { await processDispatchQueue(projects); } catch (e) {
+      log(null, `ERROR processDispatchQueue: ${e.message}`);
+    }
+
+    // Check outbox watchdog (detects stuck agents)
+    try { checkOutboxWatchdog(projects); } catch (e) {
+      log(null, `ERROR watchdog: ${e.message}`);
+    }
+
     for (const project of projects) {
       try {
         await processProject(project, hashes);
@@ -437,6 +605,7 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
   }, POLL_MS);
 
   // Initial poll immediately
+  try { await processDispatchQueue(projects); } catch (_) {}
   for (const project of projects) {
     try { await processProject(project, hashes); } catch (_) {}
   }
