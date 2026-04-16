@@ -1,7 +1,4 @@
 {
-  "env": {
-    "CLAUDE_MONITOR_URL": "https://ia.vilarkptl.com"
-  },
   "hooks": {
     "PreToolUse": [
       {
