@@ -1,38 +1,35 @@
-# Fix lock bug + limpiar locks estancados
+# URGENTE: Restaurar master.js en GitHub
 
-## Problema diagnosticado
-El lock usa process.pid (relay-master) — como relay-master siempre vive,
-el lock NUNCA expira. El coordinator lleva bloqueado desde las 13:28.
+## Problema
+Se subio contenido vacio a relay/master.js en GitHub accidentalmente.
+El archivo local en /home/user/agentic-repo/relay/master.js esta CORRECTO (~1090 lineas).
 
 ## Tareas
 
-1. Limpiar todos los locks ahora:
+1. Verificar que el local tiene contenido:
    ```
-   rm -f /tmp/relay-lock-*
-   echo "locks eliminados"
+   wc -l /home/user/agentic-repo/relay/master.js
+   head -5 /home/user/agentic-repo/relay/master.js
    ```
 
-2. Pull del fix:
+2. Push del archivo correcto a GitHub:
    ```
    cd /home/user/agentic-repo
-   git pull origin claude/agent-monitoring-dashboard-4v8iq
+   git add relay/master.js
+   git status
+   git commit -m "fix: restore master.js — empty push accident" || echo "nada que commitear"
+   git push origin claude/agent-monitoring-dashboard-4v8iq
    ```
 
-3. Verificar que el fix esta en master.js:
+3. Confirmar:
    ```
-   grep -n 'activeTasks' /home/user/agentic-repo/relay/master.js | head -5
-   ```
-
-4. Reiniciar relay-master DETACHED:
-   ```
-   nohup bash -c 'sleep 2 && pm2 restart relay-master' > /tmp/relay-restart.log 2>&1 &
-   echo "restart en 2s (PID $!)"
+   git log origin/claude/agent-monitoring-dashboard-4v8iq --oneline -3
    ```
 
 ## Criterios
-- [ ] locks eliminados
-- [ ] grep muestra activeTasks en master.js
-- [ ] pm2 restart programado
+- [ ] wc -l muestra mas de 1000 lineas
+- [ ] git push exitoso
+- [ ] log muestra commit reciente de master.js
 
 ## Resultados
 Reporta output de cada paso.
