@@ -359,6 +359,7 @@ ${taskContent}`;
 
 // ─── Git pull + push for a project ───────────────────────
 function gitPull(repoPath, branch) {
+  const projectId = path.basename(repoPath);
   try {
     if (GITHUB_TOKEN) {
       execSync(
@@ -366,8 +367,22 @@ function gitPull(repoPath, branch) {
         { stdio: 'ignore' }
       );
     }
-    execSync(`cd ${repoPath} && git pull origin ${branch} --rebase --quiet 2>/dev/null || true`, { stdio: 'ignore' });
-  } catch (_) {}
+    try {
+      execSync(
+        `cd ${repoPath} && git pull origin ${branch} --rebase --quiet 2>/dev/null`,
+        { stdio: 'pipe', timeout: 30000 }
+      );
+    } catch (_) {
+      // Rebase failed (diverged or mid-rebase) — abort and reset hard
+      execSync(
+        `cd ${repoPath} && git rebase --abort 2>/dev/null || true && git fetch origin ${branch} --quiet && git reset --hard origin/${branch} --quiet`,
+        { stdio: 'pipe', timeout: 30000 }
+      );
+      log(projectId, `gitPull: rebase falló, reset hard a origin/${branch}`);
+    }
+  } catch (err) {
+    log(projectId, `gitPull error: ${err.message?.slice(0, 200)}`);
+  }
 }
 
 function gitPushOutbox(repoPath, branch, outboxPath, timestamp) {
