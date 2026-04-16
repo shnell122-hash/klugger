@@ -254,12 +254,12 @@ main {
 .rtab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
 /* ── Right sub-panels ── */
-#agents-panel, #sessions-panel, #costs-panel, #providers-panel, #projects-panel {
+#agents-panel, #screenshots-panel, #sessions-panel, #costs-panel, #providers-panel, #projects-panel {
   flex: 1;
   overflow-y: auto;
   display: none;
 }
-#agents-panel.visible, #sessions-panel.visible, #costs-panel.visible, #providers-panel.visible, #projects-panel.visible {
+#agents-panel.visible, #screenshots-panel.visible, #sessions-panel.visible, #costs-panel.visible, #providers-panel.visible, #projects-panel.visible {
   display: block;
 }
 
@@ -496,8 +496,9 @@ main {
   }
 
   /* Always show sessions on right panel mobile */
-  #agents-panel    { display: none; }
-  #sessions-panel  { display: block; flex: 1; overflow-y: auto; }
+  #agents-panel       { display: none; }
+  #screenshots-panel  { display: none; }
+  #sessions-panel     { display: block; flex: 1; overflow-y: auto; }
   #costs-panel     { display: none; }
   #providers-panel { display: none; }
   #projects-panel  { display: none; }
@@ -510,6 +511,49 @@ main {
 @media (max-width: 400px) {
   .stat-pill .label { display: none; }
   .event-body .summary { max-width: 120px; }
+}
+
+/* ── Screenshots panel ── */
+#screenshot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+  padding: 6px 0;
+}
+.shot-card {
+  display: block;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  text-decoration: none;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.shot-card:hover { border-color: var(--accent); transform: scale(1.02); }
+.shot-img {
+  width: 100%;
+  height: 100px;
+  object-fit: cover;
+  display: block;
+  background: var(--bg3);
+}
+.shot-meta {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 7px;
+  font-size: 9px;
+}
+.shot-project { color: var(--accent); font-weight: 600; }
+.shot-time    { color: var(--text-muted); }
+
+#screenshots-panel .panel-header {
+  padding: 8px 0 6px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
 }
 
 /* ── Dispatch / Agents panel ── */

@@ -13,7 +13,8 @@ const sessionsRouter  = require('./routes/sessions');
 const costsRouter     = require('./routes/costs');
 const providersRouter = require('./routes/providers');
 const projectsRouter  = require('./routes/projects');
-const dispatchRouter  = require('./routes/dispatch');
+const dispatchRouter      = require('./routes/dispatch');
+const screenshotsRouter   = require('./routes/screenshots');
 
 const PORT = process.env.PORT || 3010;
 
@@ -39,7 +40,12 @@ app.use('/api/sessions',  sessionsRouter);
 app.use('/api/costs',     costsRouter);
 app.use('/api/providers', providersRouter);
 app.use('/api/projects',  projectsRouter);
-app.use('/api/relay',     dispatchRouter);
+app.use('/api/relay',        dispatchRouter);
+app.use('/api/screenshots',  screenshotsRouter);
+
+// Serve screenshots directory (already covered by express.static on /frontend,
+// but also serve under /screenshots for direct access)
+app.use('/screenshots', express.static(require('path').join(__dirname, '..', 'frontend', 'screenshots')));
 
 // Health check
 app.get('/api/health', (req, res) => {

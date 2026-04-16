@@ -37,6 +37,7 @@
 <div id="tab-bar">
   <button class="tab-btn active" data-panel="feed">Feed</button>
   <button class="tab-btn" data-panel="agents">Agentes</button>
+  <button class="tab-btn" data-panel="screenshots">Screenshots</button>
   <button class="tab-btn" data-panel="sessions">Sesiones</button>
   <button class="tab-btn" data-panel="costs">Costos</button>
   <button class="tab-btn" data-panel="providers">APIs</button>
@@ -61,6 +62,7 @@
     <!-- Desktop tabs -->
     <div id="right-tabs">
       <button class="rtab active" data-rtab="agents">Agentes</button>
+      <button class="rtab" data-rtab="screenshots">Screenshots</button>
       <button class="rtab" data-rtab="sessions">Sesiones</button>
       <button class="rtab" data-rtab="costs">Costos</button>
       <button class="rtab" data-rtab="providers">APIs</button>
@@ -74,6 +76,20 @@
         <span id="agents-count" style="color:var(--text-muted)">—</span>
       </div>
       <div id="dispatch-list"></div>
+    </div>
+
+    <!-- Screenshots -->
+    <div id="screenshots-panel">
+      <div class="panel-header">
+        <span class="title">Screenshots</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <select id="shot-filter" style="background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:10px">
+            <option value="">Todos los proyectos</option>
+          </select>
+          <span id="shot-count" style="color:var(--text-muted)">—</span>
+        </div>
+      </div>
+      <div id="screenshot-grid"></div>
     </div>
 
     <!-- Sessions -->

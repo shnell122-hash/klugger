@@ -345,10 +345,11 @@ function initTabs() {
       } else {
         document.getElementById('right-panel').classList.add('mobile-active');
         // Activate the right sub-panel
-        switchRightTab(panel === 'agents'   ? 'agents'   :
-                       panel === 'sessions' ? 'sessions' :
-                       panel === 'costs'    ? 'costs'    :
-                       panel === 'projects' ? 'projects' : 'providers');
+        switchRightTab(panel === 'agents'      ? 'agents'      :
+                       panel === 'screenshots'? 'screenshots' :
+                       panel === 'sessions'   ? 'sessions'   :
+                       panel === 'costs'      ? 'costs'      :
+                       panel === 'projects'   ? 'projects'   : 'providers');
       }
     });
   });
@@ -364,7 +365,7 @@ function initTabs() {
 }
 
 function switchRightTab(tab) {
-  ['agents','sessions','costs','providers','projects'].forEach(t => {
+  ['agents','screenshots','sessions','costs','providers','projects'].forEach(t => {
     const el = document.getElementById(t + '-panel');
     if (el) el.classList.toggle('visible', t === tab);
   });
@@ -372,6 +373,63 @@ function switchRightTab(tab) {
   if (tab === 'providers') loadProviders();
   if (tab === 'projects') loadProjects();
   if (tab === 'agents') loadDispatches();
+  if (tab === 'screenshots') loadScreenshots();
+}
+
+// ─── Screenshots panel ────────────────────────────────────
+let screenshots = [];
+
+function timeAgo(ts) {
+  const diff = Math.floor((Date.now() - new Date(ts)) / 1000);
+  if (diff < 60)  return `${diff}s`;
+  if (diff < 3600) return `${Math.floor(diff/60)}m`;
+  if (diff < 86400) return `${Math.floor(diff/3600)}h`;
+  return `${Math.floor(diff/86400)}d`;
+}
+
+function renderScreenshotGrid(shots) {
+  const grid   = document.getElementById('screenshot-grid');
+  const counter = document.getElementById('shot-count');
+  if (!grid) return;
+  if (counter) counter.textContent = shots.length + ' fotos';
+  if (!shots.length) {
+    grid.innerHTML = `<div class="empty-state"><span class="emoji">📷</span>Sin screenshots aún<br><small>Se capturan automáticamente tras cada tarea de frontend</small></div>`;
+    return;
+  }
+  grid.innerHTML = shots.map(s => `
+    <a href="${esc(s.url)}" target="_blank" class="shot-card">
+      <img class="shot-img" src="${esc(s.url)}" alt="${esc(s.project_id)}"
+           loading="lazy" onerror="this.parentElement.style.display='none'">
+      <div class="shot-meta">
+        <span class="shot-project">${esc(s.project_id)}</span>
+        <span class="shot-time">${timeAgo(s.taken_at)}</span>
+      </div>
+    </a>`
+  ).join('');
+}
+
+function populateShotFilter(shots) {
+  const sel = document.getElementById('shot-filter');
+  if (!sel) return;
+  const projects = [...new Set(shots.map(s => s.project_id))];
+  sel.innerHTML = `<option value="">Todos los proyectos</option>` +
+    projects.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+  sel.onchange = () => {
+    const filter = sel.value;
+    renderScreenshotGrid(filter ? screenshots.filter(s => s.project_id === filter) : screenshots);
+  };
+}
+
+async function loadScreenshots() {
+  try {
+    const r = await fetch(`${API}/api/screenshots?limit=200`);
+    if (!r.ok) return;
+    screenshots = await r.json();
+    renderScreenshotGrid(screenshots);
+    populateShotFilter(screenshots);
+  } catch (err) {
+    console.warn('[screenshots] load error:', err.message);
+  }
 }
 
 // ─── Dispatch / Agents panel ──────────────────────────────
@@ -584,6 +642,19 @@ function connectSocket() {
     refreshStats();
   });
 
+  socket.on('screenshot:new', shot => {
+    screenshots.unshift(shot);
+    if (screenshots.length > 200) screenshots.pop();
+    const panel = document.getElementById('screenshots-panel');
+    if (panel && panel.classList.contains('visible')) {
+      renderScreenshotGrid(screenshots);
+      populateShotFilter(screenshots);
+    }
+    // Update count badge even when hidden
+    const counter = document.getElementById('shot-count');
+    if (counter) counter.textContent = screenshots.length + ' fotos';
+  });
+
   socket.on('dispatch:new', d => {
     dispatches.unshift(d);
     if (dispatches.length > 200) dispatches.pop();
@@ -615,6 +686,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadInitialData();
   loadProviders();
   loadDispatches();
+  loadScreenshots();
   connectSocket();
   refreshFeed();
 

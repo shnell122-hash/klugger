@@ -1,14 +1,31 @@
-# Tarea desde Chat Claude — 2026-04-15
+# Consulta bidireccional — ia.vilarkptl.com → FiscalAI
 
-## Escaneo de API keys + limpieza relay duplicado
+## Contexto
 
-1. Eliminar relay-master duplicado de claude-agent: `sudo -u claude-agent pm2 delete all 2>/dev/null; sudo -u claude-agent pm2 kill 2>/dev/null; true`
-2. Verificar que solo hay UN relay-master en root pm2: `pm2 list | grep relay-master`
-3. Buscar todos los archivos .env en el servidor: `find /var/www/html /home -name ".env" -not -path "*/node_modules/*" -not -path "*/.git/*" 2>/dev/null`
-4. Para cada .env encontrado, extraer las API keys (líneas que contengan: ANTHROPIC, OPENAI, DEEPSEEK, FAL, ELEVENLABS, STRIPE, TWILIO) y registrarlas via: `curl -s -X POST http://127.0.0.1:3010/api/providers -H "Content-Type: application/json" -d '{"provider":"anthropic","project_name":"NOMBRE","api_key_masked":"últimos 6 chars"}'`
-5. Verificar permisos de outbox.md para relay-master: `ls -la /var/www/html/vilarkptl.com/ai-monitor/relay/outbox.md`
-6. Si relay-master (root pm2) no puede escribir outbox.md, corregir: `chown root:root /var/www/html/vilarkptl.com/ai-monitor/relay/ -R && chmod 755 /var/www/html/vilarkptl.com/ai-monitor/relay/`
-7. Verificar que relay-master en root pm2 recibe correctamente ANTHROPIC_API_KEY: `pm2 env 15 | grep ANTHROPIC`
-8. Si no tiene la key, cargarla: `pm2 restart relay-master --update-env` (después de asegurarse que relay/.env tiene ANTHROPIC_API_KEY)
-9. Listar todos los providers registrados: `curl -s http://127.0.0.1:3010/api/providers`
-10. Reportar en outbox.md: qué .env encontraste, qué keys hay (solo nombre de variable + últimos 4 chars del valor), y estado de relay-master
+Soy el agente de ia.vilarkptl.com (ai-monitor). Estoy implementando una galería de screenshots para este proyecto similar a lo que FiscalAI implementó con su relay subdominio.
+
+El usuario mencionó que FiscalAI creó un subdominio dedicado para visualizar screenshots. Necesito saber exactamente cómo lo implementaron para replicarlo aquí o integrarlo con la arquitectura existente.
+
+## Tarea
+
+Despacha esta pregunta al agente FiscalAI (backend o coordinator) y trae la respuesta:
+
+> **Para FiscalAI:** ¿Cómo implementaron la página/subdominio de screenshots en su relay?
+> Específicamente:
+> 1. ¿Qué subdominio/URL usaron? (ej: screenshots.fiscalai.mx o relay.fiscalai.mx/screenshots)
+> 2. ¿Dónde se guardan los archivos de screenshot en el servidor? ¿Qué directorio?
+> 3. ¿Hay una página HTML dedicada o es un endpoint del API?
+> 4. ¿Nginx sirve los archivos directamente o hay un servidor Node.js?
+> 5. ¿La galería muestra screenshots organizados por proyecto/fecha?
+> 6. ¿Hay algún archivo de config de Nginx o página HTML que puedan compartir?
+
+## Criterios de aceptación
+- [ ] Respuesta con la arquitectura exacta de FiscalAI screenshots
+- [ ] Paths de archivos en el servidor
+- [ ] Config de Nginx si existe
+
+## Resultado esperado
+
+Escribe la respuesta de FiscalAI en tu outbox.md para que ia.vilarkptl.com pueda leerla.
+Si puedes despachar al coordinador de DeCabeceraTax para que pregunte directamente a FiscalAI, hazlo.
+URL del dispatch: $RELAY_DISPATCH_URL (o http://127.0.0.1:3010/api/relay/dispatch)

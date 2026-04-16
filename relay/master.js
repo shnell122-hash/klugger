@@ -114,14 +114,25 @@ function tgPhoto(imagePath, caption) {
 
 // ─── Screenshot via Chromium headless ─────────────────────
 const CHROMIUM_BIN = process.env.CHROMIUM_BIN ||
-  ['/usr/bin/chromium-browser', '/usr/bin/chromium', '/usr/bin/google-chrome']
-    .find(b => { try { return require('fs').existsSync(b); } catch(_){return false;} }) || '';
+  [
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
+    '/usr/bin/google-chrome',
+    '/snap/bin/chromium',
+    '/usr/bin/google-chrome-stable',
+  ].find(b => { try { return fs.existsSync(b); } catch(_){return false;} }) || '';
+
+if (CHROMIUM_BIN) log(null, `Chromium: ${CHROMIUM_BIN}`);
+else              log(null, 'Chromium no encontrado — screenshots desactivados');
 
 function screenshot(url, outPath, callback) {
   if (!CHROMIUM_BIN || !url) return callback(null);
   const cmd = `${CHROMIUM_BIN} --headless --no-sandbox --disable-gpu ` +
     `--screenshot="${outPath}" --window-size=1280,800 "${url}" 2>/dev/null`;
-  exec(cmd, { timeout: 20000 }, (err) => callback(err ? null : outPath));
+  exec(cmd, { timeout: 25000 }, (err) => {
+    if (err) { log(null, `Screenshot error para ${url}: ${err.message?.slice(0,100)}`); return callback(null); }
+    callback(outPath);
+  });
 }
 
 // ─── Monitor API ──────────────────────────────────────────
@@ -738,13 +749,20 @@ async function processProject(project, hashes) {
       try { fs.mkdirSync(shotDir, { recursive: true }); } catch (_) {}
 
       verifyUrls.forEach(verifyUrl => {
-        const shotPath = path.join(shotDir, `${project.id}-${Date.now()}.png`);
+        const filename = `${project.id}-${Date.now()}.png`;
+        const shotPath = path.join(shotDir, filename);
         screenshot(verifyUrl, shotPath, (filePath) => {
           if (filePath) {
             tgPhoto(filePath, `📸 ${project.name}\n${verifyUrl}`);
+            // Notify dashboard (socket.io broadcast via monitor API)
+            postToMonitor('/api/screenshots/new', {
+              filename,
+              project_id: project.id,
+              url:        `/screenshots/${filename}`,
+              verify_url: verifyUrl,
+            });
           } else {
-            // Chromium no disponible — enviar URL como texto
-            tg(`📸 <b>Screenshot pendiente</b> — ${project.name}\n🔗 ${verifyUrl}\n<i>(Chromium no configurado en servidor)</i>`);
+            tg(`📸 <b>Screenshot</b> — ${project.name}\n🔗 ${verifyUrl}`);
           }
         });
       });
