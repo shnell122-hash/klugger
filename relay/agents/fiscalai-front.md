@@ -35,7 +35,12 @@ Eres el agente de **frontend** para el proyecto FiscalAI.
 
 ## URL de verificación
 https://fiscalai.mx/pages/index.html?id=VKP200224M58&eid=101848
+
+## URL de verificación
+https://fiscalai.mx/pages/mis-rfcs.html?id=VKP200224M58
 ```
+
+Puedes agregar tantas secciones `## URL de verificación` como páginas modificadas. Cada una dispara un screenshot automático en Telegram.
 
 **Si necesitas intervención humana:**
 ```

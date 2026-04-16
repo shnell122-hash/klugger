@@ -701,34 +701,52 @@ async function processProject(project, hashes) {
     const statusIcon  = needsHuman ? '🆘' : exitCode !== 0 ? '⚠️' : '✅';
     const statusWord  = needsHuman ? 'Requiere intervención' : exitCode !== 0 ? 'Con errores' : 'Completado';
 
+    // Extract verification URLs (agent may list multiple ## URL de verificación lines)
+    const verifyUrls = [...resultRaw.matchAll(/## URL de verificaci[oó]n\s*\n(https?:\/\/\S+)/gi)]
+      .map(m => m[1]);
+    const isFrontend = /front/i.test(project.id) || /front/i.test(project.name);
+    if (isFrontend && project.url && !verifyUrls.includes(project.url)) {
+      verifyUrls.push(project.url);
+    }
+
+    // Build links block for Telegram
+    const prodUrl   = project.url || null;
+    const urlsBlock = verifyUrls.length
+      ? `\n\n<b>Verificar:</b>\n${verifyUrls.map(u => `  🔗 ${u}`).join('\n')}`
+      : '';
+    const prodBlock = prodUrl && !verifyUrls.includes(prodUrl)
+      ? `\n🌐 <a href="${prodUrl}">${prodUrl}</a>`
+      : '';
+
     tg(`${statusIcon} <b>${statusWord} — ${project.name}</b>
 🗂 ${title}
 ⏱ ${duration}s | ${journalLine}
 
 <b>Resultados:</b>
-<code>${resultList}</code>${issueBlock}`);
+<code>${resultList}</code>${issueBlock}${urlsBlock}${prodBlock}`);
 
     if (needsHuman) {
-      // Extract the intervention message
       const lines  = resultRaw.split('\n');
       const intIdx = lines.findIndex(l => /REQUIERE INTERVENCIÓN HUMANA/i.test(l));
       const intMsg = intIdx !== -1 ? lines.slice(intIdx, intIdx + 3).join('\n') : '';
       tg(`🆘 <b>Acción requerida</b>\n<code>${intMsg.slice(0, 800)}</code>`);
     }
 
-    // ── Screenshot: siempre para proyectos de frontend ───
-    // Also for any project URL when task completed successfully
-    const isFrontend  = /front/i.test(project.id) || /front/i.test(project.name);
-    // Extract custom verification URL from output if agent specified one
-    const urlMatch = resultRaw.match(/## URL de verificación\s*\n(https?:\/\/\S+)/i);
-    const verifyUrl = urlMatch?.[1] || (isFrontend && project.url) || null;
-
-    if (verifyUrl) {
-      const shotDir  = path.join(__dirname, '..', 'frontend', 'screenshots');
+    // ── Screenshots ───────────────────────────────────────
+    if (verifyUrls.length) {
+      const shotDir = path.join(__dirname, '..', 'frontend', 'screenshots');
       try { fs.mkdirSync(shotDir, { recursive: true }); } catch (_) {}
-      const shotPath = path.join(shotDir, `${project.id}-${Date.now()}.png`);
-      screenshot(verifyUrl, shotPath, (filePath) => {
-        if (filePath) tgPhoto(filePath, `📸 ${project.name} — ${verifyUrl}`);
+
+      verifyUrls.forEach(verifyUrl => {
+        const shotPath = path.join(shotDir, `${project.id}-${Date.now()}.png`);
+        screenshot(verifyUrl, shotPath, (filePath) => {
+          if (filePath) {
+            tgPhoto(filePath, `📸 ${project.name}\n${verifyUrl}`);
+          } else {
+            // Chromium no disponible — enviar URL como texto
+            tg(`📸 <b>Screenshot pendiente</b> — ${project.name}\n🔗 ${verifyUrl}\n<i>(Chromium no configurado en servidor)</i>`);
+          }
+        });
       });
     }
 
