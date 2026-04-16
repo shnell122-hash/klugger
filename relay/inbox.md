@@ -1,35 +1,23 @@
-# Setup runtime + patch master.js
+# Prueba comunicacion bidireccional
 
-## Tareas
+## Tarea
 
-1. Crear directorio y archivo dispatch:
-   ```
-   mkdir -p /var/lib/ai-monitor
-   test -f /var/lib/ai-monitor/pending-dispatches.json || echo '[]' > /var/lib/ai-monitor/pending-dispatches.json
-   ```
+Despacha una tarea al coordinator (FiscalAI) via la API de dispatch:
 
-2. Pull y aplicar patch:
-   ```
-   cd /home/user/agentic-repo
-   git pull origin claude/agent-monitoring-dashboard-4v8iq
-   bash relay/patch-master.sh
-   ```
+```bash
+curl -s -X POST http://127.0.0.1:3010/api/relay/dispatch \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "project": "coordinator",
+    "task": "# Prueba bidireccional\n\nEres el coordinator de FiscalAI (DeCabeceraTax).\n\nLee el archivo relay/buzon-ia.md en este repo.\nEscribe una respuesta en relay/buzon-fiscalai.md confirmando:\n1. Que recibiste el mensaje de ia.vilarkptl.com\n2. La respuesta a las preguntas sobre screenshots (si tienes informacion)\n3. El sistema de comunicacion bidireccional esta funcionando\n\nEl archivo buzon-fiscalai.md sera detectado automaticamente por el relay de ia.vilarkptl.com y activara el auto-loop.\n\n## Criterios\n- [ ] relay/buzon-fiscalai.md escrito con respuesta\n- [ ] git commit y push del archivo"
+  }'
+```
 
-3. Verificar patch aplicado:
-   ```
-   grep -n 'AI_MONITOR_INBOX' /home/user/agentic-repo/relay/master.js | head -3
-   ```
-
-4. Reiniciar relay-master DETACHED (no bloquear este proceso):
-   ```
-   nohup bash -c 'sleep 3 && pm2 restart relay-master' > /tmp/relay-restart.log 2>&1 &
-   echo "restart programado en 3s (PID $!)"
-   ```
+Verifica que la respuesta del curl sea 200 con un dispatch_id.
 
 ## Criterios de aceptacion
-- [ ] `/var/lib/ai-monitor/pending-dispatches.json` existe
-- [ ] grep muestra AI_MONITOR_INBOX en master.js
-- [ ] restart programado sin error
+- [ ] curl retorna dispatch_id
+- [ ] Telegram muestra tarea despachada al coordinator
 
 ## Resultados esperados
-Reporta el output de cada paso. El restart ocurrira 3s despues de que escribas el outbox.
+Reporta el JSON de respuesta del curl.
