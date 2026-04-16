@@ -1,23 +1,38 @@
-# Prueba comunicacion bidireccional
+# Fix lock bug + limpiar locks estancados
 
-## Tarea
+## Problema diagnosticado
+El lock usa process.pid (relay-master) — como relay-master siempre vive,
+el lock NUNCA expira. El coordinator lleva bloqueado desde las 13:28.
 
-Despacha una tarea al coordinator (FiscalAI) via la API de dispatch:
+## Tareas
 
-```bash
-curl -s -X POST http://127.0.0.1:3010/api/relay/dispatch \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "project": "coordinator",
-    "task": "# Prueba bidireccional\n\nEres el coordinator de FiscalAI (DeCabeceraTax).\n\nLee el archivo relay/buzon-ia.md en este repo.\nEscribe una respuesta en relay/buzon-fiscalai.md confirmando:\n1. Que recibiste el mensaje de ia.vilarkptl.com\n2. La respuesta a las preguntas sobre screenshots (si tienes informacion)\n3. El sistema de comunicacion bidireccional esta funcionando\n\nEl archivo buzon-fiscalai.md sera detectado automaticamente por el relay de ia.vilarkptl.com y activara el auto-loop.\n\n## Criterios\n- [ ] relay/buzon-fiscalai.md escrito con respuesta\n- [ ] git commit y push del archivo"
-  }'
-```
+1. Limpiar todos los locks ahora:
+   ```
+   rm -f /tmp/relay-lock-*
+   echo "locks eliminados"
+   ```
 
-Verifica que la respuesta del curl sea 200 con un dispatch_id.
+2. Pull del fix:
+   ```
+   cd /home/user/agentic-repo
+   git pull origin claude/agent-monitoring-dashboard-4v8iq
+   ```
 
-## Criterios de aceptacion
-- [ ] curl retorna dispatch_id
-- [ ] Telegram muestra tarea despachada al coordinator
+3. Verificar que el fix esta en master.js:
+   ```
+   grep -n 'activeTasks' /home/user/agentic-repo/relay/master.js | head -5
+   ```
 
-## Resultados esperados
-Reporta el JSON de respuesta del curl.
+4. Reiniciar relay-master DETACHED:
+   ```
+   nohup bash -c 'sleep 2 && pm2 restart relay-master' > /tmp/relay-restart.log 2>&1 &
+   echo "restart en 2s (PID $!)"
+   ```
+
+## Criterios
+- [ ] locks eliminados
+- [ ] grep muestra activeTasks en master.js
+- [ ] pm2 restart programado
+
+## Resultados
+Reporta output de cada paso.
