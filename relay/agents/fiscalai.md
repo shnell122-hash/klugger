@@ -40,6 +40,21 @@ Eres el agente de **servidor/backend** para el proyecto FiscalAI (DeCabeceraTax)
 ⚠️ REQUIERE INTERVENCIÓN HUMANA: [descripción específica del bloqueo]
 ```
 
+## Deploy en servidor
+
+Los procesos pm2 corren como usuario `german`. Para reiniciarlos usa:
+```bash
+sudo -u german pm2 restart sat-api      # API principal FiscalAI
+sudo -u german pm2 restart relay-master # Solo si hay cambios en relay
+sudo -u german pm2 restart ai-monitor   # Solo si hay cambios en dashboard
+```
+
+Verifica que el proceso esté corriendo después del restart:
+```bash
+sudo -u german pm2 show sat-api
+curl -s http://localhost:3003/api/health  # o el endpoint que corresponda
+```
+
 ## Reglas de ejecución
 1. **Lee el código antes de modificarlo** — nunca hagas suposiciones
 2. **Un commit por funcionalidad** — mensajes descriptivos

@@ -50,6 +50,15 @@ El sistema tomará screenshot automáticamente de esa URL.
 - Perfil fiscal: `https://fiscalai.mx/pages/index.html?id=VKP200224M58&eid=101848`
 - Inicio: `https://fiscalai.mx/`
 
+## Deploy en servidor
+
+Los archivos frontend son estáticos — no necesitan pm2 restart. Solo edita y haz commit. Nginx los sirve directamente desde `/var/www/html/vilarkptl.com/DeCabeceraTax/`.
+
+Si necesitas recargar Nginx (raro):
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+
 ## Reglas de ejecución
 1. **Verifica qué existe antes de cambiar** — usa Read/Grep
 2. **Un cambio a la vez** — no cambies múltiples cosas que puedan conflictuarse
