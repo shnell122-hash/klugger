@@ -1,4 +1,7 @@
 {
+  "env": {
+    "CLAUDE_MONITOR_URL": "https://ia.vilarkptl.com"
+  },
   "hooks": {
     "PreToolUse": [
       {
@@ -6,7 +9,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "CLAUDE_MONITOR_URL=https://ia.vilarkptl.com bash /home/user/agentic-repo/hooks/hook-pre.sh"
+            "command": "bash ${CLAUDE_CONFIG_DIR:-/home/user/agentic-repo}/hooks/hook-pre.sh"
           }
         ]
       }
@@ -17,7 +20,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "CLAUDE_MONITOR_URL=https://ia.vilarkptl.com bash /home/user/agentic-repo/hooks/hook-post.sh"
+            "command": "bash ${CLAUDE_CONFIG_DIR:-/home/user/agentic-repo}/hooks/hook-post.sh"
           }
         ]
       }
@@ -27,7 +30,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "CLAUDE_MONITOR_URL=https://ia.vilarkptl.com bash /home/user/agentic-repo/hooks/hook-stop.sh"
+            "command": "bash ${CLAUDE_CONFIG_DIR:-/home/user/agentic-repo}/hooks/hook-stop.sh"
           }
         ]
       }
