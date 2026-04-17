@@ -394,6 +394,23 @@ function fileHash(filePath) {
   } catch (_) { return null; }
 }
 
+// ─── Self-reload when master.js changes on disk ───────────
+// After gitPull updates master.js, the running process still has old code.
+// Solution: detect hash change → process.exit(0) → pm2 auto-restarts with new code.
+let _selfHash    = fileHash(__filename);
+let _selfReloading = false;
+
+function checkSelfReload() {
+  if (_selfReloading) return;
+  const newHash = fileHash(__filename);
+  if (newHash && newHash !== _selfHash) {
+    _selfReloading = true;
+    log(null, '🔄 relay/master.js actualizado — reiniciando en 3s (pm2 auto-restart)');
+    tg('🔄 <b>relay-master</b> — nueva versión detectada\nReiniciando en 3s…');
+    setTimeout(() => process.exit(0), 3000);
+  }
+}
+
 // ─── Lock per project (parallel execution allowed) ────────
 // Uses PID check instead of time-based expiry so stale locks from dead
 // relay-master instances are cleaned up immediately on next poll.
@@ -988,6 +1005,7 @@ async function processProject(project, hashes, pulledRepos = new Set()) {
   if (project.repo && project.branch && !pulledRepos.has(project.repo)) {
     gitPull(project.repo, project.branch);
     pulledRepos.add(project.repo);
+    checkSelfReload();  // restart if master.js changed on disk
   }
 
   const currentHash = fileHash(project.inbox);
