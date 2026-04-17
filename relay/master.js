@@ -566,49 +566,53 @@ ${taskContent}`;
   const outFile = `/tmp/relay-out-${uid}-${project.id}.jsonl`;
   try { fs.unlinkSync(outFile); } catch (_) {}
 
-  // Detect current OS user so we can skip su when unnecessary
+  // Determine users to try: primary = current process user, fallback = CLAUDE_USER or 'claude-agent'
   let _currentUser = 'root';
   try { _currentUser = require('os').userInfo().username; } catch (_) {}
-  const needSwitch = CLAUDE_USER && CLAUDE_USER !== _currentUser;
-
-  const claudeEnv = {
-    HOME:               needSwitch ? `/home/${CLAUDE_USER}` : (process.env.HOME || `/home/${_currentUser}`),
-    USER:               needSwitch ? CLAUDE_USER : _currentUser,
-    ANTHROPIC_API_KEY:  ANTHROPIC_KEY,
-    CLAUDE_MONITOR_URL: MONITOR_API,
-    CLAUDE_CHAT_SOURCE: `relay-${project.id}`,
-    CLAUDE_CONFIG_DIR:  CLAUDE_CONFIG,
-    CLAUDE_HOOKS_DIR:   CLAUDE_HOOKS,
-    RELAY_DISPATCH_URL: `${MONITOR_API}/api/relay/dispatch`,
-    RELAY_TASK_ID:      taskId,
-    RELAY_DEPTH:        String(taskDepth),
-    PATH:               process.env.PATH || '/usr/local/bin:/usr/bin:/bin',
-    TERM:               'dumb',
-  };
+  const _fallbackUser = (CLAUDE_USER && CLAUDE_USER !== _currentUser) ? CLAUDE_USER : 'claude-agent';
+  // Try primary (direct, no su) then fallback (sudo -n -u claude-agent)
+  const _usersToTry = [_currentUser];
+  if (_fallbackUser !== _currentUser) _usersToTry.push(_fallbackUser);
 
   const coreCmd = [
     `cd ${project.repo || '/var/www/html'}`,
     `${CLAUDE_BIN} --dangerously-skip-permissions --output-format stream-json --verbose --print < ${taskFile} > ${outFile} 2>&1`,
   ].join(' && ');
 
-  // Build full command with env exports (works for both direct and sudo paths)
-  const envExports = Object.entries(claudeEnv)
-    .map(([k, v]) => `export ${k}='${String(v).replace(/'/g, "'\\''")}'`)
-    .join('\n');
-  const innerCmd = `${envExports}\n${coreCmd}`;
-
-  // Priority: direct (same user) > sudo -n (NOPASSWD, non-interactive — never hangs)
-  // Avoids 'su' which requires a password when relay-master != CLAUDE_USER.
-  let child;
-  if (!needSwitch) {
-    // Fastest path: relay-master IS CLAUDE_USER (or CLAUDE_USER not set)
-    log(project.id, `spawn: direct bash (user=${_currentUser})`);
-    child = spawn('/bin/bash', ['-c', innerCmd], { stdio: 'ignore' });
-  } else {
-    // sudo -n: non-interactive (fails immediately if password required — never hangs 30min)
-    log(project.id, `spawn: sudo -n -u ${CLAUDE_USER}`);
-    child = spawn('sudo', ['-n', '-u', CLAUDE_USER, '/bin/bash', '-c', innerCmd], { stdio: 'ignore' });
+  function buildCmd(user) {
+    const useSwitch = user !== _currentUser;
+    const env = {
+      HOME:               useSwitch ? `/home/${user}` : (process.env.HOME || `/home/${_currentUser}`),
+      USER:               user,
+      ANTHROPIC_API_KEY:  ANTHROPIC_KEY,
+      CLAUDE_MONITOR_URL: MONITOR_API,
+      CLAUDE_CHAT_SOURCE: `relay-${project.id}`,
+      CLAUDE_CONFIG_DIR:  CLAUDE_CONFIG,
+      CLAUDE_HOOKS_DIR:   CLAUDE_HOOKS,
+      RELAY_DISPATCH_URL: `${MONITOR_API}/api/relay/dispatch`,
+      RELAY_TASK_ID:      taskId,
+      RELAY_DEPTH:        String(taskDepth),
+      PATH:               process.env.PATH || '/usr/local/bin:/usr/bin:/bin',
+      TERM:               'dumb',
+    };
+    const exports = Object.entries(env)
+      .map(([k, v]) => `export ${k}='${String(v).replace(/'/g, "'\\''")}'`)
+      .join('\n');
+    return `${exports}\n${coreCmd}`;
   }
+
+  function doSpawn(user) {
+    const innerCmd = buildCmd(user);
+    if (user === _currentUser) {
+      log(project.id, `spawn: directo como ${user}`);
+      return spawn('/bin/bash', ['-c', innerCmd], { stdio: 'ignore' });
+    }
+    log(project.id, `spawn: sudo -n -u ${user}`);
+    return spawn('sudo', ['-n', '-u', user, '/bin/bash', '-c', innerCmd], { stdio: 'ignore' });
+  }
+
+  let spawnIdx  = 0;
+  let child     = doSpawn(_usersToTry[spawnIdx]);
 
   let resultText   = '';
   let fileOffset   = 0;
@@ -735,37 +739,55 @@ Timeout en ${remainMin} min`);
     }
   }
 
-  child.on('close', (code) => {
-    clearTimeout(timer);
-    clearInterval(heartbeat);
-    clearInterval(filePoller);
-    // Leer lo que quede en outFile
-    try {
-      const remaining = fs.readFileSync(outFile, 'utf8').slice(fileOffset);
-      (lineBuffer + remaining).split('\n').filter(l => l.trim()).forEach(processLine);
-    } catch (_) {}
-    if (timedOut) resultText = `[TIMEOUT después de ${CLAUDE_TIMEOUT_MS / 60000}min]\n` + resultText;
+  function attachHandlers(c) {
+    c.on('close', (code) => {
+      // Flush remaining output from file
+      try {
+        const remaining = fs.readFileSync(outFile, 'utf8').slice(fileOffset);
+        (lineBuffer + remaining).split('\n').filter(l => l.trim()).forEach(processLine);
+      } catch (_) {}
 
-    // Diagnostic: if exit was fast with no output, sudo likely failed
-    const elapsed = Date.now() - runStart;
-    if (code !== 0 && elapsed < 15000 && !resultText && needSwitch) {
-      const msg = `sudo -n -u ${CLAUDE_USER} falló (código ${code}). ` +
-        `Agrega NOPASSWD en sudoers o pon CLAUDE_USER=${_currentUser} en relay/.env`;
-      log(project.id, `⚠️  ${msg}`);
-      tg(`⚠️ <b>Error spawn — ${project.name}</b>\n<code>${msg}</code>\n\n` +
-        `Solución rápida: en el servidor, edita relay/.env y pon:\n<code>CLAUDE_USER=${_currentUser}</code>\nLuego: <code>pm2 restart relay-master</code>`);
-    }
+      const elapsed = Date.now() - runStart;
+      const quickFail = code !== 0 && elapsed < 10000 && !resultText.trim() && !timedOut;
 
-    safeCallback(timedOut ? 1 : (code || 0), resultText.trim());
-  });
+      // Retry with next user if this attempt failed fast with no output
+      if (quickFail && spawnIdx + 1 < _usersToTry.length) {
+        spawnIdx++;
+        const nextUser = _usersToTry[spawnIdx];
+        log(project.id, `spawn[${spawnIdx}] falló rápido (code=${code}, ${elapsed}ms) — reintentando como ${nextUser}`);
+        fileOffset = 0; lineBuffer = '';
+        try { fs.unlinkSync(outFile); } catch (_) {}
+        child = doSpawn(nextUser);
+        attachHandlers(child);
+        return;
+      }
 
-  child.on('error', (err) => {
-    clearTimeout(timer);
-    clearInterval(heartbeat);
-    clearInterval(filePoller);
-    log(project.id, `runClaude error: ${err.message}`);
-    safeCallback(1, `Error lanzando claude: ${err.message}`);
-  });
+      clearTimeout(timer);
+      clearInterval(heartbeat);
+      clearInterval(filePoller);
+      if (timedOut) resultText = `[TIMEOUT después de ${CLAUDE_TIMEOUT_MS / 60000}min]\n` + resultText;
+
+      // All attempts exhausted with quick failure → actionable Telegram msg
+      if (quickFail) {
+        const tried = _usersToTry.join(', ');
+        const msg = `Todos los usuarios fallaron (${tried}). Verifica que claude esté en PATH y ANTHROPIC_API_KEY sea válido.`;
+        log(project.id, `⚠️  ${msg}`);
+        tg(`⚠️ <b>Error spawn — ${project.name}</b>\n<code>${msg}</code>`);
+      }
+
+      safeCallback(timedOut ? 1 : (code || 0), resultText.trim());
+    });
+
+    c.on('error', (err) => {
+      clearTimeout(timer);
+      clearInterval(heartbeat);
+      clearInterval(filePoller);
+      log(project.id, `runClaude error: ${err.message}`);
+      safeCallback(1, `Error lanzando claude: ${err.message}`);
+    });
+  }
+
+  attachHandlers(child);
 }
 
 // ─── Git pull + push for a project ───────────────────────

@@ -1,36 +1,22 @@
-# Actualización + env scan + reinicio de servicios
+# Ping — verificar usuario y reiniciar relay
 
-## Plan
-1. Verificar estado del sistema: `hostname && date && sudo -u german pm2 list`
-2. Hacer git pull del repo: `cd /var/www/html/vilarkptl.com/ai-monitor && git pull origin claude/agent-monitoring-dashboard-4v8iq`
-3. Escanear archivos .env del servidor y guardar en relay/env-scan.json (solo nombres de variables, NO valores)
-4. Reiniciar servicio ai-monitor: `nohup bash -c 'sleep 2 && sudo -u german pm2 restart ai-monitor' &`
-5. Verificar que la API responde: `curl -s http://localhost:3010/api/health`
-
-## Criterios de aceptación
-- [ ] git pull exitoso — muestra los archivos actualizados
-- [ ] relay/env-scan.json existe con al menos 2 entradas
-- [ ] `curl http://localhost:3010/api/health` retorna `{"ok":true,...}`
-- [ ] pm2 list muestra ai-monitor online
-
-## Instrucciones para env-scan.json
+Ejecuta estos comandos y reporta el output exacto:
 
 ```bash
-find /var/www/html /home/german -name '.env' -not -path '*/node_modules/*' -not -path '*/.git/*' 2>/dev/null | head -20
+whoami
+id
+sudo -n -u claude-agent whoami 2>&1 || echo "sudo falla"
+ls -la /usr/local/bin/claude 2>/dev/null || which claude 2>/dev/null || echo "claude no encontrado"
+echo "CLAUDE_USER_CHECK_OK"
 ```
 
-Para cada .env encontrado, extrae solo NOMBRES (no valores) y crea este JSON:
-```json
-[
-  {
-    "project": "nombre-inferido-del-path",
-    "path": "/ruta/completa/.env",
-    "has_anthropic": true,
-    "has_github": false,
-    "has_telegram": true,
-    "vars": ["LISTA_DE_NOMBRES_SIN_VALORES"]
-  }
-]
+Luego haz git pull y reinicia:
+```bash
+cd /var/www/html/vilarkptl.com/ai-monitor
+git pull origin claude/agent-monitoring-dashboard-4v8iq
+nohup bash -c 'sleep 2 && sudo -u german pm2 restart relay-master' &
+echo "REINICIO_PROGRAMADO"
 ```
 
-Guarda en: `/var/www/html/vilarkptl.com/ai-monitor/relay/env-scan.json`
+## Resultados
+Reporta el output de cada comando.
