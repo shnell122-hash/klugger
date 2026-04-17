@@ -309,6 +309,98 @@ function postEvent(payload, monitorUrl) {
   postToMonitor('/api/events', payload, monitorUrl);
 }
 
+// ─── Anthropic API directo (Opción B — buzon bidireccional) ──────────────────
+// Llama claude-sonnet-4-6 via HTTPS nativo sin spawn Claude CLI.
+// Usada cuando buzon-fiscalai.md cambia para responder directamente.
+function callAnthropicDirect(systemPrompt, userMessage) {
+  return new Promise((resolve, reject) => {
+    if (!ANTHROPIC_KEY) { reject(new Error('ANTHROPIC_API_KEY no configurado')); return; }
+    const body = JSON.stringify({
+      model:      'claude-sonnet-4-6',
+      max_tokens: 4096,
+      system:     systemPrompt,
+      messages:   [{ role: 'user', content: userMessage }],
+    });
+    const req = https.request({
+      hostname: 'api.anthropic.com',
+      path:     '/v1/messages',
+      method:   'POST',
+      headers: {
+        'x-api-key':         ANTHROPIC_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type':      'application/json',
+        'content-length':    Buffer.byteLength(body),
+      },
+    }, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          if (json.error) { reject(new Error(json.error.message)); return; }
+          if (!json.content || !json.content[0]) { reject(new Error('Respuesta API vacía')); return; }
+          resolve(json.content[0].text);
+        } catch (e) { reject(e); }
+      });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
+// Append a timestamped entry to relay/journal.md in a project repo
+function journalEntryFile(repoPath, direction, summary) {
+  const tsCst  = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
+  const entry  = `[${tsCst} CST] ${direction}: ${summary}\n`;
+  const jPath  = path.join(repoPath, 'relay', 'journal.md');
+  try { fs.appendFileSync(jPath, entry); } catch (_) {}
+}
+
+// Build Anthropic context + call API + write response to buzon-ia.md.
+// Called when buzon-fiscalai.md changes (Opción B — no Claude CLI spawn).
+// Anti-loop: reads buzon-fiscalai.md, writes buzon-ia.md (different file).
+// Outgoing sync in syncBuzonIA picks up buzon-ia.md on next poll and pushes it.
+async function responderBuzonFiscalai(buzonContent) {
+  log(null, 'buzon-ia: llamando Anthropic API para responder a FiscalAI…');
+  try {
+    // System prompt: CLAUDE.md + relay context files from DeCabeceraTax
+    let systemPrompt = 'Eres el agente IA de ia.vilarkptl.com respondiendo al buzón de FiscalAI.';
+    const claudeMdPath = path.join(BUZON_REPO, 'CLAUDE.md');
+    if (fs.existsSync(claudeMdPath)) {
+      systemPrompt = fs.readFileSync(claudeMdPath, 'utf8');
+    }
+    const contextFiles = ['coordinator-inbox.md', 'coordinator-outbox.md', 'journal.md'];
+    let relayContext = '';
+    for (const f of contextFiles) {
+      const fp = path.join(BUZON_REPO, 'relay', f);
+      if (fs.existsSync(fp)) {
+        relayContext += `\n\n### relay/${f}:\n${fs.readFileSync(fp, 'utf8')}`;
+      }
+    }
+    if (relayContext) {
+      systemPrompt += '\n\n---\n\n## Estado actual del relay' + relayContext;
+    }
+
+    const respuesta = await callAnthropicDirect(systemPrompt, buzonContent);
+
+    // Write response to buzon-ia.md — outgoing sync detects hash change on next poll
+    const timestamp = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
+    const buzonIaContent =
+      `# Buzón IA — ia.vilarkptl.com → FiscalAI\n\n` +
+      `**[${timestamp} CST] — Anthropic API (claude-sonnet-4-6)**\n\n---\n\n${respuesta}\n`;
+    fs.writeFileSync(BUZON_SRC, buzonIaContent);
+
+    log(null, `buzon-ia: respuesta Anthropic API escrita (${respuesta.length} chars)`);
+    tg(`📨 <b>FiscalAI respondido via Anthropic API</b>\n<code>${respuesta.slice(0, 500)}</code>`);
+
+    journalEntryFile(BUZON_REPO, 'API → buzon-ia', `Respuesta a FiscalAI (${respuesta.length} chars)`);
+  } catch (err) {
+    log(null, `buzon-ia: error en responderBuzonFiscalai: ${err.message}`);
+    tg(`⚠️ <b>Error Anthropic API — buzon FiscalAI</b>\n<code>${err.message.slice(0, 300)}</code>`);
+  }
+}
+
 // ─── Buzon IA sync ────────────────────────────────────────
 // • Mirrors relay/buzon-ia.md (agentic-repo) → DeCabeceraTax/relay/buzon-ia.md (ryby.lease)
 //   so FiscalAI can read messages from ia.vilarkptl.com.
@@ -369,18 +461,12 @@ function syncBuzonIA() {
         log(null, `buzon-ia: respuesta de FiscalAI recibida — auto-procesando`);
         tg(`📨 <b>Respuesta de FiscalAI recibida</b>\n<code>${preview}</code>\n\n⚙️ Procesando automáticamente…`);
 
-        // ── AUTO-LOOP: write to ai-monitor inbox to trigger agent ──
-        // The agent reads FiscalAI's response, acts on it, and may update
-        // buzon-ia.md with follow-up questions (which triggers a new cycle).
-        const autoTask =
-          `# Respuesta de FiscalAI — Procesar\n\n` +
-          `FiscalAI respondió al buzón de ia.vilarkptl.com.\n` +
-          `Lee la respuesta, extrae la información relevante e impleméntala.\n` +
-          `Si necesitas hacer una pregunta de seguimiento, actualiza relay/buzon-ia.md.\n` +
-          `Si la tarea está completa, NO actualices buzon-ia.md (para evitar loops).\n\n` +
-          `---\n\n${response}`;
-        fs.writeFileSync(BUZON_SRC.replace('buzon-ia.md', 'inbox.md'), autoTask);
-        log(null, `buzon-ia: auto-task escrito en ai-monitor inbox`);
+        // ── Opción B: llamar Anthropic API directo (sin Claude CLI spawn) ──
+        // responderBuzonFiscalai escribe buzon-ia.md; outgoing sync lo pushea en el próximo poll.
+        responderBuzonFiscalai(response).catch(err => {
+          log(null, `buzon-ia: responderBuzonFiscalai failed: ${err.message}`);
+        });
+        log(null, `buzon-ia: Anthropic API call lanzado (async)`);
       } catch (err) {
         log(null, `buzon-ia: error procesando respuesta FiscalAI: ${err.message}`);
       }
