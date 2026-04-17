@@ -580,7 +580,7 @@ ${taskContent}`;
     `${CLAUDE_BIN} --dangerously-skip-permissions --output-format stream-json --verbose --print < ${taskFile} > ${outFile} 2>&1`,
   ].join(' && ');
 
-  const child = spawn('su', ['-s', '/bin/bash', CLAUDE_USER, '-c', innerCmd], {
+  const child = spawn('su', ['-s', '/bin/bash', '-c', innerCmd, CLAUDE_USER], {
     stdio: 'ignore',
   });
 
