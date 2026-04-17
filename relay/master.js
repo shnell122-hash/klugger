@@ -69,6 +69,12 @@ let   _buzonHash   = null;
 const BUZON_FISCALAI_SRC  = '/var/www/html/vilarkptl.com/DeCabeceraTax/relay/buzon-fiscalai.md';
 const BUZON_FISCALAI_DEST = path.join(__dirname, 'buzon-fiscalai.md');
 let   _buzonFiscalaiHash  = null;
+// Persist buzon hashes across restarts so the same FiscalAI response isn't re-processed
+try {
+  const ph = JSON.parse(fs.readFileSync(HASHES_FILE, 'utf8'));
+  _buzonHash         = ph['__buzon_ia_hash']       || null;
+  _buzonFiscalaiHash = ph['__buzon_fiscalai_hash'] || null;
+} catch (_) {}
 
 // ─── Logging (CST = America/Mexico_City) ──────────────────
 function ts() {
@@ -311,6 +317,7 @@ function syncBuzonIA() {
     const h = fileHash(BUZON_SRC);
     if (h && h !== _buzonHash) {
       _buzonHash = h;
+      try { const ph = loadHashes(); ph['__buzon_ia_hash'] = h; saveHashes(ph); } catch (_) {}
       try {
         const destDir = path.dirname(BUZON_DEST);
         try { fs.mkdirSync(destDir, { recursive: true }); } catch (_) {}
@@ -351,6 +358,7 @@ function syncBuzonIA() {
     const h2 = fileHash(BUZON_FISCALAI_SRC);
     if (h2 && h2 !== _buzonFiscalaiHash) {
       _buzonFiscalaiHash = h2;
+      try { const ph = loadHashes(); ph['__buzon_fiscalai_hash'] = h2; saveHashes(ph); } catch (_) {}
       try {
         fs.copyFileSync(BUZON_FISCALAI_SRC, BUZON_FISCALAI_DEST);
         const response = fs.readFileSync(BUZON_FISCALAI_DEST, 'utf8');
