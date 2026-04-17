@@ -566,23 +566,49 @@ ${taskContent}`;
   const outFile = `/tmp/relay-out-${uid}-${project.id}.jsonl`;
   try { fs.unlinkSync(outFile); } catch (_) {}
 
-  const innerCmd = [
-    `export HOME=/home/${CLAUDE_USER}`,
-    `export ANTHROPIC_API_KEY='${ANTHROPIC_KEY}'`,
-    `export CLAUDE_MONITOR_URL='${MONITOR_API}'`,
-    `export CLAUDE_CHAT_SOURCE='relay-${project.id}'`,
-    `export CLAUDE_CONFIG_DIR='${CLAUDE_CONFIG}'`,
-    `export CLAUDE_HOOKS_DIR='${CLAUDE_HOOKS}'`,
-    `export RELAY_DISPATCH_URL='${MONITOR_API}/api/relay/dispatch'`,
-    `export RELAY_TASK_ID='${taskId}'`,
-    `export RELAY_DEPTH='${taskDepth}'`,
+  // Detect current OS user so we can skip su when unnecessary
+  let _currentUser = 'root';
+  try { _currentUser = require('os').userInfo().username; } catch (_) {}
+  const needSwitch = CLAUDE_USER && CLAUDE_USER !== _currentUser;
+
+  const claudeEnv = {
+    HOME:               needSwitch ? `/home/${CLAUDE_USER}` : (process.env.HOME || `/home/${_currentUser}`),
+    USER:               needSwitch ? CLAUDE_USER : _currentUser,
+    ANTHROPIC_API_KEY:  ANTHROPIC_KEY,
+    CLAUDE_MONITOR_URL: MONITOR_API,
+    CLAUDE_CHAT_SOURCE: `relay-${project.id}`,
+    CLAUDE_CONFIG_DIR:  CLAUDE_CONFIG,
+    CLAUDE_HOOKS_DIR:   CLAUDE_HOOKS,
+    RELAY_DISPATCH_URL: `${MONITOR_API}/api/relay/dispatch`,
+    RELAY_TASK_ID:      taskId,
+    RELAY_DEPTH:        String(taskDepth),
+    PATH:               process.env.PATH || '/usr/local/bin:/usr/bin:/bin',
+    TERM:               'dumb',
+  };
+
+  const coreCmd = [
     `cd ${project.repo || '/var/www/html'}`,
     `${CLAUDE_BIN} --dangerously-skip-permissions --output-format stream-json --verbose --print < ${taskFile} > ${outFile} 2>&1`,
   ].join(' && ');
 
-  const child = spawn('su', ['-s', '/bin/bash', '-c', innerCmd, CLAUDE_USER], {
-    stdio: 'ignore',
-  });
+  // Build full command with env exports (works for both direct and sudo paths)
+  const envExports = Object.entries(claudeEnv)
+    .map(([k, v]) => `export ${k}='${String(v).replace(/'/g, "'\\''")}'`)
+    .join('\n');
+  const innerCmd = `${envExports}\n${coreCmd}`;
+
+  // Priority: direct (same user) > sudo -n (NOPASSWD, non-interactive — never hangs)
+  // Avoids 'su' which requires a password when relay-master != CLAUDE_USER.
+  let child;
+  if (!needSwitch) {
+    // Fastest path: relay-master IS CLAUDE_USER (or CLAUDE_USER not set)
+    log(project.id, `spawn: direct bash (user=${_currentUser})`);
+    child = spawn('/bin/bash', ['-c', innerCmd], { stdio: 'ignore' });
+  } else {
+    // sudo -n: non-interactive (fails immediately if password required — never hangs 30min)
+    log(project.id, `spawn: sudo -n -u ${CLAUDE_USER}`);
+    child = spawn('sudo', ['-n', '-u', CLAUDE_USER, '/bin/bash', '-c', innerCmd], { stdio: 'ignore' });
+  }
 
   let resultText   = '';
   let fileOffset   = 0;
@@ -719,6 +745,17 @@ Timeout en ${remainMin} min`);
       (lineBuffer + remaining).split('\n').filter(l => l.trim()).forEach(processLine);
     } catch (_) {}
     if (timedOut) resultText = `[TIMEOUT después de ${CLAUDE_TIMEOUT_MS / 60000}min]\n` + resultText;
+
+    // Diagnostic: if exit was fast with no output, sudo likely failed
+    const elapsed = Date.now() - runStart;
+    if (code !== 0 && elapsed < 15000 && !resultText && needSwitch) {
+      const msg = `sudo -n -u ${CLAUDE_USER} falló (código ${code}). ` +
+        `Agrega NOPASSWD en sudoers o pon CLAUDE_USER=${_currentUser} en relay/.env`;
+      log(project.id, `⚠️  ${msg}`);
+      tg(`⚠️ <b>Error spawn — ${project.name}</b>\n<code>${msg}</code>\n\n` +
+        `Solución rápida: en el servidor, edita relay/.env y pon:\n<code>CLAUDE_USER=${_currentUser}</code>\nLuego: <code>pm2 restart relay-master</code>`);
+    }
+
     safeCallback(timedOut ? 1 : (code || 0), resultText.trim());
   });
 
@@ -1183,10 +1220,17 @@ async function main() {
   log(null, '=== relay-master iniciado ===');
   log(null, `Polling cada ${POLL_MS/1000}s`);
 
-  // Kill orphan Claude processes from previous relay-master instances
+  // Kill orphan Claude processes from previous relay-master instances.
+  // Targets both the CLAUDE_USER (if different) and the current user.
   try {
-    execSync(`pkill -9 -u ${CLAUDE_USER} -f 'claude --dangerously-skip-permissions' 2>/dev/null || true`, { stdio: 'pipe' });
-    log(null, `Procesos Claude huérfanos eliminados al arrancar`);
+    let _curUser = 'root';
+    try { _curUser = require('os').userInfo().username; } catch (_) {}
+    const usersToKill = [_curUser];
+    if (CLAUDE_USER && CLAUDE_USER !== _curUser) usersToKill.push(CLAUDE_USER);
+    for (const u of usersToKill) {
+      execSync(`pkill -9 -u ${u} -f 'claude --dangerously-skip-permissions' 2>/dev/null || true`, { stdio: 'pipe' });
+    }
+    log(null, `Procesos Claude huérfanos eliminados al arrancar (users: ${usersToKill.join(',')})`);
   } catch (_) {}
 
   // Clean up stale lock files from previous run
