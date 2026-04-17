@@ -1,10 +1,28 @@
-# Verificar spawn y outbox push
+# Smoke test agente AI Monitor
 
-Ejecuta y reporta en la respuesta:
+## Plan
 
-```bash
-whoami && echo "HOME=$HOME" && echo "CLAUDE_VERSION=$(claude --version 2>/dev/null || echo n/a)"
+1. Ejecuta `whoami` y anota el usuario del sistema
+2. Ejecuta `claude --version` y anota la versión
+3. Ejecuta `echo $ANTHROPIC_API_KEY | cut -c1-12` (no mostrar la key completa)
+4. Crea `/tmp/relay-smoke-test.txt` con fecha, usuario y versión de Claude
+5. Lee el archivo creado y confirma su contenido
+
+## Criterios de verificación
+
+- [ ] Usuario NO es `root` (debe ser `german` o `claude-agent`)
+- [ ] `claude --version` retorna versión ≥ 2.x
+- [ ] `ANTHROPIC_API_KEY` disponible (primeros 12 chars visibles)
+- [ ] Archivo `/tmp/relay-smoke-test.txt` creado y legible
+
+## Resultados
+
+Al terminar reporta exactamente:
+
 ```
-
-Este es un test end-to-end: verifica que el spawn funciona como usuario correcto
-y que el outbox llega a GitHub sin el bug de reset hard.
+## Resultados
+✅/❌ Usuario del sistema: [valor]
+✅/❌ Claude version: [valor]
+✅/❌ API key disponible: [primeros 12 chars]
+✅/❌ Archivo /tmp/relay-smoke-test.txt: [contenido]
+```
