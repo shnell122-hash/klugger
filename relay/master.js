@@ -102,7 +102,122 @@ function tg(text) {
   req.end();
 }
 
-// ─── Telegram: enviar foto (screenshot) ───────────────────
+// ─── Telegram: recibir comandos (getUpdates polling) ──────
+let _tgOffset = 0;
+
+function pollTelegramCommands() {
+  if (!BOT_TOKEN || !CHAT_ID) return;
+  const req = https.request({
+    hostname: 'api.telegram.org',
+    path:     `/bot${BOT_TOKEN}/getUpdates?offset=${_tgOffset}&timeout=0`,
+    method:   'GET',
+  }, (res) => {
+    let data = '';
+    res.on('data', c => data += c);
+    res.on('end', () => {
+      try {
+        const json = JSON.parse(data);
+        if (!json.ok || !json.result.length) return;
+        for (const upd of json.result) {
+          _tgOffset = Math.max(_tgOffset, upd.update_id + 1);
+          const msg = upd.message;
+          if (!msg || String(msg.chat.id) !== String(CHAT_ID)) continue;
+          handleTelegramCommand(msg.text || '');
+        }
+      } catch (_) {}
+    });
+  });
+  req.on('error', () => {});
+  req.end();
+}
+
+function handleTelegramCommand(text) {
+  const raw = text.trim();
+  const lower = raw.toLowerCase();
+
+  if (lower === '/status' || lower === '/estado') {
+    const running = [...ACTIVE_TASKS];
+    const lines = running.length
+      ? running.map(id => {
+          const min = Math.round((Date.now() - (TASK_START_TIMES[id] || Date.now())) / 60000);
+          return `  🔄 ${id} — ${min} min`;
+        })
+      : ['  ✅ Sin tareas en ejecución'];
+    tg(`📊 <b>Estado — relay-master</b>\n${lines.join('\n')}`);
+    return;
+  }
+
+  if (lower.startsWith('/resumen')) {
+    const projectId = raw.split(/\s+/)[1] || null;
+    sendResumen(projectId);
+    return;
+  }
+
+  if (lower.startsWith('/parar')) {
+    const id = raw.split(/\s+/)[1];
+    if (!id) { tg('❓ Uso: /parar [project-id]'); return; }
+    const j = loadJournal(id); j.state = 'stopped'; saveJournal(id, j);
+    tg(`🛑 <b>${id}</b> detenido manualmente.\nUsa /activar ${id} para reanudar.`);
+    return;
+  }
+
+  if (lower.startsWith('/activar')) {
+    const id = raw.split(/\s+/)[1];
+    if (!id) { tg('❓ Uso: /activar [project-id]'); return; }
+    const j = loadJournal(id); j.state = 'active'; j.consecutive_failures = 0; saveJournal(id, j);
+    tg(`✅ <b>${id}</b> reactivado.`);
+    return;
+  }
+
+  if (lower === '/ayuda' || lower === '/help') {
+    tg(`📖 <b>Comandos disponibles</b>
+
+/resumen — resumen de todos los proyectos
+/resumen [id] — resumen de un proyecto (ej: /resumen fiscalai)
+/status — qué tareas están corriendo ahora
+/parar [id] — detener un agente
+/activar [id] — reactivar agente detenido
+/ayuda — esta lista`);
+    return;
+  }
+}
+
+function sendResumen(projectId) {
+  let projects = [];
+  try { projects = JSON.parse(fs.readFileSync(PROJECTS_FILE, 'utf8')); } catch (_) { return; }
+
+  const targets = projectId
+    ? projects.filter(p => p.id === projectId || p.id.includes(projectId.toLowerCase()))
+    : projects.filter(p => p.active);
+
+  if (!targets.length) { tg(`❓ Proyecto no encontrado: <code>${projectId}</code>`); return; }
+
+  let msg = `📋 <b>Resumen de actividad</b> — ${new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}\n`;
+
+  for (const project of targets) {
+    const journal = loadJournal(project.id);
+    if (!journal.total_tasks) continue;
+
+    const stateIcon = ACTIVE_TASKS.has(project.id) ? '🔄' : journal.state === 'stopped' ? '🛑' : '🟢';
+    const recent    = journal.recent_tasks.slice(0, 5);
+
+    const taskLines = recent.map(t => {
+      const icon = t.status === 'success' ? '✅' : '❌';
+      const dur  = t.duration_sec ? ` (${Math.round(t.duration_sec)}s)` : '';
+      const cost = t.result_summary ? ` — ${t.result_summary.slice(0, 60)}` : '';
+      return `  ${icon} ${t.title.slice(0, 55)}${dur}${cost}`;
+    }).join('\n');
+
+    msg += `\n${stateIcon} <b>${project.name}</b>\n`;
+    msg += `  📊 ${journal.total_tasks} tareas totales`;
+    msg += ` | ✅×${journal.consecutive_successes} ❌×${journal.consecutive_failures}\n`;
+    if (taskLines) msg += `<code>${taskLines}</code>\n`;
+  }
+
+  tg(msg.slice(0, 4096));
+}
+
+
 function tgPhoto(imagePath, caption) {
   if (!BOT_TOKEN || !CHAT_ID) return;
   try {
@@ -1098,6 +1213,11 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
     try {
       projects = JSON.parse(fs.readFileSync(PROJECTS_FILE, 'utf8'));
     } catch (_) {}
+
+    // Poll Telegram for user commands (/resumen, /status, /parar, /activar)
+    try { pollTelegramCommands(); } catch (e) {
+      log(null, `ERROR pollTelegramCommands: ${e.message}`);
+    }
 
     // Sync buzon-ia.md to DeCabeceraTax (ryby.lease) for FiscalAI communication
     try { syncBuzonIA(); } catch (e) {
