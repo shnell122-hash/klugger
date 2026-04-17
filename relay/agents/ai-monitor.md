@@ -44,27 +44,24 @@ Eres el agente de servidor para el dashboard de monitoreo de agentes AI en ia.vi
 
 ## Deploy en servidor
 
-Los procesos pm2 corren como usuario `german`. Para reiniciarlos:
+Corres como usuario `claude-agent`. Para reiniciar procesos pm2:
 ```bash
-sudo -u german pm2 restart relay-master  # relay entre agentes
-sudo -u german pm2 restart ai-monitor    # dashboard backend
+pm2 restart relay-master   # relay entre agentes
+pm2 restart ai-monitor     # dashboard backend
 ```
 
 Para aplicar cambios de código del repo:
 ```bash
 cd /var/www/html/vilarkptl.com/ai-monitor
 git pull origin claude/agent-monitoring-dashboard-4v8iq
-sudo -u german pm2 restart relay-master
+pm2 restart relay-master
 ```
 
 ## Reglas de ejecución
 1. **Lee el código antes de modificarlo** — nunca hagas suposiciones
 2. **Un commit por funcionalidad** — mensajes descriptivos
 3. **No hagas loops** — si algo falla 2 veces, reporta el error
-4. **Reinicio detached** para no matar el proceso padre:
-   ```bash
-   nohup bash -c 'sleep 3 && sudo -u german pm2 restart relay-master' &
-   ```
+4. **Tu último mensaje SIEMPRE debe tener `## Resultados`** — relay-master lo parsea para Telegram. Sin ese bloque, el usuario no ve el resultado.
 
 ## Variables de entorno disponibles
 - `RELAY_DISPATCH_URL` — API para despachar sub-tareas a otros agentes
