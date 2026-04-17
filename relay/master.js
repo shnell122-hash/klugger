@@ -561,8 +561,13 @@ ${taskContent}`;
   const taskDepth = dispatchMeta.depth ?? 0;
   const sessionId = `relay-${project.id}-${Date.now()}`;
 
-  // Build shell command for su -c (stdin redirect handled by shell)
+  // Build shell command — stdout y stderr van a outFile para evitar
+  // el problema de buffering de su+pipe que deja toolCallCount=0.
+  const outFile = `/tmp/relay-out-${uid}-${project.id}.jsonl`;
+  try { fs.unlinkSync(outFile); } catch (_) {}
+
   const innerCmd = [
+    `export HOME=/home/${CLAUDE_USER}`,
     `export ANTHROPIC_API_KEY='${ANTHROPIC_KEY}'`,
     `export CLAUDE_MONITOR_URL='${MONITOR_API}'`,
     `export CLAUDE_CHAT_SOURCE='relay-${project.id}'`,
@@ -572,14 +577,15 @@ ${taskContent}`;
     `export RELAY_TASK_ID='${taskId}'`,
     `export RELAY_DEPTH='${taskDepth}'`,
     `cd ${project.repo || '/var/www/html'}`,
-    `${CLAUDE_BIN} --dangerously-skip-permissions --output-format stream-json --verbose --print < ${taskFile}`,
+    `${CLAUDE_BIN} --dangerously-skip-permissions --output-format stream-json --verbose --print < ${taskFile} > ${outFile} 2>&1`,
   ].join(' && ');
 
-  const child = spawn('su', ['-', CLAUDE_USER, '-c', innerCmd], {
-    stdio: ['ignore', 'pipe', 'pipe'],
+  const child = spawn('su', ['-s', '/bin/bash', CLAUDE_USER, '-c', innerCmd], {
+    stdio: 'ignore',
   });
 
   let resultText   = '';
+  let fileOffset   = 0;
   let lineBuffer   = '';
   let timedOut     = false;
   let toolCallCount = 0;
@@ -587,31 +593,28 @@ ${taskContent}`;
   const runStart   = Date.now();
   const taskTitle  = taskContent.split('\n').find(l => /^#{1,3} /.test(l))
     ?.replace(/^#+ /, '').slice(0, 60) || project.name;
-  // Track pending tool calls for pre/post pairing
-  const pendingTools = {}; // { tool_use_id → { name, inputSummary } }
+  const pendingTools = {};
 
   let callbackFired = false;
   function safeCallback(code, text) {
     if (callbackFired) return;
     callbackFired = true;
+    try { fs.unlinkSync(outFile); } catch (_) {}
     callback(code, text);
   }
 
   const timer = setTimeout(() => {
     timedOut = true;
     clearInterval(heartbeat);
-    // Kill entire process group — child.kill('SIGKILL') only kills 'su',
-    // leaving the node/claude subprocess alive as an orphan.
+    clearInterval(filePoller);
     try { execSync(`pkill -9 -P ${child.pid} 2>/dev/null || true`, { stdio: 'pipe' }); } catch (_) {}
     try { child.kill('SIGKILL'); } catch (_) {}
-    // Force callback in 10s in case child.on('close') never fires
     setTimeout(() => safeCallback(1, `[TIMEOUT después de ${CLAUDE_TIMEOUT_MS / 60000}min]\n${resultText.trim()}`), 10000);
   }, CLAUDE_TIMEOUT_MS);
 
-  // Heartbeat cada 5 min — nunca más de 5 min sin contextualizar al usuario
   const heartbeat = setInterval(() => {
-    const elapsedMin  = Math.round((Date.now() - runStart) / 60000);
-    const remainMin   = Math.max(0, Math.round((CLAUDE_TIMEOUT_MS - (Date.now() - runStart)) / 60000));
+    const elapsedMin = Math.round((Date.now() - runStart) / 60000);
+    const remainMin  = Math.max(0, Math.round((CLAUDE_TIMEOUT_MS - (Date.now() - runStart)) / 60000));
     tg(`⏳ <b>En progreso — ${project.name}</b>
 🗂 <code>${taskTitle}</code>
 ⏱ ${elapsedMin} min | 🔧 ${toolCallCount} herramientas usadas
@@ -619,20 +622,34 @@ ${taskContent}`;
 Timeout en ${remainMin} min`);
   }, RUNNING_WARN_MS);
 
+  // Poll outFile cada 500ms — evita el problema de buffering de su+pipe
+  const filePoller = setInterval(() => {
+    try {
+      const stat = fs.statSync(outFile);
+      if (stat.size <= fileOffset) return;
+      const fd  = fs.openSync(outFile, 'r');
+      const buf = Buffer.alloc(stat.size - fileOffset);
+      fs.readSync(fd, buf, 0, buf.length, fileOffset);
+      fs.closeSync(fd);
+      fileOffset = stat.size;
+      lineBuffer += buf.toString();
+      const lines = lineBuffer.split('\n');
+      lineBuffer  = lines.pop();
+      for (const line of lines) processLine(line);
+    } catch (_) {}
+  }, 500);
+
   function processLine(line) {
     if (!line.trim()) return;
     let evt;
     try { evt = JSON.parse(line); } catch (_) {
-      // Non-JSON line (error output piped to stdout, etc.) — accumulate
       resultText += line + '\n';
       return;
     }
 
-    // ── Real-time tool events → dashboard ──────────────────
     if (evt.type === 'assistant' && Array.isArray(evt.message?.content)) {
       for (const block of evt.message.content) {
         if (block.type === 'text' && block.text) {
-          // Accumulate assistant text for final result
           resultText += block.text;
         }
         if (block.type === 'tool_use') {
@@ -660,7 +677,6 @@ Timeout en ${remainMin} min`);
       }
     }
 
-    // Tool results: stream-json uses type:"user" with tool_result content blocks
     if (evt.type === 'user' && Array.isArray(evt.message?.content)) {
       for (const block of evt.message.content) {
         if (block.type !== 'tool_result') continue;
@@ -687,38 +703,29 @@ Timeout en ${remainMin} min`);
       }
     }
 
-    // Final result — real text + log actual cost
     if (evt.type === 'result') {
       if (evt.result) resultText = evt.result;
       if (evt.total_cost_usd) log(project.id, `costo real: $${evt.total_cost_usd.toFixed(6)}`);
     }
   }
 
-  child.stdout.on('data', (chunk) => {
-    lineBuffer += chunk.toString();
-    const lines = lineBuffer.split('\n');
-    lineBuffer  = lines.pop(); // keep last (possibly incomplete) line
-    for (const line of lines) processLine(line);
-  });
-
-  child.stderr.on('data', (chunk) => {
-    const text = chunk.toString().trim();
-    if (text) log(project.id, `claude stderr: ${text.slice(0, 300)}`);
-  });
-
   child.on('close', (code) => {
     clearTimeout(timer);
     clearInterval(heartbeat);
-    if (lineBuffer.trim()) processLine(lineBuffer);
-    if (timedOut) {
-      resultText = `[TIMEOUT después de ${CLAUDE_TIMEOUT_MS / 60000}min]\n` + resultText;
-    }
+    clearInterval(filePoller);
+    // Leer lo que quede en outFile
+    try {
+      const remaining = fs.readFileSync(outFile, 'utf8').slice(fileOffset);
+      (lineBuffer + remaining).split('\n').filter(l => l.trim()).forEach(processLine);
+    } catch (_) {}
+    if (timedOut) resultText = `[TIMEOUT después de ${CLAUDE_TIMEOUT_MS / 60000}min]\n` + resultText;
     safeCallback(timedOut ? 1 : (code || 0), resultText.trim());
   });
 
   child.on('error', (err) => {
     clearTimeout(timer);
     clearInterval(heartbeat);
+    clearInterval(filePoller);
     log(project.id, `runClaude error: ${err.message}`);
     safeCallback(1, `Error lanzando claude: ${err.message}`);
   });
