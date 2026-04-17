@@ -578,6 +578,7 @@ Tarea:
 ${taskContent}`;
 
   fs.writeFileSync(taskFile, context);
+  try { fs.chmodSync(taskFile, 0o644); } catch (_) {}  // ensure spawned user can read
 
   // CLAUDE_CONFIG_DIR must point to the .claude directory itself (not its parent)
   const CLAUDE_CONFIG = path.join(__dirname, '..', '.claude');
@@ -620,13 +621,24 @@ ${taskContent}`;
   ].join(' && ');
 
   function buildCmd(user) {
+    // Look up real home directory so ~/.claude auth credentials are found
+    let realHome = `/home/${user}`;
+    try {
+      const entry = require('child_process').execSync(
+        `getent passwd ${user}`, { stdio: 'pipe', timeout: 3000 }
+      ).toString().trim();
+      const homePart = entry.split(':')[5];
+      if (homePart) realHome = homePart;
+    } catch (_) {}
+
     const env = {
-      HOME:               `/home/${user}`,
+      HOME:               realHome,
       USER:               user,
+      LOGNAME:            user,
       ANTHROPIC_API_KEY:  ANTHROPIC_KEY,
       CLAUDE_MONITOR_URL: MONITOR_API,
       CLAUDE_CHAT_SOURCE: `relay-${project.id}`,
-      CLAUDE_CONFIG_DIR:  CLAUDE_CONFIG,
+      // Use user's own ~/.claude for auth — project hooks dir still passed separately
       CLAUDE_HOOKS_DIR:   CLAUDE_HOOKS,
       RELAY_DISPATCH_URL: `${MONITOR_API}/api/relay/dispatch`,
       RELAY_TASK_ID:      taskId,
@@ -648,9 +660,9 @@ ${taskContent}`;
       return spawn('/bin/bash', ['-c', innerCmd], { stdio: 'ignore' });
     }
     if (_isRoot) {
-      // Root → su without password to target user
-      log(project.id, `spawn: su ${user} (desde root)`);
-      return spawn('su', ['-s', '/bin/bash', '-c', innerCmd, user], { stdio: 'ignore' });
+      // Root → su -l (login shell): sets HOME from /etc/passwd, no password needed
+      log(project.id, `spawn: su -l ${user} (desde root)`);
+      return spawn('su', ['-l', '-s', '/bin/bash', '-c', innerCmd, user], { stdio: 'ignore' });
     }
     // Non-root switching user → sudo -n (fails fast if no NOPASSWD)
     log(project.id, `spawn: sudo -n -u ${user}`);
