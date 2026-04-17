@@ -1,16 +1,36 @@
-# Diagnóstico rápido — ping del servidor
+# Actualización + env scan + reinicio de servicios
 
-Tarea de verificación simple. Ejecuta los siguientes comandos y reporta resultados:
+## Plan
+1. Verificar estado del sistema: `hostname && date && sudo -u german pm2 list`
+2. Hacer git pull del repo: `cd /var/www/html/vilarkptl.com/ai-monitor && git pull origin claude/agent-monitoring-dashboard-4v8iq`
+3. Escanear archivos .env del servidor y guardar en relay/env-scan.json (solo nombres de variables, NO valores)
+4. Reiniciar servicio ai-monitor: `nohup bash -c 'sleep 2 && sudo -u german pm2 restart ai-monitor' &`
+5. Verificar que la API responde: `curl -s http://localhost:3010/api/health`
 
-1. `hostname && date`
-2. `sudo -u german pm2 list 2>/dev/null | grep -E "relay-master|ai-monitor"`
-3. `ls /var/www/html/vilarkptl.com/ai-monitor/relay/journals/ 2>/dev/null`
-4. `cat /var/www/html/vilarkptl.com/ai-monitor/relay/journals/ai-monitor.json 2>/dev/null | python3 -m json.tool 2>/dev/null | head -20`
+## Criterios de aceptación
+- [ ] git pull exitoso — muestra los archivos actualizados
+- [ ] relay/env-scan.json existe con al menos 2 entradas
+- [ ] `curl http://localhost:3010/api/health` retorna `{"ok":true,...}`
+- [ ] pm2 list muestra ai-monitor online
 
-## Resultados esperados
-- hostname y fecha actual
-- pm2 muestra relay-master y ai-monitor corriendo (status online)
-- journals/ contiene ai-monitor.json
-- journal muestra state y consecutive_failures
+## Instrucciones para env-scan.json
 
-Responde con el output exacto de cada comando.
+```bash
+find /var/www/html /home/german -name '.env' -not -path '*/node_modules/*' -not -path '*/.git/*' 2>/dev/null | head -20
+```
+
+Para cada .env encontrado, extrae solo NOMBRES (no valores) y crea este JSON:
+```json
+[
+  {
+    "project": "nombre-inferido-del-path",
+    "path": "/ruta/completa/.env",
+    "has_anthropic": true,
+    "has_github": false,
+    "has_telegram": true,
+    "vars": ["LISTA_DE_NOMBRES_SIN_VALORES"]
+  }
+]
+```
+
+Guarda en: `/var/www/html/vilarkptl.com/ai-monitor/relay/env-scan.json`
