@@ -34,6 +34,8 @@ const PROJECTS_FILE   = path.join(__dirname, 'projects.json');
 const DISPATCH_FILE   = process.env.DISPATCH_FILE ||
   `/var/lib/ai-monitor/pending-dispatches.json`;
 const HASHES_FILE     = `/tmp/relay-master-hashes-${process.getuid?.() ?? 'x'}.json`;
+// Separate file for buzon hashes — prevents inbox saveHashes() from wiping buzon state
+const BUZON_HASHES_FILE = `/tmp/relay-buzon-hashes-${process.getuid?.() ?? 'x'}.json`;
 // Per-project lock files: /tmp/relay-lock-{projectId} (parallel execution)
 // Outbox watchdog: track when each project last got an inbox dispatch
 const DISPATCH_TIMES  = {};   // { [projectId]: { dispatched_at: ms, dispatch_id: str } }
@@ -69,11 +71,12 @@ let   _buzonHash   = null;
 const BUZON_FISCALAI_SRC  = '/var/www/html/vilarkptl.com/DeCabeceraTax/relay/buzon-fiscalai.md';
 const BUZON_FISCALAI_DEST = path.join(__dirname, 'buzon-fiscalai.md');
 let   _buzonFiscalaiHash  = null;
-// Persist buzon hashes across restarts so the same FiscalAI response isn't re-processed
+// Load persisted buzon hashes from separate file (separate from HASHES_FILE so
+// inbox saveHashes() calls don't wipe buzon state — that was the race condition).
 try {
-  const ph = JSON.parse(fs.readFileSync(HASHES_FILE, 'utf8'));
-  _buzonHash         = ph['__buzon_ia_hash']       || null;
-  _buzonFiscalaiHash = ph['__buzon_fiscalai_hash'] || null;
+  const bh = JSON.parse(fs.readFileSync(BUZON_HASHES_FILE, 'utf8'));
+  _buzonHash         = bh['ia']       || null;
+  _buzonFiscalaiHash = bh['fiscalai'] || null;
 } catch (_) {}
 
 // ─── Logging (CST = America/Mexico_City) ──────────────────
@@ -317,7 +320,7 @@ function syncBuzonIA() {
     const h = fileHash(BUZON_SRC);
     if (h && h !== _buzonHash) {
       _buzonHash = h;
-      try { const ph = loadHashes(); ph['__buzon_ia_hash'] = h; saveHashes(ph); } catch (_) {}
+      try { const bh = loadBuzonHashes(); bh['ia'] = h; saveBuzonHashes(bh); } catch (_) {}
       try {
         const destDir = path.dirname(BUZON_DEST);
         try { fs.mkdirSync(destDir, { recursive: true }); } catch (_) {}
@@ -358,7 +361,7 @@ function syncBuzonIA() {
     const h2 = fileHash(BUZON_FISCALAI_SRC);
     if (h2 && h2 !== _buzonFiscalaiHash) {
       _buzonFiscalaiHash = h2;
-      try { const ph = loadHashes(); ph['__buzon_fiscalai_hash'] = h2; saveHashes(ph); } catch (_) {}
+      try { const bh = loadBuzonHashes(); bh['fiscalai'] = h2; saveBuzonHashes(bh); } catch (_) {}
       try {
         fs.copyFileSync(BUZON_FISCALAI_SRC, BUZON_FISCALAI_DEST);
         const response = fs.readFileSync(BUZON_FISCALAI_DEST, 'utf8');
@@ -393,6 +396,14 @@ function loadHashes() {
 
 function saveHashes(h) {
   fs.writeFileSync(HASHES_FILE, JSON.stringify(h));
+}
+
+function loadBuzonHashes() {
+  try { return JSON.parse(fs.readFileSync(BUZON_HASHES_FILE, 'utf8')); }
+  catch (_) { return {}; }
+}
+function saveBuzonHashes(h) {
+  try { fs.writeFileSync(BUZON_HASHES_FILE, JSON.stringify(h)); } catch (_) {}
 }
 
 function fileHash(filePath) {
@@ -616,8 +627,10 @@ ${taskContent}`;
   }
 
   const coreCmd = [
-    `cd ${project.repo || '/var/www/html'}`,
-    `${CLAUDE_BIN} --dangerously-skip-permissions --output-format stream-json --verbose --print < ${taskFile} > ${outFile} 2>&1`,
+    `cd ${project.repo || '/var/www/html'} 2>/dev/null || true`,
+    // Diagnostic first — visible in resultText so Telegram shows it on task completion
+    `echo "RELAY_DIAG user=$(id -un 2>/dev/null||echo '?') home=$HOME task=$(test -r ${taskFile} && echo ok || echo UNREADABLE)" > ${outFile} 2>&1`,
+    `${CLAUDE_BIN} --dangerously-skip-permissions --output-format stream-json --verbose --print < ${taskFile} >> ${outFile} 2>&1`,
   ].join(' && ');
 
   function buildCmd(user) {
@@ -660,9 +673,9 @@ ${taskContent}`;
       return spawn('/bin/bash', ['-c', innerCmd], { stdio: 'ignore' });
     }
     if (_isRoot) {
-      // Root → su -l (login shell): sets HOME from /etc/passwd, no password needed
-      log(project.id, `spawn: su -l ${user} (desde root)`);
-      return spawn('su', ['-l', '-s', '/bin/bash', '-c', innerCmd, user], { stdio: 'ignore' });
+      // Root → su without password to target user (no -l to avoid login-file hangs)
+      log(project.id, `spawn: su ${user} (desde root)`);
+      return spawn('su', ['-s', '/bin/bash', '-c', innerCmd, user], { stdio: 'ignore' });
     }
     // Non-root switching user → sudo -n (fails fast if no NOPASSWD)
     log(project.id, `spawn: sudo -n -u ${user}`);
