@@ -161,6 +161,27 @@
   </div>
 </main>
 
+<!-- ── Project detail modal ── -->
+<div id="project-detail-modal">
+  <div class="pdm-box">
+    <div class="pdm-header">
+      <div class="pdm-title" id="pdm-name">—</div>
+      <a class="pdm-url" id="pdm-url" href="#" target="_blank"></a>
+      <button class="pdm-close" id="pdm-close">✕</button>
+    </div>
+    <div class="pdm-tabs">
+      <button class="pdm-tab active" data-pdm-tab="journal">Historial</button>
+      <button class="pdm-tab" data-pdm-tab="context">Contexto</button>
+      <button class="pdm-tab" data-pdm-tab="costs">Costos</button>
+    </div>
+    <div class="pdm-body">
+      <div id="pdm-journal-tab"></div>
+      <div id="pdm-context-tab" style="display:none"></div>
+      <div id="pdm-costs-tab"   style="display:none"></div>
+    </div>
+  </div>
+</div>
+
 <script src="/js/dashboard.js"></script>
 </body>
 </html>

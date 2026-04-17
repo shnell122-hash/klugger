@@ -539,9 +539,16 @@ function renderProjects(projects) {
     const lastAct   = p.last_activity
       ? new Date(p.last_activity).toLocaleString('es-MX', { timeZone: 'America/Mexico_City', hour12: false })
       : 'Sin actividad';
+    const jState    = p.journal_state || 'active';
+    const jFails    = p.journal_consecutive_failures || 0;
+    const jBadge    = jState === 'stopped'
+      ? `<span class="proj-journal-badge stopped">🛑 detenido</span>`
+      : jFails >= 1
+        ? `<span class="proj-journal-badge active">⚠️ ${jFails} fallo${jFails>1?'s':''}</span>`
+        : '';
 
     return `
-    <div class="project-card">
+    <div class="project-card" data-project-id="${esc(p.id)}">
       <img class="proj-screenshot" src="${shotUrl}"
            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
            alt="screenshot ${esc(p.name)}">
@@ -550,17 +557,200 @@ function renderProjects(projects) {
         <div class="proj-name">
           <span class="proj-dot ${p.is_active ? 'active' : ''}"></span>
           ${esc(p.name)}
+          ${jBadge}
         </div>
         <div class="proj-stats">
           <span>💰 <b>$${cost}</b></span>
           <span>🔁 <b>${sessions}</b> sesiones</span>
           <span>🔧 <b>${toolCalls}</b> tools</span>
         </div>
-        ${p.url ? `<a href="${esc(p.url)}" target="_blank" class="proj-url">🌐 ${esc(p.url)}</a>` : ''}
+        ${p.url ? `<a href="${esc(p.url)}" target="_blank" class="proj-url" onclick="event.stopPropagation()">🌐 ${esc(p.url)}</a>` : ''}
         <div style="font-size:9px;color:var(--text-muted);margin-top:4px">Última actividad: ${lastAct}</div>
       </div>
     </div>`;
   }).join('');
+
+  list.querySelectorAll('.project-card').forEach(card => {
+    card.addEventListener('click', () => openProjectDetail(card.dataset.projectId));
+  });
+}
+
+// ─── Project detail modal ─────────────────────────────────
+let _pdmChart = null;
+let _pdmProjectId = null;
+
+function openProjectDetail(id) {
+  _pdmProjectId = id;
+  const modal = document.getElementById('project-detail-modal');
+  modal.classList.add('open');
+  document.getElementById('pdm-name').textContent = id;
+  document.getElementById('pdm-url').textContent  = '';
+  document.getElementById('pdm-url').href         = '#';
+  switchPdmTab('journal');
+  loadPdmJournal(id);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('pdm-close')?.addEventListener('click', closePdm);
+  document.getElementById('project-detail-modal')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) closePdm();
+  });
+  document.querySelectorAll('.pdm-tab').forEach(btn => {
+    btn.addEventListener('click', () => switchPdmTab(btn.dataset.pdmTab));
+  });
+});
+
+function closePdm() {
+  document.getElementById('project-detail-modal')?.classList.remove('open');
+  if (_pdmChart) { _pdmChart.destroy(); _pdmChart = null; }
+}
+
+function switchPdmTab(tab) {
+  document.querySelectorAll('.pdm-tab').forEach(b => b.classList.toggle('active', b.dataset.pdmTab === tab));
+  ['journal','context','costs'].forEach(t => {
+    const el = document.getElementById(`pdm-${t}-tab`);
+    if (el) el.style.display = t === tab ? '' : 'none';
+  });
+  if (tab === 'context') loadPdmContext(_pdmProjectId);
+  if (tab === 'costs')   loadPdmCosts(_pdmProjectId, '24h');
+}
+
+async function loadPdmJournal(id) {
+  const el = document.getElementById('pdm-journal-tab');
+  el.innerHTML = '<div style="color:var(--text-muted);font-size:11px">Cargando…</div>';
+  try {
+    const [jRes, pRes] = await Promise.all([
+      fetch(`${API}/api/projects/${id}/journal`),
+      fetch(`${API}/api/projects/${id}`),
+    ]);
+    const j = await jRes.json();
+    const p = (await pRes.json()).project || {};
+
+    // Update header
+    document.getElementById('pdm-name').textContent = p.name || id;
+    if (p.url) {
+      const a = document.getElementById('pdm-url');
+      a.textContent = p.url;
+      a.href = p.url;
+    }
+
+    const state     = j.state || 'active';
+    const stateLbl  = state === 'stopped' ? '🛑 Detenido' : '🟢 Activo';
+    const tasks     = j.recent_tasks || [];
+
+    el.innerHTML = `
+      <div class="journal-state-badge ${state}">${stateLbl}</div>
+      <div class="journal-stats">
+        <span>Total: <b>${j.total_tasks || 0}</b></span>
+        <span>Éxitos consecutivos: <b>${j.consecutive_successes || 0}</b></span>
+        <span>Fallos consecutivos: <b>${j.consecutive_failures || 0}</b></span>
+        ${j.updated_at ? `<span>Actualizado: <b>${new Date(j.updated_at).toLocaleString('es-MX',{timeZone:'America/Mexico_City',hour12:false})}</b></span>` : ''}
+      </div>
+      ${tasks.length === 0 ? '<div style="color:var(--text-muted);font-size:11px">Sin tareas registradas aún.</div>' : ''}
+      ${tasks.map(t => {
+        const icon = t.status === 'success' ? '✅' : t.status === 'failed' ? '❌' : '⏳';
+        const ts   = t.timestamp ? new Date(t.timestamp).toLocaleString('es-MX',{timeZone:'America/Mexico_City',hour12:false}) : '';
+        const dur  = t.duration_sec ? `${Math.round(t.duration_sec)}s` : '';
+        return `<div class="journal-task">
+          <div class="jt-icon">${icon}</div>
+          <div class="jt-title">${esc(t.title || '—')}</div>
+          <div class="jt-meta">${dur}<br>${ts}</div>
+        </div>`;
+      }).join('')}`;
+  } catch (err) {
+    el.innerHTML = `<div style="color:#f85149;font-size:11px">Error: ${esc(err.message)}</div>`;
+  }
+}
+
+async function loadPdmContext(id) {
+  const el = document.getElementById('pdm-context-tab');
+  if (el.dataset.loaded === id) return;
+  el.innerHTML = '<div style="color:var(--text-muted);font-size:11px">Cargando…</div>';
+  try {
+    const r = await fetch(`${API}/api/projects/${id}/context`);
+    const d = await r.json();
+    const content = d.content || '(sin contexto)';
+    el.dataset.loaded = id;
+    el.innerHTML = `
+      <div class="ctx-actions">
+        <button class="ctx-copy-btn" id="ctx-copy-btn">📋 Copiar contexto</button>
+        <span class="ctx-hint">relay/agents/${esc(id)}.md</span>
+      </div>
+      <pre class="ctx-content">${esc(content)}</pre>`;
+    document.getElementById('ctx-copy-btn').addEventListener('click', () => {
+      navigator.clipboard.writeText(content).then(() => {
+        const btn = document.getElementById('ctx-copy-btn');
+        if (btn) { btn.textContent = '✅ Copiado'; setTimeout(() => btn.textContent = '📋 Copiar contexto', 1500); }
+      });
+    });
+  } catch (err) {
+    el.innerHTML = `<div style="color:#f85149;font-size:11px">Error: ${esc(err.message)}</div>`;
+  }
+}
+
+async function loadPdmCosts(id, period) {
+  const el = document.getElementById('pdm-costs-tab');
+  // Render period buttons
+  el.innerHTML = `
+    <div class="pdm-period-btns">
+      ${['24h','7d','30d'].map(p => `<button class="pdm-period-btn ${p===period?'active':''}" data-p="${p}">${p}</button>`).join('')}
+    </div>
+    <div id="pdm-cost-summary" class="pdm-cost-summary">Cargando…</div>
+    <div class="pdm-chart-wrap"><canvas id="pdm-cost-chart"></canvas></div>`;
+
+  el.querySelectorAll('.pdm-period-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (_pdmChart) { _pdmChart.destroy(); _pdmChart = null; }
+      loadPdmCosts(id, btn.dataset.p);
+    });
+  });
+
+  try {
+    const r = await fetch(`${API}/api/projects/${id}/costs/history?period=${period}`);
+    const d = await r.json();
+    const t = d.totals || {};
+
+    document.getElementById('pdm-cost-summary').innerHTML = `
+      <div>Costo: <b>$${parseFloat(t.total_cost_usd||0).toFixed(5)}</b></div>
+      <div>Eventos: <b>${t.events||0}</b></div>
+      <div>Sesiones: <b>${t.sessions||0}</b></div>
+      <div>Tokens: <b>${(t.total_tokens||0).toLocaleString()}</b></div>`;
+
+    const buckets = d.buckets || [];
+    const labels  = buckets.map(b => b.bucket ? b.bucket.slice(5,16) : '');
+    const costs   = buckets.map(b => parseFloat(b.cost_usd)||0);
+
+    const ctx = document.getElementById('pdm-cost-chart');
+    if (!ctx) return;
+    if (_pdmChart) _pdmChart.destroy();
+    _pdmChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'USD',
+          data:  costs,
+          borderColor: '#3fb950',
+          backgroundColor: 'rgba(63,185,80,.08)',
+          fill: true,
+          tension: .3,
+          pointRadius: costs.length > 48 ? 0 : 2,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color:'#7d8590', font:{size:9}, maxTicksLimit:8 }, grid:{color:'rgba(255,255,255,.04)'} },
+          y: { ticks: { color:'#7d8590', font:{size:9}, callback: v => '$'+v.toFixed(5) }, grid:{color:'rgba(255,255,255,.04)'} },
+        },
+      },
+    });
+  } catch (err) {
+    const s = document.getElementById('pdm-cost-summary');
+    if (s) s.innerHTML = `<span style="color:#f85149">Error: ${esc(err.message)}</span>`;
+  }
 }
 
 // ─── Data loading ─────────────────────────────────────────

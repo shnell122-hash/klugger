@@ -631,3 +631,91 @@ main {
   align-items: center;
   font-size: 10px;
 }
+
+/* ── Project detail modal ── */
+.project-card { cursor: pointer; transition: border-color .15s; }
+.project-card:hover { border-color: var(--accent); }
+.proj-journal-badge {
+  font-size: 9px; padding: 2px 6px; border-radius: 10px;
+  margin-left: auto; font-weight: 600;
+}
+.proj-journal-badge.active   { background: rgba(63,185,80,.15); color: var(--green); }
+.proj-journal-badge.stopped  { background: rgba(248,81,73,.15);  color: #f85149; }
+
+#project-detail-modal {
+  display: none; position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,.7); align-items: center; justify-content: center;
+}
+#project-detail-modal.open { display: flex; }
+.pdm-box {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+  width: min(700px, 96vw); max-height: 88vh; display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.pdm-header {
+  display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.pdm-title { font-size: 14px; font-weight: 700; flex: 1; }
+.pdm-url   { font-size: 10px; color: var(--accent); text-decoration: none; }
+.pdm-close { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 18px; padding: 0 4px; }
+.pdm-tabs  {
+  display: flex; gap: 2px; padding: 8px 16px 0;
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.pdm-tab {
+  background: none; border: none; color: var(--text-muted);
+  font-size: 11px; padding: 4px 12px 7px; cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.pdm-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.pdm-body { flex: 1; overflow-y: auto; padding: 14px 16px; }
+
+/* Journal tab */
+.journal-state-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 600; padding: 4px 10px;
+  border-radius: 12px; margin-bottom: 12px;
+}
+.journal-state-badge.active  { background: rgba(63,185,80,.15); color: var(--green); }
+.journal-state-badge.stopped { background: rgba(248,81,73,.15);  color: #f85149; }
+.journal-stats { display: flex; gap: 16px; font-size: 10px; color: var(--text-muted); margin-bottom: 12px; }
+.journal-stats b { color: var(--text); }
+.journal-task {
+  display: flex; align-items: flex-start; gap: 8px; padding: 7px 0;
+  border-bottom: 1px solid var(--border); font-size: 11px;
+}
+.journal-task:last-child { border-bottom: none; }
+.jt-icon  { font-size: 13px; flex-shrink: 0; width: 18px; text-align: center; }
+.jt-title { flex: 1; color: var(--text); line-height: 1.4; }
+.jt-meta  { font-size: 9px; color: var(--text-muted); text-align: right; white-space: nowrap; }
+
+/* Context tab */
+.ctx-actions { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+.ctx-copy-btn {
+  background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+  font-size: 10px; padding: 4px 10px; border-radius: 4px; cursor: pointer;
+}
+.ctx-copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+.ctx-hint { font-size: 9px; color: var(--text-muted); }
+.ctx-content {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 4px;
+  padding: 12px; font-family: var(--font-mono, monospace); font-size: 11px;
+  line-height: 1.6; color: var(--text); white-space: pre-wrap; word-break: break-word;
+  max-height: 420px; overflow-y: auto;
+}
+
+/* Costs tab */
+.pdm-period-btns { display: flex; gap: 6px; margin-bottom: 12px; }
+.pdm-period-btn {
+  background: var(--bg3); border: 1px solid var(--border); color: var(--text-muted);
+  font-size: 10px; padding: 3px 10px; border-radius: 4px; cursor: pointer;
+}
+.pdm-period-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+.pdm-cost-summary {
+  display: flex; gap: 16px; font-size: 11px; color: var(--text-muted);
+  margin-bottom: 12px; flex-wrap: wrap;
+}
+.pdm-cost-summary b { color: var(--text); font-size: 13px; }
+.pdm-chart-wrap { height: 140px; position: relative; }
+
