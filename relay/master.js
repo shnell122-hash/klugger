@@ -475,9 +475,22 @@ ${taskContent}`;
   // Track pending tool calls for pre/post pairing
   const pendingTools = {}; // { tool_use_id → { name, inputSummary } }
 
+  let callbackFired = false;
+  function safeCallback(code, text) {
+    if (callbackFired) return;
+    callbackFired = true;
+    callback(code, text);
+  }
+
   const timer = setTimeout(() => {
     timedOut = true;
+    clearInterval(heartbeat);
+    // Kill entire process group — child.kill('SIGKILL') only kills 'su',
+    // leaving the node/claude subprocess alive as an orphan.
+    try { execSync(`pkill -9 -P ${child.pid} 2>/dev/null || true`, { stdio: 'pipe' }); } catch (_) {}
     try { child.kill('SIGKILL'); } catch (_) {}
+    // Force callback in 10s in case child.on('close') never fires
+    setTimeout(() => safeCallback(1, `[TIMEOUT después de ${CLAUDE_TIMEOUT_MS / 60000}min]\n${resultText.trim()}`), 10000);
   }, CLAUDE_TIMEOUT_MS);
 
   // Heartbeat cada 5 min — nunca más de 5 min sin contextualizar al usuario
@@ -585,14 +598,14 @@ Timeout en ${remainMin} min`);
     if (timedOut) {
       resultText = `[TIMEOUT después de ${CLAUDE_TIMEOUT_MS / 60000}min]\n` + resultText;
     }
-    callback(timedOut ? 1 : (code || 0), resultText.trim());
+    safeCallback(timedOut ? 1 : (code || 0), resultText.trim());
   });
 
   child.on('error', (err) => {
     clearTimeout(timer);
     clearInterval(heartbeat);
     log(project.id, `runClaude error: ${err.message}`);
-    callback(1, `Error lanzando claude: ${err.message}`);
+    safeCallback(1, `Error lanzando claude: ${err.message}`);
   });
 }
 
