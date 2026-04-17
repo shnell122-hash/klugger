@@ -856,7 +856,7 @@ function gitPull(repoPath, branch) {
   }
 }
 
-function gitPushOutbox(repoPath, branch, outboxPath, timestamp) {
+function gitPushOutbox(repoPath, branch, outboxPath, timestamp, outboxContent) {
   const projectId = path.basename(repoPath);
   try {
     // Try rebase pull first; if it fails (diverged), reset hard to origin
@@ -871,6 +871,8 @@ function gitPushOutbox(repoPath, branch, outboxPath, timestamp) {
         `cd ${repoPath} && git rebase --abort 2>/dev/null || true && git fetch origin ${branch} --quiet && git reset --hard origin/${branch} --quiet`,
         { stdio: 'pipe', timeout: 30000 }
       );
+      // Re-write outbox after reset hard — reset wipes locally written content
+      if (outboxContent) fs.writeFileSync(outboxPath, outboxContent);
     }
     execSync(
       `cd ${repoPath} && git add ${outboxPath} && git commit -m "relay: resultado ${timestamp}" --quiet && git push origin ${branch} --quiet`,
@@ -1171,7 +1173,7 @@ Si crees que está colgado:
       fs.writeFileSync(project.outbox, outContent);
 
       if (project.repo && project.branch) {
-        gitPushOutbox(project.repo, project.branch, project.outbox, timestamp);
+        gitPushOutbox(project.repo, project.branch, project.outbox, timestamp, outContent);
       }
     }
 

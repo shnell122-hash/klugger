@@ -1,9 +1,10 @@
-# Test spawn como german
+# Verificar spawn y outbox push
 
-Ejecuta y reporta:
+Ejecuta y reporta en la respuesta:
 
 ```bash
-whoami && echo "HOME=$HOME"
+whoami && echo "HOME=$HOME" && echo "CLAUDE_VERSION=$(claude --version 2>/dev/null || echo n/a)"
 ```
 
-Este mensaje es para verificar que el spawn funciona con el usuario correcto.
+Este es un test end-to-end: verifica que el spawn funciona como usuario correcto
+y que el outbox llega a GitHub sin el bug de reset hard.
