@@ -583,13 +583,28 @@ ${taskContent}`;
   const outFile = `/tmp/relay-out-${uid}-${project.id}.jsonl`;
   try { fs.unlinkSync(outFile); } catch (_) {}
 
-  // Determine users to try: primary = current process user, fallback = CLAUDE_USER or 'claude-agent'
+  // Determine users to try in order.
+  // relay-master runs as root → use su (root can switch any user without password).
+  // relay-master runs as non-root → try direct first, then sudo -n fallback.
   let _currentUser = 'root';
   try { _currentUser = require('os').userInfo().username; } catch (_) {}
-  const _fallbackUser = (CLAUDE_USER && CLAUDE_USER !== _currentUser) ? CLAUDE_USER : 'claude-agent';
-  // Try primary (direct, no su) then fallback (sudo -n -u claude-agent)
-  const _usersToTry = [_currentUser];
-  if (_fallbackUser !== _currentUser) _usersToTry.push(_fallbackUser);
+  const _isRoot = (_currentUser === 'root');
+
+  let _usersToTry;
+  if (_isRoot) {
+    // Root: su to CLAUDE_USER, then 'german', then 'claude-agent' (all work from root)
+    const candidates = [];
+    if (CLAUDE_USER && CLAUDE_USER !== 'root') candidates.push(CLAUDE_USER);
+    for (const u of ['german', 'claude-agent']) {
+      if (!candidates.includes(u)) candidates.push(u);
+    }
+    _usersToTry = candidates;   // skip running as root — claude has no config there
+  } else {
+    // Non-root: try current user first, then sudo -n fallback
+    const _fallbackUser = (CLAUDE_USER && CLAUDE_USER !== _currentUser) ? CLAUDE_USER : 'claude-agent';
+    _usersToTry = [_currentUser];
+    if (_fallbackUser !== _currentUser) _usersToTry.push(_fallbackUser);
+  }
 
   const coreCmd = [
     `cd ${project.repo || '/var/www/html'}`,
@@ -597,9 +612,8 @@ ${taskContent}`;
   ].join(' && ');
 
   function buildCmd(user) {
-    const useSwitch = user !== _currentUser;
     const env = {
-      HOME:               useSwitch ? `/home/${user}` : (process.env.HOME || `/home/${_currentUser}`),
+      HOME:               `/home/${user}`,
       USER:               user,
       ANTHROPIC_API_KEY:  ANTHROPIC_KEY,
       CLAUDE_MONITOR_URL: MONITOR_API,
@@ -620,10 +634,17 @@ ${taskContent}`;
 
   function doSpawn(user) {
     const innerCmd = buildCmd(user);
-    if (user === _currentUser) {
+    if (!_isRoot && user === _currentUser) {
+      // Same non-root user: run directly (no su/sudo)
       log(project.id, `spawn: directo como ${user}`);
       return spawn('/bin/bash', ['-c', innerCmd], { stdio: 'ignore' });
     }
+    if (_isRoot) {
+      // Root → su without password to target user
+      log(project.id, `spawn: su ${user} (desde root)`);
+      return spawn('su', ['-s', '/bin/bash', '-c', innerCmd, user], { stdio: 'ignore' });
+    }
+    // Non-root switching user → sudo -n (fails fast if no NOPASSWD)
     log(project.id, `spawn: sudo -n -u ${user}`);
     return spawn('sudo', ['-n', '-u', user, '/bin/bash', '-c', innerCmd], { stdio: 'ignore' });
   }

@@ -1,17 +1,9 @@
-# Test rápido — whoami y versión de claude
+# Test spawn como german
 
-Ejecuta y reporta output:
-
-```bash
-whoami && id
-```
+Ejecuta y reporta:
 
 ```bash
-/usr/local/bin/claude --version 2>/dev/null || claude --version 2>/dev/null || echo "claude no encontrado en PATH"
+whoami && echo "HOME=$HOME"
 ```
 
-```bash
-echo "RELAY_OK_$(date +%s)"
-```
-
-Tres comandos, tres outputs. Nada más.
+Este mensaje es para verificar que el spawn funciona con el usuario correcto.
