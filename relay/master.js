@@ -42,7 +42,7 @@ const DISPATCH_TIMES  = {};   // { [projectId]: { dispatched_at: ms, dispatch_id
 const ACTIVE_TASKS      = new Set();
 const TASK_START_TIMES  = {};  // { [projectId]: timestamp when task started }
 const LAST_RUNNING_WARN = {};  // { [projectId]: timestamp of last "still running" TG alert }
-const RUNNING_WARN_MS   = parseInt(process.env.RUNNING_WARN_MS || '900000'); // 15 min
+const RUNNING_WARN_MS   = parseInt(process.env.RUNNING_WARN_MS || '300000'); // 5 min
 const OUTBOX_TIMEOUT_MS = parseInt(process.env.OUTBOX_TIMEOUT_MS || '2100000'); // 35 min
 const MONITOR_API     = process.env.MONITOR_API_URL || 'http://127.0.0.1:3010';
 const BOT_TOKEN       = process.env.TELEGRAM_BOT_TOKEN;
@@ -464,9 +464,14 @@ ${taskContent}`;
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
-  let resultText  = '';
-  let lineBuffer  = '';
-  let timedOut    = false;
+  let resultText   = '';
+  let lineBuffer   = '';
+  let timedOut     = false;
+  let toolCallCount = 0;
+  let lastToolName  = null;
+  const runStart   = Date.now();
+  const taskTitle  = taskContent.split('\n').find(l => /^#{1,3} /.test(l))
+    ?.replace(/^#+ /, '').slice(0, 60) || project.name;
   // Track pending tool calls for pre/post pairing
   const pendingTools = {}; // { tool_use_id → { name, inputSummary } }
 
@@ -474,6 +479,17 @@ ${taskContent}`;
     timedOut = true;
     try { child.kill('SIGKILL'); } catch (_) {}
   }, CLAUDE_TIMEOUT_MS);
+
+  // Heartbeat cada 5 min — nunca más de 5 min sin contextualizar al usuario
+  const heartbeat = setInterval(() => {
+    const elapsedMin  = Math.round((Date.now() - runStart) / 60000);
+    const remainMin   = Math.max(0, Math.round((CLAUDE_TIMEOUT_MS - (Date.now() - runStart)) / 60000));
+    tg(`⏳ <b>En progreso — ${project.name}</b>
+🗂 <code>${taskTitle}</code>
+⏱ ${elapsedMin} min | 🔧 ${toolCallCount} herramientas usadas
+Última: <code>${lastToolName || 'iniciando…'}</code>
+Timeout en ${remainMin} min`);
+  }, RUNNING_WARN_MS);
 
   function processLine(line) {
     if (!line.trim()) return;
@@ -497,6 +513,8 @@ ${taskContent}`;
             : String(block.input || '').slice(0, 500);
 
           pendingTools[block.id] = { name: block.name, inputSummary };
+          toolCallCount++;
+          lastToolName = block.name;
           log(project.id, `tool: ${block.name} — ${inputSummary.slice(0, 80)}`);
 
           postEvent({
@@ -562,6 +580,7 @@ ${taskContent}`;
 
   child.on('close', (code) => {
     clearTimeout(timer);
+    clearInterval(heartbeat);
     if (lineBuffer.trim()) processLine(lineBuffer);
     if (timedOut) {
       resultText = `[TIMEOUT después de ${CLAUDE_TIMEOUT_MS / 60000}min]\n` + resultText;
@@ -571,6 +590,7 @@ ${taskContent}`;
 
   child.on('error', (err) => {
     clearTimeout(timer);
+    clearInterval(heartbeat);
     log(project.id, `runClaude error: ${err.message}`);
     callback(1, `Error lanzando claude: ${err.message}`);
   });
@@ -1027,6 +1047,12 @@ La tarea se interrumpió por timeout (${Math.round(CLAUDE_TIMEOUT_MS / 60000)} m
 async function main() {
   log(null, '=== relay-master iniciado ===');
   log(null, `Polling cada ${POLL_MS/1000}s`);
+
+  // Kill orphan Claude processes from previous relay-master instances
+  try {
+    execSync(`pkill -9 -u ${CLAUDE_USER} -f 'claude --dangerously-skip-permissions' 2>/dev/null || true`, { stdio: 'pipe' });
+    log(null, `Procesos Claude huérfanos eliminados al arrancar`);
+  } catch (_) {}
 
   // Clean up stale lock files from previous run
   try {
