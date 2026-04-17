@@ -1,12 +1,17 @@
-# Verificación: relay-master funcionando
+# Aplicar actualizacion de master.js
 
 ## Tarea
-Confirma que master.js está correcto y el sistema funciona:
 
 ```bash
-wc -l /var/www/html/vilarkptl.com/ai-monitor/relay/master.js
-grep -c 'ACTIVE_TASKS' /var/www/html/vilarkptl.com/ai-monitor/relay/master.js
-pm2 status
+cd /var/www/html/vilarkptl.com/ai-monitor
+git pull origin claude/agent-monitoring-dashboard-4v8iq
+wc -l relay/master.js
+grep -c 'TASK_START_TIMES\|RUNNING_WARN_MS' relay/master.js
+nohup bash -c 'sleep 3 && pm2 restart relay-master' &
+echo 'Reinicio programado'
 ```
 
-Reporta resultados en el outbox.
+## Criterios
+- [ ] wc -l muestra mas de 1070 lineas
+- [ ] grep muestra 2 (las nuevas constantes)
+- [ ] pm2 restart ejecutado
