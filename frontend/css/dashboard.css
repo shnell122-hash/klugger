@@ -495,13 +495,21 @@ main {
     flex-direction: column;
   }
 
-  /* Always show sessions on right panel mobile */
-  #agents-panel       { display: none; }
-  #screenshots-panel  { display: none; }
-  #sessions-panel     { display: block; flex: 1; overflow-y: auto; }
-  #costs-panel     { display: none; }
-  #providers-panel { display: none; }
-  #projects-panel  { display: none; }
+  /* All right sub-panels hidden by default on mobile;
+     the .visible class (higher specificity 0,1,1,0 vs 0,1,0,0) shows the active one */
+  #agents-panel, #screenshots-panel, #sessions-panel,
+  #costs-panel, #providers-panel, #projects-panel {
+    display: none;
+    overflow-x: hidden;
+  }
+  /* Override: show whichever panel has .visible */
+  #agents-panel.visible, #screenshots-panel.visible, #sessions-panel.visible,
+  #costs-panel.visible, #providers-panel.visible, #projects-panel.visible {
+    display: block;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
 
   .event-body .summary { max-width: 180px; }
 
@@ -511,6 +519,32 @@ main {
 @media (max-width: 400px) {
   .stat-pill .label { display: none; }
   .event-body .summary { max-width: 120px; }
+}
+
+/* ── Mobile overflows ── */
+@media (max-width: 768px) {
+  #right-panel { overflow-x: hidden; }
+
+  /* Sessions: truncate long IDs */
+  .sid { max-width: 140px; }
+  .session-meta { flex-wrap: wrap; gap: 4px; }
+
+  /* APIs form */
+  #add-provider-form { overflow-x: hidden; }
+  .form-row input, .form-row select { max-width: 100%; box-sizing: border-box; }
+
+  /* Providers list */
+  .provider-item { flex-wrap: wrap; gap: 6px; }
+  .provider-info { min-width: 0; flex: 1; }
+  .provider-key  { word-break: break-all; }
+
+  /* Projects panel */
+  #projects-panel { overflow-x: hidden; padding: 8px; }
+  .project-card   { width: 100%; box-sizing: border-box; }
+
+  /* Dispatch list */
+  .ds-item { flex-wrap: wrap; }
+  .ds-title { max-width: 100%; white-space: normal; }
 }
 
 /* ── Screenshots panel ── */

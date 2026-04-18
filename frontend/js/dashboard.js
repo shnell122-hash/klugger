@@ -503,6 +503,9 @@ function initProviderForm() {
 
 // ─── Mobile tabs ──────────────────────────────────────────
 function initTabs() {
+  // Initialize mobile active state (feed is default)
+  document.getElementById('feed-panel').classList.add('mobile-active');
+
   // Mobile tab bar
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {

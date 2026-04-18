@@ -812,14 +812,28 @@ function runClaude(project, taskContent, callback, dispatchMeta = {}) {
 
   // Build context: load agent-specific .md + task
   const agentCtx = loadAgentContext(project.id);
+  const OUTPUT_STRUCTURE = `
+**TU ÚLTIMO MENSAJE al terminar DEBE ser exactamente** (relay-master lo parsea para Telegram):
+\`\`\`
+## Resultados
+✅ [Tarea completada] — [qué cambió, archivo, evidencia]
+❌ [Tarea fallida] — [error exacto: mensaje, archivo, línea]
+⚠️ [Tarea parcial] — [qué falta y por qué]
+
+## Issues
+- [Solo si requiere atención humana]
+\`\`\`
+Si necesitas intervención humana: ⚠️ REQUIERE INTERVENCIÓN HUMANA: [descripción]`;
+
   const context  = agentCtx
     ? `${agentCtx}\n\n---\n\n## Tarea recibida\n\n${taskContent}`
     : `Eres el agente de servidor para el proyecto "${project.name}".
 Repo: ${project.repo || 'N/A'}
 URL: ${project.url || 'N/A'}
 Directorio de trabajo: ${project.repo || '/var/www/html'}
+${OUTPUT_STRUCTURE}
 
-Tarea:
+## Tarea
 ${taskContent}`;
 
   fs.writeFileSync(taskFile, context);
@@ -1039,7 +1053,9 @@ Timeout en ${remainMin} min`);
     }
 
     if (evt.type === 'result') {
-      if (evt.result) resultText = evt.result;
+      // Prefer accumulated text (has ALL turns incl. ## Resultados);
+      // only fall back to evt.result when nothing was accumulated.
+      if (evt.result && !resultText.trim()) resultText = evt.result;
       if (evt.total_cost_usd) log(project.id, `costo real: $${evt.total_cost_usd.toFixed(6)}`);
     }
   }
