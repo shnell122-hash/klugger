@@ -534,12 +534,12 @@ function postEvent(payload, monitorUrl) {
 // ─── Anthropic API directo (Opción B — buzon bidireccional) ──────────────────
 // Llama claude-sonnet-4-6 via HTTPS nativo sin spawn Claude CLI.
 // Usada cuando buzon-fiscalai.md cambia para responder directamente.
-function callAnthropicDirect(systemPrompt, userMessage) {
+function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512) {
   return new Promise((resolve, reject) => {
     if (!ANTHROPIC_KEY) { reject(new Error('ANTHROPIC_API_KEY no configurado')); return; }
     const body = JSON.stringify({
       model:      'claude-sonnet-4-6',
-      max_tokens: 4096,
+      max_tokens: maxTokens,
       system:     systemPrompt,
       messages:   [{ role: 'user', content: userMessage }],
     });
@@ -553,6 +553,7 @@ function callAnthropicDirect(systemPrompt, userMessage) {
         'content-type':      'application/json',
         'content-length':    Buffer.byteLength(body),
       },
+      timeout: 30000,
     }, (res) => {
       let data = '';
       res.on('data', c => data += c);
@@ -565,6 +566,7 @@ function callAnthropicDirect(systemPrompt, userMessage) {
         } catch (e) { reject(e); }
       });
     });
+    req.on('timeout', () => { req.destroy(); reject(new Error('Timeout 30s — API de Anthropic no respondió')); });
     req.on('error', reject);
     req.write(body);
     req.end();
@@ -604,7 +606,7 @@ async function responderBuzonFiscalai(buzonContent) {
       systemPrompt += '\n\n---\n\n## Estado actual del relay' + relayContext;
     }
 
-    const respuesta = await callAnthropicDirect(systemPrompt, buzonContent);
+    const respuesta = await callAnthropicDirect(systemPrompt, buzonContent, 4096);
 
     // Write response to buzon-ia.md — outgoing sync detects hash change on next poll
     const timestamp = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
