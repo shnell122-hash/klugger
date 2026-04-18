@@ -77,7 +77,7 @@ function shortText(text, len = 90) {
 }
 
 function providerBadge(provider) {
-  const p = PROVIDERS[provider] || { label: provider || 'unknown', cls: 'provider-unknown' };
+  const p = PROVIDERS[provider] || (provider ? { label: provider, cls: 'provider-unknown' } : PROVIDERS.anthropic);
   return `<span class="provider-badge ${p.cls}">${p.label}</span>`;
 }
 
