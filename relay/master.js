@@ -820,6 +820,35 @@ function loadAgentContext(projectId) {
   try { return fs.readFileSync(f, 'utf8'); } catch (_) { return ''; }
 }
 
+// Load recent entries from agent-memory.md (capped to keep tokens manageable)
+function loadAgentMemory(repoPath, maxEntries = 15) {
+  if (!repoPath) return '';
+  const memPath = path.join(repoPath, 'relay', 'agent-memory.md');
+  try {
+    const raw = fs.readFileSync(memPath, 'utf8');
+    // Split by ## sections, take last maxEntries
+    const sections = raw.split(/\n(?=## )/).filter(s => s.trim());
+    const recent   = sections.slice(-maxEntries).join('\n');
+    return recent ? `\n\n---\n\n## Memoria acumulada (últimas ${Math.min(sections.length, maxEntries)} sesiones)\n${recent}` : '';
+  } catch (_) { return ''; }
+}
+
+// Append a structured entry to agent-memory.md after task completes
+function appendAgentMemory(repoPath, projectName, title, resultItems, issueItems) {
+  if (!repoPath) return;
+  const memPath = path.join(repoPath, 'relay', 'agent-memory.md');
+  const ts = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City', hour12: false });
+  const lines = [
+    `\n## [${ts} CST] ${title.slice(0, 120)}`,
+    ...resultItems.slice(0, 8).map(r => `- ${r.replace(/^[✅❌⚠️]\s*/, '').slice(0, 200)}`),
+    ...issueItems.slice(0, 3).map(i => `- ⚠️ ${i.replace(/^[-•*]\s*/, '').slice(0, 200)}`),
+  ];
+  try {
+    fs.mkdirSync(path.dirname(memPath), { recursive: true });
+    fs.appendFileSync(memPath, lines.join('\n') + '\n');
+  } catch (_) {}
+}
+
 // ─── Journal system ───────────────────────────────────────
 const JOURNALS_DIR = path.join(__dirname, 'journals');
 try { fs.mkdirSync(JOURNALS_DIR, { recursive: true }); } catch (_) {}
@@ -888,8 +917,9 @@ function runClaude(project, taskContent, callback, dispatchMeta = {}) {
 
   try { fs.unlinkSync(taskFile); } catch (_) {}
 
-  // Build context: load agent-specific .md + task
+  // Build context: load agent-specific .md + accumulated memory + task
   const agentCtx = loadAgentContext(project.id);
+  const agentMem = loadAgentMemory(project.repo);
   const OUTPUT_STRUCTURE = `
 **TU ÚLTIMO MENSAJE al terminar DEBE ser exactamente** (relay-master lo parsea para Telegram):
 \`\`\`
@@ -911,12 +941,13 @@ Si no pudiste autenticarte o acceder a algún recurso, indícalo en ## Acceso au
 Si necesitas intervención humana: ⚠️ REQUIERE INTERVENCIÓN HUMANA: [descripción]`;
 
   const context  = agentCtx
-    ? `${agentCtx}\n\n---\n\n## Tarea recibida\n\n${taskContent}`
+    ? `${agentCtx}${agentMem}\n\n---\n\n## Tarea recibida\n\n${taskContent}`
     : `Eres el agente de servidor para el proyecto "${project.name}".
 Repo: ${project.repo || 'N/A'}
 URL: ${project.url || 'N/A'}
 Directorio de trabajo: ${project.repo || '/var/www/html'}
 ${OUTPUT_STRUCTURE}
+${agentMem}
 
 ## Tarea
 ${taskContent}`;
@@ -1543,6 +1574,23 @@ Si crees que está colgado:
       resultSummary: formatted.slice(0, 3).join(' | '),
       durationSec:   duration,
     });
+
+    // Accumulate task result into agent-memory.md and push to git
+    if (project.repo) {
+      appendAgentMemory(project.repo, project.name, title, resultItems, issueItems);
+      const memPath = path.join(project.repo, 'relay', 'agent-memory.md');
+      if (project.branch && fs.existsSync(memPath)) {
+        try {
+          execSync(
+            `cd ${project.repo} && git add relay/agent-memory.md && git diff --cached --quiet || git commit -m "relay: memoria acumulada ${timestamp}" --quiet && git push origin ${project.branch} --quiet`,
+            { stdio: 'pipe', timeout: 30000 }
+          );
+          log(project.id, 'agent-memory.md pushed OK');
+        } catch (memErr) {
+          log(project.id, `agent-memory push falló (non-fatal): ${memErr.message?.slice(0, 100)}`);
+        }
+      }
+    }
 
     // Check if agent requested human intervention
     const needsHuman = isTimeout || /REQUIERE INTERVENCIÓN HUMANA/i.test(resultRaw) || updatedJournal.state === 'stopped';
