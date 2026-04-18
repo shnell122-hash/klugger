@@ -15,7 +15,8 @@ const path    = require('path');
 const crypto  = require('crypto');
 const db      = require('../db/mysql');
 
-const DISPATCH_FILE  = path.join(__dirname, '..', '..', 'relay', 'pending-dispatches.json');
+const DISPATCH_FILE  = process.env.DISPATCH_FILE ||
+  '/var/lib/ai-monitor/pending-dispatches.json';
 const PROJECTS_FILE  = path.join(__dirname, '..', '..', 'relay', 'projects.json');
 
 function readQueue() {
