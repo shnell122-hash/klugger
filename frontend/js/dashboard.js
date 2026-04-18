@@ -205,8 +205,10 @@ async function openSessionDetail(sid) {
       eventsEl.innerHTML = '<div class="empty-state">Sin eventos registrados</div>';
       return;
     }
+    // Cache events so click handler can find them by id
+    evs.forEach(ev => { if (ev.id) eventCache.set(String(ev.id), ev); });
     eventsEl.innerHTML = evs.map(ev => `
-      <div class="sdm-event">
+      <div class="sdm-event" data-eid="${esc(String(ev.id || ''))}" style="cursor:pointer" title="Click para ver input/output">
         <span class="sdm-ev-icon">${(TOOL_ICONS[ev.tool_name]||{emoji:'🔩'}).emoji}</span>
         <div class="sdm-ev-body">
           <div class="sdm-ev-name">${esc(ev.tool_name || ev.event_type)}</div>
@@ -214,8 +216,8 @@ async function openSessionDetail(sid) {
         </div>
         <div class="sdm-ev-meta">
           <div>${timeLabel(ev.timestamp)}</div>
-          ${ev.duration_ms    ? `<div style="color:var(--text-muted)">${ev.duration_ms}ms</div>` : ''}
-          ${ev.estimated_cost_usd ? `<div style="color:var(--yellow)">${costStr(ev.estimated_cost_usd)}</div>` : ''}
+          ${ev.duration_ms         ? `<div style="color:var(--text-muted)">${ev.duration_ms}ms</div>` : ''}
+          ${ev.estimated_cost_usd  ? `<div style="color:var(--yellow)">${costStr(ev.estimated_cost_usd)}</div>` : ''}
         </div>
       </div>`).join('');
   } catch (err) {
@@ -318,6 +320,14 @@ function initClickHandlers() {
     sessEl.addEventListener('click', e => {
       const item = e.target.closest('[data-sid]');
       if (item && item.dataset.sid) openSessionDetail(item.dataset.sid);
+    });
+  }
+  // Events inside session detail modal → event detail modal
+  const sdmEl = document.getElementById('session-detail-modal');
+  if (sdmEl) {
+    sdmEl.addEventListener('click', e => {
+      const item = e.target.closest('[data-eid]');
+      if (item && item.dataset.eid) openEventDetail(item.dataset.eid);
     });
   }
   // Close modal on overlay click or ESC
