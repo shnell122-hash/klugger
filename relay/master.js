@@ -535,7 +535,8 @@ function postEvent(payload, monitorUrl) {
 // Llama claude-sonnet-4-6 via HTTPS nativo sin spawn Claude CLI.
 // Usada cuando buzon-fiscalai.md cambia para responder directamente.
 function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512) {
-  return new Promise((resolve, reject) => {
+  const timeoutMs = 25000;
+  const apiCall = new Promise((resolve, reject) => {
     if (!ANTHROPIC_KEY) { reject(new Error('ANTHROPIC_API_KEY no configurado')); return; }
     const body = JSON.stringify({
       model:      'claude-sonnet-4-6',
@@ -553,24 +554,27 @@ function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512) {
         'content-type':      'application/json',
         'content-length':    Buffer.byteLength(body),
       },
-      timeout: 30000,
     }, (res) => {
       let data = '';
       res.on('data', c => data += c);
       res.on('end', () => {
         try {
           const json = JSON.parse(data);
-          if (json.error) { reject(new Error(json.error.message)); return; }
+          if (json.error) { reject(new Error(`API error ${json.error.type}: ${json.error.message}`)); return; }
           if (!json.content || !json.content[0]) { reject(new Error('Respuesta API vacía')); return; }
           resolve(json.content[0].text);
         } catch (e) { reject(e); }
       });
     });
-    req.on('timeout', () => { req.destroy(); reject(new Error('Timeout 30s — API de Anthropic no respondió')); });
     req.on('error', reject);
     req.write(body);
     req.end();
   });
+
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error(`Timeout ${timeoutMs/1000}s — api.anthropic.com no respondió`)), timeoutMs)
+  );
+  return Promise.race([apiCall, timeout]);
 }
 
 // Append a timestamped entry to relay/journal.md in a project repo
