@@ -308,48 +308,33 @@ function handleTelegramCommand(text, imageContext) {
 
     const namesList = targets.map(t => t.name).join(', ');
     const imageNote = imageContext ? `\n${imageContext}` : '';
-    tg(`⏳ Generando plan para <b>${namesList}</b>…`);
 
-    const planContext = targets.length > 1
-      ? `Proyectos: ${targets.map(t => t.name).join(' + ')}\nTarea: ${description}`
-      : `Proyecto: ${targets[0].name}\nTarea: ${description}`;
+    const pid = crypto.randomUUID().slice(0, 8);
+    const words = description.split(/\s+/).slice(0, 12).join(' ');
+    const plan =
+      `• Analizar código existente relacionado con: "${words}…"\n` +
+      `• Identificar archivos y componentes a modificar\n` +
+      `• Implementar los cambios requeridos\n` +
+      `• Verificar que la implementación funciona\n` +
+      `• Hacer commit y push`;
 
-    const dispatchWithPlan = (plan) => {
-      const pid = crypto.randomUUID().slice(0, 8);
-      PROPOSALS.set(pid, {
-        id: pid,
-        projects: targets.map(t => ({ id: t.id, name: t.name })),
-        description,
-        plan,
-        imageContext: imageContext || null,
-      });
-      const header = targets.length > 1
-        ? `📋 <b>Plan para ${namesList}</b>`
-        : `📋 <b>Plan para ${targets[0].name}</b>`;
-      tgWithKeyboard(
-        `${header}\n\n${plan}\n\n<i>${description}</i>${imageNote}`,
-        [[
-          { text: `✅ Ejecutar (${targets.length})`, callback_data: `approve_${pid}` },
-          { text: '❌ Cancelar',                     callback_data: `cancel_${pid}` },
-        ]]
-      );
-    };
-
-    callAnthropicDirect(
-      'Eres el planificador de ia.vilarkptl.com. Dado un proyecto y descripción, genera un plan de 3-5 pasos concisos en español. Solo enumera los pasos comenzando cada uno con "• ". Sin encabezados.',
-      planContext + imageNote
-    ).then(dispatchWithPlan).catch(err => {
-      log(null, `[tg/tarea] Anthropic no disponible (${err.message}) — usando plan local`);
-      // Fallback: generate plan locally without API
-      const words  = description.split(/\s+/).slice(0, 10).join(' ');
-      const local  =
-        `• Analizar código existente relacionado con: "${words}…"\n` +
-        `• Identificar archivos y componentes a modificar\n` +
-        `• Implementar los cambios requeridos\n` +
-        `• Verificar que la implementación funciona\n` +
-        `• Hacer commit y push`;
-      dispatchWithPlan(local + '\n\n<i>⚠️ Plan generado localmente — API no disponible</i>');
+    PROPOSALS.set(pid, {
+      id: pid,
+      projects: targets.map(t => ({ id: t.id, name: t.name })),
+      description,
+      plan,
+      imageContext: imageContext || null,
     });
+    const header = targets.length > 1
+      ? `📋 <b>Plan para ${namesList}</b>`
+      : `📋 <b>Plan para ${targets[0].name}</b>`;
+    tgWithKeyboard(
+      `${header}\n\n${plan}\n\n<i>${description}</i>${imageNote}`,
+      [[
+        { text: `✅ Ejecutar (${targets.length})`, callback_data: `approve_${pid}` },
+        { text: '❌ Cancelar',                     callback_data: `cancel_${pid}` },
+      ]]
+    );
     return;
   }
 
