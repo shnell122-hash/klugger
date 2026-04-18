@@ -1204,7 +1204,7 @@ function saveDispatchQueue(q) {
   fs.writeFileSync(DISPATCH_FILE, JSON.stringify(q, null, 2) + '\n');
 }
 
-async function processDispatchQueue(projects) {
+async function processDispatchQueue(projects, hashes = null) {
   const queue = readDispatchQueue();
   const pending = queue.filter(d => d.status === 'pending');
   if (!pending.length) return;
@@ -1231,6 +1231,15 @@ async function processDispatchQueue(projects) {
       updated[idx] = { ...dispatch, status: 'error', dispatched_at: new Date().toISOString() };
       continue;
     }
+
+    // Reset stored hash so processProject always detects the new inbox content
+    try {
+      const h = loadHashes();
+      delete h[target.id];
+      saveHashes(h);
+      // Also reset in-memory hashes so the current poll cycle picks it up
+      if (hashes) delete hashes[target.id];
+    } catch (_) {}
 
     // Push to GitHub if configured
     if (target.repo && target.branch) {
@@ -1622,7 +1631,7 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
     }
 
     // Process dispatch queue first (coordinator writes here)
-    try { await processDispatchQueue(projects); } catch (e) {
+    try { await processDispatchQueue(projects, hashes); } catch (e) {
       log(null, `ERROR processDispatchQueue: ${e.message}`);
     }
 
@@ -1643,7 +1652,7 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
 
   // Initial poll immediately
   try { syncBuzonIA(); } catch (_) {}
-  try { await processDispatchQueue(projects); } catch (_) {}
+  try { await processDispatchQueue(projects, hashes); } catch (_) {}
   for (const project of projects) {
     try { await processProject(project, hashes); } catch (_) {}
   }
