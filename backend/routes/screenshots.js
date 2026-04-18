@@ -103,22 +103,52 @@ router.post('/sync', (req, res) => {
   const errors = [];
 
   for (const proj of projects.filter(p => p.active && p.repo)) {
-    const candidates = [
+    // Collect all candidate directories (static + recursive relay-screenshots subdirs)
+    const staticCandidates = [
       path.join(proj.repo, 'relay', 'screenshots'),
       path.join(proj.repo, 'screenshots'),
+      path.join(proj.repo, 'relay-screenshots'),
     ];
+    // Also add immediate subdirs of relay-screenshots (lote2-after, verificacion-issues, etc.)
+    const relayScreensDir = path.join(proj.repo, 'relay-screenshots');
+    let extraDirs = [];
+    try {
+      if (fs.existsSync(relayScreensDir)) {
+        extraDirs = fs.readdirSync(relayScreensDir, { withFileTypes: true })
+          .filter(d => d.isDirectory())
+          .map(d => path.join(relayScreensDir, d.name));
+      }
+    } catch (_) {}
+
+    const candidates = [...staticCandidates, ...extraDirs];
+
+    let latestFile = null;
+    let latestMtime = 0;
+
     for (const dir of candidates) {
       if (!fs.existsSync(dir)) continue;
       let files = [];
       try { files = fs.readdirSync(dir).filter(f => /\.(png|jpe?g|webp)$/i.test(f)); }
       catch (_) { continue; }
       for (const f of files) {
+        const src  = path.join(dir, f);
         const dest = path.join(SHOTS_DIR, `${proj.id}-${f}`);
-        if (!fs.existsSync(dest)) {
-          try { fs.copyFileSync(path.join(dir, f), dest); copied++; }
-          catch (e) { errors.push(`${proj.id}/${f}: ${e.message}`); }
-        }
+        try {
+          const mtime = fs.statSync(src).mtimeMs;
+          if (!fs.existsSync(dest)) {
+            fs.copyFileSync(src, dest);
+            copied++;
+          }
+          if (mtime > latestMtime) { latestMtime = mtime; latestFile = src; }
+        } catch (e) { errors.push(`${proj.id}/${f}: ${e.message}`); }
       }
+    }
+
+    // Keep {project_id}.png pointing to the newest screenshot (for project card)
+    if (latestFile) {
+      try {
+        fs.copyFileSync(latestFile, path.join(SHOTS_DIR, `${proj.id}.png`));
+      } catch (_) {}
     }
   }
 

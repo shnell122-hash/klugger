@@ -702,15 +702,23 @@ async function loadDispatches() {
 // ─── Projects panel ───────────────────────────────────────
 async function loadProjects() {
   try {
-    const r = await fetch(`${API}/api/projects`);
-    const projects = await r.json();
-    renderProjects(projects);
+    const [projRes, shotRes] = await Promise.all([
+      fetch(`${API}/api/projects`),
+      fetch(`${API}/api/screenshots/projects`).catch(() => ({ json: () => [] })),
+    ]);
+    const projects = await projRes.json();
+    let shotMap = {};
+    try {
+      const shots = await shotRes.json();
+      shots.forEach(s => { shotMap[s.project_id] = s.latest?.url || null; });
+    } catch (_) {}
+    renderProjects(projects, shotMap);
   } catch (err) {
     console.warn('[projects] load error:', err.message);
   }
 }
 
-function renderProjects(projects) {
+function renderProjects(projects, shotMap = {}) {
   const list = document.getElementById('project-list');
   if (!list) return;
   if (!projects || !projects.length) {
@@ -718,7 +726,8 @@ function renderProjects(projects) {
     return;
   }
   list.innerHTML = projects.map(p => {
-    const shotUrl   = `/screenshots/${p.id}.png`;
+    // Use latest known screenshot for this project, fallback to fixed-name file
+    const shotUrl = shotMap[p.id] || `/screenshots/${p.id}.png`;
     const cost      = parseFloat(p.total_cost_usd || 0).toFixed(4);
     const sessions  = p.total_sessions || 0;
     const toolCalls = p.total_tool_calls || 0;

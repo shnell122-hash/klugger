@@ -915,7 +915,14 @@ function runClaude(project, taskContent, callback, dispatchMeta = {}) {
 
 ## Issues
 - [Solo si requiere atención humana]
+
+## Acceso
+- relay: ✅/❌ (describe si pudiste leer inbox/outbox y hacer git pull/push)
+- api_keys: ✅/❌ (ANTHROPIC_API_KEY, SAT Bridge, etc. — menciona cuáles tenías disponibles)
+- frontend: ✅/❌ (si aplica — login, URL, respuesta HTTP)
+- chromium: ✅/❌ (si aplica — captura de screenshots, versión, errores)
 \`\`\`
+Si no pudiste autenticarte o acceder a algún recurso, indícalo en ## Acceso aunque la tarea haya fallado por otro motivo.
 Si necesitas intervención humana: ⚠️ REQUIERE INTERVENCIÓN HUMANA: [descripción]`;
 
   const context  = agentCtx
@@ -1589,10 +1596,15 @@ Si crees que está colgado:
       });
     }
 
-    // ── Telegram: resultados con ✅/❌ + issues + journal ──
+    // ── Telegram: resultados con ✅/❌ + issues + acceso + journal ──
     const resultList  = formatted.map(l => `  ${l}`).join('\n');
+    const accessItems = parseSectionItems(resultRaw, /^## Acceso/i);
     const issueBlock  = issueItems.length
       ? `\n\n<b>Issues:</b>\n<code>${issueItems.map(l=>`  ⚠️ ${l.replace(/^[-•*]\s*/,'')}`).join('\n')}</code>`
+      : '';
+    // Show access diagnostics only on failure/timeout so success messages stay clean
+    const accessBlock = accessItems.length && (exitCode !== 0 || isTimeout || needsHuman)
+      ? `\n\n<b>Acceso:</b>\n<code>${accessItems.map(l=>`  ${l.replace(/^[-•*]\s*/,'')}`).join('\n')}</code>`
       : '';
     const journalLine = `🔁 Tarea #${updatedJournal.total_tasks} | ✅×${updatedJournal.consecutive_successes} ❌×${updatedJournal.consecutive_failures}`;
     const statusIcon  = isTimeout ? '⏰' : needsHuman ? '🆘' : exitCode !== 0 ? '⚠️' : '✅';
@@ -1620,7 +1632,7 @@ Si crees que está colgado:
 ⏱ ${duration}s | ${journalLine}
 
 <b>Resultados:</b>
-<code>${resultList}</code>${issueBlock}${urlsBlock}${prodBlock}`);
+<code>${resultList}</code>${issueBlock}${accessBlock}${urlsBlock}${prodBlock}`);
 
     if (isTimeout) {
       tg(`⏰ <b>Intervención requerida — ${project.name}</b>
