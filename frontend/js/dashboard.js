@@ -545,7 +545,7 @@ function switchRightTab(tab) {
     const el = document.getElementById(t + '-panel');
     if (el) el.classList.toggle('visible', t === tab);
   });
-  if (tab === 'costs' && costData) refreshCostsPanel(costData);
+  if (tab === 'costs') loadCosts();
   if (tab === 'providers') loadProviders();
   if (tab === 'projects') loadProjects();
   if (tab === 'agents') { loadAgents(); loadDispatches(); }
@@ -932,31 +932,43 @@ async function loadPdmCosts(id, period) {
 // ─── Data loading ─────────────────────────────────────────
 async function loadInitialData() {
   try {
-    const [sessRes, costsRes, eventsRes] = await Promise.all([
+    const [sessRes, eventsRes] = await Promise.all([
       fetch(`${API}/api/sessions`),
-      fetch(`${API}/api/costs`),
       fetch(`${API}/api/events/recent?limit=150`),
     ]);
     const sessData   = await sessRes.json();
-    const costsData  = await costsRes.json();
     const eventsData = await eventsRes.json();
 
     sessData.forEach(s => { sessions[s.id] = s; });
-    costData = costsData;
     events   = eventsData;
     events.forEach(e => { if (e.id) eventCache.set(String(e.id), e); });
 
     refreshFeed();
     refreshSessions();
     refreshStats();
-    refreshCostsPanel(costData);
-
-    if (costsData.today) {
-      const el = document.getElementById('stat-cost');
-      if (el) el.textContent = '$' + parseFloat(costsData.today.total_cost_usd||0).toFixed(5);
-    }
   } catch (err) {
     console.warn('[dashboard] load error:', err.message);
+  }
+}
+
+async function loadCosts() {
+  try {
+    const r = await fetch(`${API}/api/costs`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    if (data.error) throw new Error(data.error);
+    costData = data;
+    refreshCostsPanel(costData);
+  } catch (err) {
+    console.warn('[costs] load error:', err.message);
+    // Fallback: compute today's totals from in-memory events
+    const todayCost = events.reduce((s, e) => s + (parseFloat(e.estimated_cost_usd) || 0), 0);
+    const todaySessions = new Set(events.map(e => e.session_id)).size;
+    refreshCostsPanel({
+      today: { total_cost_usd: todayCost, sessions: todaySessions, events: events.length },
+      week:  { total_cost_usd: todayCost, sessions: todaySessions },
+      by_tool: [], by_hour: [],
+    });
   }
 }
 

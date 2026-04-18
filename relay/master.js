@@ -1255,6 +1255,9 @@ async function processDispatchQueue(projects, hashes = null) {
     const idx = updated.findIndex(d => d.id === dispatch.id);
     updated[idx] = { ...dispatch, status: 'dispatched', dispatched_at: new Date().toISOString() };
 
+    // Update DB status so dashboard shows 'dispatched' not 'pending'
+    postToMonitor(`/api/relay/dispatch/${dispatch.id}/dispatched`, {});
+
     tg(`📤 <b>Tarea despachada — ${target.name}</b>\n<code>${dispatch.task.slice(0, 300)}</code>`);
   }
 
@@ -1430,8 +1433,11 @@ Si crees que está colgado:
   });
 
   // ── Execute Claude ────────────────────────────────────
-  // Pass dispatch metadata so agent can use RELAY_TASK_ID for sub-tasks
+  // Capture dispatch ID immediately and clear DISPATCH_TIMES so a new dispatch
+  // that arrives while Claude is running cannot be claimed by this callback.
   const activeDM = DISPATCH_TIMES[project.id] || {};
+  if (activeDM.dispatch_id) delete DISPATCH_TIMES[project.id];
+
   runClaude(project, taskContent, (exitCode, resultRaw) => {
     releaseLock(project.id);
     const duration  = Math.round((Date.now() - startTime) / 1000);
@@ -1481,14 +1487,13 @@ Si crees que está colgado:
       agent_user:   CLAUDE_USER,
     });
 
-    // Mark dispatch as completed
-    if (DISPATCH_TIMES[project.id]) {
-      const { dispatch_id } = DISPATCH_TIMES[project.id];
-      postToMonitor(`/api/relay/dispatch/${dispatch_id}/complete`, {
+    // Mark dispatch as completed (use activeDM captured before runClaude started)
+    if (activeDM.dispatch_id) {
+      postToMonitor(`/api/relay/dispatch/${activeDM.dispatch_id}/complete`, {
         result_summary: resultRaw.slice(0, 1000),
         exit_code: exitCode,
+        duration_sec: duration,
       });
-      delete DISPATCH_TIMES[project.id];
     }
 
     // ── Telegram: resultados con ✅/❌ + issues + journal ──

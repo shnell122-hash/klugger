@@ -174,6 +174,25 @@ router.get('/dispatch/:id', async (req, res) => {
   res.json(item);
 });
 
+// ── POST /api/relay/dispatch/:id/dispatched ──────────────────
+router.post('/dispatch/:id/dispatched', async (req, res) => {
+  // Update JSON queue
+  const queue = readQueue();
+  const idx   = queue.findIndex(d => d.id === req.params.id);
+  if (idx !== -1) {
+    queue[idx] = { ...queue[idx], status: 'dispatched', dispatched_at: new Date().toISOString() };
+    writeQueue(queue);
+  }
+  // Update DB
+  try {
+    await db.query(
+      `UPDATE dispatch_tasks SET status = 'dispatched', dispatched_at = NOW() WHERE id = ?`,
+      [req.params.id]
+    );
+  } catch (_) {}
+  res.json({ ok: true });
+});
+
 // ── POST /api/relay/dispatch/:id/complete ────────────────────
 router.post('/dispatch/:id/complete', async (req, res) => {
   const { result_summary, exit_code, result_items, screenshot_url, duration_sec } = req.body;
