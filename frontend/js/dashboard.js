@@ -3,12 +3,14 @@
 const API = window.location.origin;
 
 // ─── State ────────────────────────────────────────────────
+const eventCache = new Map();  // id → full event object (for click-to-detail)
 let events    = [];
 let sessions  = {};
 let providers = [];
 let costData  = null;
 let lineChart = null;
 let dispatches = [];   // [{id, project, title, status, depth, parent_id, created_at, ...}]
+let agentsList = [];   // [{id, name, status, current_task, cost_today, last_activity}]
 
 // ─── Tool icons ───────────────────────────────────────────
 const TOOL_ICONS = {
@@ -93,7 +95,7 @@ function renderEvent(ev) {
   const badge   = providerBadge(ev.api_provider || 'anthropic');
 
   return `
-  <div class="event-item ${evtCls}">
+  <div class="event-item ${evtCls}" data-eid="${esc(String(ev.id || ''))}">
     ${toolIconEl(ev.tool_name)}
     <div class="event-body">
       <div class="row1">
@@ -135,7 +137,7 @@ function renderSession(s) {
   const src    = s.chat_source && s.chat_source !== 'claude-code-cli'
     ? `<span style="color:var(--purple);font-size:9px">💬 ${esc(s.chat_source)}</span>` : '';
   return `
-  <div class="session-item ${active}">
+  <div class="session-item ${active}" data-sid="${esc(s.id)}">
     <div class="sid" title="${esc(s.id)}">${shortId(s.id)}</div>
     <div class="session-meta">
       <span>${esc(s.agent_user || '?')}</span>
@@ -150,14 +152,185 @@ function renderSession(s) {
 
 function refreshSessions() {
   const list = document.getElementById('session-list');
+  const counter = document.getElementById('sessions-count');
   const sorted = Object.values(sessions).sort(
     (a,b) => new Date(b.started_at) - new Date(a.started_at)
   );
+  if (counter) counter.textContent = `${sorted.length} sesiones`;
   if (!sorted.length) {
     list.innerHTML = `<div class="empty-state"><span class="emoji">💤</span>Sin sesiones</div>`;
     return;
   }
   list.innerHTML = sorted.map(renderSession).join('');
+}
+
+// ─── Event detail modal ───────────────────────────────────
+function openEventDetail(eid) {
+  const ev = eventCache.get(String(eid));
+  if (!ev) return;
+  document.getElementById('edm-title').textContent =
+    `${ev.tool_name || ev.event_type} — ${shortId(ev.session_id)}`;
+  document.getElementById('edm-input-content').textContent =
+    ev.tool_input_summary  || '(sin datos)';
+  document.getElementById('edm-response-content').textContent =
+    ev.tool_response_summary || '(sin respuesta)';
+  document.getElementById('event-detail-modal').removeAttribute('hidden');
+}
+
+// ─── Session detail modal ─────────────────────────────────
+async function openSessionDetail(sid) {
+  const s = sessions[sid];
+  const modal = document.getElementById('session-detail-modal');
+  if (!modal) return;
+  modal.removeAttribute('hidden');
+
+  document.getElementById('sdm-title').textContent = shortId(sid);
+  const metaEl   = document.getElementById('sdm-meta');
+  const eventsEl = document.getElementById('sdm-events');
+
+  metaEl.innerHTML = s ? `
+    <div class="sdm-info">
+      ${s.project_name ? `<span class="sdm-badge proj">📁 ${esc(s.project_name)}</span>` : ''}
+      ${s.working_dir  ? `<span class="sdm-path">${esc(s.working_dir)}</span>` : ''}
+      <span class="sdm-badge cost">${costStr(s.total_cost_usd)||'$0'}</span>
+      <span class="sdm-badge tools">🔩 ${s.tool_call_count || 0} tools</span>
+      ${s.chat_source ? `<span class="sdm-badge src">💬 ${esc(s.chat_source)}</span>` : ''}
+    </div>` : '';
+
+  eventsEl.innerHTML = '<div class="sdm-loading">Cargando…</div>';
+  try {
+    const r = await fetch(`${API}/api/sessions/${sid}/events`);
+    const evs = await r.json();
+    if (!evs.length) {
+      eventsEl.innerHTML = '<div class="empty-state">Sin eventos registrados</div>';
+      return;
+    }
+    eventsEl.innerHTML = evs.map(ev => `
+      <div class="sdm-event">
+        <span class="sdm-ev-icon">${(TOOL_ICONS[ev.tool_name]||{emoji:'🔩'}).emoji}</span>
+        <div class="sdm-ev-body">
+          <div class="sdm-ev-name">${esc(ev.tool_name || ev.event_type)}</div>
+          ${ev.tool_input_summary ? `<div class="sdm-ev-summary">${esc(shortText(ev.tool_input_summary, 120))}</div>` : ''}
+        </div>
+        <div class="sdm-ev-meta">
+          <div>${timeLabel(ev.timestamp)}</div>
+          ${ev.duration_ms    ? `<div style="color:var(--text-muted)">${ev.duration_ms}ms</div>` : ''}
+          ${ev.estimated_cost_usd ? `<div style="color:var(--yellow)">${costStr(ev.estimated_cost_usd)}</div>` : ''}
+        </div>
+      </div>`).join('');
+  } catch (err) {
+    eventsEl.innerHTML = `<div style="color:var(--red)">Error: ${esc(err.message)}</div>`;
+  }
+}
+
+function closeModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.setAttribute('hidden', '');
+}
+
+// ─── Agents panel ─────────────────────────────────────────
+function renderAgentCard(agent) {
+  const icon   = PROJECT_ICONS[agent.id] || '🤖';
+  const dotCls = agent.status === 'working'  ? 'working'  :
+                 agent.status === 'idle'     ? 'idle'     : 'inactive';
+  const cost   = agent.cost_today > 0 ? `$${parseFloat(agent.cost_today).toFixed(4)}` : '';
+  const task   = agent.current_task ? shortText(agent.current_task, 60) : '';
+  const ago    = agent.last_activity ? timeAgo(agent.last_activity) : 'sin actividad';
+  return `
+  <div class="agent-card">
+    <span class="agent-dot ${dotCls}"></span>
+    <span class="agent-icon">${icon}</span>
+    <div class="agent-info">
+      <div class="agent-name">${esc(agent.name)}</div>
+      <div class="agent-task">${task ? esc(task) : ago}</div>
+    </div>
+    ${cost ? `<span class="agent-cost">${cost}</span>` : ''}
+  </div>`;
+}
+
+function refreshAgents() {
+  const el      = document.getElementById('agent-cards');
+  const counter = document.getElementById('agents-count');
+  if (!el) return;
+  const active = agentsList.filter(a => a.status === 'working').length;
+  if (counter) counter.textContent = `${agentsList.length} agentes · ${active} activos`;
+  if (!agentsList.length) {
+    el.innerHTML = `<div class="empty-state"><span class="emoji">🤖</span>Sin agentes configurados</div>`;
+    return;
+  }
+  el.innerHTML = agentsList.map(renderAgentCard).join('');
+}
+
+async function loadAgents() {
+  try {
+    const r = await fetch(`${API}/api/relay/agents`);
+    if (!r.ok) return;
+    agentsList = await r.json();
+    refreshAgents();
+  } catch (err) {
+    console.warn('[agents] load error:', err.message);
+  }
+}
+
+// ─── Screenshots sync ─────────────────────────────────────
+async function syncScreenshots() {
+  const btn = document.getElementById('btn-sync-shots');
+  if (btn) { btn.disabled = true; btn.textContent = '↻ …'; }
+  try {
+    const r = await fetch(`${API}/api/screenshots/sync`, { method: 'POST' });
+    const d = await r.json();
+    await loadScreenshots();
+    if (btn) btn.textContent = `✓ ${d.copied}`;
+    setTimeout(() => { if (btn) { btn.disabled = false; btn.textContent = '↻ Sync'; } }, 3000);
+  } catch (_) {
+    if (btn) { btn.disabled = false; btn.textContent = '↻ Sync'; }
+  }
+}
+
+// ─── .env scan ────────────────────────────────────────────
+async function scanEnvProviders() {
+  const btn = document.getElementById('btn-scan-providers');
+  if (btn) { btn.disabled = true; btn.textContent = '↻ …'; }
+  try {
+    const r = await fetch(`${API}/api/providers/scan`, { method: 'POST' });
+    const d = await r.json();
+    await loadProviders();
+    if (btn) btn.textContent = `✓ ${(d.found||[]).length} keys`;
+    setTimeout(() => { if (btn) { btn.disabled = false; btn.textContent = '↻ Scan .env'; } }, 3000);
+  } catch (_) {
+    if (btn) { btn.disabled = false; btn.textContent = '↻ Scan .env'; }
+  }
+}
+
+// ─── Click handler init ───────────────────────────────────
+function initClickHandlers() {
+  // Event feed → detail modal
+  const feedEl = document.getElementById('event-list');
+  if (feedEl) {
+    feedEl.addEventListener('click', e => {
+      const item = e.target.closest('[data-eid]');
+      if (item && item.dataset.eid) openEventDetail(item.dataset.eid);
+    });
+  }
+  // Session list → detail modal
+  const sessEl = document.getElementById('session-list');
+  if (sessEl) {
+    sessEl.addEventListener('click', e => {
+      const item = e.target.closest('[data-sid]');
+      if (item && item.dataset.sid) openSessionDetail(item.dataset.sid);
+    });
+  }
+  // Close modal on overlay click or ESC
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) overlay.setAttribute('hidden', '');
+    });
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-overlay').forEach(m => m.setAttribute('hidden', ''));
+    }
+  });
 }
 
 // ─── Stats header ─────────────────────────────────────────
@@ -372,7 +545,7 @@ function switchRightTab(tab) {
   if (tab === 'costs' && costData) refreshCostsPanel(costData);
   if (tab === 'providers') loadProviders();
   if (tab === 'projects') loadProjects();
-  if (tab === 'agents') loadDispatches();
+  if (tab === 'agents') { loadAgents(); loadDispatches(); }
   if (tab === 'screenshots') loadScreenshots();
 }
 
@@ -768,6 +941,7 @@ async function loadInitialData() {
     sessData.forEach(s => { sessions[s.id] = s; });
     costData = costsData;
     events   = eventsData;
+    events.forEach(e => { if (e.id) eventCache.set(String(e.id), e); });
 
     refreshFeed();
     refreshSessions();
@@ -803,6 +977,7 @@ function connectSocket() {
 
   socket.on('event:new', ev => {
     events.push(ev);
+    if (ev.id) eventCache.set(String(ev.id), ev);
     if (events.length > 200) events.shift();
 
     if (ev.session_id && !sessions[ev.session_id]) {
@@ -877,8 +1052,10 @@ function connectSocket() {
 document.addEventListener('DOMContentLoaded', () => {
   initTabs();
   initProviderForm();
+  initClickHandlers();
   loadInitialData();
   loadProviders();
+  loadAgents();
   loadDispatches();
   loadScreenshots();
   connectSocket();

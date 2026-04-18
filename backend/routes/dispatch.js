@@ -35,19 +35,40 @@ function readProjects() {
 }
 
 // ── GET /api/relay/agents ─────────────────────────────────────
-router.get('/agents', (req, res) => {
-  const projects = readProjects();
-  res.json(
-    projects
-      .filter(p => p.active && p.inbox)
-      .map(p => ({
-        id:     p.id,
-        name:   p.name,
-        url:    p.url || null,
-        github: p.github || null,
-        status: 'idle',
-      }))
-  );
+router.get('/agents', async (req, res) => {
+  const projects = readProjects().filter(p => p.active && p.inbox);
+  const cutoff   = new Date(Date.now() - 24 * 3600 * 1000).toISOString().slice(0, 19).replace('T', ' ');
+  const results  = await Promise.all(projects.map(async p => {
+    try {
+      const [[row]] = await db.query(
+        `SELECT
+           SUM(CASE WHEN status IN ('pending','dispatched') THEN 1 ELSE 0 END) AS active_count,
+           COUNT(*) AS total_today,
+           MAX(created_at) AS last_activity,
+           (SELECT title FROM dispatch_tasks
+            WHERE project = ? AND status IN ('pending','dispatched')
+            ORDER BY created_at DESC LIMIT 1) AS current_task
+         FROM dispatch_tasks
+         WHERE project = ? AND created_at >= ?`,
+        [p.id, p.id, cutoff]
+      );
+      const active = parseInt(row.active_count || 0);
+      const hasRecent = parseInt(row.total_today || 0) > 0;
+      return {
+        id:            p.id,
+        name:          p.name,
+        url:           p.url || null,
+        github:        p.github || null,
+        status:        active > 0 ? 'working' : hasRecent ? 'idle' : 'inactive',
+        current_task:  row.current_task || null,
+        cost_today:    0,
+        last_activity: row.last_activity || null,
+      };
+    } catch (_) {
+      return { id: p.id, name: p.name, status: 'idle', current_task: null, cost_today: 0, last_activity: null };
+    }
+  }));
+  res.json(results);
 });
 
 // ── POST /api/relay/dispatch ──────────────────────────────────

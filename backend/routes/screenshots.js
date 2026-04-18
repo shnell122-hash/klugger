@@ -12,7 +12,8 @@ const router  = express.Router();
 const fs      = require('fs');
 const path    = require('path');
 
-const SHOTS_DIR = path.join(__dirname, '..', '..', 'frontend', 'screenshots');
+const SHOTS_DIR     = path.join(__dirname, '..', '..', 'frontend', 'screenshots');
+const PROJECTS_FILE = path.join(__dirname, '..', '..', 'relay', 'projects.json');
 
 function ensureDir() {
   try { fs.mkdirSync(SHOTS_DIR, { recursive: true }); } catch (_) {}
@@ -89,6 +90,44 @@ router.post('/new', (req, res) => {
   if (io) io.emit('screenshot:new', shot);
 
   res.json({ ok: true, shot });
+});
+
+// ── POST /api/screenshots/sync ───────────────────────────────
+// Pull screenshots from all active project repos into frontend/screenshots/
+router.post('/sync', (req, res) => {
+  ensureDir();
+  let projects = [];
+  try { projects = JSON.parse(fs.readFileSync(PROJECTS_FILE, 'utf8')); } catch (_) {}
+
+  let copied = 0;
+  const errors = [];
+
+  for (const proj of projects.filter(p => p.active && p.repo)) {
+    const candidates = [
+      path.join(proj.repo, 'relay', 'screenshots'),
+      path.join(proj.repo, 'screenshots'),
+    ];
+    for (const dir of candidates) {
+      if (!fs.existsSync(dir)) continue;
+      let files = [];
+      try { files = fs.readdirSync(dir).filter(f => /\.(png|jpe?g|webp)$/i.test(f)); }
+      catch (_) { continue; }
+      for (const f of files) {
+        const dest = path.join(SHOTS_DIR, `${proj.id}-${f}`);
+        if (!fs.existsSync(dest)) {
+          try { fs.copyFileSync(path.join(dir, f), dest); copied++; }
+          catch (e) { errors.push(`${proj.id}/${f}: ${e.message}`); }
+        }
+      }
+    }
+  }
+
+  if (copied > 0) {
+    const io = req.app.get('io');
+    if (io) listShots().slice(0, copied).forEach(s => io.emit('screenshot:new', s));
+  }
+
+  res.json({ copied, errors: errors.slice(0, 5) });
 });
 
 // ── DELETE /api/screenshots/:filename ────────────────────────

@@ -69,12 +69,14 @@
       <button class="rtab" data-rtab="projects">Proyectos</button>
     </div>
 
-    <!-- Agents / Dispatch Queue -->
+    <!-- Agents panel -->
     <div id="agents-panel" class="visible">
       <div class="panel-header">
-        <span class="title">Cola de tareas</span>
+        <span class="title">Agentes</span>
         <span id="agents-count" style="color:var(--text-muted)">—</span>
       </div>
+      <div id="agent-cards"></div>
+      <div class="panel-section-title">Cola de tareas</div>
       <div id="dispatch-list"></div>
     </div>
 
@@ -86,6 +88,7 @@
           <select id="shot-filter" style="background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:10px">
             <option value="">Todos los proyectos</option>
           </select>
+          <button id="btn-sync-shots" class="btn-sm" onclick="syncScreenshots()">↻ Sync</button>
           <span id="shot-count" style="color:var(--text-muted)">—</span>
         </div>
       </div>
@@ -94,6 +97,10 @@
 
     <!-- Sessions -->
     <div id="sessions-panel">
+      <div class="panel-header">
+        <span class="title">Sesiones</span>
+        <span id="sessions-count" style="color:var(--text-muted)">—</span>
+      </div>
       <div id="session-list"></div>
     </div>
 
@@ -124,6 +131,10 @@
 
     <!-- Providers / API Keys -->
     <div id="providers-panel">
+      <div class="panel-header">
+        <span class="title">APIs</span>
+        <button id="btn-scan-providers" class="btn-sm" onclick="scanEnvProviders()">↻ Scan .env</button>
+      </div>
       <div id="add-provider-form">
         <h3>Agregar API Key</h3>
         <div class="form-row">
@@ -160,6 +171,38 @@
 
   </div>
 </main>
+
+<!-- ── Event detail modal ── -->
+<div id="event-detail-modal" class="modal-overlay" hidden>
+  <div class="modal-box modal-wide">
+    <div class="modal-header">
+      <span id="edm-title" class="modal-title">Tool Call</span>
+      <button class="modal-close" onclick="closeModal('event-detail-modal')">✕</button>
+    </div>
+    <div class="edm-panels">
+      <div class="edm-pane edm-input">
+        <div class="edm-pane-label">Input</div>
+        <pre id="edm-input-content"></pre>
+      </div>
+      <div class="edm-pane edm-response">
+        <div class="edm-pane-label">Response</div>
+        <pre id="edm-response-content"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Session detail modal ── -->
+<div id="session-detail-modal" class="modal-overlay" hidden>
+  <div class="modal-box">
+    <div class="modal-header">
+      <span id="sdm-title" class="modal-title">Sesión</span>
+      <button class="modal-close" onclick="closeModal('session-detail-modal')">✕</button>
+    </div>
+    <div id="sdm-meta"></div>
+    <div id="sdm-events" class="sdm-event-list"></div>
+  </div>
+</div>
 
 <!-- ── Project detail modal ── -->
 <div id="project-detail-modal">

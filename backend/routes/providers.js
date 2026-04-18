@@ -2,7 +2,11 @@
 
 const express = require('express');
 const router  = express.Router();
+const fs      = require('fs');
+const path    = require('path');
 const db      = require('../db/mysql');
+
+const PROJECTS_FILE = path.join(__dirname, '..', '..', 'relay', 'projects.json');
 
 // GET /api/providers — list all providers
 router.get('/', async (req, res) => {
@@ -73,6 +77,59 @@ router.post('/', async (req, res) => {
     console.error('[providers] POST error:', err.message);
     res.status(500).json({ error: err.message });
   }
+});
+
+// POST /api/providers/scan — auto-detect API keys from project .env files
+router.post('/scan', async (req, res) => {
+  let projects = [];
+  try { projects = JSON.parse(fs.readFileSync(PROJECTS_FILE, 'utf8')); } catch (_) {}
+
+  const found   = [];
+  const scanned = [];
+
+  for (const proj of projects.filter(p => p.active && p.repo)) {
+    const envFiles = ['.env', '.env.local', '.env.production']
+      .map(f => path.join(proj.repo, f));
+
+    for (const envPath of envFiles) {
+      if (!fs.existsSync(envPath)) continue;
+      scanned.push(envPath);
+      let lines = [];
+      try { lines = fs.readFileSync(envPath, 'utf8').split('\n'); } catch (_) { continue; }
+
+      for (const line of lines) {
+        const m = line.match(/^(ANTHROPIC_API_KEY|OPENAI_API_KEY|DEEPSEEK_API_KEY|[\w]+_API_KEY|[\w]+_SECRET_KEY|[\w]+_TOKEN)\s*=\s*(.+)\s*$/);
+        if (!m) continue;
+        const [, keyName, rawVal] = m;
+        const keyValue = rawVal.trim().replace(/^['"]|['"]$/g, '');
+        if (!keyValue || keyValue.startsWith('$') || keyValue.includes('${')) continue;
+
+        // Mask: keep first 4 + last 4 chars
+        const masked = keyValue.length > 10
+          ? keyValue.slice(0, 4) + '••••' + keyValue.slice(-4)
+          : '••••' + keyValue.slice(-4);
+
+        const provider = keyName.includes('ANTHROPIC') ? 'anthropic' :
+                         keyName.includes('OPENAI')    ? 'openai'    :
+                         keyName.includes('DEEPSEEK')  ? 'deepseek'  : 'other';
+
+        found.push({ project_name: proj.name, key_name: keyName, masked, provider });
+
+        try {
+          await db.query(
+            `INSERT INTO api_providers (provider, project_name, api_key_masked)
+             VALUES (?, ?, ?)
+             ON DUPLICATE KEY UPDATE
+               project_name   = VALUES(project_name),
+               api_key_masked = VALUES(api_key_masked)`,
+            [provider, proj.name, masked]
+          );
+        } catch (_) {}
+      }
+    }
+  }
+
+  res.json({ scanned: scanned.length, projects: projects.filter(p => p.active).length, found });
 });
 
 // GET /api/providers/costs — costs by provider + project (time series)

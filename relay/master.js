@@ -111,6 +111,62 @@ function tg(text) {
   req.end();
 }
 
+// ─── Proposals store (Telegram /tarea workflow) ───────────
+const PROPOSALS = new Map(); // proposalId → {id, project, projectName, description, plan}
+
+// Send message with inline keyboard (for proposals)
+function tgWithKeyboard(text, inlineKeyboard) {
+  if (!BOT_TOKEN || !CHAT_ID) return;
+  const body = JSON.stringify({
+    chat_id:      CHAT_ID,
+    text:         String(text).slice(0, 4096),
+    parse_mode:   'HTML',
+    reply_markup: { inline_keyboard: inlineKeyboard },
+  });
+  const req = https.request({
+    hostname: 'api.telegram.org',
+    path:     `/bot${BOT_TOKEN}/sendMessage`,
+    method:   'POST',
+    headers:  { 'Content-Type': 'application/json' },
+  });
+  req.on('error', () => {});
+  req.write(body);
+  req.end();
+}
+
+function tgEditMessage(messageId, text) {
+  if (!BOT_TOKEN || !CHAT_ID) return;
+  const body = JSON.stringify({
+    chat_id:    CHAT_ID,
+    message_id: messageId,
+    text:       String(text).slice(0, 4096),
+    parse_mode: 'HTML',
+  });
+  const req = https.request({
+    hostname: 'api.telegram.org',
+    path:     `/bot${BOT_TOKEN}/editMessageText`,
+    method:   'POST',
+    headers:  { 'Content-Type': 'application/json' },
+  });
+  req.on('error', () => {});
+  req.write(body);
+  req.end();
+}
+
+function tgAnswerCallback(callbackId) {
+  if (!BOT_TOKEN) return;
+  const body = JSON.stringify({ callback_query_id: callbackId });
+  const req  = https.request({
+    hostname: 'api.telegram.org',
+    path:     `/bot${BOT_TOKEN}/answerCallbackQuery`,
+    method:   'POST',
+    headers:  { 'Content-Type': 'application/json' },
+  });
+  req.on('error', () => {});
+  req.write(body);
+  req.end();
+}
+
 // ─── Telegram: recibir comandos (getUpdates polling) ──────
 let _tgOffset = 0;
 
@@ -129,6 +185,10 @@ function pollTelegramCommands() {
         if (!json.ok || !json.result.length) return;
         for (const upd of json.result) {
           _tgOffset = Math.max(_tgOffset, upd.update_id + 1);
+          // Handle inline keyboard button presses
+          const cb = upd.callback_query;
+          if (cb) { handleCallbackQuery(cb); continue; }
+          // Handle regular messages
           const msg = upd.message;
           if (!msg || String(msg.chat.id) !== String(CHAT_ID)) continue;
           handleTelegramCommand(msg.text || '');
@@ -178,15 +238,103 @@ function handleTelegramCommand(text) {
     return;
   }
 
+  if (lower.startsWith('/tarea') || lower.startsWith('/task')) {
+    const parts       = raw.split(/\s+/);
+    const projectId   = parts[1] || '';
+    const description = parts.slice(2).join(' ').trim();
+    if (!projectId || !description) {
+      tg('❓ Uso: /tarea [proyecto] [descripción]\nEjemplo: /tarea fiscalai Audita conexiones del relay');
+      return;
+    }
+    let projects = [];
+    try { projects = JSON.parse(fs.readFileSync(PROJECTS_FILE, 'utf8')); } catch (_) {}
+    const target = projects.find(p =>
+      p.id === projectId || p.id.startsWith(projectId) ||
+      p.name.toLowerCase().includes(projectId.toLowerCase())
+    );
+    if (!target || !target.active) {
+      const avail = projects.filter(p => p.active).map(p => p.id).join(', ');
+      tg(`❓ Proyecto no encontrado: <code>${projectId}</code>\nActivos: ${avail}`);
+      return;
+    }
+    tg(`⏳ Generando plan para <b>${target.name}</b>…`);
+    callAnthropicDirect(
+      'Eres el planificador de ia.vilarkptl.com. Dado un proyecto y descripción, genera un plan de 3-5 pasos concisos en español. Solo enumera los pasos comenzando cada uno con "• ". Sin encabezados.',
+      `Proyecto: ${target.name}\nTarea: ${description}`
+    ).then(plan => {
+      const pid = crypto.randomUUID().slice(0, 8);
+      PROPOSALS.set(pid, { id: pid, project: target.id, projectName: target.name, description, plan });
+      tgWithKeyboard(
+        `📋 <b>Plan para ${target.name}</b>\n\n${plan}\n\n<i>${description}</i>`,
+        [[
+          { text: '✅ Ejecutar', callback_data: `approve_${pid}` },
+          { text: '❌ Cancelar', callback_data: `cancel_${pid}` },
+        ]]
+      );
+    }).catch(err => tg(`❌ Error generando plan: ${err.message}`));
+    return;
+  }
+
+  if (lower.startsWith('/detente') || lower.startsWith('/para')) {
+    const id = raw.split(/\s+/)[1];
+    if (!id) {
+      const running = [...ACTIVE_TASKS];
+      running.forEach(projId => {
+        const j = loadJournal(projId); j.state = 'stopped'; saveJournal(projId, j);
+      });
+      tg(`🛑 Señal de parada enviada a ${running.length || 0} tarea(s) activa(s).\nUsa /activar [id] para reanudar.`);
+      return;
+    }
+    const j = loadJournal(id); j.state = 'stopped'; saveJournal(id, j);
+    tg(`🛑 <b>${id}</b> marcado para detenerse.\nUsa /activar ${id} para reanudar.`);
+    return;
+  }
+
   if (lower === '/ayuda' || lower === '/help') {
     tg(`📖 <b>Comandos disponibles</b>
 
+/tarea [proyecto] [descripción] — propone y despacha una tarea
+/detente [id?] — detiene una tarea (o todas si no se indica id)
 /resumen — resumen de todos los proyectos
 /resumen [id] — resumen de un proyecto (ej: /resumen fiscalai)
 /status — qué tareas están corriendo ahora
-/parar [id] — detener un agente
+/parar [id] — detener un agente (alias de /detente)
 /activar [id] — reactivar agente detenido
 /ayuda — esta lista`);
+    return;
+  }
+}
+
+function handleCallbackQuery(cb) {
+  tgAnswerCallback(cb.id);
+  const data  = cb.data || '';
+  const msgId = cb.message && cb.message.message_id;
+
+  if (data.startsWith('approve_')) {
+    const pid      = data.slice(8);
+    const proposal = PROPOSALS.get(pid);
+    if (!proposal) {
+      if (msgId) tgEditMessage(msgId, '❌ Propuesta expirada o ya procesada.');
+      return;
+    }
+    PROPOSALS.delete(pid);
+    // Dispatch via Monitor API
+    postToMonitor('/api/relay/dispatch', {
+      project:   proposal.project,
+      task:      `# ${proposal.description}\n\n${proposal.plan}`,
+      requester: 'telegram',
+    });
+    if (msgId) tgEditMessage(msgId,
+      `✅ <b>Tarea despachada — ${proposal.projectName}</b>\n\n${proposal.description}`
+    );
+    log(null, `[tg/tarea] Aprobado y despachado: ${proposal.project} — ${proposal.description}`);
+    return;
+  }
+
+  if (data.startsWith('cancel_')) {
+    const pid = data.slice(7);
+    PROPOSALS.delete(pid);
+    if (msgId) tgEditMessage(msgId, '❌ Tarea cancelada.');
     return;
   }
 }
