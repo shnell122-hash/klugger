@@ -314,10 +314,7 @@ function handleTelegramCommand(text, imageContext) {
       ? `Proyectos: ${targets.map(t => t.name).join(' + ')}\nTarea: ${description}`
       : `Proyecto: ${targets[0].name}\nTarea: ${description}`;
 
-    callAnthropicDirect(
-      'Eres el planificador de ia.vilarkptl.com. Dado un proyecto y descripción, genera un plan de 3-5 pasos concisos en español. Solo enumera los pasos comenzando cada uno con "• ". Sin encabezados.',
-      planContext + imageNote
-    ).then(plan => {
+    const dispatchWithPlan = (plan) => {
       const pid = crypto.randomUUID().slice(0, 8);
       PROPOSALS.set(pid, {
         id: pid,
@@ -336,7 +333,23 @@ function handleTelegramCommand(text, imageContext) {
           { text: '❌ Cancelar',                     callback_data: `cancel_${pid}` },
         ]]
       );
-    }).catch(err => tg(`❌ Error generando plan: ${err.message}`));
+    };
+
+    callAnthropicDirect(
+      'Eres el planificador de ia.vilarkptl.com. Dado un proyecto y descripción, genera un plan de 3-5 pasos concisos en español. Solo enumera los pasos comenzando cada uno con "• ". Sin encabezados.',
+      planContext + imageNote
+    ).then(dispatchWithPlan).catch(err => {
+      log(null, `[tg/tarea] Anthropic no disponible (${err.message}) — usando plan local`);
+      // Fallback: generate plan locally without API
+      const words  = description.split(/\s+/).slice(0, 10).join(' ');
+      const local  =
+        `• Analizar código existente relacionado con: "${words}…"\n` +
+        `• Identificar archivos y componentes a modificar\n` +
+        `• Implementar los cambios requeridos\n` +
+        `• Verificar que la implementación funciona\n` +
+        `• Hacer commit y push`;
+      dispatchWithPlan(local + '\n\n<i>⚠️ Plan generado localmente — API no disponible</i>');
+    });
     return;
   }
 
