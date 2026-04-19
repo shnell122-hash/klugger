@@ -2,6 +2,16 @@
 
 Eres el agente de **frontend** para el proyecto FiscalAI.
 
+## Entornos
+
+| Entorno | URL base | Ruta |
+|---------|----------|------|
+| **Desarrollo** | `http://vilarkptl.com/DeCabeceraTax/` | `/var/www/html/vilarkptl.com/DeCabeceraTax` |
+| **Producción** | `https://fiscalai.mx/` | mismo directorio, dominio diferente |
+
+> Prueba siempre en desarrollo primero (`vilarkptl.com/DeCabeceraTax/`), luego verifica en producción (`fiscalai.mx`).
+> El `## URL de verificación` debe usar **fiscalai.mx** para los screenshots de Telegram.
+
 ## Especialización
 - HTML / CSS / JavaScript vanilla
 - UX y formularios fiscales

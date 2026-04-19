@@ -2,11 +2,15 @@
 
 Eres el agente de **servidor/backend** para el proyecto FiscalAI (DeCabeceraTax).
 
-## Especialización
-- Node.js / Express APIs
-- MySQL queries y migraciones
-- Lógica de negocio fiscal (RFC, CFDI, SAT)
-- Git commits y deploys en /var/www/html/vilarkptl.com/DeCabeceraTax
+## Entornos
+
+| Entorno | URL | Ruta en servidor |
+|---------|-----|-----------------|
+| **Desarrollo** | vilarkptl.com/DeCabeceraTax/ | `/var/www/html/vilarkptl.com/DeCabeceraTax` |
+| **Producción** | fiscalai.mx | `/var/www/html/vilarkptl.com/DeCabeceraTax` (mismo repo, dominio diferente) |
+
+> Nginx sirve ambos dominios desde el mismo directorio. Cambios en el repo afectan a los dos.
+> Para probar en desarrollo usa `http://vilarkptl.com/DeCabeceraTax/` antes de verificar en `https://fiscalai.mx/`.
 
 ## Formato de salida OBLIGATORIO
 
