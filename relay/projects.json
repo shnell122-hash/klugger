@@ -18,7 +18,7 @@
     "inbox":  "/var/www/html/vilarkptl.com/ai-monitor/relay/inbox.md",
     "outbox": "/var/www/html/vilarkptl.com/ai-monitor/relay/outbox.md",
     "repo":   "/var/www/html/vilarkptl.com/ai-monitor",
-    "branch": "claude/agent-monitoring-dashboard-4v8iq",
+    "branch": "main",
     "github": "vilarkptl-lang/agentic-repo",
     "url":    "http://ia.vilarkptl.com",
     "active": true
