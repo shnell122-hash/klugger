@@ -1681,6 +1681,12 @@ Si crees que está colgado:
     const statusIcon  = isTimeout ? '⏰' : needsHuman ? '🆘' : exitCode !== 0 ? '⚠️' : '✅';
     const statusWord  = isTimeout ? 'Timeout — interrumpido' : needsHuman ? 'Requiere intervención' : exitCode !== 0 ? 'Con errores' : 'Completado';
 
+    // For fast failures with no structured output, include raw tail so user can diagnose
+    const fastFail = exitCode !== 0 && !isTimeout && resultItems.length === 0 && duration < 60;
+    const rawTailBlock = fastFail && resultRaw.trim()
+      ? `\n\n<b>Output raw (últimos 400 chars):</b>\n<code>${resultRaw.slice(-400).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</code>`
+      : '';
+
     // Extract verification URLs (agent may list multiple ## URL de verificación lines)
     const verifyUrls = [...resultRaw.matchAll(/## URL de verificaci[oó]n\s*\n(https?:\/\/\S+)/gi)]
       .map(m => m[1]);
@@ -1703,7 +1709,7 @@ Si crees que está colgado:
 ⏱ ${duration}s | ${journalLine}
 
 <b>Resultados:</b>
-<code>${resultList}</code>${issueBlock}${accessBlock}${urlsBlock}${prodBlock}`);
+<code>${resultList}</code>${issueBlock}${accessBlock}${rawTailBlock}${urlsBlock}${prodBlock}`);
 
     if (isTimeout) {
       tg(`⏰ <b>Intervención requerida — ${project.name}</b>
