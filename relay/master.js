@@ -169,6 +169,41 @@ function tgAnswerCallback(callbackId) {
   req.end();
 }
 
+// Register command list with Telegram (shows autocomplete in chat)
+function registerBotCommands() {
+  if (!BOT_TOKEN) return;
+  const commands = [
+    { command: 'tarea',    description: 'Propone plan y despacha tarea — /tarea [proyecto] [descripción]' },
+    { command: 'status',   description: 'Tareas corriendo en este momento' },
+    { command: 'resumen',  description: 'Resumen de proyectos — /resumen [id?]' },
+    { command: 'detente',  description: 'Detiene tareas activas — /detente [id?]' },
+    { command: 'activar',  description: 'Reactiva un agente detenido — /activar [id]' },
+    { command: 'memoria',  description: 'Agrega nota a la memoria del agente — /memoria [id] [nota]' },
+    { command: 'comandos', description: 'Lista todos los comandos disponibles' },
+    { command: 'ayuda',    description: 'Lista todos los comandos disponibles' },
+  ];
+  const body = JSON.stringify({ commands });
+  const req  = https.request({
+    hostname: 'api.telegram.org',
+    path:     `/bot${BOT_TOKEN}/setMyCommands`,
+    method:   'POST',
+    headers:  { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+  }, (res) => {
+    let data = '';
+    res.on('data', c => data += c);
+    res.on('end', () => {
+      try {
+        const j = JSON.parse(data);
+        if (j.ok) log(null, '[tg] Comandos registrados en BotFather');
+        else log(null, `[tg] setMyCommands error: ${j.description}`);
+      } catch (_) {}
+    });
+  });
+  req.on('error', () => {});
+  req.write(body);
+  req.end();
+}
+
 // ─── Telegram: recibir comandos (getUpdates polling) ──────
 let _tgOffset = 0;
 
@@ -364,19 +399,30 @@ async function handleTelegramCommand(text, imageContext) {
     return;
   }
 
-  if (lower === '/ayuda' || lower === '/help') {
-    tg(`📖 <b>Comandos disponibles</b>
+  if (lower === '/ayuda' || lower === '/help' || lower === '/comandos' || lower === '/start') {
+    tg(`🤖 <b>Comandos del agente relay</b>
 
-/tarea [p1,p2,...] [descripción] — propone y despacha a uno o varios proyectos
-  Ej: /tarea fiscalai,fiscalai-front Mejora el PDF del perfil
-  También puedes adjuntar una imagen con caption
-/detente [id?] — detiene una tarea (o todas si no se indica id)
+<b>Tareas</b>
+/tarea [proyecto] [descripción] — propone plan y despacha tarea
+  • Acepta varios proyectos separados por coma: <code>fiscalai,fiscalai-front</code>
+  • También puedes adjuntar una imagen con caption
+  Ej: <code>/tarea fiscalai Corrige el login SAT</code>
+
+/detente — detiene todas las tareas activas
+/detente [id] — detiene un agente específico
+/activar [id] — reactiva un agente detenido
+
+<b>Estado</b>
+/status — tareas corriendo en este momento
 /resumen — resumen de todos los proyectos
-/resumen [id] — resumen de un proyecto (ej: /resumen fiscalai)
-/status — qué tareas están corriendo ahora
-/parar [id] — detener un agente (alias de /detente)
-/activar [id] — reactivar agente detenido
+/resumen [id] — resumen de un proyecto
+
+<b>Memoria</b>
 /memoria [id] [nota] — agrega nota permanente a la memoria del agente
+  Ej: <code>/memoria fiscalai La clave SAT expira en mayo</code>
+
+<b>Ayuda</b>
+/comandos — esta lista
 /ayuda — esta lista`);
     return;
   }
@@ -1859,6 +1905,9 @@ async function main() {
 📡 ${activeProjects.length} proyectos activos:
 ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
 🌐 Dashboard: http://ia.vilarkptl.com`);
+
+  // Register command list with Telegram so they autocomplete in the chat
+  registerBotCommands();
 
   const hashes = loadHashes();
 
