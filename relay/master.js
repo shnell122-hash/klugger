@@ -878,9 +878,29 @@ function checkSelfReload() {
   const newHash = fileHash(__filename);
   if (newHash && newHash !== _selfHash) {
     _selfReloading = true;
-    log(null, '🔄 relay/master.js actualizado — reiniciando en 3s (pm2 auto-restart)');
-    tg('🔄 <b>relay-master</b> — nueva versión detectada\nReiniciando en 3s…');
-    setTimeout(() => process.exit(0), 3000);
+    const active = [...ACTIVE_TASKS];
+    if (active.length > 0) {
+      const names = active.join(', ');
+      log(null, `🔄 master.js actualizado — esperando tareas activas: ${names}`);
+      tg(`🔄 <b>relay-master</b> — nueva versión detectada\n⏳ Esperando tareas activas antes de reiniciar:\n${active.map(t => `• <code>${t}</code>`).join('\n')}`);
+      // Poll until all tasks finish, then exit (max 20 min)
+      const deadline = Date.now() + 20 * 60 * 1000;
+      const wait = setInterval(() => {
+        if (ACTIVE_TASKS.size === 0 || Date.now() > deadline) {
+          clearInterval(wait);
+          if (ACTIVE_TASKS.size > 0) {
+            const remaining = [...ACTIVE_TASKS].join(', ');
+            tg(`⚠️ <b>relay-master</b> — reiniciando con tareas aún activas: ${remaining}`);
+          }
+          log(null, '🔄 reiniciando ahora (pm2 auto-restart)');
+          setTimeout(() => process.exit(0), 1000);
+        }
+      }, 5000);
+    } else {
+      log(null, '🔄 relay/master.js actualizado — reiniciando en 3s (pm2 auto-restart)');
+      tg('🔄 <b>relay-master</b> — nueva versión detectada\nReiniciando en 3s…');
+      setTimeout(() => process.exit(0), 3000);
+    }
   }
 }
 
