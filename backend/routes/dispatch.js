@@ -60,13 +60,14 @@ router.get('/agents', async (req, res) => {
         name:          p.name,
         url:           p.url || null,
         github:        p.github || null,
+        claude_model:  p.claude_model || 'claude-sonnet-4-6',
         status:        active > 0 ? 'working' : hasRecent ? 'idle' : 'inactive',
         current_task:  row.current_task || null,
         cost_today:    0,
         last_activity: row.last_activity || null,
       };
     } catch (_) {
-      return { id: p.id, name: p.name, status: 'idle', current_task: null, cost_today: 0, last_activity: null };
+      return { id: p.id, name: p.name, claude_model: p.claude_model || 'claude-sonnet-4-6', status: 'idle', current_task: null, cost_today: 0, last_activity: null };
     }
   }));
   res.json(results);

@@ -238,12 +238,14 @@ function renderAgentCard(agent) {
   const cost   = agent.cost_today > 0 ? `$${parseFloat(agent.cost_today).toFixed(4)}` : '';
   const task   = agent.current_task ? shortText(agent.current_task, 60) : '';
   const ago    = agent.last_activity ? timeAgo(agent.last_activity) : 'sin actividad';
+  const modelRaw = (agent.claude_model || '').replace('claude-', '').replace(/-\d{8}$/, '');
+  const modelBadge = modelRaw ? `<span class="agent-model-badge">${esc(modelRaw)}</span>` : '';
   return `
   <div class="agent-card">
     <span class="agent-dot ${dotCls}"></span>
     <span class="agent-icon">${icon}</span>
     <div class="agent-info">
-      <div class="agent-name">${esc(agent.name)}</div>
+      <div class="agent-name">${esc(agent.name)}${modelBadge}</div>
       <div class="agent-task">${task ? esc(task) : ago}</div>
     </div>
     ${cost ? `<span class="agent-cost">${cost}</span>` : ''}

@@ -50,6 +50,7 @@ const MONITOR_API     = process.env.MONITOR_API_URL || 'http://127.0.0.1:3010';
 const BOT_TOKEN       = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT_ID         = process.env.TELEGRAM_CHAT_ID;
 const ANTHROPIC_KEY   = process.env.ANTHROPIC_API_KEY;
+const DEEPSEEK_KEY    = process.env.DEEPSEEK_API_KEY;
 const GITHUB_TOKEN    = process.env.GITHUB_TOKEN;
 const CLAUDE_BIN      = process.env.CLAUDE_BIN || '/usr/local/bin/claude';
 const CLAUDE_USER     = process.env.CLAUDE_USER || 'claude-agent';
@@ -240,7 +241,7 @@ function downloadTelegramPhoto(msg) {
   req.end();
 }
 
-function handleTelegramCommand(text, imageContext) {
+async function handleTelegramCommand(text, imageContext) {
   const raw = text.trim();
   const lower = raw.toLowerCase();
 
@@ -311,12 +312,22 @@ function handleTelegramCommand(text, imageContext) {
 
     const pid = crypto.randomUUID().slice(0, 8);
     const words = description.split(/\s+/).slice(0, 12).join(' ');
-    const plan =
+    const localPlan =
       `• Analizar código existente relacionado con: "${words}…"\n` +
       `• Identificar archivos y componentes a modificar\n` +
       `• Implementar los cambios requeridos\n` +
       `• Verificar que la implementación funciona\n` +
       `• Hacer commit y push`;
+
+    const planSystemPrompt =
+      'Eres un asistente técnico. El usuario despacha tareas a agentes de código. ' +
+      'Dado el proyecto y la descripción, genera un plan de implementación conciso en 3-5 bullets. ' +
+      'Cada bullet empieza con •. Sin encabezados, sin markdown extra, solo los bullets.';
+    const planUserMsg = `Proyecto: ${namesList}\nTarea: ${description}`;
+
+    // Generate plan via DeepSeek (fast, cheap); fall back to local template if unavailable
+    const dsResult = await callDeepSeekDirect(planSystemPrompt, planUserMsg, 300);
+    const plan = (dsResult && dsResult.trim()) ? dsResult.trim() : localPlan;
 
     PROPOSALS.set(pid, {
       id: pid,
@@ -611,6 +622,53 @@ function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512) {
     setTimeout(() => reject(new Error(`Timeout ${timeoutMs/1000}s — api.anthropic.com no respondió`)), timeoutMs)
   );
   return Promise.race([apiCall, timeout]);
+}
+
+// Calls DeepSeek V3 via OpenAI-compatible API — used for /tarea planning and summaries.
+// Falls back gracefully (returns null) if no API key is configured.
+function callDeepSeekDirect(systemPrompt, userMessage, maxTokens = 512) {
+  const timeoutMs = 20000;
+  const apiCall = new Promise((resolve, reject) => {
+    if (!DEEPSEEK_KEY) { reject(new Error('DEEPSEEK_API_KEY no configurado')); return; }
+    const body = JSON.stringify({
+      model:      'deepseek-chat',
+      max_tokens: maxTokens,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: userMessage  },
+      ],
+    });
+    const req = https.request({
+      hostname: 'api.deepseek.com',
+      path:     '/v1/chat/completions',
+      method:   'POST',
+      headers: {
+        'Authorization':  `Bearer ${DEEPSEEK_KEY}`,
+        'Content-Type':   'application/json',
+        'Content-Length': Buffer.byteLength(body),
+      },
+    }, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          if (json.error) { reject(new Error(`DeepSeek error: ${json.error.message}`)); return; }
+          resolve(json.choices?.[0]?.message?.content || null);
+        } catch (e) { reject(e); }
+      });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error(`Timeout ${timeoutMs/1000}s — api.deepseek.com`)), timeoutMs)
+  );
+  return Promise.race([apiCall, timeout]).catch(e => {
+    log(null, `[deepseek] error: ${e.message?.slice(0, 100)}`);
+    return null;
+  });
 }
 
 // Append a timestamped entry to relay/journal.md in a project repo
@@ -1028,11 +1086,15 @@ ${taskContent}`;
     if (_fallbackUser !== _currentUser) _usersToTry.push(_fallbackUser);
   }
 
+  const claudeModel = project.claude_model
+    || process.env.CLAUDE_DEFAULT_MODEL
+    || 'claude-sonnet-4-6';
+
   const coreCmd = [
     `cd ${project.repo || '/var/www/html'} 2>/dev/null || true`,
     // Diagnostic first — visible in resultText so Telegram shows it on task completion
     `echo "RELAY_DIAG user=$(id -un 2>/dev/null||echo '?') home=$HOME task=$(test -r ${taskFile} && echo ok || echo UNREADABLE)" > ${outFile} 2>&1`,
-    `${CLAUDE_BIN} --dangerously-skip-permissions --output-format stream-json --verbose --print < ${taskFile} >> ${outFile} 2>&1`,
+    `${CLAUDE_BIN} --dangerously-skip-permissions --output-format stream-json --verbose --print --model ${claudeModel} < ${taskFile} >> ${outFile} 2>&1`,
   ].join(' && ');
 
   function buildCmd(user) {

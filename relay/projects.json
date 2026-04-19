@@ -2,6 +2,7 @@
   {
     "id": "coordinator",
     "name": "Orquestador Central",
+    "claude_model": "claude-haiku-4-5-20251001",
     "inbox":  "/var/www/html/vilarkptl.com/DeCabeceraTax/relay/coordinator-inbox.md",
     "outbox": "/var/www/html/vilarkptl.com/DeCabeceraTax/relay/coordinator-outbox.md",
     "repo":   "/var/www/html/vilarkptl.com/DeCabeceraTax",
@@ -13,6 +14,7 @@
   {
     "id": "ai-monitor",
     "name": "AI Monitor",
+    "claude_model": "claude-haiku-4-5-20251001",
     "inbox":  "/var/www/html/vilarkptl.com/ai-monitor/relay/inbox.md",
     "outbox": "/var/www/html/vilarkptl.com/ai-monitor/relay/outbox.md",
     "repo":   "/var/www/html/vilarkptl.com/ai-monitor",
@@ -24,6 +26,7 @@
   {
     "id": "fiscalai",
     "name": "FiscalAI — Backend",
+    "claude_model": "claude-sonnet-4-6",
     "inbox":  "/var/www/html/vilarkptl.com/DeCabeceraTax/relay/inbox.md",
     "outbox": "/var/www/html/vilarkptl.com/DeCabeceraTax/relay/outbox.md",
     "repo":   "/var/www/html/vilarkptl.com/DeCabeceraTax",
@@ -35,6 +38,7 @@
   {
     "id": "fiscalai-front",
     "name": "FiscalAI — Frontend",
+    "claude_model": "claude-haiku-4-5-20251001",
     "inbox":  "/var/www/html/vilarkptl.com/DeCabeceraTax/relay/inbox-front.md",
     "outbox": "/var/www/html/vilarkptl.com/DeCabeceraTax/relay/outbox-front.md",
     "repo":   "/var/www/html/vilarkptl.com/DeCabeceraTax",

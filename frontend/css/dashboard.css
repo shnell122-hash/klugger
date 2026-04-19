@@ -776,7 +776,13 @@ main {
 }
 .agent-icon { font-size: 14px; flex-shrink: 0; }
 .agent-info { flex: 1; min-width: 0; }
-.agent-name { font-size: 12px; font-weight: 600; color: var(--text); }
+.agent-name { font-size: 12px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 5px; }
+.agent-model-badge {
+  font-size: 9px; font-weight: 500; letter-spacing: .04em;
+  padding: 1px 5px; border-radius: 4px;
+  background: rgba(88,166,255,0.12); color: var(--accent);
+  border: 1px solid rgba(88,166,255,0.25); flex-shrink: 0;
+}
 .agent-task {
   font-size: 10px; color: var(--text-muted);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
