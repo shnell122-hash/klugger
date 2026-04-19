@@ -1432,12 +1432,12 @@ function gitPushOutbox(repoPath, branch, outboxPath, timestamp, outboxContent) {
 }
 
 // ─── Git push inbox (for dispatch) ───────────────────────
-function gitPushInbox(repoPath, branch, inboxPath, dispatchId) {
+function gitPushInbox(repoPath, branch, inboxPath, dispatchId, inboxContent) {
   const projectId = path.basename(repoPath);
   try {
     try {
       execSync(
-        `cd ${repoPath} && git pull origin ${branch} --rebase --quiet 2>/dev/null`,
+        `cd ${repoPath} && git pull origin ${branch} --rebase --autostash --quiet 2>/dev/null`,
         { stdio: 'pipe', timeout: 30000 }
       );
     } catch (_) {
@@ -1445,9 +1445,11 @@ function gitPushInbox(repoPath, branch, inboxPath, dispatchId) {
         `cd ${repoPath} && git rebase --abort 2>/dev/null || true && git fetch origin ${branch} --quiet && git reset --hard origin/${branch} --quiet`,
         { stdio: 'pipe', timeout: 30000 }
       );
+      // reset --hard wipes local writes — restore inbox content before committing
+      if (inboxContent) fs.writeFileSync(inboxPath, inboxContent);
     }
     execSync(
-      `cd ${repoPath} && git add ${inboxPath} && git commit -m "dispatch: tarea ${dispatchId}" --quiet && git push origin ${branch} --quiet`,
+      `cd ${repoPath} && git add ${inboxPath} && git diff --cached --quiet || git commit -m "dispatch: tarea ${dispatchId}" --quiet && git push origin ${branch} --quiet`,
       { stdio: 'pipe', timeout: 30000 }
     );
     log(projectId, `inbox push OK (dispatch ${dispatchId})`);
@@ -1505,7 +1507,7 @@ async function processDispatchQueue(projects, hashes = null) {
 
     // Push to GitHub if configured
     if (target.repo && target.branch) {
-      gitPushInbox(target.repo, target.branch, target.inbox, dispatch.id);
+      gitPushInbox(target.repo, target.branch, target.inbox, dispatch.id, dispatch.task);
     }
 
     // Track dispatch time for outbox watchdog
