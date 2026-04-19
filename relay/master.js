@@ -1954,6 +1954,39 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
   for (const project of projects) {
     try { await processProject(project, hashes); } catch (_) {}
   }
+
+  // Global relay heartbeat — confirms relay-master is alive
+  const HEARTBEAT_MS = parseInt(process.env.HEARTBEAT_MS || String(6 * 3600 * 1000)); // default 6h
+  const _startTime   = Date.now();
+
+  function sendHeartbeat() {
+    const uptimeSec = Math.floor((Date.now() - _startTime) / 1000);
+    const hours     = Math.floor(uptimeSec / 3600);
+    const mins      = Math.floor((uptimeSec % 3600) / 60);
+    const running   = [...ACTIVE_TASKS];
+    const taskLine  = running.length
+      ? `⚙️ Activas: ${running.map(id => `<code>${id}</code>`).join(', ')}`
+      : `💤 Sin tareas activas`;
+    let projs = [];
+    try { projs = JSON.parse(fs.readFileSync(PROJECTS_FILE, 'utf8')).filter(p => p.active && p.inbox); } catch (_) {}
+    const agentLine = projs.map(p => {
+      const model = (p.claude_model || 'sonnet').replace('claude-', '').replace(/-\d{8}$/, '');
+      return `  • ${p.name} <i>(${model})</i>`;
+    }).join('\n');
+    tg(`💓 <b>relay-master activo</b>
+⏱ Uptime: ${hours}h ${mins}m
+${taskLine}
+
+<b>Agentes:</b>
+${agentLine}
+🌐 <a href="http://ia.vilarkptl.com">Dashboard</a>`);
+  }
+
+  // First heartbeat after 5 min (startup settled), then every HEARTBEAT_MS
+  setTimeout(() => {
+    sendHeartbeat();
+    setInterval(sendHeartbeat, HEARTBEAT_MS);
+  }, 5 * 60 * 1000);
 }
 
 main().catch(e => {
