@@ -19,18 +19,19 @@ function estimateTokens(text) {
 }
 
 // Ensure session row exists (upsert)
-async function upsertSession(sessionId, workingDir, agentUser, projectName, apiProvider) {
+async function upsertSession(sessionId, workingDir, agentUser, projectName, apiProvider, chatSource) {
   if (!sessionId) return;
   await db.query(
     `INSERT INTO agent_sessions
-       (id, started_at, working_dir, agent_user, project_name, api_provider, is_active)
-     VALUES (?, NOW(3), ?, ?, ?, ?, 1)
+       (id, started_at, working_dir, agent_user, project_name, api_provider, chat_source, is_active)
+     VALUES (?, NOW(3), ?, ?, ?, ?, ?, 1)
      ON DUPLICATE KEY UPDATE
        is_active    = 1,
        project_name = COALESCE(project_name, VALUES(project_name)),
-       api_provider = COALESCE(api_provider, VALUES(api_provider))`,
+       api_provider = COALESCE(api_provider, VALUES(api_provider)),
+       chat_source  = COALESCE(chat_source,  VALUES(chat_source))`,
     [sessionId, workingDir || null, agentUser || null,
-     projectName || null, apiProvider || 'anthropic']
+     projectName || null, apiProvider || 'anthropic', chatSource || null]
   );
 }
 
@@ -68,13 +69,14 @@ router.post('/', async (req, res) => {
       agent_user,
       project_name,
       api_provider,
+      chat_source,
     } = req.body;
 
     if (!session_id || !event_type) {
       return res.status(400).json({ error: 'session_id and event_type required' });
     }
 
-    await upsertSession(session_id, working_dir, agent_user, project_name, api_provider);
+    await upsertSession(session_id, working_dir, agent_user, project_name, api_provider, chat_source);
 
     // Estimate cost from combined input/response text
     const combinedText = (tool_input_summary || '') + (tool_response_summary || '');
@@ -96,8 +98,8 @@ router.post('/', async (req, res) => {
         session_id,
         event_type,
         tool_name || null,
-        tool_input_summary    ? tool_input_summary.substring(0, 500)    : null,
-        tool_response_summary ? tool_response_summary.substring(0, 500) : null,
+        tool_input_summary    ? tool_input_summary.substring(0, 16000)    : null,
+        tool_response_summary ? tool_response_summary.substring(0, 16000) : null,
         ts,
         working_dir   || null,
         agent_user    || null,
@@ -134,6 +136,7 @@ router.post('/', async (req, res) => {
         agent_user,
         project_name,
         api_provider:         api_provider || 'anthropic',
+        chat_source:          chat_source  || null,
         estimated_tokens:     estimatedTokens,
         estimated_cost_usd:   estimatedCost,
       });

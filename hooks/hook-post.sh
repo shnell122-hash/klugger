@@ -18,22 +18,25 @@ data['event_type'] = 'post_tool'
 data['timestamp'] = datetime.now(timezone.utc).isoformat()
 data['working_dir'] = os.environ.get('PWD', '')
 data['agent_user'] = os.environ.get('USER', '')
-data['project_name'] = os.environ.get('CLAUDE_CHAT_SOURCE') or os.environ.get('CLAUDE_PROJECT', '')
+chat_source = os.environ.get('CLAUDE_CHAT_SOURCE', '')
+project_raw = chat_source or os.environ.get('CLAUDE_PROJECT', '')
+data['chat_source']  = chat_source
+data['project_name'] = project_raw[6:] if project_raw.startswith('relay-') else project_raw
 
-# Summarize tool_input
+# Capture tool_input — keep up to 4000 chars for expandable detail view
 if 'tool_input' in data and isinstance(data['tool_input'], dict):
     inp_str = json.dumps(data['tool_input'])
-    data['tool_input_summary'] = inp_str[:500]
+    data['tool_input_summary'] = inp_str[:4000]
     del data['tool_input']
 
-# Summarize tool_response
+# Capture tool_response — keep up to 8000 chars for expandable detail view
 if 'tool_response' in data:
     resp = data['tool_response']
     if isinstance(resp, dict):
         resp = json.dumps(resp)
     elif not isinstance(resp, str):
         resp = str(resp)
-    data['tool_response_summary'] = resp[:500]
+    data['tool_response_summary'] = resp[:8000]
     del data['tool_response']
 
 print(json.dumps(data))
