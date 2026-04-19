@@ -38,7 +38,7 @@
   {
     "id": "fiscalai-front",
     "name": "FiscalAI — Frontend",
-    "claude_model": "claude-haiku-4-5-20251001",
+    "claude_model": "claude-sonnet-4-6",
     "inbox":  "/var/www/html/vilarkptl.com/DeCabeceraTax/relay/inbox-front.md",
     "outbox": "/var/www/html/vilarkptl.com/DeCabeceraTax/relay/outbox-front.md",
     "repo":   "/var/www/html/vilarkptl.com/DeCabeceraTax",
