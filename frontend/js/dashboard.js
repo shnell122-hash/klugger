@@ -958,15 +958,25 @@ async function loadInitialData() {
     const sessData   = await sessRes.json();
     const eventsData = await eventsRes.json();
 
-    sessData.forEach(s => { sessions[s.id] = s; });
-    events   = eventsData;
-    events.forEach(e => { if (e.id) eventCache.set(String(e.id), e); });
+    if (Array.isArray(sessData)) {
+      sessData.forEach(s => { sessions[s.id] = s; });
+    } else if (sessData?.error) {
+      const list = document.getElementById('session-list');
+      if (list) list.innerHTML = `<div class="empty-state" style="color:var(--red)">DB error: ${esc(sessData.error)}</div>`;
+    }
+
+    if (Array.isArray(eventsData)) {
+      events = eventsData;
+      events.forEach(e => { if (e.id) eventCache.set(String(e.id), e); });
+    }
 
     refreshFeed();
     refreshSessions();
     refreshStats();
   } catch (err) {
     console.warn('[dashboard] load error:', err.message);
+    const list = document.getElementById('session-list');
+    if (list) list.innerHTML = `<div class="empty-state" style="color:var(--red)">Error: ${esc(err.message)}</div>`;
   }
 }
 

@@ -365,7 +365,45 @@ function handleTelegramCommand(text, imageContext) {
 /status — qué tareas están corriendo ahora
 /parar [id] — detener un agente (alias de /detente)
 /activar [id] — reactivar agente detenido
+/memoria [id] [nota] — agrega nota permanente a la memoria del agente
 /ayuda — esta lista`);
+    return;
+  }
+
+  if (lower.startsWith('/memoria')) {
+    const parts = raw.split(/\s+/);
+    const projArg = parts[1] || '';
+    const note    = parts.slice(2).join(' ').trim();
+    if (!projArg || !note) {
+      tg('❓ Uso: /memoria [project-id] [nota]\nEjemplo: /memoria fiscalai La clave SAT expira en mayo');
+      return;
+    }
+    let allProjects = [];
+    try { allProjects = JSON.parse(fs.readFileSync(PROJECTS_FILE, 'utf8')); } catch (_) {}
+    const proj = allProjects.find(p => p.active && (p.id === projArg || p.name?.toLowerCase().includes(projArg.toLowerCase())));
+    if (!proj || !proj.repo) {
+      tg(`❓ Proyecto <b>${esc(projArg)}</b> no encontrado o sin repo configurado.`);
+      return;
+    }
+    const memPath = path.join(proj.repo, 'relay', 'agent-memory.md');
+    const ts = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City', hour12: false });
+    const entry = `\n## [${ts} CST — nota manual]\n- 📌 ${note.slice(0, 500)}\n`;
+    try {
+      fs.mkdirSync(path.dirname(memPath), { recursive: true });
+      fs.appendFileSync(memPath, entry);
+      tg(`📌 Nota guardada en memoria de <b>${esc(proj.name)}</b>:\n<code>${esc(note.slice(0, 300))}</code>`);
+      // Push to git (best effort)
+      if (proj.branch) {
+        try {
+          execSync(
+            `cd ${proj.repo} && git add relay/agent-memory.md && git diff --cached --quiet || git commit -m "relay: nota manual de memoria" --quiet && git push origin ${proj.branch} --quiet`,
+            { stdio: 'pipe', timeout: 30000 }
+          );
+        } catch (_) {}
+      }
+    } catch (e) {
+      tg(`❌ Error guardando nota: <code>${esc(e.message?.slice(0,200))}</code>`);
+    }
     return;
   }
 }
