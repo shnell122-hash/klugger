@@ -5,20 +5,31 @@ const fs   = require('fs');
 
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
-const { Bot }      = require('grammy');
-const Anthropic    = require('@anthropic-ai/sdk');
-const mysql        = require('mysql2/promise');
+const { Bot, InlineKeyboard } = require('grammy');
+const Anthropic = require('@anthropic-ai/sdk');
+const OpenAI    = require('openai');
+const mysql     = require('mysql2/promise');
 const { execSync } = require('child_process');
+
+// ── Model registry ────────────────────────────────────────────────────────────
+const MODELS = {
+  sonnet:    { id: 'claude-sonnet-4-6',         provider: 'anthropic', label: 'Claude Sonnet 4.6',   costIn: 3,    costOut: 15    },
+  haiku:     { id: 'claude-haiku-4-5-20251001',  provider: 'anthropic', label: 'Claude Haiku 4.5',    costIn: 0.8,  costOut: 4     },
+  opus:      { id: 'claude-opus-4-7',            provider: 'anthropic', label: 'Claude Opus 4.7',     costIn: 15,   costOut: 75    },
+  deepseek:  { id: 'deepseek-chat',              provider: 'deepseek',  label: 'DeepSeek V3',         costIn: 0.07, costOut: 1.10  },
+  r1:        { id: 'deepseek-reasoner',          provider: 'deepseek',  label: 'DeepSeek R1',         costIn: 0.55, costOut: 2.19  },
+};
+const DEFAULT_MODEL = 'sonnet';
+
+// In-memory model preference per topic (chatId:threadId → model key)
+const TOPIC_MODEL = new Map();
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const REPO        = process.env.REPO_ROOT         || '/var/www/html/vilarkptl.com/ai-monitor';
-const MODEL       = process.env.CLAUDE_CHAT_MODEL || 'claude-sonnet-4-6';
-const GROUP_CHAT  = process.env.TG_CLAUDE_GROUP_ID || '';   // optional shared supergroup
+const GROUP_CHAT  = process.env.TG_CLAUDE_GROUP_ID || '';
 const MAX_ITER    = 10;
 const MAX_HISTORY = 20;
 
-// Authorized Telegram user IDs (comma-separated in .env)
-// e.g. TG_ALLOWED_USER_IDS=123456789,987654321,555123456
 const ALLOWED_USER_IDS = new Set(
   (process.env.TG_ALLOWED_USER_IDS || '')
     .split(',').map(s => s.trim()).filter(Boolean),
@@ -32,7 +43,12 @@ if (ALLOWED_USER_IDS.size === 0) {
 // ── Clients ───────────────────────────────────────────────────────────────────
 const bot = new Bot(process.env.TG_CLAUDE_BOT_TOKEN);
 
-const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+const deepseek = new OpenAI({
+  apiKey:  process.env.DEEPSEEK_API_KEY || '',
+  baseURL: 'https://api.deepseek.com/v1',
+});
 
 const db = mysql.createPool({
   host:               process.env.DB_HOST || '127.0.0.1',
@@ -44,7 +60,7 @@ const db = mysql.createPool({
   connectionLimit:    5,
 });
 
-// ── System prompt (incluye CLAUDE.md del repo) ────────────────────────────────
+// ── System prompt ─────────────────────────────────────────────────────────────
 const CLAUDE_MD = (() => {
   try { return fs.readFileSync(path.join(REPO, 'CLAUDE.md'), 'utf8'); }
   catch (_) { return ''; }
@@ -68,7 +84,8 @@ Reglas:
 ${CLAUDE_MD}`.trim();
 
 // ── Tool definitions ──────────────────────────────────────────────────────────
-const TOOLS = [
+// Anthropic format (used as-is for Claude, converted for DeepSeek)
+const TOOLS_ANTHROPIC = [
   {
     name: 'bash',
     description: 'Execute a bash command on the production server. Output capped at 8000 chars.',
@@ -88,8 +105,8 @@ const TOOLS = [
       type: 'object',
       properties: {
         path:   { type: 'string', description: 'Absolute file path' },
-        offset: { type: 'number', description: 'Start line (0-based, default 0)' },
-        limit:  { type: 'number', description: 'Max lines to return (default 200)' },
+        offset: { type: 'number', description: 'Start line (0-based)' },
+        limit:  { type: 'number', description: 'Max lines (default 200)' },
       },
       required: ['path'],
     },
@@ -108,7 +125,7 @@ const TOOLS = [
   },
   {
     name: 'dispatch_task',
-    description: 'Send a task to a relay agent by writing its inbox.md. Projects: fiscalai, fiscalai-front, coordinator, ai-monitor.',
+    description: 'Send a task to a relay agent (writes inbox.md). Projects: fiscalai, fiscalai-front, coordinator, ai-monitor.',
     input_schema: {
       type: 'object',
       properties: {
@@ -119,6 +136,16 @@ const TOOLS = [
     },
   },
 ];
+
+// OpenAI/DeepSeek format
+const TOOLS_OPENAI = TOOLS_ANTHROPIC.map(t => ({
+  type: 'function',
+  function: {
+    name:        t.name,
+    description: t.description,
+    parameters:  t.input_schema,
+  },
+}));
 
 // ── Tool execution ────────────────────────────────────────────────────────────
 function runTool(name, input) {
@@ -132,31 +159,169 @@ function runTool(name, input) {
       });
       return out.slice(0, 8000) || '(sin salida)';
     }
-
     if (name === 'read_file') {
       const lines = fs.readFileSync(input.path, 'utf8').split('\n');
       const start = input.offset || 0;
       const end   = start + (input.limit || 200);
       return lines.slice(start, end).map((l, i) => `${start + i + 1}\t${l}`).join('\n');
     }
-
     if (name === 'write_file') {
       fs.mkdirSync(path.dirname(input.path), { recursive: true });
       fs.writeFileSync(input.path, input.content, 'utf8');
       return `Escrito: ${input.path} (${input.content.length} bytes)`;
     }
-
     if (name === 'dispatch_task') {
       const inbox = path.join(REPO, 'relay', 'workspaces', input.project, 'inbox.md');
       fs.writeFileSync(inbox, `# Tarea\n\n${input.description}\n`, 'utf8');
       return `Tarea despachada a ${input.project}`;
     }
-
     return `ERROR: herramienta desconocida: ${name}`;
   } catch (e) {
-    const msg = (e.stderr || e.stdout || e.message || String(e)).toString();
-    return `ERROR: ${msg.slice(0, 500)}`;
+    return `ERROR: ${(e.stderr || e.stdout || e.message || String(e)).toString().slice(0, 500)}`;
   }
+}
+
+// ── Model abstraction ─────────────────────────────────────────────────────────
+// Returns { text, tokensIn, tokensOut, stopReason, toolCalls }
+async function callModel(modelKey, messages, onProgress) {
+  const m = MODELS[modelKey] || MODELS[DEFAULT_MODEL];
+
+  if (m.provider === 'anthropic') {
+    return callAnthropic(m, messages, onProgress);
+  } else {
+    return callDeepSeek(m, messages, onProgress);
+  }
+}
+
+async function callAnthropic(m, messages, onProgress) {
+  let totalIn = 0, totalOut = 0;
+  const history = [...messages];
+
+  for (let i = 0; i < MAX_ITER; i++) {
+    const resp = await anthropic.messages.create({
+      model:      m.id,
+      tools:      TOOLS_ANTHROPIC,
+      max_tokens: 8096,
+      system:     SYSTEM_PROMPT,
+      messages:   history,
+    });
+
+    totalIn  += resp.usage?.input_tokens  || 0;
+    totalOut += resp.usage?.output_tokens || 0;
+
+    if (resp.stop_reason === 'tool_use') {
+      const toolUses = resp.content.filter(b => b.type === 'tool_use');
+      const preview  = toolUses.map(t => {
+        const arg = t.input.command || t.input.path || t.input.project || '';
+        return `⚙️ ${t.name}${arg ? ': ' + String(arg).slice(0, 80) : ''}`;
+      }).join('\n');
+      await onProgress(preview);
+
+      history.push({ role: 'assistant', content: resp.content });
+      const results = toolUses.map(t => ({
+        type:        'tool_result',
+        tool_use_id: t.id,
+        content:     runTool(t.name, t.input),
+      }));
+      history.push({ role: 'user', content: results });
+      continue;
+    }
+
+    const text = resp.content.find(b => b.type === 'text')?.text || '(sin respuesta)';
+    return { text, tokensIn: totalIn, tokensOut: totalOut };
+  }
+  return { text: '⚠️ Máximo de iteraciones alcanzado.', tokensIn: totalIn, tokensOut: totalOut };
+}
+
+async function callDeepSeek(m, messages, onProgress) {
+  let totalIn = 0, totalOut = 0;
+
+  // Convert Anthropic message format → OpenAI format
+  const history = messages.map(msg => {
+    if (typeof msg.content === 'string') return { role: msg.role, content: msg.content };
+    // Handle array content (tool_result from Anthropic format)
+    if (Array.isArray(msg.content)) {
+      if (msg.role === 'user') {
+        const toolResults = msg.content.filter(b => b.type === 'tool_result');
+        if (toolResults.length) {
+          // Return multiple messages (one per tool result)
+          return toolResults.map(tr => ({
+            role:         'tool',
+            tool_call_id: tr.tool_use_id,
+            content:      String(tr.content),
+          }));
+        }
+        // Text blocks
+        const text = msg.content.filter(b => b.type === 'text').map(b => b.text).join('\n');
+        return { role: 'user', content: text };
+      }
+      if (msg.role === 'assistant') {
+        const text = msg.content.filter(b => b.type === 'text').map(b => b.text).join('');
+        const toolUses = msg.content.filter(b => b.type === 'tool_use');
+        return {
+          role:       'assistant',
+          content:    text || null,
+          tool_calls: toolUses.map(t => ({
+            id:       t.id,
+            type:     'function',
+            function: { name: t.name, arguments: JSON.stringify(t.input) },
+          })),
+        };
+      }
+    }
+    return { role: msg.role, content: String(msg.content) };
+  }).flat().filter(Boolean);
+
+  // Prepend system message
+  const msgs = [{ role: 'system', content: SYSTEM_PROMPT }, ...history];
+
+  for (let i = 0; i < MAX_ITER; i++) {
+    const resp = await deepseek.chat.completions.create({
+      model:      m.id,
+      messages:   msgs,
+      tools:      TOOLS_OPENAI,
+      max_tokens: 8096,
+    });
+
+    const choice = resp.choices[0];
+    totalIn  += resp.usage?.prompt_tokens     || 0;
+    totalOut += resp.usage?.completion_tokens || 0;
+
+    if (choice.finish_reason === 'tool_calls') {
+      const toolCalls = choice.message.tool_calls || [];
+      const preview   = toolCalls.map(tc => {
+        let arg = '';
+        try {
+          const p = JSON.parse(tc.function.arguments);
+          arg = p.command || p.path || p.project || '';
+        } catch (_) {}
+        return `⚙️ ${tc.function.name}${arg ? ': ' + String(arg).slice(0, 80) : ''}`;
+      }).join('\n');
+      await onProgress(preview);
+
+      msgs.push(choice.message);
+      for (const tc of toolCalls) {
+        let input = {};
+        try { input = JSON.parse(tc.function.arguments); } catch (_) {}
+        msgs.push({
+          role:         'tool',
+          tool_call_id: tc.id,
+          content:      runTool(tc.function.name, input),
+        });
+      }
+      continue;
+    }
+
+    const text = choice.message?.content || '(sin respuesta)';
+    return { text, tokensIn: totalIn, tokensOut: totalOut };
+  }
+  return { text: '⚠️ Máximo de iteraciones alcanzado.', tokensIn: totalIn, tokensOut: totalOut };
+}
+
+// ── Cost calculation ──────────────────────────────────────────────────────────
+function calcCost(modelKey, tokensIn, tokensOut) {
+  const m = MODELS[modelKey] || MODELS[DEFAULT_MODEL];
+  return (tokensIn * m.costIn + tokensOut * m.costOut) / 1_000_000;
 }
 
 // ── DB helpers ────────────────────────────────────────────────────────────────
@@ -177,82 +342,18 @@ async function saveMsg(chatId, threadId, role, content, meta = {}) {
         role, content, tool_name, model, provider, tokens_in, tokens_out, cost_usd)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
-      chatId,
-      threadId,
+      chatId, threadId,
       meta.userId   || null,
       meta.username || null,
-      role,
-      content,
+      role, content,
       meta.tool     || null,
-      meta.model    || null,
+      meta.modelId  || null,
       meta.provider || 'anthropic',
       meta.tokensIn  || 0,
       meta.tokensOut || 0,
       meta.costUsd   || 0,
     ],
   );
-}
-
-// ── Cost calculation (Anthropic pricing — Sonnet 4.6) ─────────────────────────
-// Input: $3/MTok, Output: $15/MTok  (update if model changes)
-function calcCost(tokensIn, tokensOut) {
-  return (tokensIn * 3 + tokensOut * 15) / 1_000_000;
-}
-
-// ── Agentic loop ──────────────────────────────────────────────────────────────
-async function runAgent(chatId, threadId, userText, userMeta, onProgress) {
-  const history = await loadHistory(chatId, threadId);
-  history.push({ role: 'user', content: userText });
-
-  let totalIn = 0, totalOut = 0;
-
-  for (let i = 0; i < MAX_ITER; i++) {
-    const resp = await claude.messages.create({
-      model:      MODEL,
-      tools:      TOOLS,
-      max_tokens: 4096,
-      system:     SYSTEM_PROMPT,
-      messages:   history,
-    });
-
-    totalIn  += resp.usage?.input_tokens  || 0;
-    totalOut += resp.usage?.output_tokens || 0;
-
-    if (resp.stop_reason === 'tool_use') {
-      const toolUses = resp.content.filter(b => b.type === 'tool_use');
-
-      const preview = toolUses.map(t => {
-        const arg = t.input.command || t.input.path || t.input.project || '';
-        return `⚙️ ${t.name}${arg ? ': ' + String(arg).slice(0, 80) : ''}`;
-      }).join('\n');
-      await onProgress(preview);
-
-      history.push({ role: 'assistant', content: resp.content });
-      const results = toolUses.map(t => ({
-        type:        'tool_result',
-        tool_use_id: t.id,
-        content:     runTool(t.name, t.input),
-      }));
-      history.push({ role: 'user', content: results });
-      continue;
-    }
-
-    const text    = resp.content.find(b => b.type === 'text')?.text || '(sin respuesta)';
-    const costUsd = calcCost(totalIn, totalOut);
-
-    await saveMsg(chatId, threadId, 'user', userText, {
-      userId: userMeta.userId, username: userMeta.username,
-    });
-    await saveMsg(chatId, threadId, 'assistant', text, {
-      userId: userMeta.userId, username: userMeta.username,
-      model: MODEL, provider: 'anthropic',
-      tokensIn: totalIn, tokensOut: totalOut, costUsd,
-    });
-
-    return { text, totalIn, totalOut, costUsd };
-  }
-
-  return { text: '⚠️ Máximo de iteraciones alcanzado.', totalIn, totalOut, costUsd: calcCost(totalIn, totalOut) };
 }
 
 // ── Telegram helpers ──────────────────────────────────────────────────────────
@@ -282,16 +383,43 @@ function chunkText(text, maxLen = 4000) {
   return chunks;
 }
 
-// Prevent overlapping requests per topic/user
-const BUSY = new Map();
-
-// ── Authorization helper ──────────────────────────────────────────────────────
+// ── Authorization ─────────────────────────────────────────────────────────────
 function isAuthorized(ctx) {
-  const userId = String(ctx.from?.id || '');
-  if (ALLOWED_USER_IDS.has(userId)) return true;
+  const uid = String(ctx.from?.id || '');
+  if (ALLOWED_USER_IDS.has(uid)) return true;
   if (GROUP_CHAT && String(ctx.chat?.id) === String(GROUP_CHAT)) return true;
   return false;
 }
+
+// Prevent overlapping requests per topic
+const BUSY = new Map();
+
+// ── /model command — inline keyboard ─────────────────────────────────────────
+function modelKeyboard() {
+  return new InlineKeyboard()
+    .text('Sonnet 4.6 ✦',  'model:sonnet')
+    .text('Haiku 4.5',      'model:haiku')
+    .row()
+    .text('Opus 4.7',       'model:opus')
+    .row()
+    .text('DeepSeek V3 💸', 'model:deepseek')
+    .text('DeepSeek R1 🧠', 'model:r1');
+}
+
+bot.callbackQuery(/^model:(.+)$/, async (ctx) => {
+  const key      = ctx.match[1];
+  const threadId = ctx.callbackQuery.message?.message_thread_id ?? 0;
+  const topicKey = `${ctx.chat.id}:${threadId}`;
+  const m        = MODELS[key];
+  if (!m) return ctx.answerCallbackQuery({ text: 'Modelo desconocido' });
+
+  TOPIC_MODEL.set(topicKey, key);
+  await ctx.answerCallbackQuery({ text: `✓ ${m.label}` });
+  await ctx.editMessageText(
+    `Modelo cambiado a *${m.label}*\n_$${m.costIn}/$${m.costOut} por MTok ↑↓_`,
+    { parse_mode: 'Markdown' },
+  );
+});
 
 // ── Message handler ───────────────────────────────────────────────────────────
 bot.on('message:text', async (ctx) => {
@@ -300,18 +428,27 @@ bot.on('message:text', async (ctx) => {
   const userText  = ctx.message.text.trim();
   const threadId  = ctx.message.message_thread_id ?? 0;
   const topicKey  = `${ctx.chat.id}:${threadId}`;
+  const modelKey  = TOPIC_MODEL.get(topicKey) || DEFAULT_MODEL;
   const userMeta  = {
     userId:   ctx.from?.id,
     username: ctx.from?.username || ctx.from?.first_name || String(ctx.from?.id),
   };
 
-  // Commands
+  // ── Commands ───────────────────────────────────────────────────────────────
   if (userText === '/reset') {
     await db.query(
       'DELETE FROM conversations WHERE chat_id = ? AND thread_id = ?',
       [ctx.chat.id, threadId],
     );
-    return ctx.reply('✅ Historial de este topic borrado.', topicOpts(threadId));
+    return ctx.reply('✅ Historial borrado.', topicOpts(threadId));
+  }
+
+  if (userText === '/model') {
+    const m = MODELS[modelKey];
+    return ctx.reply(
+      `Modelo actual: *${m.label}*\nSelecciona otro:`,
+      { parse_mode: 'Markdown', reply_markup: modelKeyboard(), ...topicOpts(threadId) },
+    );
   }
 
   if (userText === '/status') {
@@ -321,48 +458,66 @@ bot.on('message:text', async (ctx) => {
       [ctx.chat.id, threadId],
     );
     const { total, cost, last } = rows[0];
+    const m = MODELS[modelKey];
     return ctx.reply(
-      `📊 Topic ${threadId}: ${total} msgs · $${cost || '0.0000'} · último: ${last || 'ninguno'}`,
-      topicOpts(threadId),
+      `📊 *${total}* msgs · *$${cost || '0.0000'}* · modelo: *${m.label}*\n_último: ${last || 'ninguno'}_`,
+      { parse_mode: 'Markdown', ...topicOpts(threadId) },
     );
   }
 
   if (userText === '/help') {
+    const modelList = Object.entries(MODELS)
+      .map(([k, v]) => `  \`/model\` → ${v.label} (\`${k}\`)`)
+      .join('\n');
     return ctx.reply(
       '*Claude Code · Vilar AI*\n\n' +
-      '`/reset` — Borra el historial de este topic\n' +
-      '`/status` — Estadísticas del topic\n' +
+      '`/model` — Cambiar modelo de IA\n' +
+      '`/reset` — Borrar historial de este topic\n' +
+      '`/status` — Stats del topic actual\n' +
       '`/help` — Esta ayuda\n\n' +
-      'Escribe cualquier instrucción en lenguaje natural.\n' +
-      'Claude tiene acceso a bash, archivos y puede despachar tareas a los agentes relay.',
+      '*Modelos disponibles:*\n' + modelList,
       { parse_mode: 'Markdown', ...topicOpts(threadId) },
     );
   }
 
   if (BUSY.get(topicKey)) {
-    return ctx.reply('⏳ Procesando solicitud anterior, espera un momento…', topicOpts(threadId));
+    return ctx.reply('⏳ Procesando solicitud anterior…', topicOpts(threadId));
   }
   BUSY.set(topicKey, true);
 
-  const progressMsg = await ctx.reply('⏳ Pensando…', topicOpts(threadId));
+  const m = MODELS[modelKey];
+  const progressMsg = await ctx.reply(`⏳ _${m.label}…_`, {
+    parse_mode: 'Markdown', ...topicOpts(threadId),
+  });
   bot.api.sendChatAction(ctx.chat.id, 'typing', topicOpts(threadId)).catch(() => {});
 
   try {
-    const { text, totalIn, totalOut, costUsd } = await runAgent(
-      ctx.chat.id,
-      threadId,
-      userText,
-      userMeta,
+    // Load history and add current user message
+    const history = await loadHistory(ctx.chat.id, threadId);
+    history.push({ role: 'user', content: userText });
+
+    const { text, tokensIn, tokensOut } = await callModel(
+      modelKey,
+      history,
       (progressText) => safeEdit(ctx.chat.id, progressMsg.message_id, progressText),
     );
 
-    const footer = `\n\n_${totalIn}↑ ${totalOut}↓ · $${costUsd.toFixed(4)}_`;
-    const chunks = chunkText(text + footer, 4000);
+    const costUsd = calcCost(modelKey, tokensIn, tokensOut);
+    const footer  = `\n\n_${m.label} · ${tokensIn}↑ ${tokensOut}↓ · $${costUsd.toFixed(5)}_`;
+    const chunks  = chunkText(text + footer, 4000);
 
     await safeEdit(ctx.chat.id, progressMsg.message_id, chunks[0]);
     for (let i = 1; i < chunks.length; i++) {
       await ctx.reply(chunks[i], { parse_mode: 'Markdown', ...topicOpts(threadId) });
     }
+
+    await saveMsg(ctx.chat.id, threadId, 'user', userText, { ...userMeta });
+    await saveMsg(ctx.chat.id, threadId, 'assistant', text, {
+      ...userMeta,
+      modelId:  m.id,
+      provider: m.provider,
+      tokensIn, tokensOut, costUsd,
+    });
   } catch (err) {
     console.error('[chat-agent] error:', err.message);
     await safeEdit(
@@ -379,6 +534,7 @@ bot.on('message:text', async (ctx) => {
 bot.catch(err => console.error('[grammy]', err.message));
 
 console.log(`[chat-agent] Iniciando — ${ALLOWED_USER_IDS.size} usuario(s) autorizados`);
+console.log(`[chat-agent] Modelos: ${Object.keys(MODELS).join(', ')} (default: ${DEFAULT_MODEL})`);
 bot.start({
   onStart: info => console.log(`[chat-agent] @${info.username} listo — polling activo`),
 });

@@ -235,14 +235,17 @@ main {
   background: var(--bg2);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+#right-tabs::-webkit-scrollbar { display: none; }
 .rtab {
-  flex: 1;
+  flex-shrink: 0;
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
   color: var(--text-muted);
-  padding: 8px 4px;
+  padding: 8px 10px;
   font-family: var(--font);
   font-size: 10px;
   cursor: pointer;
@@ -254,12 +257,14 @@ main {
 .rtab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
 /* ── Right sub-panels ── */
-#agents-panel, #screenshots-panel, #sessions-panel, #costs-panel, #providers-panel, #projects-panel {
+#agents-panel, #screenshots-panel, #sessions-panel, #costs-panel,
+#providers-panel, #projects-panel, #conversations-panel {
   flex: 1;
   overflow-y: auto;
   display: none;
 }
-#agents-panel.visible, #screenshots-panel.visible, #sessions-panel.visible, #costs-panel.visible, #providers-panel.visible, #projects-panel.visible {
+#agents-panel.visible, #screenshots-panel.visible, #sessions-panel.visible, #costs-panel.visible,
+#providers-panel.visible, #projects-panel.visible, #conversations-panel.visible {
   display: block;
 }
 
