@@ -25,10 +25,12 @@ const DEFAULT_MODEL = 'sonnet';
 const TOPIC_MODEL = new Map();
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const REPO        = process.env.REPO_ROOT         || '/var/www/html/vilarkptl.com/ai-monitor';
-const GROUP_CHAT  = process.env.TG_CLAUDE_GROUP_ID || '';
-const MAX_ITER    = 10;
-const MAX_HISTORY = 20;
+const REPO         = process.env.REPO_ROOT         || '/var/www/html/vilarkptl.com/ai-monitor';
+const GROUP_CHAT   = process.env.TG_CLAUDE_GROUP_ID || '';
+const MONITOR_API  = process.env.MONITOR_API_URL    || 'http://127.0.0.1:3010';
+const MAX_ITER     = 10;
+const MAX_HISTORY  = 20;
+const MAX_COST_USD = parseFloat(process.env.MAX_COST_USD || '1.00');  // circuit breaker
 
 const ALLOWED_USER_IDS = new Set(
   (process.env.TG_ALLOWED_USER_IDS || '')
@@ -183,19 +185,16 @@ function runTool(name, input) {
 
 // ── Model abstraction ─────────────────────────────────────────────────────────
 // Returns { text, tokensIn, tokensOut, stopReason, toolCalls }
-async function callModel(modelKey, messages, onProgress) {
+async function callModel(modelKey, messages, ctx, onProgress) {
   const m = MODELS[modelKey] || MODELS[DEFAULT_MODEL];
-
-  if (m.provider === 'anthropic') {
-    return callAnthropic(m, messages, onProgress);
-  } else {
-    return callDeepSeek(m, messages, onProgress);
-  }
+  if (m.provider === 'anthropic') return callAnthropic(m, messages, ctx, onProgress);
+  return callDeepSeek(m, messages, ctx, onProgress);
 }
 
-async function callAnthropic(m, messages, onProgress) {
+async function callAnthropic(m, messages, ctx, onProgress) {
   let totalIn = 0, totalOut = 0;
-  const history = [...messages];
+  const history   = [...messages];
+  const callHist  = [];  // for loop detection
 
   for (let i = 0; i < MAX_ITER; i++) {
     const resp = await anthropic.messages.create({
@@ -209,20 +208,45 @@ async function callAnthropic(m, messages, onProgress) {
     totalIn  += resp.usage?.input_tokens  || 0;
     totalOut += resp.usage?.output_tokens || 0;
 
+    // Cost circuit breaker
+    const cost = calcCost(ctx.modelKey, totalIn, totalOut);
+    if (cost > MAX_COST_USD) {
+      throw new Error(`💸 Límite de costo alcanzado: $${cost.toFixed(4)} > $${MAX_COST_USD}. Abortando.`);
+    }
+
     if (resp.stop_reason === 'tool_use') {
       const toolUses = resp.content.filter(b => b.type === 'tool_use');
-      const preview  = toolUses.map(t => {
+
+      // Loop detection
+      const sig = toolUses.map(t => callSig(t.name, t.input)).join('|');
+      callHist.push(sig);
+      checkLoop(callHist);
+
+      const preview = toolUses.map(t => {
         const arg = t.input.command || t.input.path || t.input.project || '';
         return `⚙️ ${t.name}${arg ? ': ' + String(arg).slice(0, 80) : ''}`;
       }).join('\n');
       await onProgress(preview);
 
       history.push({ role: 'assistant', content: resp.content });
-      const results = toolUses.map(t => ({
-        type:        'tool_result',
-        tool_use_id: t.id,
-        content:     runTool(t.name, t.input),
-      }));
+      const results = toolUses.map(t => {
+        const inputSummary = JSON.stringify(t.input).slice(0, 500);
+        apiPost('/api/events', {
+          session_id: ctx.sessionId, event_type: 'pre_tool',
+          tool_name: t.name, tool_input_summary: inputSummary,
+          project_name: ctx.projectName, api_provider: 'anthropic',
+          agent_user: ctx.username,
+        });
+        const result = runTool(t.name, t.input);
+        apiPost('/api/events', {
+          session_id: ctx.sessionId, event_type: 'post_tool',
+          tool_name: t.name, tool_input_summary: inputSummary,
+          tool_response_summary: result.slice(0, 500),
+          project_name: ctx.projectName, api_provider: 'anthropic',
+          agent_user: ctx.username,
+        });
+        return { type: 'tool_result', tool_use_id: t.id, content: result };
+      });
       history.push({ role: 'user', content: results });
       continue;
     }
@@ -233,37 +257,29 @@ async function callAnthropic(m, messages, onProgress) {
   return { text: '⚠️ Máximo de iteraciones alcanzado.', tokensIn: totalIn, tokensOut: totalOut };
 }
 
-async function callDeepSeek(m, messages, onProgress) {
+async function callDeepSeek(m, messages, ctx, onProgress) {
   let totalIn = 0, totalOut = 0;
+  const callHist = [];
 
-  // Convert Anthropic message format → OpenAI format
   const history = messages.map(msg => {
     if (typeof msg.content === 'string') return { role: msg.role, content: msg.content };
-    // Handle array content (tool_result from Anthropic format)
     if (Array.isArray(msg.content)) {
       if (msg.role === 'user') {
         const toolResults = msg.content.filter(b => b.type === 'tool_result');
         if (toolResults.length) {
-          // Return multiple messages (one per tool result)
           return toolResults.map(tr => ({
-            role:         'tool',
-            tool_call_id: tr.tool_use_id,
-            content:      String(tr.content),
+            role: 'tool', tool_call_id: tr.tool_use_id, content: String(tr.content),
           }));
         }
-        // Text blocks
-        const text = msg.content.filter(b => b.type === 'text').map(b => b.text).join('\n');
-        return { role: 'user', content: text };
+        return { role: 'user', content: msg.content.filter(b => b.type === 'text').map(b => b.text).join('\n') };
       }
       if (msg.role === 'assistant') {
-        const text = msg.content.filter(b => b.type === 'text').map(b => b.text).join('');
+        const text     = msg.content.filter(b => b.type === 'text').map(b => b.text).join('');
         const toolUses = msg.content.filter(b => b.type === 'tool_use');
         return {
-          role:       'assistant',
-          content:    text || null,
+          role: 'assistant', content: text || null,
           tool_calls: toolUses.map(t => ({
-            id:       t.id,
-            type:     'function',
+            id: t.id, type: 'function',
             function: { name: t.name, arguments: JSON.stringify(t.input) },
           })),
         };
@@ -272,29 +288,34 @@ async function callDeepSeek(m, messages, onProgress) {
     return { role: msg.role, content: String(msg.content) };
   }).flat().filter(Boolean);
 
-  // Prepend system message
   const msgs = [{ role: 'system', content: SYSTEM_PROMPT }, ...history];
 
   for (let i = 0; i < MAX_ITER; i++) {
     const resp = await deepseek.chat.completions.create({
-      model:      m.id,
-      messages:   msgs,
-      tools:      TOOLS_OPENAI,
-      max_tokens: 8096,
+      model: m.id, messages: msgs, tools: TOOLS_OPENAI, max_tokens: 8096,
     });
 
     const choice = resp.choices[0];
     totalIn  += resp.usage?.prompt_tokens     || 0;
     totalOut += resp.usage?.completion_tokens || 0;
 
+    // Cost circuit breaker
+    const cost = calcCost(ctx.modelKey, totalIn, totalOut);
+    if (cost > MAX_COST_USD) {
+      throw new Error(`💸 Límite de costo alcanzado: $${cost.toFixed(4)} > $${MAX_COST_USD}. Abortando.`);
+    }
+
     if (choice.finish_reason === 'tool_calls') {
       const toolCalls = choice.message.tool_calls || [];
-      const preview   = toolCalls.map(tc => {
+
+      // Loop detection
+      const sig = toolCalls.map(tc => `${tc.function.name}:${tc.function.arguments.slice(0, 200)}`).join('|');
+      callHist.push(sig);
+      checkLoop(callHist);
+
+      const preview = toolCalls.map(tc => {
         let arg = '';
-        try {
-          const p = JSON.parse(tc.function.arguments);
-          arg = p.command || p.path || p.project || '';
-        } catch (_) {}
+        try { const p = JSON.parse(tc.function.arguments); arg = p.command || p.path || p.project || ''; } catch (_) {}
         return `⚙️ ${tc.function.name}${arg ? ': ' + String(arg).slice(0, 80) : ''}`;
       }).join('\n');
       await onProgress(preview);
@@ -303,11 +324,19 @@ async function callDeepSeek(m, messages, onProgress) {
       for (const tc of toolCalls) {
         let input = {};
         try { input = JSON.parse(tc.function.arguments); } catch (_) {}
-        msgs.push({
-          role:         'tool',
-          tool_call_id: tc.id,
-          content:      runTool(tc.function.name, input),
+        const inputSummary = tc.function.arguments.slice(0, 500);
+        apiPost('/api/events', {
+          session_id: ctx.sessionId, event_type: 'pre_tool',
+          tool_name: tc.function.name, tool_input_summary: inputSummary,
+          project_name: ctx.projectName, api_provider: 'deepseek', agent_user: ctx.username,
         });
+        const result = runTool(tc.function.name, input);
+        apiPost('/api/events', {
+          session_id: ctx.sessionId, event_type: 'post_tool',
+          tool_name: tc.function.name, tool_response_summary: result.slice(0, 500),
+          project_name: ctx.projectName, api_provider: 'deepseek', agent_user: ctx.username,
+        });
+        msgs.push({ role: 'tool', tool_call_id: tc.id, content: result });
       }
       continue;
     }
@@ -322,6 +351,29 @@ async function callDeepSeek(m, messages, onProgress) {
 function calcCost(modelKey, tokensIn, tokensOut) {
   const m = MODELS[modelKey] || MODELS[DEFAULT_MODEL];
   return (tokensIn * m.costIn + tokensOut * m.costOut) / 1_000_000;
+}
+
+// ── Monitor API (fire-and-forget — never blocks the bot) ─────────────────────
+function apiPost(endpoint, body) {
+  fetch(`${MONITOR_API}${endpoint}`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(body),
+  }).catch(err => console.warn('[chat-agent] monitor api:', err.message));
+}
+
+// ── Loop / circuit-breaker helpers ────────────────────────────────────────────
+function callSig(name, input) {
+  // Stable fingerprint of a tool call — used to detect silent loops
+  return `${name}:${JSON.stringify(input).slice(0, 200)}`;
+}
+
+function checkLoop(history) {
+  if (history.length < 3) return;
+  const last = history[history.length - 1];
+  if (history.slice(-3).every(h => h === last)) {
+    throw new Error(`🔄 Loop silencioso detectado: \`${last.split(':')[0]}\` llamada 3 veces igual. Abortando.`);
+  }
 }
 
 // ── DB helpers ────────────────────────────────────────────────────────────────
@@ -485,26 +537,45 @@ bot.on('message:text', async (ctx) => {
   }
   BUSY.set(topicKey, true);
 
-  const m = MODELS[modelKey];
+  const m         = MODELS[modelKey];
+  const sessionId  = `tg-${userMeta.userId}-${threadId}-${Date.now()}`;
+  const projectName = `tg-${threadId > 0 ? `topic${threadId}` : 'dm'}`;
+
+  // Session context passed into the agentic loop
+  const agentCtx = {
+    sessionId, modelKey, projectName,
+    username: userMeta.username,
+  };
+
+  // Register session in dashboard
+  apiPost('/api/sessions', {
+    session_id:   sessionId,
+    project_name: projectName,
+    api_provider: m.provider,
+    agent_user:   userMeta.username,
+    chat_source:  'telegram-chat',
+  });
+
   const progressMsg = await ctx.reply(`⏳ _${m.label}…_`, {
     parse_mode: 'Markdown', ...topicOpts(threadId),
   });
   bot.api.sendChatAction(ctx.chat.id, 'typing', topicOpts(threadId)).catch(() => {});
 
+  let tokensIn = 0, tokensOut = 0;
   try {
-    // Load history and add current user message
     const history = await loadHistory(ctx.chat.id, threadId);
     history.push({ role: 'user', content: userText });
 
-    const { text, tokensIn, tokensOut } = await callModel(
-      modelKey,
-      history,
+    const result = await callModel(
+      modelKey, history, agentCtx,
       (progressText) => safeEdit(ctx.chat.id, progressMsg.message_id, progressText),
     );
+    tokensIn  = result.tokensIn;
+    tokensOut = result.tokensOut;
 
     const costUsd = calcCost(modelKey, tokensIn, tokensOut);
     const footer  = `\n\n_${m.label} · ${tokensIn}↑ ${tokensOut}↓ · $${costUsd.toFixed(5)}_`;
-    const chunks  = chunkText(text + footer, 4000);
+    const chunks  = chunkText(result.text + footer, 4000);
 
     await safeEdit(ctx.chat.id, progressMsg.message_id, chunks[0]);
     for (let i = 1; i < chunks.length; i++) {
@@ -512,20 +583,21 @@ bot.on('message:text', async (ctx) => {
     }
 
     await saveMsg(ctx.chat.id, threadId, 'user', userText, { ...userMeta });
-    await saveMsg(ctx.chat.id, threadId, 'assistant', text, {
-      ...userMeta,
-      modelId:  m.id,
-      provider: m.provider,
+    await saveMsg(ctx.chat.id, threadId, 'assistant', result.text, {
+      ...userMeta, modelId: m.id, provider: m.provider,
       tokensIn, tokensOut, costUsd,
     });
   } catch (err) {
     console.error('[chat-agent] error:', err.message);
     await safeEdit(
-      ctx.chat.id,
-      progressMsg.message_id,
-      `❌ Error: ${(err.message || 'desconocido').slice(0, 300)}`,
+      ctx.chat.id, progressMsg.message_id,
+      `❌ ${(err.message || 'Error desconocido').slice(0, 300)}`,
     );
   } finally {
+    // Always end session so dashboard shows it as closed
+    apiPost('/api/sessions/end', {
+      session_id: sessionId, input_tokens: tokensIn, output_tokens: tokensOut,
+    });
     BUSY.delete(topicKey);
   }
 });
