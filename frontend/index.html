@@ -67,6 +67,7 @@
       <button class="rtab" data-rtab="costs">Costos</button>
       <button class="rtab" data-rtab="providers">APIs</button>
       <button class="rtab" data-rtab="projects">Proyectos</button>
+      <button class="rtab" data-rtab="alerts" id="tab-alerts">Alertas</button>
     </div>
 
     <!-- Agents panel -->
@@ -167,6 +168,20 @@
     <!-- Projects / Screenshots -->
     <div id="projects-panel">
       <div id="project-list"></div>
+    </div>
+
+    <!-- Alerts -->
+    <div id="alerts-panel">
+      <div class="panel-header">
+        <span class="title">Alertas del sistema</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <label style="font-size:10px;color:var(--text-muted);display:flex;align-items:center;gap:4px">
+            <input type="checkbox" id="alerts-show-resolved"> Ver resueltas
+          </label>
+          <span id="alerts-count" style="color:var(--text-muted)">—</span>
+        </div>
+      </div>
+      <div id="alerts-list"></div>
     </div>
 
   </div>

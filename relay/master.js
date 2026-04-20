@@ -624,6 +624,10 @@ function postEvent(payload, monitorUrl) {
   postToMonitor('/api/events', payload, monitorUrl);
 }
 
+function postAlert(alertType, projectId, severity, title, details, autoFixed = false) {
+  postToMonitor('/api/alerts', { alert_type: alertType, project_id: projectId, severity, title, details, auto_fixed: autoFixed });
+}
+
 // ─── Anthropic API directo (Opción B — buzon bidireccional) ──────────────────
 // Llama claude-sonnet-4-6 via HTTPS nativo sin spawn Claude CLI.
 // Usada cuando buzon-fiscalai.md cambia para responder directamente.
@@ -1429,18 +1433,27 @@ function validateAndCleanCommits(repoPath, branch) {
       const more    = dangerous.length > 5 ? `\n… +${dangerous.length - 5} más` : '';
       log(projectId, `SEGURIDAD: archivos peligrosos en commits sin push: ${dangerous.join(', ').slice(0, 300)}`);
       tg(`🚨 <b>Commit peligroso bloqueado — ${projectId}</b>\n${preview}${more}\nLimpiando automáticamente…`);
+      let autoFixed = false;
       try {
         const quoted = dangerous.map(f => `"${f.replace(/"/g, '\\"')}"`).join(' ');
         execSync(`cd ${repoPath} && git rm -r --cached ${quoted} 2>/dev/null || true`, { stdio: 'pipe', timeout: 15000 });
         execSync(`cd ${repoPath} && git diff --cached --quiet || git commit --amend -C HEAD --no-edit --quiet`, { stdio: 'pipe', timeout: 15000 });
         ensureGitignore(repoPath);
+        autoFixed = true;
         tg(`✅ <b>Limpieza OK — ${projectId}</b>\nArchivos peligrosos removidos del historial.`);
       } catch (cleanErr) {
         tg(`⚠️ <b>Limpieza manual requerida — ${projectId}</b>\n<code>${cleanErr.message?.slice(0, 200)}</code>`);
       }
+      postAlert('commit_dangerous', projectId, 'critical',
+        `Commit peligroso — ${projectId}`,
+        dangerous.join(', ').slice(0, 1000),
+        autoFixed);
     } else if (tooMany) {
       log(projectId, `WARN: commit masivo — ${files.length} archivos`);
       tg(`⚠️ <b>Commit masivo — ${projectId}</b>\n${files.length} archivos en commits sin push. Verificar antes de continuar.`);
+      postAlert('commit_massive', projectId, 'warning',
+        `Commit masivo — ${projectId}: ${files.length} archivos`,
+        files.slice(0, 20).join('\n'));
     }
   } catch (err) {
     log(projectId, `validateCommits error: ${err.message?.slice(0, 100)}`);
@@ -1875,6 +1888,46 @@ Si crees que está colgado:
     // ── Parse structured outbox fields ──
     const structured  = parseStructuredOutbox(resultRaw);
 
+    // Extract verification URLs (needed for post-deploy check + Telegram block)
+    const verifyUrls = [...resultRaw.matchAll(/## URL de verificaci[oó]n\s*\n(https?:\/\/\S+)/gi)]
+      .map(m => m[1]);
+    const isFrontend = /front/i.test(project.id) || /front/i.test(project.name);
+    if (isFrontend && project.url && !verifyUrls.includes(project.url)) {
+      verifyUrls.push(project.url);
+    }
+
+    // ── Session quality check ──
+    const LOW_YIELD_SECS = 800;
+    const noChange = !structured.changed || /^ninguno$/i.test(structured.changed.trim());
+    if (duration >= LOW_YIELD_SECS && noChange && exitCode === 0) {
+      postAlert('session_low_yield', project.id, 'warning',
+        `Sesión improductiva — ${project.name}: ${duration}s sin cambios`,
+        `Duración: ${duration}s\nStatus outbox: ${structured.status || 'sin estructurar'}\nPending: ${structured.pending || '—'}`
+      );
+    }
+
+    // ── Post-deploy verification ──
+    if (structured.deployed === 'yes' && verifyUrls.length > 0) {
+      verifyUrls.forEach(url => {
+        const mod = url.startsWith('https') ? require('https') : require('http');
+        const req2 = mod.get(url, { timeout: 10000 }, (res2) => {
+          if (res2.statusCode < 200 || res2.statusCode >= 400) {
+            postAlert('deploy_verify_fail', project.id, 'critical',
+              `Deploy verification falló — ${project.name}`,
+              `URL: ${url}\nHTTP: ${res2.statusCode}`);
+            tg(`🚨 <b>Deploy verification falló — ${project.name}</b>\n${url} → HTTP ${res2.statusCode}`);
+          }
+          res2.resume();
+        });
+        req2.on('error', (e) => {
+          postAlert('deploy_verify_fail', project.id, 'critical',
+            `Deploy verification error — ${project.name}`,
+            `URL: ${url}\nError: ${e.message?.slice(0, 100)}`);
+        });
+        req2.end();
+      });
+    }
+
     // ── Telegram: resultados con ✅/❌ + issues + acceso + journal ──
     const resultList  = formatted.map(l => `  ${l}`).join('\n');
     const changedBlock = structured.changed
@@ -1903,14 +1956,6 @@ Si crees que está colgado:
     const rawTailBlock = fastFail && resultRaw.trim()
       ? `\n\n<b>Output raw (últimos 400 chars):</b>\n<code>${resultRaw.slice(-400).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</code>`
       : '';
-
-    // Extract verification URLs (agent may list multiple ## URL de verificación lines)
-    const verifyUrls = [...resultRaw.matchAll(/## URL de verificaci[oó]n\s*\n(https?:\/\/\S+)/gi)]
-      .map(m => m[1]);
-    const isFrontend = /front/i.test(project.id) || /front/i.test(project.name);
-    if (isFrontend && project.url && !verifyUrls.includes(project.url)) {
-      verifyUrls.push(project.url);
-    }
 
     // Build links block for Telegram
     const prodUrl   = project.url || null;

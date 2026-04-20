@@ -11,6 +11,7 @@ let costData  = null;
 let lineChart = null;
 let dispatches = [];   // [{id, project, title, status, depth, parent_id, created_at, ...}]
 let agentsList = [];   // [{id, name, status, current_task, cost_today, last_activity}]
+let alerts     = [];   // [{id, alert_type, project_id, severity, title, details, auto_fixed, resolved, created_at}]
 
 // ─── Tool icons ───────────────────────────────────────────
 const TOOL_ICONS = {
@@ -553,7 +554,8 @@ function initTabs() {
 }
 
 function switchRightTab(tab) {
-  ['agents','screenshots','sessions','costs','providers','projects'].forEach(t => {
+  if (tab === 'alerts') loadAlerts();
+  ['agents','screenshots','sessions','costs','providers','projects','alerts'].forEach(t => {
     const el = document.getElementById(t + '-panel');
     if (el) el.classList.toggle('visible', t === tab);
   });
@@ -1092,6 +1094,88 @@ function connectSocket() {
     const pending = dispatches.filter(x => x.status === 'pending' || x.status === 'dispatched').length;
     if (counter) counter.textContent = `${dispatches.length} tareas · ${pending} activas`;
   });
+
+  socket.on('alert:new', alert => {
+    alerts.unshift(alert);
+    renderAlerts();
+    updateAlertsBadge();
+  });
+
+  socket.on('alert:resolved', ({ id }) => {
+    const a = alerts.find(x => x.id === id);
+    if (a) { a.resolved = 1; renderAlerts(); updateAlertsBadge(); }
+  });
+}
+
+// ─── Alerts ───────────────────────────────────────────────
+const ALERT_SEVERITY = {
+  critical: { cls: 'alert-critical', icon: '🚨' },
+  warning:  { cls: 'alert-warning',  icon: '⚠️' },
+  info:     { cls: 'alert-info',     icon: 'ℹ️' },
+};
+const ALERT_TYPE_LABEL = {
+  commit_dangerous:   '🔑 Commit peligroso',
+  commit_massive:     '📦 Commit masivo',
+  session_low_yield:  '🐌 Sesión improductiva',
+  deploy_verify_fail: '🌐 Deploy falló verificación',
+};
+
+async function loadAlerts() {
+  const showResolved = document.getElementById('alerts-show-resolved')?.checked;
+  try {
+    const res = await fetch(`${API}/api/alerts?limit=100&resolved=${showResolved ? 'true' : 'false'}`);
+    alerts = await res.json();
+    renderAlerts();
+    updateAlertsBadge();
+  } catch (_) {}
+}
+
+function updateAlertsBadge() {
+  const unresolved = alerts.filter(a => !a.resolved);
+  const crit = unresolved.filter(a => a.severity === 'critical').length;
+  const tab  = document.getElementById('tab-alerts');
+  const cnt  = document.getElementById('alerts-count');
+  if (tab) {
+    tab.style.color = crit > 0 ? 'var(--red)' : unresolved.length > 0 ? 'var(--yellow)' : '';
+    tab.textContent = `Alertas${unresolved.length > 0 ? ` (${unresolved.length})` : ''}`;
+  }
+  if (cnt) cnt.textContent = `${unresolved.length} activas`;
+}
+
+function renderAlerts() {
+  const list = document.getElementById('alerts-list');
+  if (!list) return;
+  const showResolved = document.getElementById('alerts-show-resolved')?.checked;
+  const visible = showResolved ? alerts : alerts.filter(a => !a.resolved);
+  if (!visible.length) {
+    list.innerHTML = `<div class="empty-state">Sin alertas activas ✅</div>`;
+    return;
+  }
+  list.innerHTML = visible.map(a => {
+    const sev   = ALERT_SEVERITY[a.severity] || ALERT_SEVERITY.warning;
+    const label = ALERT_TYPE_LABEL[a.alert_type] || a.alert_type;
+    const ts    = a.created_at ? new Date(a.created_at).toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit' }) : '';
+    const fixed = a.auto_fixed ? ' <span class="badge-fixed">auto-fixed</span>' : '';
+    const resolvedStyle = a.resolved ? 'opacity:0.45;' : '';
+    return `<div class="alert-row ${sev.cls}" style="${resolvedStyle}" data-alert-id="${a.id}">
+      <div class="alert-header">
+        <span class="alert-icon">${sev.icon}</span>
+        <span class="alert-type">${label}</span>
+        ${a.project_id ? `<span class="alert-project">${esc(a.project_id)}</span>` : ''}
+        <span class="alert-ts">${ts}</span>
+        ${fixed}
+      </div>
+      <div class="alert-title">${esc(a.title)}</div>
+      ${a.details ? `<div class="alert-details">${esc(a.details.slice(0, 200))}</div>` : ''}
+      ${!a.resolved ? `<button class="btn-sm btn-resolve" onclick="resolveAlert(${a.id})">Resolver</button>` : '<span class="alert-resolved-tag">resuelto</span>'}
+    </div>`;
+  }).join('');
+}
+
+async function resolveAlert(id) {
+  await fetch(`${API}/api/alerts/${id}/resolve`, { method: 'PATCH' });
+  const a = alerts.find(x => x.id === id);
+  if (a) { a.resolved = 1; renderAlerts(); updateAlertsBadge(); }
 }
 
 // ─── Init ─────────────────────────────────────────────────
@@ -1104,6 +1188,8 @@ document.addEventListener('DOMContentLoaded', () => {
   loadAgents();
   loadDispatches();
   loadScreenshots();
+  loadAlerts();
+  document.getElementById('alerts-show-resolved')?.addEventListener('change', loadAlerts);
   connectSocket();
   refreshFeed();
 
