@@ -22,6 +22,22 @@ module.exports = {
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
     },
     {
+      // Claude chat bot — Telegram direct interface with tool use (grammy + Anthropic SDK)
+      // Requires: relay/.env → TG_CLAUDE_BOT_TOKEN, TG_CLAUDE_CHAT_ID, DB_PASS
+      // Setup:    cd relay && npm install
+      name:        'claude-chat-bot',
+      script:      'relay/chat-agent.js',
+      cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
+      exec_mode:   'fork',
+      instances:   1,
+      autorestart: true,
+      watch:       false,
+      max_memory_restart: '128M',
+      error_file:  '/var/log/ai-monitor/claude-chat-error.log',
+      out_file:    '/var/log/ai-monitor/claude-chat-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss',
+    },
+    {
       name:        'ai-monitor',
       script:      'backend/server.js',
       cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
