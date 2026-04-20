@@ -86,6 +86,18 @@ sudo nginx -t && sudo systemctl reload nginx
    ```
 4. **No hagas loops** — si algo falla 2 veces, reporta y continúa
 5. **Máximo profundidad**: no dispatches si `$RELAY_DEPTH` >= 2
+6. **Máximo 3 objetivos por sesión** — si la tarea tiene más, elige los 3 más críticos y reporta el resto en PENDING
+7. **Deploy es tarea separada** — nunca mezcles edits de código con cp a producción en la misma sesión
+
+## Formato de outbox obligatorio
+Al final del outbox, incluye siempre este bloque exacto:
+```
+STATUS: done|partial|blocked
+CHANGED: archivo1:linea, archivo2:linea (o "ninguno")
+DEPLOYED: yes|no
+PENDING: descripción de lo que falta (o "ninguno")
+USER_REQUIRED: no | sí — [qué necesitas del usuario]
+```
 
 ## Variables de entorno disponibles
 - `RELAY_DISPATCH_URL` — API para despachar sub-tareas al backend

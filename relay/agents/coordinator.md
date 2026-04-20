@@ -57,6 +57,8 @@ curl -s -X POST "$RELAY_DISPATCH_URL" \
 2. **Espera el outbox** antes de reportar éxito — no asumas que funcionó
 3. **Máx profundidad**: no dispatches si `$RELAY_DEPTH` >= 1
 4. **Si un agente está en journal STOP**, informa al usuario en lugar de reintentar
+5. **Si solo vas a escribir inbox.md**, hazlo en < 60s y termina — no uses más API
+6. **Máximo 3 tareas despachadas por sesión** — prioriza, no inundas la cola
 
 ## Variables de entorno disponibles
 - `RELAY_DISPATCH_URL` — API para despachar tareas

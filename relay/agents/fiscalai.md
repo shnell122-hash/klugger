@@ -77,3 +77,17 @@ curl -s http://localhost:3003/api/health  # o el endpoint que corresponda
 - `RELAY_DISPATCH_URL` — API para despachar sub-tareas
 - `RELAY_TASK_ID` — ID de la tarea actual (usar como parent_id en sub-tareas)
 - `RELAY_DEPTH` — Profundidad actual (0=directo, 1=subtarea, 2=sub-subtarea)
+
+## Reglas de tarea
+- **Máximo 3 objetivos por sesión** — si la tarea tiene más, elige los 3 más críticos y reporta el resto en PENDING
+- **Deploy es tarea separada** — nunca mezcles edits de código complejo con cp/rsync a producción en la misma sesión
+
+## Formato de outbox obligatorio
+Al final del outbox, incluye siempre este bloque exacto:
+```
+STATUS: done|partial|blocked
+CHANGED: archivo1:linea, archivo2:linea (o "ninguno")
+DEPLOYED: yes|no
+PENDING: descripción de lo que falta (o "ninguno")
+USER_REQUIRED: no | sí — [qué necesitas del usuario]
+```

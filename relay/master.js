@@ -963,6 +963,21 @@ function parseIssuesSection(content) {
   return parseSectionItems(content, /^## Issues|^## Problemas|^## Bloqueante/i);
 }
 
+// Parse structured outbox fields (STATUS/CHANGED/DEPLOYED/PENDING/USER_REQUIRED)
+function parseStructuredOutbox(content) {
+  const get = (key) => {
+    const m = content.match(new RegExp(`^${key}:\\s*(.+)$`, 'mi'));
+    return m ? m[1].trim() : null;
+  };
+  return {
+    status:       get('STATUS'),
+    changed:      get('CHANGED'),
+    deployed:     get('DEPLOYED'),
+    pending:      get('PENDING'),
+    userRequired: get('USER_REQUIRED'),
+  };
+}
+
 // Format result items for Telegram (ensure emoji prefix)
 function formatResultItems(items, exitCode) {
   if (!items.length) {
@@ -1393,6 +1408,58 @@ Timeout en ${remainMin} min`);
   attachHandlers(child);
 }
 
+// ─── Pre-push commit safety validation ───────────────────
+const DANGEROUS_PATTERNS = [/^node_modules\//, /\.env$/, /\.env\./, /^nohup\.out$/, /^FETCH_HEAD$/];
+
+function validateAndCleanCommits(repoPath, branch) {
+  const projectId = path.basename(repoPath);
+  try {
+    const raw = execSync(
+      `cd ${repoPath} && git log origin/${branch}..HEAD --name-only --pretty=format: 2>/dev/null || true`,
+      { stdio: 'pipe', timeout: 15000 }
+    ).toString();
+    const files = raw.split('\n').map(f => f.trim()).filter(Boolean);
+    if (!files.length) return;
+
+    const dangerous = files.filter(f => DANGEROUS_PATTERNS.some(r => r.test(f)));
+    const tooMany   = files.length > 100;
+
+    if (dangerous.length > 0) {
+      const preview = dangerous.slice(0, 5).map(f => `• <code>${f}</code>`).join('\n');
+      const more    = dangerous.length > 5 ? `\n… +${dangerous.length - 5} más` : '';
+      log(projectId, `SEGURIDAD: archivos peligrosos en commits sin push: ${dangerous.join(', ').slice(0, 300)}`);
+      tg(`🚨 <b>Commit peligroso bloqueado — ${projectId}</b>\n${preview}${more}\nLimpiando automáticamente…`);
+      try {
+        const quoted = dangerous.map(f => `"${f.replace(/"/g, '\\"')}"`).join(' ');
+        execSync(`cd ${repoPath} && git rm -r --cached ${quoted} 2>/dev/null || true`, { stdio: 'pipe', timeout: 15000 });
+        execSync(`cd ${repoPath} && git diff --cached --quiet || git commit --amend -C HEAD --no-edit --quiet`, { stdio: 'pipe', timeout: 15000 });
+        ensureGitignore(repoPath);
+        tg(`✅ <b>Limpieza OK — ${projectId}</b>\nArchivos peligrosos removidos del historial.`);
+      } catch (cleanErr) {
+        tg(`⚠️ <b>Limpieza manual requerida — ${projectId}</b>\n<code>${cleanErr.message?.slice(0, 200)}</code>`);
+      }
+    } else if (tooMany) {
+      log(projectId, `WARN: commit masivo — ${files.length} archivos`);
+      tg(`⚠️ <b>Commit masivo — ${projectId}</b>\n${files.length} archivos en commits sin push. Verificar antes de continuar.`);
+    }
+  } catch (err) {
+    log(projectId, `validateCommits error: ${err.message?.slice(0, 100)}`);
+  }
+}
+
+function ensureGitignore(repoPath) {
+  const gitignorePath = path.join(repoPath, '.gitignore');
+  const REQUIRED = ['node_modules/', '.env', '*.env.*', '*.bak', 'nohup.out', 'FETCH_HEAD'];
+  try {
+    const existing = fs.existsSync(gitignorePath) ? fs.readFileSync(gitignorePath, 'utf8') : '';
+    const toAdd = REQUIRED.filter(r => !existing.split('\n').some(l => l.trim() === r));
+    if (toAdd.length > 0) {
+      fs.appendFileSync(gitignorePath, '\n# relay-master safety\n' + toAdd.join('\n') + '\n');
+      log(path.basename(repoPath), `.gitignore actualizado: ${toAdd.join(', ')}`);
+    }
+  } catch (_) {}
+}
+
 // ─── Git pull + push for a project ───────────────────────
 function gitPull(repoPath, branch) {
   const projectId = path.basename(repoPath);
@@ -1409,12 +1476,17 @@ function gitPull(repoPath, branch) {
         { stdio: 'pipe', timeout: 30000 }
       );
     } catch (_) {
-      // Rebase failed (diverged or mid-rebase) — abort and reset hard
-      execSync(
-        `cd ${repoPath} && git rebase --abort 2>/dev/null || true && git fetch origin ${branch} --quiet && git reset --hard origin/${branch} --quiet`,
-        { stdio: 'pipe', timeout: 30000 }
-      );
-      log(projectId, `gitPull: rebase falló, reset hard a origin/${branch}`);
+      // Rebase failed — abort and stash+pull (preserves agent commits, doesn't destroy work)
+      try {
+        execSync(`cd ${repoPath} && git rebase --abort 2>/dev/null || true`, { stdio: 'pipe', timeout: 5000 });
+        execSync(
+          `cd ${repoPath} && git stash --quiet 2>/dev/null || true && git pull origin ${branch} --quiet 2>/dev/null && git stash pop --quiet 2>/dev/null || true`,
+          { stdio: 'pipe', timeout: 30000 }
+        );
+        log(projectId, `gitPull: rebase falló — usé stash+pull`);
+      } catch (stashErr) {
+        log(projectId, `gitPull: stash+pull también falló — ${stashErr.message?.slice(0, 100)}`);
+      }
     }
   } catch (err) {
     log(projectId, `gitPull error: ${err.message?.slice(0, 200)}`);
@@ -1439,8 +1511,11 @@ function gitPushOutbox(repoPath, branch, outboxPath, timestamp, outboxContent) {
       // Re-write outbox after reset hard — reset wipes locally written content
       if (outboxContent) fs.writeFileSync(outboxPath, outboxContent);
     }
+    // Validate agent commits before pushing (catches node_modules, .env, etc.)
+    validateAndCleanCommits(repoPath, branch);
+
     execSync(
-      `cd ${repoPath} && git add ${outboxPath} && git commit -m "relay: resultado ${timestamp}" --quiet && git push origin ${branch} --quiet`,
+      `cd ${repoPath} && git add ${outboxPath} && git diff --cached --quiet || git commit -m "relay: resultado ${timestamp}" --quiet && git push origin ${branch} --quiet`,
       { stdio: 'pipe', timeout: 30000 }
     );
     log(projectId, `outbox push OK → ${branch}`);
@@ -1797,8 +1872,20 @@ Si crees que está colgado:
       });
     }
 
+    // ── Parse structured outbox fields ──
+    const structured  = parseStructuredOutbox(resultRaw);
+
     // ── Telegram: resultados con ✅/❌ + issues + acceso + journal ──
     const resultList  = formatted.map(l => `  ${l}`).join('\n');
+    const changedBlock = structured.changed
+      ? `\n\n<b>Cambios:</b> <code>${structured.changed.slice(0, 200)}</code>`
+      : '';
+    const deployedBlock = structured.deployed
+      ? `\n<b>Deploy:</b> ${structured.deployed === 'yes' ? '✅' : '❌'} ${structured.deployed}`
+      : '';
+    const pendingBlock = structured.pending
+      ? `\n<b>Pendiente:</b> <code>${structured.pending.slice(0, 150)}</code>`
+      : '';
     const accessItems = parseSectionItems(resultRaw, /^## Acceso/i);
     const issueBlock  = issueItems.length
       ? `\n\n<b>Issues:</b>\n<code>${issueItems.map(l=>`  ⚠️ ${l.replace(/^[-•*]\s*/,'')}`).join('\n')}</code>`
@@ -1839,7 +1926,7 @@ Si crees que está colgado:
 ⏱ ${duration}s | ${journalLine}
 
 <b>Resultados:</b>
-<code>${resultList}</code>${issueBlock}${accessBlock}${rawTailBlock}${urlsBlock}${prodBlock}`);
+<code>${resultList}</code>${changedBlock}${deployedBlock}${pendingBlock}${issueBlock}${accessBlock}${rawTailBlock}${urlsBlock}${prodBlock}`);
 
     if (isTimeout) {
       tg(`⏰ <b>Intervención requerida — ${project.name}</b>
