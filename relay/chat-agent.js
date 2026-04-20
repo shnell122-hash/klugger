@@ -11,14 +11,21 @@ const mysql        = require('mysql2/promise');
 const { execSync } = require('child_process');
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const REPO         = process.env.REPO_ROOT    || '/var/www/html/vilarkptl.com/ai-monitor';
-const ALLOWED_CHAT = process.env.TG_CLAUDE_CHAT_ID;
-const MODEL        = process.env.CLAUDE_CHAT_MODEL || 'claude-sonnet-4-6';
-const MAX_ITER     = 10;
-const MAX_HISTORY  = 20;
+const REPO        = process.env.REPO_ROOT         || '/var/www/html/vilarkptl.com/ai-monitor';
+const MODEL       = process.env.CLAUDE_CHAT_MODEL || 'claude-sonnet-4-6';
+const GROUP_CHAT  = process.env.TG_CLAUDE_GROUP_ID || '';   // optional shared supergroup
+const MAX_ITER    = 10;
+const MAX_HISTORY = 20;
 
-if (!ALLOWED_CHAT) {
-  console.error('[chat-agent] FATAL: TG_CLAUDE_CHAT_ID no definido en relay/.env');
+// Authorized Telegram user IDs (comma-separated in .env)
+// e.g. TG_ALLOWED_USER_IDS=123456789,987654321,555123456
+const ALLOWED_USER_IDS = new Set(
+  (process.env.TG_ALLOWED_USER_IDS || '')
+    .split(',').map(s => s.trim()).filter(Boolean),
+);
+
+if (ALLOWED_USER_IDS.size === 0) {
+  console.error('[chat-agent] FATAL: TG_ALLOWED_USER_IDS no definido en relay/.env');
   process.exit(1);
 }
 
@@ -166,18 +173,34 @@ async function loadHistory(chatId, threadId) {
 async function saveMsg(chatId, threadId, role, content, meta = {}) {
   await db.query(
     `INSERT INTO conversations
-       (chat_id, thread_id, role, content, tool_name, model, tokens_in, tokens_out)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       (chat_id, thread_id, telegram_user_id, telegram_username,
+        role, content, tool_name, model, provider, tokens_in, tokens_out, cost_usd)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
-      chatId, threadId, role, content,
-      meta.tool || null, meta.model || null,
-      meta.tokensIn || 0, meta.tokensOut || 0,
+      chatId,
+      threadId,
+      meta.userId   || null,
+      meta.username || null,
+      role,
+      content,
+      meta.tool     || null,
+      meta.model    || null,
+      meta.provider || 'anthropic',
+      meta.tokensIn  || 0,
+      meta.tokensOut || 0,
+      meta.costUsd   || 0,
     ],
   );
 }
 
+// ── Cost calculation (Anthropic pricing — Sonnet 4.6) ─────────────────────────
+// Input: $3/MTok, Output: $15/MTok  (update if model changes)
+function calcCost(tokensIn, tokensOut) {
+  return (tokensIn * 3 + tokensOut * 15) / 1_000_000;
+}
+
 // ── Agentic loop ──────────────────────────────────────────────────────────────
-async function runAgent(chatId, threadId, userText, onProgress) {
+async function runAgent(chatId, threadId, userText, userMeta, onProgress) {
   const history = await loadHistory(chatId, threadId);
   history.push({ role: 'user', content: userText });
 
@@ -214,16 +237,22 @@ async function runAgent(chatId, threadId, userText, onProgress) {
       continue;
     }
 
-    const text = resp.content.find(b => b.type === 'text')?.text || '(sin respuesta)';
-    await saveMsg(chatId, threadId, 'user',      userText, {});
-    await saveMsg(chatId, threadId, 'assistant', text,     {
-      model: MODEL, tokensIn: totalIn, tokensOut: totalOut,
+    const text    = resp.content.find(b => b.type === 'text')?.text || '(sin respuesta)';
+    const costUsd = calcCost(totalIn, totalOut);
+
+    await saveMsg(chatId, threadId, 'user', userText, {
+      userId: userMeta.userId, username: userMeta.username,
+    });
+    await saveMsg(chatId, threadId, 'assistant', text, {
+      userId: userMeta.userId, username: userMeta.username,
+      model: MODEL, provider: 'anthropic',
+      tokensIn: totalIn, tokensOut: totalOut, costUsd,
     });
 
-    return { text, totalIn, totalOut };
+    return { text, totalIn, totalOut, costUsd };
   }
 
-  return { text: '⚠️ Máximo de iteraciones alcanzado.', totalIn, totalOut };
+  return { text: '⚠️ Máximo de iteraciones alcanzado.', totalIn, totalOut, costUsd: calcCost(totalIn, totalOut) };
 }
 
 // ── Telegram helpers ──────────────────────────────────────────────────────────
@@ -232,11 +261,11 @@ function topicOpts(threadId) {
 }
 
 async function safeEdit(chatId, msgId, text) {
-  const truncated = (text || '…').slice(0, 4096);
+  const t = (text || '…').slice(0, 4096);
   try {
-    await bot.api.editMessageText(chatId, msgId, truncated, { parse_mode: 'Markdown' });
+    await bot.api.editMessageText(chatId, msgId, t, { parse_mode: 'Markdown' });
   } catch (_) {
-    try { await bot.api.editMessageText(chatId, msgId, truncated); } catch (__) {}
+    try { await bot.api.editMessageText(chatId, msgId, t); } catch (__) {}
   }
 }
 
@@ -253,16 +282,28 @@ function chunkText(text, maxLen = 4000) {
   return chunks;
 }
 
-// Prevent overlapping requests per topic
+// Prevent overlapping requests per topic/user
 const BUSY = new Map();
+
+// ── Authorization helper ──────────────────────────────────────────────────────
+function isAuthorized(ctx) {
+  const userId = String(ctx.from?.id || '');
+  if (ALLOWED_USER_IDS.has(userId)) return true;
+  if (GROUP_CHAT && String(ctx.chat?.id) === String(GROUP_CHAT)) return true;
+  return false;
+}
 
 // ── Message handler ───────────────────────────────────────────────────────────
 bot.on('message:text', async (ctx) => {
-  if (String(ctx.chat.id) !== String(ALLOWED_CHAT)) return;
+  if (!isAuthorized(ctx)) return;
 
-  const userText = ctx.message.text.trim();
-  const threadId = ctx.message.message_thread_id ?? 0;
-  const topicKey = `${ctx.chat.id}:${threadId}`;
+  const userText  = ctx.message.text.trim();
+  const threadId  = ctx.message.message_thread_id ?? 0;
+  const topicKey  = `${ctx.chat.id}:${threadId}`;
+  const userMeta  = {
+    userId:   ctx.from?.id,
+    username: ctx.from?.username || ctx.from?.first_name || String(ctx.from?.id),
+  };
 
   // Commands
   if (userText === '/reset') {
@@ -275,13 +316,13 @@ bot.on('message:text', async (ctx) => {
 
   if (userText === '/status') {
     const [rows] = await db.query(
-      `SELECT COUNT(*) AS total, MAX(created_at) AS last
+      `SELECT COUNT(*) AS total, ROUND(SUM(cost_usd), 4) AS cost, MAX(created_at) AS last
        FROM conversations WHERE chat_id = ? AND thread_id = ?`,
       [ctx.chat.id, threadId],
     );
-    const { total, last } = rows[0];
+    const { total, cost, last } = rows[0];
     return ctx.reply(
-      `📊 Topic ${threadId}: ${total} mensajes. Último: ${last || 'ninguno'}.`,
+      `📊 Topic ${threadId}: ${total} msgs · $${cost || '0.0000'} · último: ${last || 'ninguno'}`,
       topicOpts(threadId),
     );
   }
@@ -293,12 +334,11 @@ bot.on('message:text', async (ctx) => {
       '`/status` — Estadísticas del topic\n' +
       '`/help` — Esta ayuda\n\n' +
       'Escribe cualquier instrucción en lenguaje natural.\n' +
-      'Claude tiene acceso a bash, archivos del servidor y puede despachar tareas a los agentes relay.',
+      'Claude tiene acceso a bash, archivos y puede despachar tareas a los agentes relay.',
       { parse_mode: 'Markdown', ...topicOpts(threadId) },
     );
   }
 
-  // One request at a time per topic
   if (BUSY.get(topicKey)) {
     return ctx.reply('⏳ Procesando solicitud anterior, espera un momento…', topicOpts(threadId));
   }
@@ -308,15 +348,15 @@ bot.on('message:text', async (ctx) => {
   bot.api.sendChatAction(ctx.chat.id, 'typing', topicOpts(threadId)).catch(() => {});
 
   try {
-    const { text, totalIn, totalOut } = await runAgent(
+    const { text, totalIn, totalOut, costUsd } = await runAgent(
       ctx.chat.id,
       threadId,
       userText,
+      userMeta,
       (progressText) => safeEdit(ctx.chat.id, progressMsg.message_id, progressText),
     );
 
-    const cost   = (totalIn * 3 + totalOut * 15) / 1_000_000;
-    const footer = `\n\n_${totalIn}↑ ${totalOut}↓ · $${cost.toFixed(4)}_`;
+    const footer = `\n\n_${totalIn}↑ ${totalOut}↓ · $${costUsd.toFixed(4)}_`;
     const chunks = chunkText(text + footer, 4000);
 
     await safeEdit(ctx.chat.id, progressMsg.message_id, chunks[0]);
@@ -338,7 +378,7 @@ bot.on('message:text', async (ctx) => {
 // ── Boot ──────────────────────────────────────────────────────────────────────
 bot.catch(err => console.error('[grammy]', err.message));
 
-console.log('[chat-agent] Iniciando bot…');
+console.log(`[chat-agent] Iniciando — ${ALLOWED_USER_IDS.size} usuario(s) autorizados`);
 bot.start({
   onStart: info => console.log(`[chat-agent] @${info.username} listo — polling activo`),
 });

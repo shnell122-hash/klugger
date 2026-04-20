@@ -42,6 +42,7 @@
   <button class="tab-btn" data-panel="costs">Costos</button>
   <button class="tab-btn" data-panel="providers">APIs</button>
   <button class="tab-btn" data-panel="projects">Proyectos</button>
+  <button class="tab-btn" data-panel="conversations">Chats</button>
 </div>
 
 <!-- ── Main ── -->
@@ -67,6 +68,7 @@
       <button class="rtab" data-rtab="costs">Costos</button>
       <button class="rtab" data-rtab="providers">APIs</button>
       <button class="rtab" data-rtab="projects">Proyectos</button>
+      <button class="rtab" data-rtab="conversations">Chats</button>
     </div>
 
     <!-- Agents panel -->
@@ -167,6 +169,24 @@
     <!-- Projects / Screenshots -->
     <div id="projects-panel">
       <div id="project-list"></div>
+    </div>
+
+    <!-- Conversations (Telegram chat bot sessions) -->
+    <div id="conversations-panel">
+      <div class="panel-header">
+        <span class="title">Chats</span>
+        <span id="conv-header-cost" style="color:var(--text-muted)">—</span>
+      </div>
+      <!-- User list view -->
+      <div id="conv-user-list"></div>
+      <!-- Messages view (hidden until user selected) -->
+      <div id="conv-messages" style="display:none">
+        <div class="panel-header conv-back-header" onclick="convShowUsers()" style="cursor:pointer">
+          <span>← <span id="conv-user-name" style="color:var(--accent)"></span></span>
+          <span id="conv-user-cost" style="color:var(--text-muted)"></span>
+        </div>
+        <div id="conv-msg-list"></div>
+      </div>
     </div>
 
   </div>

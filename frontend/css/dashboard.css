@@ -989,3 +989,46 @@ main {
 .sdm-ev-summary { color: var(--text-muted); font-size: 10px; margin-top: 2px; }
 .sdm-ev-meta  { text-align: right; color: var(--text-muted); font-size: 9px; white-space: nowrap; }
 
+/* ── Conversaciones panel ── */
+.conv-user-item {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.conv-user-item:hover { background: var(--bg3); }
+.conv-user-name { font-weight: 600; color: var(--accent); }
+.conv-user-meta {
+  display: flex;
+  gap: 10px;
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.conv-cost  { color: var(--green); }
+.conv-time  { color: var(--text-muted); margin-left: auto; }
+.conv-back-header { cursor: pointer; }
+.conv-back-header:hover { background: var(--bg3); }
+.conv-msg-item {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.conv-msg-user      { background: var(--bg2); }
+.conv-msg-assistant { background: var(--bg); }
+.conv-msg-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.conv-msg-text {
+  font-size: 11px;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 120px;
+  overflow: hidden;
+}
+
