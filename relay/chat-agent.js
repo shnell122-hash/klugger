@@ -28,7 +28,7 @@ const TOPIC_MODEL = new Map();
 const REPO         = process.env.REPO_ROOT         || '/var/www/html/vilarkptl.com/ai-monitor';
 const GROUP_CHAT   = process.env.TG_CLAUDE_GROUP_ID || '';
 const MONITOR_API  = process.env.MONITOR_API_URL    || 'http://127.0.0.1:3010';
-const MAX_ITER      = 6;                                                     // reduced: prevents context explosion
+const MAX_ITER      = 8;                                                     // token+cost circuit breakers are the real safety net
 const MAX_HISTORY   = 20;
 const MAX_COST_USD  = parseFloat(process.env.MAX_COST_USD  || '1.00');       // per-request cost circuit breaker
 const TOKEN_BUDGET  = parseInt(process.env.TOKEN_BUDGET    || '30000');      // input token circuit breaker
@@ -153,10 +153,18 @@ const TOOLS_OPENAI = TOOLS_ANTHROPIC.map(t => ({
   },
 }));
 
+// ── Bash security denylist ────────────────────────────────────────────────────
+// Blocks destructive commands that could damage the server irreversibly.
+// Claude never needs these; prompt injection or mistakes would be catastrophic.
+const BASH_DENYLIST = /(\brm\s+(-[^-\s]*f[^-\s]*|-[^-\s]*r[^-\s]*f|--force)\s+\/|\bdd\s+.*of=\/dev\/|\bmkfs\b|\bfdisk\b|\bshred\b|\bwipefs\b|>\s*\/dev\/sd[a-z]|:\(\)\s*\{.*\})/i;
+
 // ── Tool execution ────────────────────────────────────────────────────────────
 function runTool(name, input) {
   try {
     if (name === 'bash') {
+      if (BASH_DENYLIST.test(input.command)) {
+        return 'ERROR: Comando bloqueado (política de seguridad). Reformula sin operaciones destructivas de disco/partición.';
+      }
       const out = execSync(input.command, {
         cwd:      input.cwd || REPO,
         timeout:  30000,
@@ -195,8 +203,13 @@ async function callModel(modelKey, messages, ctx, onProgress) {
   return callDeepSeek(m, messages, ctx, onProgress);
 }
 
+// Cached system block — Anthropic charges 10% on cache reads vs 100% on normal input.
+// The system prompt + CLAUDE.md (~2K tokens) is static per process start, so every
+// request after the first hits the cache. Saves ~$0.005–0.03 per request on Sonnet.
+const SYSTEM_CACHED = [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }];
+
 async function callAnthropic(m, messages, ctx, onProgress) {
-  let totalIn = 0, totalOut = 0;
+  let totalIn = 0, totalOut = 0, totalCacheRead = 0;
   const history   = [...messages];
   const callHist  = [];  // for loop detection
 
@@ -205,15 +218,17 @@ async function callAnthropic(m, messages, ctx, onProgress) {
       model:      m.id,
       tools:      TOOLS_ANTHROPIC,
       max_tokens: 8096,
-      system:     SYSTEM_PROMPT,
+      system:     SYSTEM_CACHED,
       messages:   history,
     });
 
-    totalIn  += resp.usage?.input_tokens  || 0;
-    totalOut += resp.usage?.output_tokens || 0;
+    totalIn        += resp.usage?.input_tokens              || 0;
+    totalOut       += resp.usage?.output_tokens             || 0;
+    totalCacheRead += resp.usage?.cache_read_input_tokens   || 0;
 
     // Circuit breakers: cost and token budget
-    const cost = calcCost(ctx.modelKey, totalIn, totalOut);
+    // Cache reads are 10% of base input price — adjust so we don't overcount savings
+    const cost = calcCostCached(ctx.modelKey, totalIn, totalOut, totalCacheRead);
     if (cost > MAX_COST_USD) {
       throw new Error(`💸 Límite de costo: $${cost.toFixed(4)} > $${MAX_COST_USD}. Abortando.`);
     }
@@ -261,7 +276,20 @@ async function callAnthropic(m, messages, ctx, onProgress) {
     const text = resp.content.find(b => b.type === 'text')?.text || '(sin respuesta)';
     return { text, tokensIn: totalIn, tokensOut: totalOut };
   }
-  return { text: '⚠️ Máximo de iteraciones alcanzado.', tokensIn: totalIn, tokensOut: totalOut };
+
+  // MAX_ITER reached — ask Claude to summarize what it completed and what's left
+  try {
+    const synth = await anthropic.messages.create({
+      model: m.id, max_tokens: 512, system: SYSTEM_CACHED,
+      messages: [...history, { role: 'user', content: 'Límite de pasos alcanzado. Resume en 3 líneas: qué se completó y qué falta para terminar.' }],
+    });
+    const summary = synth.content.find(b => b.type === 'text')?.text || '';
+    totalIn  += synth.usage?.input_tokens  || 0;
+    totalOut += synth.usage?.output_tokens || 0;
+    return { text: `⚠️ _Límite de pasos alcanzado._\n\n${summary}`, tokensIn: totalIn, tokensOut: totalOut };
+  } catch (_) {
+    return { text: '⚠️ Límite de pasos alcanzado. Divide la tarea en partes más pequeñas.', tokensIn: totalIn, tokensOut: totalOut };
+  }
 }
 
 async function callDeepSeek(m, messages, ctx, onProgress) {
@@ -361,6 +389,13 @@ async function callDeepSeek(m, messages, ctx, onProgress) {
 function calcCost(modelKey, tokensIn, tokensOut) {
   const m = MODELS[modelKey] || MODELS[DEFAULT_MODEL];
   return (tokensIn * m.costIn + tokensOut * m.costOut) / 1_000_000;
+}
+
+// Cache-aware cost: cache reads are billed at 10% of base input price
+function calcCostCached(modelKey, tokensIn, tokensOut, cacheRead) {
+  const m = MODELS[modelKey] || MODELS[DEFAULT_MODEL];
+  const regularIn = tokensIn - cacheRead;
+  return (regularIn * m.costIn + cacheRead * m.costIn * 0.1 + tokensOut * m.costOut) / 1_000_000;
 }
 
 // ── Monitor API (fire-and-forget — never blocks the bot) ─────────────────────
@@ -613,10 +648,43 @@ bot.on('message:text', async (ctx) => {
 });
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
+// Supports two modes:
+//   Webhook (preferred): set BOT_WEBHOOK_URL=https://ia.vilarkptl.com/tg-bot in relay/.env
+//     Then add to Apache VirtualHost: ProxyPass /tg-bot http://127.0.0.1:3011/
+//   Polling (default):   BOT_WEBHOOK_URL unset — grammY long-polls Telegram servers
+
 bot.catch(err => console.error('[grammy]', err.message));
 
 console.log(`[chat-agent] Iniciando — ${ALLOWED_USER_IDS.size} usuario(s) autorizados`);
 console.log(`[chat-agent] Modelos: ${Object.keys(MODELS).join(', ')} (default: ${DEFAULT_MODEL})`);
-bot.start({
-  onStart: info => console.log(`[chat-agent] @${info.username} listo — polling activo`),
-});
+
+const WEBHOOK_URL  = process.env.BOT_WEBHOOK_URL  || '';
+const WEBHOOK_PORT = parseInt(process.env.BOT_WEBHOOK_PORT || '3011');
+
+if (WEBHOOK_URL) {
+  const { webhookCallback } = require('grammy');
+  const http = require('http');
+
+  bot.api.setWebhook(WEBHOOK_URL, { drop_pending_updates: true })
+    .then(() => {
+      const handleUpdate = webhookCallback(bot, 'http');
+      http.createServer(async (req, res) => {
+        if (req.method === 'POST') {
+          await handleUpdate(req, res);
+        } else {
+          res.writeHead(200).end('OK');
+        }
+      }).listen(WEBHOOK_PORT, '127.0.0.1', () => {
+        console.log(`[chat-agent] Webhook activo en :${WEBHOOK_PORT} → ${WEBHOOK_URL}`);
+      });
+    })
+    .catch(err => {
+      console.error('[chat-agent] Error al registrar webhook:', err.message);
+      console.log('[chat-agent] Cayendo back a polling…');
+      bot.start({ onStart: info => console.log(`[chat-agent] @${info.username} listo — polling activo`) });
+    });
+} else {
+  bot.start({
+    onStart: info => console.log(`[chat-agent] @${info.username} listo — polling activo`),
+  });
+}
