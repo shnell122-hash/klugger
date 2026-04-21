@@ -179,6 +179,7 @@ function registerBotCommands() {
     { command: 'detente',  description: 'Detiene tareas activas — /detente [id?]' },
     { command: 'activar',  description: 'Reactiva un agente detenido — /activar [id]' },
     { command: 'memoria',  description: 'Agrega nota a la memoria del agente — /memoria [id] [nota]' },
+    { command: 'plan',     description: 'Ver plan activo del proyecto — /plan [id?]' },
     { command: 'comandos', description: 'Lista todos los comandos disponibles' },
     { command: 'ayuda',    description: 'Lista todos los comandos disponibles' },
   ];
@@ -460,6 +461,36 @@ async function handleTelegramCommand(text, imageContext) {
       }
     } catch (e) {
       tg(`❌ Error guardando nota: <code>${esc(e.message?.slice(0,200))}</code>`);
+    }
+    return;
+  }
+
+  if (lower.startsWith('/plan')) {
+    const projectId = raw.split(/\s+/)[1] || null;
+    const WORKSPACE = path.join(__dirname, 'workspaces');
+    if (projectId) {
+      const planPath = path.join(WORKSPACE, projectId, 'plan.md');
+      try {
+        const content = fs.readFileSync(planPath, 'utf8').trim();
+        tg(`📋 <b>Plan — ${projectId}</b>\n\n<code>${esc(content.slice(0, 3000))}</code>`);
+      } catch (_) {
+        tg(`❌ No hay plan.md para <b>${projectId}</b>\nRuta esperada: <code>relay/workspaces/${projectId}/plan.md</code>`);
+      }
+    } else {
+      let lines = [];
+      try {
+        const dirs = fs.readdirSync(WORKSPACE).filter(d => {
+          try { return fs.statSync(path.join(WORKSPACE, d)).isDirectory(); } catch (_) { return false; }
+        });
+        for (const d of dirs) {
+          try {
+            const content = fs.readFileSync(path.join(WORKSPACE, d, 'plan.md'), 'utf8');
+            const objetivo = content.match(/## Objetivo actual\n([\s\S]*?)(?=\n##|$)/)?.[1]?.trim() || '(sin objetivo)';
+            lines.push(`<b>${d}</b>: ${esc(objetivo.replace(/^<!--.*?-->\n?/gm, '').trim().slice(0, 80))}`);
+          } catch (_) {}
+        }
+      } catch (_) {}
+      tg(`📋 <b>Planes de proyecto</b>\n\n${lines.join('\n') || 'Sin planes configurados'}\n\nVer plan completo: <code>/plan [proyecto]</code>`);
     }
     return;
   }
@@ -1030,6 +1061,15 @@ function appendAgentMemory(repoPath, projectName, title, resultItems, issueItems
   } catch (_) {}
 }
 
+// ─── Context injector: load per-project plan.md ───────────
+function loadProjectPlan(projectId) {
+  const planPath = path.join(__dirname, 'workspaces', projectId, 'plan.md');
+  try {
+    const raw = fs.readFileSync(planPath, 'utf8').trim();
+    return raw ? `\n\n---\n\n## Plan de proyecto (contexto activo)\n${raw}` : '';
+  } catch (_) { return ''; }
+}
+
 // ─── Journal system ───────────────────────────────────────
 const JOURNALS_DIR = path.join(__dirname, 'journals');
 try { fs.mkdirSync(JOURNALS_DIR, { recursive: true }); } catch (_) {}
@@ -1126,9 +1166,10 @@ function runClaude(project, taskContent, callback, dispatchMeta = {}) {
 
   try { fs.unlinkSync(taskFile); } catch (_) {}
 
-  // Build context: load agent-specific .md + accumulated memory + task
-  const agentCtx = loadAgentContext(project.id);
-  const agentMem = loadAgentMemory(project.repo);
+  // Build context: load agent-specific .md + current plan + accumulated memory + task
+  const agentCtx  = loadAgentContext(project.id);
+  const agentPlan = loadProjectPlan(project.id);
+  const agentMem  = loadAgentMemory(project.repo);
   const OUTPUT_STRUCTURE = `
 **TU ÚLTIMO MENSAJE al terminar DEBE ser exactamente** (relay-master lo parsea para Telegram):
 \`\`\`
@@ -1150,13 +1191,13 @@ Si no pudiste autenticarte o acceder a algún recurso, indícalo en ## Acceso au
 Si necesitas intervención humana: ⚠️ REQUIERE INTERVENCIÓN HUMANA: [descripción]`;
 
   const context  = agentCtx
-    ? `${agentCtx}${agentMem}\n\n---\n\n## Tarea recibida\n\n${taskContent}`
+    ? `${agentCtx}${agentPlan}${agentMem}\n\n---\n\n## Tarea recibida\n\n${taskContent}`
     : `Eres el agente de servidor para el proyecto "${project.name}".
 Repo: ${project.repo || 'N/A'}
 URL: ${project.url || 'N/A'}
 Directorio de trabajo: ${project.repo || '/var/www/html'}
 ${OUTPUT_STRUCTURE}
-${agentMem}
+${agentPlan}${agentMem}
 
 ## Tarea
 ${taskContent}`;
