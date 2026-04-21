@@ -28,9 +28,10 @@ const TOPIC_MODEL = new Map();
 const REPO         = process.env.REPO_ROOT         || '/var/www/html/vilarkptl.com/ai-monitor';
 const GROUP_CHAT   = process.env.TG_CLAUDE_GROUP_ID || '';
 const MONITOR_API  = process.env.MONITOR_API_URL    || 'http://127.0.0.1:3010';
-const MAX_ITER     = 10;
-const MAX_HISTORY  = 20;
-const MAX_COST_USD = parseFloat(process.env.MAX_COST_USD || '1.00');  // circuit breaker
+const MAX_ITER      = 6;                                                     // reduced: prevents context explosion
+const MAX_HISTORY   = 20;
+const MAX_COST_USD  = parseFloat(process.env.MAX_COST_USD  || '1.00');       // per-request cost circuit breaker
+const TOKEN_BUDGET  = parseInt(process.env.TOKEN_BUDGET    || '30000');      // input token circuit breaker
 
 const ALLOWED_USER_IDS = new Set(
   (process.env.TG_ALLOWED_USER_IDS || '')
@@ -68,19 +69,22 @@ const CLAUDE_MD = (() => {
   catch (_) { return ''; }
 })();
 
-const SYSTEM_PROMPT = `Eres Claude Code ejecutándose en el servidor de producción vilar-desarrollo (143.198.228.78).
+const SYSTEM_PROMPT = `Eres Claude Code en el servidor de producción vilar-desarrollo (143.198.228.78).
 Tienes herramientas para leer/escribir archivos, ejecutar bash y despachar tareas a agentes relay.
 
-Repo principal: ${REPO}
+Repo: ${REPO}
 Proyectos activos: fiscalai, fiscalai-front, coordinator, ai-monitor
 
-Reglas:
-- Responde siempre en español
-- Lee un archivo antes de modificarlo
-- En commits: git add <archivos específicos>, NUNCA git add .
-- NUNCA commitees node_modules, .env, nohup.out, FETCH_HEAD
-- Máximo 3 objetivos por sesión; si requiere más, divide y confirma con el usuario
-- Ante acciones destructivas (rm, reset --hard, drop table), pide confirmación explícita
+REGLAS DE COMPORTAMIENTO:
+- Responde en español, directo al grano. SIN saludos, SIN listas de capacidades, SIN emojis.
+- Responde a la solicitud concreta. Si no hay tarea clara, pide aclaración en UNA línea.
+- Lee un archivo antes de modificarlo. Lee solo lo necesario para la tarea.
+- Scope limitado: máximo 3 archivos por tarea. Si requiere más, divide y confirma.
+- Ante tareas abiertas o de exploración sin límite definido (ej: "revisa todo el código"),
+  pide al usuario que acote: ¿qué proyecto? ¿qué tipo de problema? No explores sin límite.
+- Commits: git add <archivos específicos>, NUNCA git add . ni add -A.
+- NUNCA commitees node_modules, .env, nohup.out, FETCH_HEAD.
+- Ante acciones destructivas (rm, reset --hard, drop table), confirma antes.
 
 --- CLAUDE.md ---
 ${CLAUDE_MD}`.trim();
@@ -208,10 +212,13 @@ async function callAnthropic(m, messages, ctx, onProgress) {
     totalIn  += resp.usage?.input_tokens  || 0;
     totalOut += resp.usage?.output_tokens || 0;
 
-    // Cost circuit breaker
+    // Circuit breakers: cost and token budget
     const cost = calcCost(ctx.modelKey, totalIn, totalOut);
     if (cost > MAX_COST_USD) {
-      throw new Error(`💸 Límite de costo alcanzado: $${cost.toFixed(4)} > $${MAX_COST_USD}. Abortando.`);
+      throw new Error(`💸 Límite de costo: $${cost.toFixed(4)} > $${MAX_COST_USD}. Abortando.`);
+    }
+    if (totalIn > TOKEN_BUDGET) {
+      throw new Error(`📊 Presupuesto de tokens agotado: ${totalIn.toLocaleString()}↑ > ${TOKEN_BUDGET.toLocaleString()}. Divide la tarea en partes más pequeñas.`);
     }
 
     if (resp.stop_reason === 'tool_use') {
@@ -299,10 +306,13 @@ async function callDeepSeek(m, messages, ctx, onProgress) {
     totalIn  += resp.usage?.prompt_tokens     || 0;
     totalOut += resp.usage?.completion_tokens || 0;
 
-    // Cost circuit breaker
+    // Circuit breakers: cost and token budget
     const cost = calcCost(ctx.modelKey, totalIn, totalOut);
     if (cost > MAX_COST_USD) {
-      throw new Error(`💸 Límite de costo alcanzado: $${cost.toFixed(4)} > $${MAX_COST_USD}. Abortando.`);
+      throw new Error(`💸 Límite de costo: $${cost.toFixed(4)} > $${MAX_COST_USD}. Abortando.`);
+    }
+    if (totalIn > TOKEN_BUDGET) {
+      throw new Error(`📊 Presupuesto de tokens agotado: ${totalIn.toLocaleString()}↑ > ${TOKEN_BUDGET.toLocaleString()}. Divide la tarea en partes más pequeñas.`);
     }
 
     if (choice.finish_reason === 'tool_calls') {
