@@ -1055,7 +1055,7 @@ function saveJournal(projectId, journal) {
   try { fs.writeFileSync(f, JSON.stringify(journal, null, 2)); } catch (_) {}
 }
 
-function updateJournal(projectId, { title, exitCode, resultSummary, durationSec }) {
+function updateJournal(projectId, { title, exitCode, resultSummary, durationSec, fullResult = '', costUsd = 0 }) {
   const journal = loadJournal(projectId);
   const status  = exitCode === 0 ? 'success' : 'failed';
 
@@ -1064,31 +1064,59 @@ function updateJournal(projectId, { title, exitCode, resultSummary, durationSec 
   journal.consecutive_successes = status === 'success' ? journal.consecutive_successes + 1 : 0;
   journal.updated_at = new Date().toISOString();
 
+  // Track cumulative cost per plan (resets when plan title changes)
+  if (!journal.plan_title || journal.plan_title !== title) {
+    journal.plan_title    = title;
+    journal.plan_cost_usd = 0;
+  }
+  journal.plan_cost_usd = (journal.plan_cost_usd || 0) + (costUsd || 0);
+
   journal.recent_tasks.unshift({
     title,
     status,
     exit_code:      exitCode,
     result_summary: (resultSummary || '').slice(0, 200),
+    cost_usd:       costUsd,
     duration_sec:   durationSec,
     timestamp:      new Date().toISOString(),
   });
   journal.recent_tasks = journal.recent_tasks.slice(0, 10);
 
-  // Auto-stop: 2 consecutive failures
-  if (journal.consecutive_failures >= 2 && journal.state === 'active') {
+  // Auto-stop: 3 consecutive failures (loop breaker — Phase 1.4)
+  if (journal.consecutive_failures >= 3 && journal.state === 'active') {
     journal.state = 'stopped';
+    const errorSnippet = (fullResult || resultSummary || '').slice(-600)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     tg(`🆘 <b>STOP automático — ${projectId}</b>
-2 intentos fallidos consecutivos.
+3 intentos fallidos consecutivos.
 El agente no continuará solo.
 
-Revisa los outboxes y crea un plan corregido.
-<code>${(resultSummary || '').slice(0, 300)}</code>`);
+<b>Último error:</b>
+<code>${errorSnippet}</code>
+
+Revisa el outbox, corrige el problema y escribe un nuevo plan.`);
   } else if (status === 'success' && journal.state === 'stopped') {
     journal.state = 'active';  // reset if new success
   }
 
   saveJournal(projectId, journal);
   return journal;
+}
+
+// ─── Phase 1.2: Budget cap — parse budget_usd_max from inbox ─────────────────
+function parseBudgetMax(taskContent) {
+  const m = taskContent.match(/budget_usd_max\s*[:=]\s*([\d.]+)/i);
+  return m ? parseFloat(m[1]) : 2.00;
+}
+
+// ─── Phase 1.3: Outbox validator — require verifiable artifact ────────────────
+function hasVerifiableArtifact(resultText) {
+  if (/\b[a-f0-9]{64}\b/i.test(resultText))                                               return true; // SHA256
+  if (/HTTP\/\d+(\.\d+)?\s+\d{3}|\bstatus[: ]+\d{3}/i.test(resultText))                  return true; // HTTP status
+  if (/\b\d+\s+(matches|results|líneas|files|archivos|rows|registros)\b/i.test(resultText)) return true; // grep/wc count
+  if (/\b[a-f0-9]{7,40}\b.{0,30}commit|commit.{0,30}\b[a-f0-9]{7,40}\b/i.test(resultText)) return true; // git hash
+  if (/\b(pm2|systemctl)\b.{0,40}\bonline\b|\bonline\b.{0,40}\bpm2\b/i.test(resultText))   return true; // service online
+  return false;
 }
 
 // ─── Execute Claude for a project (stream-json for real-time events) ─────────
@@ -1246,11 +1274,12 @@ ${taskContent}`;
   const pendingTools = {};
 
   let callbackFired = false;
+  let taskCostUsd   = 0;
   function safeCallback(code, text) {
     if (callbackFired) return;
     callbackFired = true;
     try { fs.unlinkSync(outFile); } catch (_) {}
-    callback(code, text);
+    callback(code, text, taskCostUsd);
   }
 
   const timer = setTimeout(() => {
@@ -1357,7 +1386,10 @@ Timeout en ${remainMin} min`);
       // Prefer accumulated text (has ALL turns incl. ## Resultados);
       // only fall back to evt.result when nothing was accumulated.
       if (evt.result && !resultText.trim()) resultText = evt.result;
-      if (evt.total_cost_usd) log(project.id, `costo real: $${evt.total_cost_usd.toFixed(6)}`);
+      if (evt.total_cost_usd) {
+        taskCostUsd = evt.total_cost_usd;
+        log(project.id, `costo real: $${evt.total_cost_usd.toFixed(6)}`);
+      }
     }
   }
 
@@ -1747,14 +1779,14 @@ Si crees que está colgado:
     // We check if this is a "new" task vs repeated attempt
     const lastTask = journal.recent_tasks[0];
     if (lastTask && lastTask.title === title) {
-      log(project.id, `JOURNAL STOP: 2 fallos consecutivos — tarea bloqueada`);
+      log(project.id, `JOURNAL STOP: 3 fallos consecutivos — tarea bloqueada`);
       const failList = journal.recent_tasks
         .filter(t => t.status === 'failed').slice(0, 3)
         .map(t => `❌ ${t.title.slice(0, 60)} (${Math.round(t.duration_sec)}s)`);
       tg(`🛑 <b>Agente detenido — ${project.name}</b>
 🗂 <b>${title}</b>
 
-2 fallos consecutivos — requiere intervención humana.
+3 fallos consecutivos — requiere intervención humana.
 
 <b>Historial de errores:</b>
 <code>${failList.join('\n') || 'Sin detalles'}</code>
@@ -1766,6 +1798,26 @@ Si crees que está colgado:
     // Different title = user wrote a new task → reset state and run
     journal.state = 'active';
     saveJournal(project.id, journal);
+  }
+
+  // ── Phase 1.2: Budget cap — check before running ──────
+  const budgetMax     = parseBudgetMax(taskContent);
+  const planCostSoFar = (journal.plan_title === title ? journal.plan_cost_usd : 0) || 0;
+  if (planCostSoFar >= budgetMax) {
+    log(project.id, `Budget agotado: $${planCostSoFar.toFixed(4)} >= $${budgetMax.toFixed(2)} — bloqueando`);
+    tg(`💸 <b>Budget agotado — ${project.name}</b>
+🗂 <b>${title}</b>
+
+Gastado: <b>$${planCostSoFar.toFixed(4)}</b> de $${budgetMax.toFixed(2)} máximo.
+
+Para continuar: edita el inbox con un nuevo plan o agrega <code>budget_usd_max: ${(budgetMax * 2).toFixed(2)}</code>`);
+    releaseLock(project.id);
+    return;
+  }
+  if (planCostSoFar > 0 && planCostSoFar / budgetMax >= 0.8) {
+    tg(`⚠️ <b>Budget al ${Math.round(planCostSoFar / budgetMax * 100)}% — ${project.name}</b>
+🗂 ${title}
+$${planCostSoFar.toFixed(4)} gastado de $${budgetMax.toFixed(2)}`);
   }
 
   // ── Telegram: inicio con plan + criterios ────────────
@@ -1810,7 +1862,18 @@ Si crees que está colgado:
   const activeDM = DISPATCH_TIMES[project.id] || {};
   if (activeDM.dispatch_id) delete DISPATCH_TIMES[project.id];
 
-  runClaude(project, taskContent, (exitCode, resultRaw) => {
+  // ── Phase 1.1: Degradation guard — record pre-run git SHA ────────────────
+  let preRunSha = null;
+  if (project.repo && project.branch) {
+    try {
+      preRunSha = execSync(
+        `cd ${project.repo} && git rev-parse HEAD 2>/dev/null`,
+        { stdio: 'pipe', timeout: 5000 }
+      ).toString().trim();
+    } catch (_) {}
+  }
+
+  runClaude(project, taskContent, (exitCode, resultRaw, costUsd = 0) => {
     releaseLock(project.id);
     const duration  = Math.round((Date.now() - startTime) / 1000);
     const timestamp = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
@@ -1829,6 +1892,8 @@ Si crees que está colgado:
       exitCode,
       resultSummary: formatted.slice(0, 3).join(' | '),
       durationSec:   duration,
+      fullResult:    resultRaw,
+      costUsd,
     });
 
     // Accumulate task result into agent-memory.md and push to git
@@ -1850,6 +1915,15 @@ Si crees que está colgado:
 
     // Check if agent requested human intervention
     const needsHuman = isTimeout || /REQUIERE INTERVENCIÓN HUMANA/i.test(resultRaw) || updatedJournal.state === 'stopped';
+
+    // ── Phase 1.3: Outbox validator — warn if no verifiable artifact ──────────
+    if (exitCode === 0 && !isTimeout && !needsHuman && !hasVerifiableArtifact(resultRaw)) {
+      tg(`⚠️ <b>Sin evidencia verificable — ${project.name}</b>
+🗂 ${title}
+
+La tarea terminó con ✅ pero sin hash SHA256, HTTP status, grep count ni commit ID.
+Verifica manualmente que los cambios funcionan correctamente.`);
+    }
 
     // Write outbox — include full plan + results for coordinator reads
     if (project.outbox) {
@@ -1915,7 +1989,20 @@ Si crees que está colgado:
             postAlert('deploy_verify_fail', project.id, 'critical',
               `Deploy verification falló — ${project.name}`,
               `URL: ${url}\nHTTP: ${res2.statusCode}`);
-            tg(`🚨 <b>Deploy verification falló — ${project.name}</b>\n${url} → HTTP ${res2.statusCode}`);
+            // Phase 1.1: Degradation guard — show new commits + revert command
+            let revertBlock = '';
+            if (preRunSha && project.repo && project.branch) {
+              try {
+                const newCommits = execSync(
+                  `cd ${project.repo} && git log --oneline ${preRunSha}..HEAD 2>/dev/null`,
+                  { stdio: 'pipe', timeout: 5000 }
+                ).toString().trim();
+                if (newCommits) {
+                  revertBlock = `\n\n<b>Commits durante sesión:</b>\n<code>${newCommits.slice(0, 300)}</code>\n\nPara revertir:\n<code>cd ${project.repo} && git revert HEAD --no-edit && git push origin ${project.branch}</code>`;
+                }
+              } catch (_) {}
+            }
+            tg(`🚨 <b>Deploy verification falló — ${project.name}</b>\n${url} → HTTP ${res2.statusCode}${revertBlock}`);
           }
           res2.resume();
         });
