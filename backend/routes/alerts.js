@@ -4,12 +4,15 @@ const express = require('express');
 const router  = express.Router();
 const db      = require('../db/mysql');
 
+const VALID_SEVERITIES  = new Set(['critical', 'warning', 'info']);
+const VALID_ALERT_TYPES = new Set(['commit_dangerous', 'commit_massive', 'session_low_yield', 'deploy_verify_fail', 'manual']);
+
 // GET /api/relay/alerts?limit=50&resolved=false&severity=critical
 router.get('/', async (req, res) => {
   try {
     const limit    = Math.min(parseInt(req.query.limit || '100', 10), 500);
     const resolved = req.query.resolved === 'true' ? 1 : 0;
-    const severity = req.query.severity || null;
+    const severity = VALID_SEVERITIES.has(req.query.severity) ? req.query.severity : null;
 
     let sql = `SELECT * FROM relay_alerts WHERE resolved = ?`;
     const params = [resolved];
@@ -27,16 +30,19 @@ router.get('/', async (req, res) => {
 // POST /api/relay/alerts — create alert (called by relay-master)
 router.post('/', async (req, res) => {
   try {
-    const { alert_type, project_id, severity = 'warning', title, details, auto_fixed = false } = req.body;
+    const { alert_type, project_id, title, details, auto_fixed = false } = req.body;
     if (!alert_type || !title) return res.status(400).json({ error: 'alert_type and title required' });
+
+    const severity   = VALID_SEVERITIES.has(req.body.severity)  ? req.body.severity  : 'warning';
+    const safeType   = VALID_ALERT_TYPES.has(alert_type)        ? alert_type         : 'manual';
 
     const [result] = await db.query(
       `INSERT INTO relay_alerts (alert_type, project_id, severity, title, details, auto_fixed)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [alert_type, project_id || null, severity, title.slice(0, 255), details || null, auto_fixed ? 1 : 0]
+      [safeType, project_id || null, severity, title.slice(0, 255), details || null, auto_fixed ? 1 : 0]
     );
 
-    const alert = { id: result.insertId, alert_type, project_id, severity, title, details, auto_fixed, resolved: 0, created_at: new Date().toISOString() };
+    const alert = { id: result.insertId, alert_type: safeType, project_id, severity, title, details, auto_fixed, resolved: 0, created_at: new Date().toISOString() };
 
     const io = req.app.get('io');
     if (io) io.emit('alert:new', alert);
