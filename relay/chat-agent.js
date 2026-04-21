@@ -397,7 +397,7 @@ function calcCost(modelKey, tokensIn, tokensOut) {
 // Cache-aware cost: cache reads are billed at 10% of base input price
 function calcCostCached(modelKey, tokensIn, tokensOut, cacheRead) {
   const m = MODELS[modelKey] || MODELS[DEFAULT_MODEL];
-  const regularIn = tokensIn - cacheRead;
+  const regularIn = Math.max(0, tokensIn - cacheRead);
   return (regularIn * m.costIn + cacheRead * m.costIn * 0.1 + tokensOut * m.costOut) / 1_000_000;
 }
 
@@ -497,6 +497,9 @@ function isAuthorized(ctx) {
 // Prevent overlapping requests per topic
 const BUSY = new Map();
 
+// Deduplicate Telegram updates — at-least-once delivery can send same message_id twice
+const PROCESSED_MSG_IDS = new Set();
+
 // ── /model command — inline keyboard ─────────────────────────────────────────
 function modelKeyboard() {
   return new InlineKeyboard()
@@ -527,6 +530,11 @@ bot.callbackQuery(/^model:(.+)$/, async (ctx) => {
 // ── Message handler ───────────────────────────────────────────────────────────
 bot.on('message:text', async (ctx) => {
   if (!isAuthorized(ctx)) return;
+
+  const msgId = ctx.message.message_id;
+  if (PROCESSED_MSG_IDS.has(msgId)) return;
+  PROCESSED_MSG_IDS.add(msgId);
+  setTimeout(() => PROCESSED_MSG_IDS.delete(msgId), 120_000);
 
   const userText  = ctx.message.text.trim();
   const threadId  = ctx.message.message_thread_id ?? 0;
