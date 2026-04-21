@@ -42,6 +42,7 @@ const DISPATCH_TIMES  = {};   // { [projectId]: { dispatched_at: ms, dispatch_id
 // In-memory task tracking — avoids PID-based lock bug where relay-master's own
 // PID was written to lock files, making locks never expire (relay-master always alive).
 const ACTIVE_TASKS      = new Set();
+const ACTIVE_PIDS       = new Map();  // projectId → {pid, startTime, jobId, forceTimeout}
 const TASK_START_TIMES  = {};  // { [projectId]: timestamp when task started }
 const LAST_RUNNING_WARN = {};  // { [projectId]: timestamp of last "still running" TG alert }
 const RUNNING_WARN_MS   = parseInt(process.env.RUNNING_WARN_MS || '300000'); // 5 min
@@ -55,7 +56,7 @@ const GITHUB_TOKEN    = process.env.GITHUB_TOKEN;
 const CLAUDE_BIN      = process.env.CLAUDE_BIN || '/usr/local/bin/claude';
 const CLAUDE_USER     = process.env.CLAUDE_USER || 'claude-agent';
 const POLL_MS         = parseInt(process.env.POLL_MS || '15000');
-const CLAUDE_TIMEOUT_MS = parseInt(process.env.CLAUDE_TIMEOUT_MS || '1800000'); // 30 min default
+const CLAUDE_TIMEOUT_MS = parseInt(process.env.CLAUDE_TIMEOUT_MS || String(25 * 60 * 1000)); // 25 min default
 
 // ─── Buzon IA (ia.vilarkptl.com → FiscalAI relay shared mailbox) ─────────────
 // When relay/buzon-ia.md in agentic-repo changes, relay-master mirrors it to
@@ -1314,6 +1315,11 @@ ${taskContent}`;
     ?.replace(/^#+ /, '').slice(0, 60) || project.name;
   const pendingTools = {};
 
+  // Register in ACTIVE_PIDS for independent watchdog
+  const jobId = `${project.id}-${Date.now()}`;
+  const activePidInfo = { pid: child.pid, startTime: Date.now(), jobId, forceTimeout: null };
+  ACTIVE_PIDS.set(project.id, activePidInfo);
+
   let callbackFired = false;
   let taskCostUsd   = 0;
   function safeCallback(code, text) {
@@ -1358,6 +1364,19 @@ Timeout en ${remainMin} min`);
       for (const line of lines) processLine(line);
     } catch (_) {}
   }, 500);
+
+  // Wire up watchdog forceTimeout now that all handles exist
+  activePidInfo.forceTimeout = () => {
+    if (callbackFired) return;
+    timedOut = true;
+    clearTimeout(timer);
+    clearInterval(heartbeat);
+    clearInterval(filePoller);
+    const elapsedMin = Math.round((Date.now() - runStart) / 60000);
+    try { execSync(`pkill -9 -P ${child.pid} 2>/dev/null || true`, { stdio: 'pipe' }); } catch (_) {}
+    try { child.kill('SIGKILL'); } catch (_) {}
+    setTimeout(() => safeCallback(1, `[WATCHDOG_TIMEOUT después de ${elapsedMin}min]\n${resultText.trim()}`), 5000);
+  };
 
   function processLine(line) {
     if (!line.trim()) return;
@@ -1457,6 +1476,7 @@ Timeout en ${remainMin} min`);
         return;
       }
 
+      ACTIVE_PIDS.delete(project.id);
       clearTimeout(timer);
       clearInterval(heartbeat);
       clearInterval(filePoller);
@@ -1474,6 +1494,7 @@ Timeout en ${remainMin} min`);
     });
 
     c.on('error', (err) => {
+      ACTIVE_PIDS.delete(project.id);
       clearTimeout(timer);
       clearInterval(heartbeat);
       clearInterval(filePoller);
@@ -2209,6 +2230,21 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
 
   // Register command list with Telegram so they autocomplete in the chat
   registerBotCommands();
+
+  // Independent session watchdog — hard cap regardless of CLAUDE_TIMEOUT_MS env var
+  const WATCHDOG_MAX_MS = parseInt(process.env.WATCHDOG_MAX_MS || String(25 * 60 * 1000));
+  setInterval(() => {
+    const now = Date.now();
+    for (const [projectId, info] of ACTIVE_PIDS.entries()) {
+      if (!info.forceTimeout) continue;  // not yet initialized
+      const elapsedMs = now - info.startTime;
+      if (elapsedMs < WATCHDOG_MAX_MS) continue;
+      const elapsedSec = Math.round(elapsedMs / 1000);
+      log(projectId, `WATCHDOG: job ${info.jobId} lleva ${elapsedSec}s — terminando`);
+      tg(`⚠️ <b>Watchdog — ${projectId}</b>\nSesión <code>${info.jobId}</code> terminada (${elapsedSec}s > ${Math.round(WATCHDOG_MAX_MS/60)}min máx)`);
+      info.forceTimeout();
+    }
+  }, 60 * 1000);
 
   const hashes = loadHashes();
 
