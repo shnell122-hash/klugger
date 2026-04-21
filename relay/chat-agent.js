@@ -207,10 +207,10 @@ async function runTool(name, input, sessionDispatched = null) {
 
 // ── Model abstraction ─────────────────────────────────────────────────────────
 // Returns { text, tokensIn, tokensOut, stopReason, toolCalls }
-async function callModel(modelKey, messages, ctx, onProgress) {
+async function callModel(modelKey, messages, ctx, onProgress, signal) {
   const m = MODELS[modelKey] || MODELS[DEFAULT_MODEL];
-  if (m.provider === 'anthropic') return callAnthropic(m, messages, ctx, onProgress);
-  return callDeepSeek(m, messages, ctx, onProgress);
+  if (m.provider === 'anthropic') return callAnthropic(m, messages, ctx, onProgress, signal);
+  return callDeepSeek(m, messages, ctx, onProgress, signal);
 }
 
 // Cached system block — Anthropic charges 10% on cache reads vs 100% on normal input.
@@ -218,7 +218,7 @@ async function callModel(modelKey, messages, ctx, onProgress) {
 // request after the first hits the cache. Saves ~$0.005–0.03 per request on Sonnet.
 const SYSTEM_CACHED = [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }];
 
-async function callAnthropic(m, messages, ctx, onProgress) {
+async function callAnthropic(m, messages, ctx, onProgress, signal) {
   let totalIn = 0, totalOut = 0, totalCacheRead = 0, totalCacheWrite = 0;
   const history          = [...messages];
   const callHist         = [];  // for loop detection
@@ -231,7 +231,7 @@ async function callAnthropic(m, messages, ctx, onProgress) {
       max_tokens: 8096,
       system:     SYSTEM_CACHED,
       messages:   history,
-    });
+    }, { signal });
 
     totalIn         += resp.usage?.input_tokens               || 0;
     totalOut        += resp.usage?.output_tokens              || 0;
@@ -273,7 +273,12 @@ async function callAnthropic(m, messages, ctx, onProgress) {
           project_name: ctx.projectName, api_provider: 'anthropic',
           agent_user: ctx.username,
         });
-        const result = await runTool(t.name, t.input, sessionDispatched);
+        let result;
+        try {
+          result = await runTool(t.name, t.input, sessionDispatched);
+        } catch (toolErr) {
+          result = `ERROR: ${toolErr.message || String(toolErr)}`;
+        }
         apiPost('/api/events', {
           session_id: ctx.sessionId, event_type: 'post_tool',
           tool_name: t.name, tool_input_summary: inputSummary,
@@ -296,7 +301,7 @@ async function callAnthropic(m, messages, ctx, onProgress) {
     const synth = await anthropic.messages.create({
       model: m.id, max_tokens: 512, system: SYSTEM_CACHED,
       messages: [...history, { role: 'user', content: 'Límite de pasos alcanzado. Resume en 3 líneas: qué se completó y qué falta para terminar.' }],
-    });
+    }, { signal });
     const summary = synth.content.find(b => b.type === 'text')?.text || '';
     totalIn         += synth.usage?.input_tokens               || 0;
     totalOut        += synth.usage?.output_tokens              || 0;
@@ -308,7 +313,7 @@ async function callAnthropic(m, messages, ctx, onProgress) {
   }
 }
 
-async function callDeepSeek(m, messages, ctx, onProgress) {
+async function callDeepSeek(m, messages, ctx, onProgress, signal) { // eslint-disable-line no-unused-vars
   let totalIn = 0, totalOut = 0;
   const callHist          = [];
   const sessionDispatched = new Set();
@@ -639,16 +644,21 @@ bot.on('message:text', async (ctx) => {
     const history = await loadHistory(ctx.chat.id, threadId);
     history.push({ role: 'user', content: userText });
 
-    const result = await Promise.race([
-      callModel(
+    const abortCtrl = new AbortController();
+    const timeoutId = setTimeout(() => abortCtrl.abort(), TASK_TIMEOUT_MS);
+    let result;
+    try {
+      result = await callModel(
         modelKey, history, agentCtx,
         (progressText) => safeEdit(ctx.chat.id, progressMsg.message_id, progressText),
-      ),
-      new Promise((_, reject) => setTimeout(
-        () => reject(new Error(`⏰ Tiempo agotado (${Math.round(TASK_TIMEOUT_MS / 60000)} min). Divide la tarea en pasos más pequeños.`)),
-        TASK_TIMEOUT_MS,
-      )),
-    ]);
+        abortCtrl.signal,
+      );
+    } finally {
+      clearTimeout(timeoutId);
+    }
+    if (abortCtrl.signal.aborted) {
+      throw new Error(`⏰ Tiempo agotado (${Math.round(TASK_TIMEOUT_MS / 60000)} min). Divide la tarea en pasos más pequeños.`);
+    }
     tokensIn   = result.tokensIn;
     tokensOut  = result.tokensOut;
     cacheRead  = result.cacheRead  || 0;
