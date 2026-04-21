@@ -159,7 +159,7 @@ const TOOLS_OPENAI = TOOLS_ANTHROPIC.map(t => ({
 const BASH_DENYLIST = /(\brm\s+(-[^-\s]*f[^-\s]*|-[^-\s]*r[^-\s]*f|--force)\s+\/|\bdd\s+.*of=\/dev\/|\bmkfs\b|\bfdisk\b|\bshred\b|\bwipefs\b|>\s*\/dev\/sd[a-z]|:\(\)\s*\{.*\})/i;
 
 // ── Tool execution ────────────────────────────────────────────────────────────
-function runTool(name, input) {
+async function runTool(name, input, sessionDispatched = null) {
   try {
     if (name === 'bash') {
       if (BASH_DENYLIST.test(input.command)) {
@@ -185,9 +185,18 @@ function runTool(name, input) {
       return `Escrito: ${input.path} (${input.content.length} bytes)`;
     }
     if (name === 'dispatch_task') {
-      const inbox = path.join(REPO, 'relay', 'workspaces', input.project, 'inbox.md');
-      fs.writeFileSync(inbox, `# Tarea\n\n${input.description}\n`, 'utf8');
-      return `Tarea despachada a ${input.project}`;
+      if (sessionDispatched && sessionDispatched.has(input.project)) {
+        return `⚠️ Ya hay una tarea despachada a ${input.project} en esta sesión. El agente la está procesando — no se duplica.`;
+      }
+      if (sessionDispatched) sessionDispatched.add(input.project);
+      const resp = await fetch(`${MONITOR_API}/api/relay/dispatch`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ project: input.project, task: `# Tarea\n\n${input.description}\n`, requester: 'chat-agent' }),
+      });
+      const json = await resp.json().catch(() => ({}));
+      if (!resp.ok) return `ERROR: dispatch falló (${resp.status}): ${json.error || 'unknown'}`;
+      return `Tarea despachada a ${input.project} (id: ${json.id || '?'})`;
     }
     return `ERROR: herramienta desconocida: ${name}`;
   } catch (e) {
@@ -210,8 +219,9 @@ const SYSTEM_CACHED = [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { typ
 
 async function callAnthropic(m, messages, ctx, onProgress) {
   let totalIn = 0, totalOut = 0, totalCacheRead = 0, totalCacheWrite = 0;
-  const history   = [...messages];
-  const callHist  = [];  // for loop detection
+  const history          = [...messages];
+  const callHist         = [];  // for loop detection
+  const sessionDispatched = new Set(); // prevent double-dispatch within same session
 
   for (let i = 0; i < MAX_ITER; i++) {
     const resp = await anthropic.messages.create({
@@ -252,7 +262,7 @@ async function callAnthropic(m, messages, ctx, onProgress) {
       await onProgress(preview);
 
       history.push({ role: 'assistant', content: resp.content });
-      const results = toolUses.map(t => {
+      const results = await Promise.all(toolUses.map(async t => {
         const inputSummary = JSON.stringify(t.input).slice(0, 500);
         apiPost('/api/events', {
           session_id: ctx.sessionId, event_type: 'pre_tool',
@@ -260,7 +270,7 @@ async function callAnthropic(m, messages, ctx, onProgress) {
           project_name: ctx.projectName, api_provider: 'anthropic',
           agent_user: ctx.username,
         });
-        const result = runTool(t.name, t.input);
+        const result = await runTool(t.name, t.input, sessionDispatched);
         apiPost('/api/events', {
           session_id: ctx.sessionId, event_type: 'post_tool',
           tool_name: t.name, tool_input_summary: inputSummary,
@@ -269,7 +279,7 @@ async function callAnthropic(m, messages, ctx, onProgress) {
           agent_user: ctx.username,
         });
         return { type: 'tool_result', tool_use_id: t.id, content: result };
-      });
+      }));
       history.push({ role: 'user', content: results });
       continue;
     }
@@ -297,7 +307,8 @@ async function callAnthropic(m, messages, ctx, onProgress) {
 
 async function callDeepSeek(m, messages, ctx, onProgress) {
   let totalIn = 0, totalOut = 0;
-  const callHist = [];
+  const callHist          = [];
+  const sessionDispatched = new Set();
 
   const history = messages.map(msg => {
     if (typeof msg.content === 'string') return { role: msg.role, content: msg.content };
@@ -371,7 +382,7 @@ async function callDeepSeek(m, messages, ctx, onProgress) {
           tool_name: tc.function.name, tool_input_summary: inputSummary,
           project_name: ctx.projectName, api_provider: 'deepseek', agent_user: ctx.username,
         });
-        const result = runTool(tc.function.name, input);
+        const result = await runTool(tc.function.name, input, sessionDispatched);
         apiPost('/api/events', {
           session_id: ctx.sessionId, event_type: 'post_tool',
           tool_name: tc.function.name, tool_response_summary: result.slice(0, 500),
