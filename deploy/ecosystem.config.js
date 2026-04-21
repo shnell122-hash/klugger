@@ -20,6 +20,37 @@ module.exports = {
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
     },
     {
+      // Claude chat bot — Telegram direct interface with tool use (grammy + Anthropic SDK)
+      // Requires: relay/.env → TG_CLAUDE_BOT_TOKEN, TG_CLAUDE_CHAT_ID, DB_PASS
+      // Setup:    cd relay && npm install
+      name:        'claude-chat-bot',
+      script:      'relay/chat-agent.js',
+      cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
+      exec_mode:   'fork',
+      instances:   1,
+      autorestart: true,
+      watch:       false,
+      max_memory_restart: '128M',
+      error_file:  '/var/log/ai-monitor/claude-chat-error.log',
+      out_file:    '/var/log/ai-monitor/claude-chat-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss',
+    },
+    {
+      // DeepSeek V3 code reviewer — polls git log every 5min, alerts on bugs
+      // Cost: ~$0.002/review. Silent when OK. Requires DEEPSEEK_API_KEY in relay/.env
+      name:        'code-reviewer',
+      script:      'relay/code-reviewer.js',
+      cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
+      exec_mode:   'fork',
+      instances:   1,
+      autorestart: true,
+      watch:       false,
+      max_memory_restart: '64M',
+      error_file:  '/var/log/ai-monitor/code-reviewer-error.log',
+      out_file:    '/var/log/ai-monitor/code-reviewer-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss',
+    },
+    {
       name:        'ai-monitor',
       script:      'backend/server.js',
       cwd:         '/var/www/html/vilarkptl.com/ai-monitor',

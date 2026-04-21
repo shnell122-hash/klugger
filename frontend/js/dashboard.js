@@ -534,11 +534,12 @@ function initTabs() {
       } else {
         document.getElementById('right-panel').classList.add('mobile-active');
         // Activate the right sub-panel
-        switchRightTab(panel === 'agents'      ? 'agents'      :
-                       panel === 'screenshots'? 'screenshots' :
-                       panel === 'sessions'   ? 'sessions'   :
-                       panel === 'costs'      ? 'costs'      :
-                       panel === 'projects'   ? 'projects'   : 'providers');
+        switchRightTab(panel === 'agents'        ? 'agents'        :
+                       panel === 'screenshots' ? 'screenshots'   :
+                       panel === 'sessions'    ? 'sessions'      :
+                       panel === 'costs'       ? 'costs'         :
+                       panel === 'projects'    ? 'projects'      :
+                       panel === 'conversations'? 'conversations' : 'providers');
       }
     });
   });
@@ -554,16 +555,17 @@ function initTabs() {
 }
 
 function switchRightTab(tab) {
-  if (tab === 'alerts') loadAlerts();
-  ['agents','screenshots','sessions','costs','providers','projects','alerts'].forEach(t => {
+  ['agents','screenshots','sessions','costs','providers','projects','alerts','conversations'].forEach(t => {
     const el = document.getElementById(t + '-panel');
     if (el) el.classList.toggle('visible', t === tab);
   });
-  if (tab === 'costs') loadCosts();
-  if (tab === 'providers') loadProviders();
-  if (tab === 'projects') loadProjects();
-  if (tab === 'agents') { loadAgents(); loadDispatches(); }
-  if (tab === 'screenshots') loadScreenshots();
+  if (tab === 'costs')         loadCosts();
+  if (tab === 'providers')     loadProviders();
+  if (tab === 'projects')      loadProjects();
+  if (tab === 'agents')        { loadAgents(); loadDispatches(); }
+  if (tab === 'screenshots')   loadScreenshots();
+  if (tab === 'alerts')        loadAlerts();
+  if (tab === 'conversations') loadConversaciones();
 }
 
 // ─── Screenshots panel ────────────────────────────────────
@@ -1176,6 +1178,97 @@ async function resolveAlert(id) {
   await fetch(`${API}/api/alerts/${id}/resolve`, { method: 'PATCH' });
   const a = alerts.find(x => x.id === id);
   if (a) { a.resolved = 1; renderAlerts(); updateAlertsBadge(); }
+}
+
+// ─── Conversaciones ───────────────────────────────────────
+let convCurrentUserId = null;
+
+async function loadConversaciones() {
+  try {
+    const r = await fetch(`${API}/api/conversations`);
+    const { users, totals } = await r.json();
+
+    const headerCost = document.getElementById('conv-header-cost');
+    if (headerCost && totals) {
+      headerCost.textContent = `$${Number(totals.total_cost_usd || 0).toFixed(4)} total · ${totals.unique_users || 0} usuarios`;
+    }
+
+    renderConvUsers(users || []);
+  } catch (err) {
+    console.warn('[conv] load error:', err.message);
+  }
+}
+
+function renderConvUsers(users) {
+  const list = document.getElementById('conv-user-list');
+  if (!list) return;
+
+  if (!users.length) {
+    list.innerHTML = '<div style="padding:20px;color:var(--text-muted);text-align:center">Sin conversaciones aún</div>';
+    return;
+  }
+
+  list.innerHTML = users.map(u => {
+    const last = u.last_activity ? timeAgo(u.last_activity) : '—';
+    const cost = Number(u.total_cost_usd || 0).toFixed(4);
+    return `<div class="conv-user-item" onclick="convLoadMessages('${u.telegram_user_id}','${escHtml(u.username)}')">
+      <div class="conv-user-name">@${escHtml(u.username)}</div>
+      <div class="conv-user-meta">
+        <span>${u.user_turns || 0} turnos</span>
+        <span class="conv-cost">$${cost}</span>
+        <span class="conv-time">${last}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function convLoadMessages(userId, username) {
+  convCurrentUserId = userId;
+  document.getElementById('conv-user-name').textContent = `@${username}`;
+  document.getElementById('conv-user-list').style.display = 'none';
+  document.getElementById('conv-messages').style.display  = '';
+
+  const msgList = document.getElementById('conv-msg-list');
+  msgList.innerHTML = '<div style="padding:12px;color:var(--text-muted)">Cargando…</div>';
+
+  try {
+    const r = await fetch(`${API}/api/conversations/${userId}/messages?limit=50`);
+    const { messages, stats } = await r.json();
+
+    const costEl = document.getElementById('conv-user-cost');
+    if (costEl && stats) {
+      costEl.textContent = `$${Number(stats.total_cost_usd || 0).toFixed(4)}`;
+    }
+
+    if (!messages || !messages.length) {
+      msgList.innerHTML = '<div style="padding:12px;color:var(--text-muted)">Sin mensajes</div>';
+      return;
+    }
+
+    msgList.innerHTML = messages.map(m => {
+      const isUser   = m.role === 'user';
+      const preview  = escHtml((m.content || '').slice(0, 400));
+      const ts       = m.created_at ? new Date(m.created_at).toLocaleString('es-MX', { hour12: false }) : '';
+      const costBit  = m.cost_usd > 0 ? `<span class="conv-cost">$${Number(m.cost_usd).toFixed(5)}</span>` : '';
+      const modelBit = m.model ? `<span style="color:var(--purple)">${escHtml(m.model)}</span>` : '';
+      return `<div class="conv-msg-item conv-msg-${m.role}">
+        <div class="conv-msg-meta">${isUser ? '👤 tú' : '🤖 claude'} ${modelBit} ${costBit} <span class="conv-time">${ts}</span></div>
+        <div class="conv-msg-text">${preview}${(m.content || '').length > 400 ? '…' : ''}</div>
+      </div>`;
+    }).join('');
+  } catch (err) {
+    msgList.innerHTML = `<div style="padding:12px;color:var(--red)">Error: ${err.message}</div>`;
+  }
+}
+
+function convShowUsers() {
+  document.getElementById('conv-user-list').style.display = '';
+  document.getElementById('conv-messages').style.display  = 'none';
+  convCurrentUserId = null;
+}
+
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // ─── Init ─────────────────────────────────────────────────

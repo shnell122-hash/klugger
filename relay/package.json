@@ -1,0 +1,17 @@
+{
+  "name": "ai-monitor-relay",
+  "version": "1.0.0",
+  "description": "Relay master and Claude chat agent for ai-monitor",
+  "main": "master.js",
+  "scripts": {
+    "start": "node master.js",
+    "chat":  "node chat-agent.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.36.0",
+    "dotenv": "^16.4.5",
+    "grammy": "^1.31.0",
+    "mysql2": "^3.9.7",
+    "openai": "^4.90.0"
+  }
+}
