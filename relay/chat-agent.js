@@ -209,7 +209,7 @@ async function callModel(modelKey, messages, ctx, onProgress) {
 const SYSTEM_CACHED = [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }];
 
 async function callAnthropic(m, messages, ctx, onProgress) {
-  let totalIn = 0, totalOut = 0, totalCacheRead = 0;
+  let totalIn = 0, totalOut = 0, totalCacheRead = 0, totalCacheWrite = 0;
   const history   = [...messages];
   const callHist  = [];  // for loop detection
 
@@ -222,9 +222,10 @@ async function callAnthropic(m, messages, ctx, onProgress) {
       messages:   history,
     });
 
-    totalIn        += resp.usage?.input_tokens              || 0;
-    totalOut       += resp.usage?.output_tokens             || 0;
-    totalCacheRead += resp.usage?.cache_read_input_tokens   || 0;
+    totalIn         += resp.usage?.input_tokens               || 0;
+    totalOut        += resp.usage?.output_tokens              || 0;
+    totalCacheRead  += resp.usage?.cache_read_input_tokens    || 0;
+    totalCacheWrite += resp.usage?.cache_creation_input_tokens || 0;
 
     // Circuit breakers: cost and token budget
     // Cache reads are 10% of base input price — adjust so we don't overcount savings
@@ -274,7 +275,7 @@ async function callAnthropic(m, messages, ctx, onProgress) {
     }
 
     const text = resp.content.find(b => b.type === 'text')?.text || '(sin respuesta)';
-    return { text, tokensIn: totalIn, tokensOut: totalOut };
+    return { text, tokensIn: totalIn, tokensOut: totalOut, cacheRead: totalCacheRead, cacheWrite: totalCacheWrite };
   }
 
   // MAX_ITER reached — ask Claude to summarize what it completed and what's left
@@ -284,11 +285,13 @@ async function callAnthropic(m, messages, ctx, onProgress) {
       messages: [...history, { role: 'user', content: 'Límite de pasos alcanzado. Resume en 3 líneas: qué se completó y qué falta para terminar.' }],
     });
     const summary = synth.content.find(b => b.type === 'text')?.text || '';
-    totalIn  += synth.usage?.input_tokens  || 0;
-    totalOut += synth.usage?.output_tokens || 0;
-    return { text: `⚠️ _Límite de pasos alcanzado._\n\n${summary}`, tokensIn: totalIn, tokensOut: totalOut };
+    totalIn         += synth.usage?.input_tokens               || 0;
+    totalOut        += synth.usage?.output_tokens              || 0;
+    totalCacheRead  += synth.usage?.cache_read_input_tokens    || 0;
+    totalCacheWrite += synth.usage?.cache_creation_input_tokens || 0;
+    return { text: `⚠️ _Límite de pasos alcanzado._\n\n${summary}`, tokensIn: totalIn, tokensOut: totalOut, cacheRead: totalCacheRead, cacheWrite: totalCacheWrite };
   } catch (_) {
-    return { text: '⚠️ Límite de pasos alcanzado. Divide la tarea en partes más pequeñas.', tokensIn: totalIn, tokensOut: totalOut };
+    return { text: '⚠️ Límite de pasos alcanzado. Divide la tarea en partes más pequeñas.', tokensIn: totalIn, tokensOut: totalOut, cacheRead: totalCacheRead, cacheWrite: totalCacheWrite };
   }
 }
 
@@ -436,19 +439,22 @@ async function saveMsg(chatId, threadId, role, content, meta = {}) {
   await db.query(
     `INSERT INTO conversations
        (chat_id, thread_id, telegram_user_id, telegram_username,
-        role, content, tool_name, model, provider, tokens_in, tokens_out, cost_usd)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        role, content, tool_name, model, provider, tokens_in, tokens_out, cost_usd,
+        cache_read_tokens, cache_write_tokens)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       chatId, threadId,
       meta.userId   || null,
       meta.username || null,
       role, content,
-      meta.tool     || null,
-      meta.modelId  || null,
-      meta.provider || 'anthropic',
+      meta.tool      || null,
+      meta.modelId   || null,
+      meta.provider  || 'anthropic',
       meta.tokensIn  || 0,
       meta.tokensOut || 0,
       meta.costUsd   || 0,
+      meta.cacheRead  || 0,
+      meta.cacheWrite || 0,
     ],
   );
 }
@@ -606,7 +612,7 @@ bot.on('message:text', async (ctx) => {
   });
   bot.api.sendChatAction(ctx.chat.id, 'typing', topicOpts(threadId)).catch(() => {});
 
-  let tokensIn = 0, tokensOut = 0;
+  let tokensIn = 0, tokensOut = 0, cacheRead = 0, cacheWrite = 0;
   try {
     const history = await loadHistory(ctx.chat.id, threadId);
     history.push({ role: 'user', content: userText });
@@ -615,11 +621,14 @@ bot.on('message:text', async (ctx) => {
       modelKey, history, agentCtx,
       (progressText) => safeEdit(ctx.chat.id, progressMsg.message_id, progressText),
     );
-    tokensIn  = result.tokensIn;
-    tokensOut = result.tokensOut;
+    tokensIn   = result.tokensIn;
+    tokensOut  = result.tokensOut;
+    cacheRead  = result.cacheRead  || 0;
+    cacheWrite = result.cacheWrite || 0;
 
-    const costUsd = calcCost(modelKey, tokensIn, tokensOut);
-    const footer  = `\n\n_${m.label} · ${tokensIn}↑ ${tokensOut}↓ · $${costUsd.toFixed(5)}_`;
+    const costUsd  = calcCostCached(modelKey, tokensIn, tokensOut, cacheRead);
+    const cacheBit = cacheRead > 0 ? ` · ${Math.round(cacheRead / 1000)}K✓` : '';
+    const footer   = `\n\n_${m.label} · ${tokensIn}↑ ${tokensOut}↓${cacheBit} · $${costUsd.toFixed(5)}_`;
     const chunks  = chunkText(result.text + footer, 4000);
 
     await safeEdit(ctx.chat.id, progressMsg.message_id, chunks[0]);
@@ -630,7 +639,7 @@ bot.on('message:text', async (ctx) => {
     await saveMsg(ctx.chat.id, threadId, 'user', userText, { ...userMeta });
     await saveMsg(ctx.chat.id, threadId, 'assistant', result.text, {
       ...userMeta, modelId: m.id, provider: m.provider,
-      tokensIn, tokensOut, costUsd,
+      tokensIn, tokensOut, costUsd, cacheRead, cacheWrite,
     });
   } catch (err) {
     console.error('[chat-agent] error:', err.message);

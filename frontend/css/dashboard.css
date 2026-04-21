@@ -1058,3 +1058,14 @@ main {
   overflow: hidden;
 }
 
+
+/* cache hit badge in Conversations tab */
+.conv-cache-badge {
+  font-size: 9px;
+  background: color-mix(in srgb, var(--blue, #58a6ff) 15%, var(--bg3));
+  color: var(--blue, #58a6ff);
+  padding: 1px 5px;
+  border-radius: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}

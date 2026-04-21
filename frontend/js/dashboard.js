@@ -1190,7 +1190,10 @@ async function loadConversaciones() {
 
     const headerCost = document.getElementById('conv-header-cost');
     if (headerCost && totals) {
-      headerCost.textContent = `$${Number(totals.total_cost_usd || 0).toFixed(4)} total · ${totals.unique_users || 0} usuarios`;
+      const hitRate = totals.total_tokens_in > 0
+        ? Math.round(totals.total_cache_read / totals.total_tokens_in * 100) : 0;
+      const cacheNote = hitRate > 0 ? ` · ${hitRate}% cache` : '';
+      headerCost.textContent = `$${Number(totals.total_cost_usd || 0).toFixed(4)} total · ${totals.unique_users || 0} usuarios${cacheNote}`;
     }
 
     renderConvUsers(users || []);
@@ -1209,13 +1212,18 @@ function renderConvUsers(users) {
   }
 
   list.innerHTML = users.map(u => {
-    const last = u.last_activity ? timeAgo(u.last_activity) : '—';
-    const cost = Number(u.total_cost_usd || 0).toFixed(4);
+    const last    = u.last_activity ? timeAgo(u.last_activity) : '—';
+    const cost    = Number(u.total_cost_usd || 0).toFixed(4);
+    const hitRate = u.total_tokens_in > 0
+      ? Math.round(u.total_cache_read / u.total_tokens_in * 100) : 0;
+    const cacheBadge = hitRate > 0
+      ? `<span class="conv-cache-badge">${hitRate}% cache</span>` : '';
     return `<div class="conv-user-item" onclick="convLoadMessages('${u.telegram_user_id}','${escHtml(u.username)}')">
       <div class="conv-user-name">@${escHtml(u.username)}</div>
       <div class="conv-user-meta">
         <span>${u.user_turns || 0} turnos</span>
         <span class="conv-cost">$${cost}</span>
+        ${cacheBadge}
         <span class="conv-time">${last}</span>
       </div>
     </div>`;
@@ -1237,7 +1245,10 @@ async function convLoadMessages(userId, username) {
 
     const costEl = document.getElementById('conv-user-cost');
     if (costEl && stats) {
-      costEl.textContent = `$${Number(stats.total_cost_usd || 0).toFixed(4)}`;
+      const hitRate = stats.total_tokens_in > 0
+        ? Math.round(stats.total_cache_read / stats.total_tokens_in * 100) : 0;
+      const cacheNote = hitRate > 0 ? ` · ${hitRate}% cache` : '';
+      costEl.textContent = `$${Number(stats.total_cost_usd || 0).toFixed(4)}${cacheNote}`;
     }
 
     if (!messages || !messages.length) {
@@ -1247,12 +1258,16 @@ async function convLoadMessages(userId, username) {
 
     msgList.innerHTML = messages.map(m => {
       const isUser   = m.role === 'user';
-      const preview  = escHtml((m.content || '').slice(0, 400));
-      const ts       = m.created_at ? new Date(m.created_at).toLocaleString('es-MX', { hour12: false }) : '';
-      const costBit  = m.cost_usd > 0 ? `<span class="conv-cost">$${Number(m.cost_usd).toFixed(5)}</span>` : '';
-      const modelBit = m.model ? `<span style="color:var(--purple)">${escHtml(m.model)}</span>` : '';
+      const preview   = escHtml((m.content || '').slice(0, 400));
+      const ts        = m.created_at ? new Date(m.created_at).toLocaleString('es-MX', { hour12: false }) : '';
+      const costBit   = m.cost_usd > 0 ? `<span class="conv-cost">$${Number(m.cost_usd).toFixed(5)}</span>` : '';
+      const modelBit  = m.model ? `<span style="color:var(--purple)">${escHtml(m.model)}</span>` : '';
+      const cacheRead = m.cache_read_tokens || 0;
+      const cachePct  = m.tokens_in > 0 ? Math.round(cacheRead / m.tokens_in * 100) : 0;
+      const cacheBit  = cacheRead > 0
+        ? `<span class="conv-cache-badge">${Math.round(cacheRead/1000)}K✓ ${cachePct}%</span>` : '';
       return `<div class="conv-msg-item conv-msg-${m.role}">
-        <div class="conv-msg-meta">${isUser ? '👤 tú' : '🤖 claude'} ${modelBit} ${costBit} <span class="conv-time">${ts}</span></div>
+        <div class="conv-msg-meta">${isUser ? '👤 tú' : '🤖 claude'} ${modelBit} ${costBit} ${cacheBit} <span class="conv-time">${ts}</span></div>
         <div class="conv-msg-text">${preview}${(m.content || '').length > 400 ? '…' : ''}</div>
       </div>`;
     }).join('');

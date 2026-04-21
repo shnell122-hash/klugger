@@ -11,14 +11,16 @@ router.get('/', async (req, res) => {
       `SELECT
          telegram_user_id,
          COALESCE(MAX(telegram_username), CAST(telegram_user_id AS CHAR)) AS username,
-         COUNT(*)                                                AS total_messages,
-         SUM(CASE WHEN role = 'user' THEN 1 ELSE 0 END)        AS user_turns,
-         SUM(CASE WHEN role = 'assistant' THEN 1 ELSE 0 END)   AS assistant_turns,
-         SUM(tokens_in)                                         AS total_tokens_in,
-         SUM(tokens_out)                                        AS total_tokens_out,
-         ROUND(SUM(cost_usd), 6)                               AS total_cost_usd,
-         MAX(created_at)                                        AS last_activity,
-         MIN(created_at)                                        AS first_activity
+         COUNT(*)                                                  AS total_messages,
+         SUM(CASE WHEN role = 'user' THEN 1 ELSE 0 END)          AS user_turns,
+         SUM(CASE WHEN role = 'assistant' THEN 1 ELSE 0 END)     AS assistant_turns,
+         SUM(tokens_in)                                           AS total_tokens_in,
+         SUM(tokens_out)                                          AS total_tokens_out,
+         SUM(cache_read_tokens)                                   AS total_cache_read,
+         SUM(cache_write_tokens)                                  AS total_cache_write,
+         ROUND(SUM(cost_usd), 6)                                 AS total_cost_usd,
+         MAX(created_at)                                          AS last_activity,
+         MIN(created_at)                                          AS first_activity
        FROM conversations
        WHERE telegram_user_id IS NOT NULL
        GROUP BY telegram_user_id
@@ -29,7 +31,9 @@ router.get('/', async (req, res) => {
     const [[totals]] = await db.query(
       `SELECT
          COUNT(*) AS total_messages,
-         ROUND(SUM(cost_usd), 6) AS total_cost_usd,
+         ROUND(SUM(cost_usd), 6)   AS total_cost_usd,
+         SUM(cache_read_tokens)    AS total_cache_read,
+         SUM(tokens_in)            AS total_tokens_in,
          COUNT(DISTINCT telegram_user_id) AS unique_users
        FROM conversations`,
     );
@@ -54,6 +58,7 @@ router.get('/:userId/messages', async (req, res) => {
          content,
          tool_name, model, provider,
          tokens_in, tokens_out, cost_usd,
+         cache_read_tokens, cache_write_tokens,
          created_at
        FROM conversations
        WHERE telegram_user_id = ?
@@ -66,6 +71,8 @@ router.get('/:userId/messages', async (req, res) => {
       `SELECT
          COUNT(*) AS total,
          ROUND(SUM(cost_usd), 6) AS total_cost_usd,
+         SUM(cache_read_tokens)  AS total_cache_read,
+         SUM(tokens_in)          AS total_tokens_in,
          MAX(created_at) AS last_activity
        FROM conversations
        WHERE telegram_user_id = ?`,
