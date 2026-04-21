@@ -31,7 +31,7 @@ const MONITOR_API  = process.env.MONITOR_API_URL    || 'http://127.0.0.1:3010';
 const MAX_ITER      = 8;                                                     // token+cost circuit breakers are the real safety net
 const MAX_HISTORY   = 20;
 const MAX_COST_USD  = parseFloat(process.env.MAX_COST_USD  || '1.00');       // per-request cost circuit breaker
-const TOKEN_BUDGET  = parseInt(process.env.TOKEN_BUDGET    || '30000');      // input token circuit breaker
+const TOKEN_BUDGET  = parseInt(process.env.TOKEN_BUDGET    || '180000');     // input token circuit breaker — matches Sonnet 4.6 context
 
 const ALLOWED_USER_IDS = new Set(
   (process.env.TG_ALLOWED_USER_IDS || '')
@@ -234,7 +234,7 @@ async function callAnthropic(m, messages, ctx, onProgress) {
       throw new Error(`💸 Límite de costo: $${cost.toFixed(4)} > $${MAX_COST_USD}. Abortando.`);
     }
     if (totalIn > TOKEN_BUDGET) {
-      throw new Error(`📊 Presupuesto de tokens agotado: ${totalIn.toLocaleString()}↑ > ${TOKEN_BUDGET.toLocaleString()}. Divide la tarea en partes más pequeñas.`);
+      throw new Error(`📊 Contexto agotado: ${totalIn.toLocaleString()}↑ > ${TOKEN_BUDGET.toLocaleString()} tokens. Divide la tarea en partes más pequeñas.`);
     }
 
     if (resp.stop_reason === 'tool_use') {
@@ -343,7 +343,7 @@ async function callDeepSeek(m, messages, ctx, onProgress) {
       throw new Error(`💸 Límite de costo: $${cost.toFixed(4)} > $${MAX_COST_USD}. Abortando.`);
     }
     if (totalIn > TOKEN_BUDGET) {
-      throw new Error(`📊 Presupuesto de tokens agotado: ${totalIn.toLocaleString()}↑ > ${TOKEN_BUDGET.toLocaleString()}. Divide la tarea en partes más pequeñas.`);
+      throw new Error(`📊 Contexto agotado: ${totalIn.toLocaleString()}↑ > ${TOKEN_BUDGET.toLocaleString()} tokens. Divide la tarea en partes más pequeñas.`);
     }
 
     if (choice.finish_reason === 'tool_calls') {
