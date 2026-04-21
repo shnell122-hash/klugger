@@ -1160,7 +1160,7 @@ function hasVerifiableArtifact(resultText) {
 }
 
 // ─── Execute Claude for a project (stream-json for real-time events) ─────────
-function runClaude(project, taskContent, callback, dispatchMeta = {}) {
+function runClaude(project, taskContent, callback, dispatchMeta = {}, timeoutMs = CLAUDE_TIMEOUT_MS) {
   const uid      = process.getuid?.() ?? '0';
   const taskFile = `/tmp/relay-task-${uid}-${project.id}.md`;
 
@@ -1329,12 +1329,12 @@ ${taskContent}`;
     clearInterval(filePoller);
     try { execSync(`pkill -9 -P ${child.pid} 2>/dev/null || true`, { stdio: 'pipe' }); } catch (_) {}
     try { child.kill('SIGKILL'); } catch (_) {}
-    setTimeout(() => safeCallback(1, `[TIMEOUT después de ${CLAUDE_TIMEOUT_MS / 60000}min]\n${resultText.trim()}`), 10000);
-  }, CLAUDE_TIMEOUT_MS);
+    setTimeout(() => safeCallback(1, `[TIMEOUT después de ${timeoutMs / 60000}min]\n${resultText.trim()}`), 10000);
+  }, timeoutMs);
 
   const heartbeat = setInterval(() => {
     const elapsedMin = Math.round((Date.now() - runStart) / 60000);
-    const remainMin  = Math.max(0, Math.round((CLAUDE_TIMEOUT_MS - (Date.now() - runStart)) / 60000));
+    const remainMin  = Math.max(0, Math.round((timeoutMs - (Date.now() - runStart)) / 60000));
     tg(`⏳ <b>En progreso — ${project.name}</b>
 🗂 <code>${taskTitle}</code>
 ⏱ ${elapsedMin} min | 🔧 ${toolCallCount} herramientas usadas
@@ -1914,6 +1914,16 @@ $${planCostSoFar.toFixed(4)} gastado de $${budgetMax.toFixed(2)}`);
     } catch (_) {}
   }
 
+  // Bug 1 fix: adaptive timeout — halve per prior failure (min 5 min) so
+  // a stuck task gets killed earlier on retries instead of always consuming
+  // the full CLAUDE_TIMEOUT_MS (which can be 30 min or more on the server).
+  const adaptiveTimeout = journal.consecutive_failures > 0
+    ? Math.max(5 * 60 * 1000, Math.round(CLAUDE_TIMEOUT_MS / (1 + journal.consecutive_failures)))
+    : CLAUDE_TIMEOUT_MS;
+  if (adaptiveTimeout < CLAUDE_TIMEOUT_MS) {
+    log(project.id, `adaptive timeout: ${Math.round(adaptiveTimeout / 60000)}min (${journal.consecutive_failures} fallos previos)`);
+  }
+
   runClaude(project, taskContent, (exitCode, resultRaw, costUsd = 0) => {
     releaseLock(project.id);
     const duration  = Math.round((Date.now() - startTime) / 1000);
@@ -1957,13 +1967,22 @@ $${planCostSoFar.toFixed(4)} gastado de $${budgetMax.toFixed(2)}`);
     // Check if agent requested human intervention
     const needsHuman = isTimeout || /REQUIERE INTERVENCIÓN HUMANA/i.test(resultRaw) || updatedJournal.state === 'stopped';
 
-    // ── Phase 1.3: Outbox validator — warn if no verifiable artifact ──────────
-    if (exitCode === 0 && !isTimeout && !needsHuman && !hasVerifiableArtifact(resultRaw)) {
-      tg(`⚠️ <b>Sin evidencia verificable — ${project.name}</b>
+    // ── Phase 1.3: Outbox validator — always check for verifiable artifact ──────
+    if (!hasVerifiableArtifact(resultRaw)) {
+      if (isTimeout) {
+        tg(`💀 <b>Timeout sin evidencia — ${project.name}</b>
+🗂 ${title}
+⏱ ${duration}s | Dispatch: <code>${activeDM.dispatch_id || 'N/A'}</code>
+
+El proceso expiró sin producir ningún commit, hash ni resultado verificable.
+<b>Acción requerida:</b> revisa el outbox y re-despacha con una tarea más pequeña.`);
+      } else if (exitCode === 0 && !needsHuman) {
+        tg(`⚠️ <b>Sin evidencia verificable — ${project.name}</b>
 🗂 ${title}
 
 La tarea terminó con ✅ pero sin hash SHA256, HTTP status, grep count ni commit ID.
 Verifica manualmente que los cambios funcionan correctamente.`);
+      }
     }
 
     // Write outbox — include full plan + results for coordinator reads
@@ -2144,7 +2163,7 @@ La tarea se interrumpió por timeout (${Math.round(CLAUDE_TIMEOUT_MS / 60000)} m
     }
 
     log(project.id, `Completado (exit:${exitCode}, ${duration}s)`);
-  }, activeDM);
+  }, activeDM, adaptiveTimeout);
 }
 
 // ─── Main loop ────────────────────────────────────────────

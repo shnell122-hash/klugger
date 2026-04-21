@@ -32,6 +32,7 @@ const MAX_ITER      = 8;                                                     // 
 const MAX_HISTORY   = 20;
 const MAX_COST_USD  = parseFloat(process.env.MAX_COST_USD  || '1.00');       // per-request cost circuit breaker
 const TOKEN_BUDGET  = parseInt(process.env.TOKEN_BUDGET    || '180000');     // input token circuit breaker — matches Sonnet 4.6 context
+const TASK_TIMEOUT_MS = parseInt(process.env.TASK_TIMEOUT_MS || String(5 * 60 * 1000)); // hard ceiling per message (default 5 min)
 
 const ALLOWED_USER_IDS = new Set(
   (process.env.TG_ALLOWED_USER_IDS || '')
@@ -262,7 +263,9 @@ async function callAnthropic(m, messages, ctx, onProgress) {
       await onProgress(preview);
 
       history.push({ role: 'assistant', content: resp.content });
-      const results = await Promise.all(toolUses.map(async t => {
+      // Sequential (not parallel) — prevents race on sessionDispatched for dispatch_task
+      const results = [];
+      for (const t of toolUses) {
         const inputSummary = JSON.stringify(t.input).slice(0, 500);
         apiPost('/api/events', {
           session_id: ctx.sessionId, event_type: 'pre_tool',
@@ -278,8 +281,8 @@ async function callAnthropic(m, messages, ctx, onProgress) {
           project_name: ctx.projectName, api_provider: 'anthropic',
           agent_user: ctx.username,
         });
-        return { type: 'tool_result', tool_use_id: t.id, content: result };
-      }));
+        results.push({ type: 'tool_result', tool_use_id: t.id, content: result });
+      }
       history.push({ role: 'user', content: results });
       continue;
     }
@@ -636,10 +639,16 @@ bot.on('message:text', async (ctx) => {
     const history = await loadHistory(ctx.chat.id, threadId);
     history.push({ role: 'user', content: userText });
 
-    const result = await callModel(
-      modelKey, history, agentCtx,
-      (progressText) => safeEdit(ctx.chat.id, progressMsg.message_id, progressText),
-    );
+    const result = await Promise.race([
+      callModel(
+        modelKey, history, agentCtx,
+        (progressText) => safeEdit(ctx.chat.id, progressMsg.message_id, progressText),
+      ),
+      new Promise((_, reject) => setTimeout(
+        () => reject(new Error(`⏰ Tiempo agotado (${Math.round(TASK_TIMEOUT_MS / 60000)} min). Divide la tarea en pasos más pequeños.`)),
+        TASK_TIMEOUT_MS,
+      )),
+    ]);
     tokensIn   = result.tokensIn;
     tokensOut  = result.tokensOut;
     cacheRead  = result.cacheRead  || 0;
