@@ -258,13 +258,13 @@ main {
 
 /* ── Right sub-panels ── */
 #agents-panel, #screenshots-panel, #sessions-panel, #costs-panel,
-#providers-panel, #projects-panel, #conversations-panel {
+#providers-panel, #projects-panel, #conversations-panel, #platform-panel {
   flex: 1;
   overflow-y: auto;
   display: none;
 }
 #agents-panel.visible, #screenshots-panel.visible, #sessions-panel.visible, #costs-panel.visible,
-#providers-panel.visible, #projects-panel.visible, #conversations-panel.visible {
+#providers-panel.visible, #projects-panel.visible, #conversations-panel.visible, #platform-panel.visible {
   display: block;
 }
 
@@ -519,13 +519,13 @@ main {
   /* All right sub-panels hidden by default on mobile;
      the .visible class (higher specificity 0,1,1,0 vs 0,1,0,0) shows the active one */
   #agents-panel, #screenshots-panel, #sessions-panel,
-  #costs-panel, #providers-panel, #projects-panel {
+  #costs-panel, #providers-panel, #projects-panel, #platform-panel {
     display: none;
     overflow-x: hidden;
   }
   /* Override: show whichever panel has .visible */
   #agents-panel.visible, #screenshots-panel.visible, #sessions-panel.visible,
-  #costs-panel.visible, #providers-panel.visible, #projects-panel.visible {
+  #costs-panel.visible, #providers-panel.visible, #projects-panel.visible, #platform-panel.visible {
     display: block;
     flex: 1;
     overflow-y: auto;
