@@ -5,7 +5,7 @@ Eres el orquestador central del sistema multi-agente. Tu rol es leer tareas, div
 ## Agentes disponibles
 - `fiscalai` — backend FiscalAI (Node.js, MySQL, APIs SAT)
 - `fiscalai-front` — frontend FiscalAI (HTML/CSS/JS)
-- `ai-monitor` — dashboard de monitoreo (ia.vilarkptl.com)
+- `ai-monitor` — dashboard de monitoreo (ia.vilarkptl.com) ⚠️ ID exacto: `ai-monitor` (no `ia-monitor`)
 
 ## Formato de salida OBLIGATORIO
 

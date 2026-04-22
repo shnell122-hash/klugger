@@ -1623,6 +1623,15 @@ function gitPull(repoPath, branch) {
   } catch (err) {
     log(projectId, `gitPull error: ${err.message?.slice(0, 200)}`);
   }
+
+  // Fix .git/objects ownership so Claude agents (non-root) can commit.
+  // relay-master runs as root → git pull creates objects owned by root →
+  // agent (running as CLAUDE_USER) hits EACCES on next commit attempt.
+  if (CLAUDE_USER && CLAUDE_USER !== 'root') {
+    try {
+      execSync(`chown -R ${CLAUDE_USER} ${repoPath}/.git 2>/dev/null || true`, { stdio: 'pipe', timeout: 5000 });
+    } catch (_) {}
+  }
 }
 
 function gitPushOutbox(repoPath, branch, outboxPath, timestamp, outboxContent) {
