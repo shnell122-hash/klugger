@@ -2222,25 +2222,26 @@ function diagBuzonConnectivity() {
   log(null, `buzon-diag: ANTHROPIC_API_KEY=${keyPreview}`);
 
   if (!ANTHROPIC_KEY) return;
+  let timedOut = false;
   const req = https.request({
     hostname: 'api.anthropic.com',
     path:     '/v1/models',
     method:   'GET',
     headers:  { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
   }, (res) => {
-    let body = '';
-    res.on('data', c => { body += c; if (body.length > 200) res.destroy(); });
+    res.resume();  // drain response body
     res.on('end', () => {
-      log(null, `buzon-diag: api.anthropic.com → HTTP ${res.statusCode} ✅`);
+      if (!timedOut) log(null, `buzon-diag: api.anthropic.com → HTTP ${res.statusCode} ✅`);
     });
   });
   req.setTimeout(10000, () => {
-    req.destroy();
+    timedOut = true;
+    req.destroy();  // emits 'error' — suppressed below via timedOut flag
     log(null, 'buzon-diag: api.anthropic.com → TIMEOUT ❌ (firewall o DNS)');
     tg(`⚠️ <b>Diagnóstico buzon</b>\n<code>api.anthropic.com</code> no responde en 10s\nKey: <code>${keyPreview}</code>\nEl ACK de FiscalAI usará fallback (coordinator dispatch)`);
   });
   req.on('error', (e) => {
-    log(null, `buzon-diag: api.anthropic.com → ERROR ❌ ${e.message?.slice(0, 100)}`);
+    if (!timedOut) log(null, `buzon-diag: api.anthropic.com → ERROR ❌ ${e.message?.slice(0, 100)}`);
   });
   req.end();
 }
