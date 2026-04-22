@@ -1605,19 +1605,18 @@ function gitPull(repoPath, branch) {
     }
     try {
       execSync(
-        `cd ${repoPath} && git pull origin ${branch} --rebase --quiet`,
+        `cd ${repoPath} && git pull origin ${branch} --rebase --autostash --quiet`,
         { stdio: 'pipe', timeout: 30000 }
       );
     } catch (rebaseErr) {
       const reason = (rebaseErr.stderr?.toString() || rebaseErr.stdout?.toString() || rebaseErr.message || '').slice(0, 200).trim();
-      // Rebase failed — abort and stash+pull (preserves agent commits, doesn't destroy work)
       try {
         execSync(`cd ${repoPath} && git rebase --abort 2>/dev/null || true`, { stdio: 'pipe', timeout: 5000 });
         execSync(
           `cd ${repoPath} && git stash --quiet 2>/dev/null || true && git pull origin ${branch} --quiet && git stash pop --quiet 2>/dev/null || true`,
           { stdio: 'pipe', timeout: 30000 }
         );
-        log(projectId, `gitPull: rebase falló (${reason || 'sin detalle'}) — usé stash+pull`);
+        log(projectId, `gitPull: rebase+autostash falló (${reason || 'sin detalle'}) — usé stash+pull`);
       } catch (stashErr) {
         log(projectId, `gitPull: stash+pull también falló — ${stashErr.message?.slice(0, 100)}`);
       }
