@@ -43,6 +43,7 @@
   <button class="tab-btn" data-panel="providers">APIs</button>
   <button class="tab-btn" data-panel="projects">Proyectos</button>
   <button class="tab-btn" data-panel="conversations">Chats</button>
+  <button class="tab-btn platform-tab" data-panel="platform">💸 Plataforma</button>
 </div>
 
 <!-- ── Main ── -->
@@ -70,6 +71,7 @@
       <button class="rtab" data-rtab="projects">Proyectos</button>
       <button class="rtab" data-rtab="alerts" id="tab-alerts">Alertas</button>
       <button class="rtab" data-rtab="conversations">Chats</button>
+      <button class="rtab platform-tab" data-rtab="platform">💸 Plataforma</button>
     </div>
 
     <!-- Agents panel -->
@@ -202,6 +204,59 @@
         </div>
         <div id="conv-msg-list"></div>
       </div>
+    </div>
+
+    <!-- Platform spend (Anthropic Admin API) -->
+    <div id="platform-panel">
+      <div class="panel-header">
+        <span class="title">💸 Gasto real — Claude Platform</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span id="platform-last-fetch" style="color:var(--text-muted);font-size:10px">—</span>
+          <button class="btn-sm" onclick="refreshPlatform()">↻ Sync</button>
+        </div>
+      </div>
+
+      <!-- Alert banner -->
+      <div id="platform-alerts-banner" style="display:none"></div>
+
+      <!-- Summary pills -->
+      <div class="platform-pills">
+        <div class="platform-pill">
+          <div class="pp-label">Esta hora</div>
+          <div class="pp-value" id="pp-hour">—</div>
+        </div>
+        <div class="platform-pill">
+          <div class="pp-label">Hoy</div>
+          <div class="pp-value warn" id="pp-today">—</div>
+        </div>
+        <div class="platform-pill">
+          <div class="pp-label">Este mes</div>
+          <div class="pp-value" id="pp-month">—</div>
+        </div>
+      </div>
+
+      <!-- Hourly chart -->
+      <div class="chart-container" style="margin-top:12px">
+        <h3>Gasto por hora (últimas 24h)</h3>
+        <div class="chart-wrapper">
+          <canvas id="platform-hourly-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- By model -->
+      <div class="cost-section">
+        <h3>Por modelo (hoy)</h3>
+        <div id="platform-by-model"></div>
+      </div>
+
+      <!-- Budget config -->
+      <div class="cost-section">
+        <h3>Presupuestos de alerta</h3>
+        <div id="platform-budgets"></div>
+      </div>
+
+      <!-- Error / raw response -->
+      <div id="platform-error" style="display:none;margin:8px;padding:8px;background:var(--bg3);border-left:3px solid var(--red);border-radius:4px;font-size:11px;color:var(--text-muted)"></div>
     </div>
 
   </div>

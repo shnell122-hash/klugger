@@ -1069,3 +1069,105 @@ main {
   font-weight: 600;
   white-space: nowrap;
 }
+
+/* ── Platform spend panel ── */
+.platform-pills {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  flex-wrap: wrap;
+}
+.platform-pill {
+  flex: 1;
+  min-width: 90px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  text-align: center;
+}
+.pp-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 4px;
+}
+.pp-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--green);
+}
+.pp-value.warn { color: var(--red); }
+.pp-value.caution { color: var(--orange); }
+
+.platform-alert-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  margin: 4px 0;
+  background: color-mix(in srgb, var(--red) 12%, var(--bg3));
+  border: 1px solid color-mix(in srgb, var(--red) 40%, var(--border));
+  border-radius: 6px;
+  font-size: 11px;
+}
+.platform-alert-row .pa-text { color: var(--text); flex: 1; }
+.platform-alert-row .pa-ack {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 10px;
+  cursor: pointer;
+  font-family: var(--font);
+}
+.platform-alert-row .pa-ack:hover { border-color: var(--accent); color: var(--accent); }
+
+#platform-alerts-banner {
+  margin: 8px 14px 0;
+}
+
+#platform-by-model .cost-row .val { color: var(--orange); }
+
+.budget-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+}
+.budget-row:last-child { border-bottom: none; }
+.budget-row .b-period {
+  width: 52px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+}
+.budget-row .b-input {
+  width: 80px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 6px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 11px;
+}
+.budget-row .b-input:focus { outline: none; border-color: var(--accent); }
+.budget-row .b-save {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 10px;
+  cursor: pointer;
+  font-family: var(--font);
+}
+.budget-row .b-save:hover { border-color: var(--accent); color: var(--accent); }
+.budget-row .b-current { color: var(--yellow); margin-left: auto; font-size: 10px; }

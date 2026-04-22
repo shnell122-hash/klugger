@@ -17,6 +17,7 @@ const dispatchRouter       = require('./routes/dispatch');
 const screenshotsRouter    = require('./routes/screenshots');
 const alertsRouter         = require('./routes/alerts');
 const conversationsRouter  = require('./routes/conversations');
+const { router: platformRouter, fetchAndCacheUsage, checkBudgets } = require('./routes/platform');
 
 const PORT = process.env.PORT || 3010;
 
@@ -46,6 +47,7 @@ app.use('/api/relay',           dispatchRouter);
 app.use('/api/screenshots',     screenshotsRouter);
 app.use('/api/alerts',          alertsRouter);
 app.use('/api/conversations',   conversationsRouter);
+app.use('/api/platform',        platformRouter);
 
 // Serve screenshots directory (already covered by express.static on /frontend,
 // but also serve under /screenshots for direct access)
@@ -67,4 +69,23 @@ io.on('connection', (socket) => {
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`[ai-monitor] Running on port ${PORT}`);
   console.log(`[ai-monitor] Dashboard: http://localhost:${PORT}`);
+
+  // Platform poller — fetch Anthropic usage every 15 min
+  const PLATFORM_POLL_MS = parseInt(process.env.PLATFORM_POLL_MS || String(15 * 60 * 1000));
+  if (process.env.ANTHROPIC_ADMIN_KEY) {
+    const pollPlatform = async () => {
+      try {
+        await fetchAndCacheUsage();
+        await checkBudgets(io);
+        console.log('[platform] usage synced');
+      } catch (e) {
+        console.error('[platform] poll error:', e.message);
+      }
+    };
+    setTimeout(pollPlatform, 10000);  // first fetch 10s after startup
+    setInterval(pollPlatform, PLATFORM_POLL_MS);
+    console.log(`[platform] Poller activo cada ${PLATFORM_POLL_MS / 60000} min`);
+  } else {
+    console.warn('[platform] ANTHROPIC_ADMIN_KEY no configurado — tab Plataforma sin datos');
+  }
 });
