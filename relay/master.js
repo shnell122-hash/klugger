@@ -664,7 +664,7 @@ function postAlert(alertType, projectId, severity, title, details, autoFixed = f
 // Llama claude-sonnet-4-6 via HTTPS nativo sin spawn Claude CLI.
 // Usada cuando buzon-fiscalai.md cambia para responder directamente.
 function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512) {
-  const timeoutMs = 25000;
+  const timeoutMs = 90000;
   const apiCall = new Promise((resolve, reject) => {
     if (!ANTHROPIC_KEY) { reject(new Error('ANTHROPIC_API_KEY no configurado')); return; }
     const body = JSON.stringify({
@@ -1713,9 +1713,12 @@ async function processDispatchQueue(projects, hashes = null) {
 
     log(null, `Dispatch → ${target.name}: ${dispatch.task.slice(0, 80)}`);
 
-    // Write task to target inbox
+    // Write task to target inbox (append outbox template so agent always fills it)
+    const OUTBOX_TEMPLATE =
+      '\n\n---\n## Outbox\n' +
+      'STATUS: \nARCHIVOS_MODIFICADOS: \nCOMMIT: \nDEPLOY_PROD: \nUSER_REQUIRED: \n';
     try {
-      fs.writeFileSync(target.inbox, dispatch.task);
+      fs.writeFileSync(target.inbox, dispatch.task + OUTBOX_TEMPLATE);
     } catch (err) {
       log(null, `Dispatch ${dispatch.id}: no pudo escribir inbox: ${err.message}`);
       const idx = updated.findIndex(d => d.id === dispatch.id);
