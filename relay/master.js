@@ -765,10 +765,43 @@ function journalEntryFile(repoPath, direction, summary) {
 // Called when buzon-fiscalai.md changes (Opción B — no Claude CLI spawn).
 // Anti-loop: reads buzon-fiscalai.md, writes buzon-ia.md (different file).
 // Outgoing sync in syncBuzonIA picks up buzon-ia.md on next poll and pushes it.
+//
+// Resilience: callAnthropicDirect can fail if api.anthropic.com is unreachable
+// from the server (same reason /tarea was switched to local plan generation).
+// Fix: write simple ACK immediately + dispatch to coordinator regardless of API.
 async function responderBuzonFiscalai(buzonContent) {
-  log(null, 'buzon-ia: llamando Anthropic API para responder a FiscalAI…');
+  log(null, 'buzon-ia: mensaje de FiscalAI recibido — procesando…');
+  const timestamp = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
+
+  // 1. Write immediate ACK so FiscalAI knows the message arrived
+  const ack =
+    `# Buzón IA — ia.vilarkptl.com → FiscalAI\n\n` +
+    `**[${timestamp} CST] — ACK relay-master**\n\n---\n\n` +
+    `Mensaje recibido (${buzonContent.length} chars). Despachando al coordinador para procesar.\n`;
   try {
-    // System prompt: CLAUDE.md + relay context files from DeCabeceraTax
+    fs.writeFileSync(BUZON_SRC, ack);
+    log(null, 'buzon-ia: ACK escrito en buzon-ia.md');
+  } catch (ackErr) {
+    log(null, `buzon-ia: no pudo escribir ACK: ${ackErr.message}`);
+  }
+
+  // 2. Dispatch buzon content to coordinator as a relay task (no API needed)
+  const taskBody =
+    `# Mensaje de FiscalAI via Buzón\n\n` +
+    `_Recibido ${timestamp} CST_\n\n` +
+    `${buzonContent}\n\n` +
+    `---\n_Fuente: relay/buzon-fiscalai.md — procesado por relay-master_`;
+  postToMonitor('/api/relay/dispatch', {
+    project:   'coordinator',
+    task:      taskBody,
+    requester: 'buzon-fiscalai',
+  });
+  tg(`📨 <b>FiscalAI — mensaje despachado al coordinador</b>\n<code>${buzonContent.slice(0, 300)}</code>`);
+  journalEntryFile(BUZON_REPO, 'buzon-fiscalai → coordinator', `${buzonContent.length} chars despachados`);
+
+  // 3. Try Anthropic API for richer response (optional / best-effort)
+  // If unreachable (firewall/DNS), fall through silently — ACK+dispatch already sent.
+  try {
     let systemPrompt = 'Eres el agente IA de ia.vilarkptl.com respondiendo al buzón de FiscalAI.';
     const claudeMdPath = path.join(BUZON_REPO, 'CLAUDE.md');
     if (fs.existsSync(claudeMdPath)) {
@@ -782,26 +815,18 @@ async function responderBuzonFiscalai(buzonContent) {
         relayContext += `\n\n### relay/${f}:\n${fs.readFileSync(fp, 'utf8')}`;
       }
     }
-    if (relayContext) {
-      systemPrompt += '\n\n---\n\n## Estado actual del relay' + relayContext;
-    }
+    if (relayContext) systemPrompt += '\n\n---\n\n## Estado actual del relay' + relayContext;
 
     const respuesta = await callAnthropicDirect(systemPrompt, buzonContent, 4096);
-
-    // Write response to buzon-ia.md — outgoing sync detects hash change on next poll
-    const timestamp = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
-    const buzonIaContent =
+    const richContent =
       `# Buzón IA — ia.vilarkptl.com → FiscalAI\n\n` +
       `**[${timestamp} CST] — Anthropic API (claude-sonnet-4-6)**\n\n---\n\n${respuesta}\n`;
-    fs.writeFileSync(BUZON_SRC, buzonIaContent);
-
+    fs.writeFileSync(BUZON_SRC, richContent);
     log(null, `buzon-ia: respuesta Anthropic API escrita (${respuesta.length} chars)`);
-    tg(`📨 <b>FiscalAI respondido via Anthropic API</b>\n<code>${respuesta.slice(0, 500)}</code>`);
-
-    journalEntryFile(BUZON_REPO, 'API → buzon-ia', `Respuesta a FiscalAI (${respuesta.length} chars)`);
+    tg(`📨 <b>FiscalAI respondido via Anthropic API</b>\n<code>${respuesta.slice(0, 400)}</code>`);
+    journalEntryFile(BUZON_REPO, 'API → buzon-ia', `Respuesta rica a FiscalAI (${respuesta.length} chars)`);
   } catch (err) {
-    log(null, `buzon-ia: error en responderBuzonFiscalai: ${err.message}`);
-    tg(`⚠️ <b>Error Anthropic API — buzon FiscalAI</b>\n<code>${err.message.slice(0, 300)}</code>`);
+    log(null, `buzon-ia: API opcional falló — ${err.message?.slice(0, 150)} (ACK+dispatch ya enviados)`);
   }
 }
 
@@ -2187,6 +2212,39 @@ La tarea se interrumpió por timeout (${Math.round(CLAUDE_TIMEOUT_MS / 60000)} m
   }, activeDM, adaptiveTimeout);
 }
 
+// ─── Connectivity diagnostic for buzon handler ───────────
+// Logs which API key the buzon uses and whether api.anthropic.com is reachable.
+// Run once at startup to diagnose the "buzon never responds" problem.
+function diagBuzonConnectivity() {
+  const keyPreview = ANTHROPIC_KEY
+    ? `...${ANTHROPIC_KEY.slice(-6)}`
+    : '(no configurado)';
+  log(null, `buzon-diag: ANTHROPIC_API_KEY=${keyPreview}`);
+
+  if (!ANTHROPIC_KEY) return;
+  const req = https.request({
+    hostname: 'api.anthropic.com',
+    path:     '/v1/models',
+    method:   'GET',
+    headers:  { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
+  }, (res) => {
+    let body = '';
+    res.on('data', c => { body += c; if (body.length > 200) res.destroy(); });
+    res.on('end', () => {
+      log(null, `buzon-diag: api.anthropic.com → HTTP ${res.statusCode} ✅`);
+    });
+  });
+  req.setTimeout(10000, () => {
+    req.destroy();
+    log(null, 'buzon-diag: api.anthropic.com → TIMEOUT ❌ (firewall o DNS)');
+    tg(`⚠️ <b>Diagnóstico buzon</b>\n<code>api.anthropic.com</code> no responde en 10s\nKey: <code>${keyPreview}</code>\nEl ACK de FiscalAI usará fallback (coordinator dispatch)`);
+  });
+  req.on('error', (e) => {
+    log(null, `buzon-diag: api.anthropic.com → ERROR ❌ ${e.message?.slice(0, 100)}`);
+  });
+  req.end();
+}
+
 // ─── Main loop ────────────────────────────────────────────
 async function main() {
   log(null, '=== relay-master iniciado ===');
@@ -2230,6 +2288,9 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
 
   // Register command list with Telegram so they autocomplete in the chat
   registerBotCommands();
+
+  // Connectivity diagnostic — logs API key + tests api.anthropic.com reachability
+  setTimeout(diagBuzonConnectivity, 5000);
 
   // Independent session watchdog — hard cap regardless of CLAUDE_TIMEOUT_MS env var
   const WATCHDOG_MAX_MS = parseInt(process.env.WATCHDOG_MAX_MS || String(25 * 60 * 1000));
