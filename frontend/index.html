@@ -3,33 +3,64 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>ia.vilarkptl — AI Monitor</title>
+  <title>FiscalAI Relay — AI Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/dashboard.css">
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
+<!-- Particle network background -->
+<canvas id="bg-canvas"></canvas>
+
 <!-- ── Header ── -->
 <header>
-  <div class="logo">ia<span>.vilarkptl.com</span></div>
+  <div class="logo">
+    <svg class="logo-mark" width="24" height="24" viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="5"  r="2.5" fill="#0EA5E9"/>
+      <circle cx="19" cy="16" r="2.5" fill="#6366F1"/>
+      <circle cx="5"  cy="16" r="2.5" fill="#10B981"/>
+      <line x1="12" y1="7.5" x2="18" y2="14" stroke="url(#gl1)" stroke-width="1.2" stroke-linecap="round"/>
+      <line x1="12" y1="7.5" x2="6"  y2="14" stroke="url(#gl2)" stroke-width="1.2" stroke-linecap="round"/>
+      <line x1="6"  y1="16.5" x2="18" y2="16.5" stroke="url(#gl3)" stroke-width="1.2" stroke-linecap="round"/>
+      <defs>
+        <linearGradient id="gl1" x1="12" y1="7" x2="18" y2="14" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#0EA5E9"/><stop offset="1" stop-color="#6366F1"/>
+        </linearGradient>
+        <linearGradient id="gl2" x1="12" y1="7" x2="6" y2="14" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#0EA5E9"/><stop offset="1" stop-color="#10B981"/>
+        </linearGradient>
+        <linearGradient id="gl3" x1="6" y1="16" x2="18" y2="16" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#10B981"/><stop offset="1" stop-color="#6366F1"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    <span class="logo-name">FiscalAI <em>Relay</em></span>
+  </div>
 
-  <div class="stat-pill">
-    <span class="label">Hoy</span>
-    <span class="value cost" id="stat-cost">$0.00000</span>
-  </div>
-  <div class="stat-pill">
-    <span class="label">Activas</span>
-    <span class="value active" id="stat-active">0</span>
-  </div>
-  <div class="stat-pill">
-    <span class="label">Eventos</span>
-    <span class="value" id="stat-events">0</span>
+  <div class="header-stats">
+    <div class="stat-pill">
+      <span class="label">Hoy</span>
+      <span class="value cost" id="stat-cost">$0.00000</span>
+    </div>
+    <div class="stat-pill">
+      <span class="label">Activas</span>
+      <span class="value active" id="stat-active">0</span>
+    </div>
+    <div class="stat-pill">
+      <span class="label">Eventos</span>
+      <span class="value" id="stat-events">0</span>
+    </div>
   </div>
 
   <div class="header-right">
-    <div class="conn-dot" id="conn-dot"></div>
-    <span style="color:var(--text-muted);font-size:10px">live</span>
+    <div class="live-indicator">
+      <span class="conn-dot" id="conn-dot"></span>
+      <span class="live-label">live</span>
+    </div>
   </div>
 </header>
 
@@ -37,14 +68,14 @@
 <div id="tab-bar">
   <button class="tab-btn active" data-panel="feed">Feed</button>
   <button class="tab-btn" data-panel="agents">Agentes</button>
-  <button class="tab-btn" data-panel="screenshots">Screenshots</button>
+  <button class="tab-btn" data-panel="screenshots">Capturas</button>
   <button class="tab-btn" data-panel="sessions">Sesiones</button>
   <button class="tab-btn" data-panel="costs">Costos</button>
   <button class="tab-btn" data-panel="providers">APIs</button>
   <button class="tab-btn" data-panel="projects">Proyectos</button>
   <button class="tab-btn" data-panel="conversations">Chats</button>
-  <button class="tab-btn platform-tab" data-panel="platform">💸 Plataforma</button>
-  <button class="tab-btn" data-panel="api-admin">📊 APIs</button>
+  <button class="tab-btn platform-tab" data-panel="platform">Plataforma</button>
+  <button class="tab-btn" data-panel="api-admin">API Admin</button>
 </div>
 
 <!-- ── Main ── -->
@@ -53,8 +84,11 @@
   <!-- Left: Live event feed -->
   <div id="feed-panel" class="mobile-active">
     <div class="panel-header">
-      <span class="title">Tool calls en vivo</span>
-      <span id="feed-count" style="color:var(--text-muted)">0 eventos</span>
+      <div class="panel-header-left">
+        <span class="live-dot"></span>
+        <span class="title">Tool calls en vivo</span>
+      </div>
+      <span id="feed-count" style="color:var(--text-muted);font-size:11px">0 eventos</span>
     </div>
     <div id="event-list"></div>
   </div>
@@ -65,15 +99,15 @@
     <!-- Desktop tabs -->
     <div id="right-tabs">
       <button class="rtab active" data-rtab="agents">Agentes</button>
-      <button class="rtab" data-rtab="screenshots">Screenshots</button>
+      <button class="rtab" data-rtab="screenshots">Capturas</button>
       <button class="rtab" data-rtab="sessions">Sesiones</button>
       <button class="rtab" data-rtab="costs">Costos</button>
       <button class="rtab" data-rtab="providers">APIs</button>
       <button class="rtab" data-rtab="projects">Proyectos</button>
       <button class="rtab" data-rtab="alerts" id="tab-alerts">Alertas</button>
       <button class="rtab" data-rtab="conversations">Chats</button>
-      <button class="rtab platform-tab" data-rtab="platform">💸 Plataforma</button>
-      <button class="rtab" data-rtab="api-admin">📊 APIs</button>
+      <button class="rtab platform-tab" data-rtab="platform">Plataforma</button>
+      <button class="rtab" data-rtab="api-admin">API Admin</button>
     </div>
 
     <!-- Agents panel -->
@@ -90,9 +124,9 @@
     <!-- Screenshots -->
     <div id="screenshots-panel">
       <div class="panel-header">
-        <span class="title">Screenshots</span>
+        <span class="title">Capturas</span>
         <div style="display:flex;gap:6px;align-items:center">
-          <select id="shot-filter" style="background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:10px">
+          <select id="shot-filter" style="background:var(--input-bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;font-family:var(--font)">
             <option value="">Todos los proyectos</option>
           </select>
           <button id="btn-sync-shots" class="btn-sm" onclick="syncScreenshots()">↻ Sync</button>
@@ -171,7 +205,7 @@
       <div id="provider-list"></div>
     </div>
 
-    <!-- Projects / Screenshots -->
+    <!-- Projects -->
     <div id="projects-panel">
       <div id="project-list"></div>
     </div>
@@ -181,7 +215,7 @@
       <div class="panel-header">
         <span class="title">Alertas del sistema</span>
         <div style="display:flex;gap:6px;align-items:center">
-          <label style="font-size:10px;color:var(--text-muted);display:flex;align-items:center;gap:4px">
+          <label style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px">
             <input type="checkbox" id="alerts-show-resolved"> Ver resueltas
           </label>
           <span id="alerts-count" style="color:var(--text-muted)">—</span>
@@ -190,15 +224,13 @@
       <div id="alerts-list"></div>
     </div>
 
-    <!-- Conversations (Telegram chat bot sessions) -->
+    <!-- Conversations -->
     <div id="conversations-panel">
       <div class="panel-header">
         <span class="title">Chats</span>
         <span id="conv-header-cost" style="color:var(--text-muted)">—</span>
       </div>
-      <!-- User list view -->
       <div id="conv-user-list"></div>
-      <!-- Messages view (hidden until user selected) -->
       <div id="conv-messages" style="display:none">
         <div class="panel-header conv-back-header" onclick="convShowUsers()" style="cursor:pointer">
           <span>← <span id="conv-user-name" style="color:var(--accent)"></span></span>
@@ -208,23 +240,17 @@
       </div>
     </div>
 
-    <!-- Platform spend (Anthropic Admin API) -->
+    <!-- Platform spend -->
     <div id="platform-panel">
       <div class="panel-header">
-        <span class="title">💸 Gasto real — Claude Platform</span>
+        <span class="title">Gasto real — Claude Platform</span>
         <div style="display:flex;gap:6px;align-items:center">
           <span id="platform-last-fetch" style="color:var(--text-muted);font-size:10px">—</span>
           <button class="btn-sm" onclick="refreshPlatform()">↻ Sync</button>
         </div>
       </div>
-
-      <!-- Kill-switch banner -->
-      <div id="platform-kill-banner" style="display:none;margin:8px 14px 0;padding:10px 14px;background:color-mix(in srgb,var(--red) 15%,var(--bg3));border:1px solid var(--red);border-radius:6px;font-size:12px;color:var(--text)"></div>
-
-      <!-- Alert banner -->
+      <div id="platform-kill-banner" style="display:none;margin:8px 14px 0;padding:10px 14px;background:color-mix(in srgb,var(--red) 10%,white);border:1px solid color-mix(in srgb,var(--red) 40%,transparent);border-radius:8px;font-size:12px;color:var(--text)"></div>
       <div id="platform-alerts-banner" style="display:none"></div>
-
-      <!-- Summary pills -->
       <div class="platform-pills">
         <div class="platform-pill">
           <div class="pp-label">Esta hora</div>
@@ -239,37 +265,29 @@
           <div class="pp-value" id="pp-month">—</div>
         </div>
       </div>
-
-      <!-- Hourly chart -->
-      <div class="chart-container" style="margin-top:12px">
+      <div class="chart-container" style="margin-top:4px">
         <h3>Gasto por hora (últimas 24h)</h3>
         <div class="chart-wrapper">
           <canvas id="platform-hourly-chart"></canvas>
         </div>
       </div>
-
-      <!-- By model -->
       <div class="cost-section">
         <h3>Por modelo (hoy)</h3>
         <div id="platform-by-model"></div>
       </div>
-
-      <!-- Budget config -->
       <div class="cost-section">
         <h3>Presupuestos de alerta</h3>
         <div id="platform-budgets"></div>
       </div>
-
-      <!-- Error / raw response -->
-      <div id="platform-error" style="display:none;margin:8px;padding:8px;background:var(--bg3);border-left:3px solid var(--red);border-radius:4px;font-size:11px;color:var(--text-muted)"></div>
+      <div id="platform-error" style="display:none;margin:8px;padding:10px;background:color-mix(in srgb,var(--red) 6%,white);border-left:3px solid var(--red);border-radius:6px;font-size:11px;color:var(--text-muted)"></div>
     </div>
 
-    <!-- API Admin Dashboard -->
+    <!-- API Admin -->
     <div id="api-admin-panel">
       <div class="panel-header">
-        <span class="title">📊 API Admin</span>
+        <span class="title">API Admin</span>
         <div style="display:flex;gap:6px;align-items:center">
-          <select id="api-admin-range" style="background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:10px">
+          <select id="api-admin-range" style="background:var(--input-bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;font-family:var(--font)">
             <option value="1">Hoy</option>
             <option value="7">7 días</option>
             <option value="30" selected>30 días</option>
@@ -278,46 +296,30 @@
           <button class="btn-sm" onclick="snapshotNow()">📸 Snapshot</button>
         </div>
       </div>
-
-      <!-- Kill-switch status -->
-      <div id="api-kill-banner" style="display:none;margin:8px 14px 0;padding:10px 14px;background:color-mix(in srgb,var(--red) 15%,var(--bg3));border:1px solid var(--red);border-radius:6px;font-size:12px;color:var(--text)"></div>
-
-      <!-- Summary pills: total hoy / semana / mes -->
+      <div id="api-kill-banner" style="display:none;margin:8px 14px 0;padding:10px 14px;background:color-mix(in srgb,var(--red) 10%,white);border:1px solid color-mix(in srgb,var(--red) 40%,transparent);border-radius:8px;font-size:12px;color:var(--text)"></div>
       <div class="platform-pills" id="api-admin-pills"></div>
-
-      <!-- Donut: distribución por proveedor -->
       <div class="chart-container">
-        <h3>Por proveedor (periodo seleccionado)</h3>
+        <h3>Por proveedor</h3>
         <div style="display:flex;gap:8px;align-items:center">
           <div class="chart-wrapper" style="height:160px;flex:1"><canvas id="api-donut-chart"></canvas></div>
         </div>
       </div>
-
-      <!-- Stacked bar: por proyecto -->
       <div class="chart-container">
         <h3>Por proyecto</h3>
         <div class="chart-wrapper"><canvas id="api-bar-chart"></canvas></div>
       </div>
-
-      <!-- Line: serie de tiempo diaria por proveedor -->
       <div class="chart-container">
         <h3>Serie de tiempo diaria</h3>
         <div class="chart-wrapper"><canvas id="api-line-chart"></canvas></div>
       </div>
-
-      <!-- Por API key -->
       <div class="cost-section">
         <h3>Por API key (mes actual)</h3>
         <div id="api-by-key"></div>
       </div>
-
-      <!-- Umbrales de kill por proveedor -->
       <div class="cost-section">
         <h3>Kill-switch por proveedor (USD/día)</h3>
         <div id="api-thresholds"></div>
       </div>
-
-      <!-- Alertas de kill activas -->
       <div class="cost-section">
         <h3>Alertas activas</h3>
         <div id="api-kill-alerts"></div>
@@ -381,5 +383,83 @@
 </div>
 
 <script src="/js/dashboard.js"></script>
+
+<!-- Particle network background -->
+<script>
+(function() {
+  const canvas = document.getElementById('bg-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let W, H;
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const COLORS = ['#0EA5E9','#6366F1','#10B981','#F59E0B','#8B5CF6','#0EA5E9'];
+  const nodes = Array.from({length: 7}, (_, i) => ({
+    x: Math.random() * W,
+    y: Math.random() * H,
+    vx: (Math.random() - 0.5) * 0.25,
+    vy: (Math.random() - 0.5) * 0.25,
+    r: 2.5 + Math.random() * 2,
+    color: COLORS[i % COLORS.length],
+    phase: Math.random() * Math.PI * 2,
+  }));
+
+  function hexAlpha(hex, a) {
+    const r = parseInt(hex.slice(1,3),16);
+    const g = parseInt(hex.slice(3,5),16);
+    const b = parseInt(hex.slice(5,7),16);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+
+  function frame() {
+    ctx.clearRect(0, 0, W, H);
+
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const dx = nodes[i].x - nodes[j].x;
+        const dy = nodes[i].y - nodes[j].y;
+        const d  = Math.sqrt(dx*dx + dy*dy);
+        if (d < 320) {
+          ctx.beginPath();
+          ctx.moveTo(nodes[i].x, nodes[i].y);
+          ctx.lineTo(nodes[j].x, nodes[j].y);
+          ctx.strokeStyle = `rgba(100,120,180,${0.055 * (1 - d/320)})`;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+      }
+    }
+
+    nodes.forEach(n => {
+      n.phase += 0.018;
+      const pr = n.r + Math.sin(n.phase) * 1.2;
+
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, pr * 5, 0, Math.PI * 2);
+      ctx.fillStyle = hexAlpha(n.color, 0.03);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, pr, 0, Math.PI * 2);
+      ctx.fillStyle = hexAlpha(n.color, 0.18);
+      ctx.fill();
+
+      n.x += n.vx;
+      n.y += n.vy;
+      if (n.x < 0 || n.x > W) n.vx *= -1;
+      if (n.y < 0 || n.y > H) n.vy *= -1;
+    });
+
+    requestAnimationFrame(frame);
+  }
+  frame();
+})();
+</script>
 </body>
 </html>
