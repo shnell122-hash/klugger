@@ -10,8 +10,7 @@
 |-------|-------|
 | Host | `143.198.228.78` (vilar-desarrollo) |
 | Usuario SSH | `root` |
-| Contraseña SSH | `VilarRoot2026!` |
-| Contraseña MySQL root | `VilarRoot2026!` |
+| Contraseñas | Ver `/opt/kptl-secrets/server-credentials.txt` en el servidor (solo root) |
 | OS | Ubuntu / Debian (Apache + PM2) |
 
 ### Árbol del servidor (rutas críticas)
@@ -96,11 +95,11 @@ Tablas principales:
 - Reverse proxy: `ia.vilarkptl.com` → `localhost:3010`
 
 ```bash
-# Conectar por SSH
-ssh root@143.198.228.78  # contraseña: VilarRoot2026!
+# Conectar por SSH (contraseña en /opt/kptl-secrets/server-credentials.txt)
+ssh root@143.198.228.78
 
-# MySQL con contraseña
-mysql -u root -pVilarRoot2026! ai_monitoring
+# MySQL (contraseña en /opt/kptl-secrets/server-credentials.txt)
+mysql -u root -p ai_monitoring
 
 # Verificar módulos
 apache2ctl -M | grep proxy
