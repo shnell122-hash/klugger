@@ -6,7 +6,9 @@ const router  = express.Router();
 const db      = require('../db/mysql');
 
 const ADMIN_KEY = process.env.ANTHROPIC_ADMIN_KEY;
-const ANTHROPIC_VERSION = '2023-06-01';
+// Admin API requires 2023-06-01; usage endpoint needs the beta header
+const ANTHROPIC_VERSION      = '2023-06-01';
+const ANTHROPIC_BETA_USAGE   = 'usage-2024-07-01';
 
 // ── Llamada a Anthropic Admin API ─────────────────────────────────────────────
 function anthropicGet(path) {
@@ -21,6 +23,7 @@ function anthropicGet(path) {
       headers: {
         'x-api-key':         ADMIN_KEY,
         'anthropic-version': ANTHROPIC_VERSION,
+        'anthropic-beta':    ANTHROPIC_BETA_USAGE,
         'content-type':      'application/json',
       },
     }, (res) => {
@@ -273,6 +276,69 @@ router.put('/budget', async (req, res) => {
 router.post('/alerts/:id/ack', async (req, res) => {
   await db.query('UPDATE platform_budget_alerts SET acknowledged = 1 WHERE id = ?', [req.params.id]).catch(() => {});
   res.json({ ok: true });
+});
+
+// ── GET /api/platform/kill-check ─────────────────────────────────────────────
+// Relay-master lo consulta cada 60s para saber si debe pausarse
+router.get('/kill-check', async (req, res) => {
+  try {
+    // Estado actual en DB (persiste entre reinicios)
+    const [[killRow]]    = await db.query("SELECT `value`,updated_at FROM system_state WHERE `key`='relay_killed'").catch(() => [[null]]);
+    const [[reasonRow]]  = await db.query("SELECT `value` FROM system_state WHERE `key`='relay_kill_reason'").catch(() => [[null]]);
+
+    // Costos reales Anthropic (platform_usage)
+    const [[anthReal]] = await db.query(
+      "SELECT ROUND(COALESCE(SUM(cost_usd),0),4) AS cost FROM platform_usage WHERE period_start >= CURDATE()"
+    ).catch(() => [[{ cost: 0 }]]);
+
+    // Costos estimados todos los proveedores (agent_events)
+    const [[estAll]] = await db.query(
+      "SELECT ROUND(COALESCE(SUM(estimated_cost_usd),0),4) AS cost FROM agent_events WHERE DATE(timestamp)=CURDATE()"
+    ).catch(() => [[{ cost: 0 }]]);
+
+    // Fuente de verdad: máximo entre estimado y real Anthropic
+    const dailyCost = Math.max(parseFloat(anthReal?.cost || 0), parseFloat(estAll?.cost || 0));
+
+    // Threshold total (default $7)
+    const [[budget]] = await db.query(
+      "SELECT threshold_usd FROM provider_kill_threshold WHERE provider='total' LIMIT 1"
+    ).catch(() => [[{ threshold_usd: 7 }]]);
+    const threshold = parseFloat(budget?.threshold_usd ?? 7);
+
+    // Auto-activar si supera umbral
+    if (dailyCost >= threshold && killRow?.value !== '1') {
+      const reason = `Gasto diario $${dailyCost.toFixed(2)} ≥ umbral $${threshold.toFixed(2)} (auto)`;
+      await db.query("INSERT INTO system_state(`key`,`value`) VALUES('relay_killed','1') ON DUPLICATE KEY UPDATE `value`='1', updated_at=NOW(3)");
+      await db.query("INSERT INTO system_state(`key`,`value`) VALUES('relay_kill_reason',?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`), updated_at=NOW(3)", [reason]);
+      await db.query("INSERT INTO provider_kill_alerts (provider, threshold_usd, actual_usd) VALUES ('total',?,?)", [threshold, dailyCost]).catch(() => {});
+      const io = req.app?.get('io');
+      if (io) io.emit('relay_killed', { reason, daily_cost_usd: dailyCost, threshold_usd: threshold });
+    }
+
+    const killed = killRow?.value === '1' || dailyCost >= threshold;
+    res.json({
+      killed,
+      daily_cost_usd: dailyCost,
+      threshold_usd:  threshold,
+      reason:         reasonRow?.value || (killed ? `$${dailyCost.toFixed(2)} ≥ $${threshold.toFixed(2)}` : null),
+      killed_at:      killRow?.updated_at || null,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST /api/platform/resume ─────────────────────────────────────────────────
+router.post('/resume', async (req, res) => {
+  try {
+    await db.query("INSERT INTO system_state(`key`,`value`) VALUES('relay_killed','0') ON DUPLICATE KEY UPDATE `value`='0', updated_at=NOW(3)");
+    await db.query("INSERT INTO system_state(`key`,`value`) VALUES('relay_kill_reason','') ON DUPLICATE KEY UPDATE `value`='', updated_at=NOW(3)");
+    const io = req.app.get('io');
+    if (io) io.emit('relay_resumed', { ts: new Date().toISOString() });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = { router, fetchAndCacheUsage, checkBudgets };

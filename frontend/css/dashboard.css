@@ -258,13 +258,14 @@ main {
 
 /* ── Right sub-panels ── */
 #agents-panel, #screenshots-panel, #sessions-panel, #costs-panel,
-#providers-panel, #projects-panel, #conversations-panel, #platform-panel {
+#providers-panel, #projects-panel, #conversations-panel, #platform-panel, #api-admin-panel {
   flex: 1;
   overflow-y: auto;
   display: none;
 }
 #agents-panel.visible, #screenshots-panel.visible, #sessions-panel.visible, #costs-panel.visible,
-#providers-panel.visible, #projects-panel.visible, #conversations-panel.visible, #platform-panel.visible {
+#providers-panel.visible, #projects-panel.visible, #conversations-panel.visible,
+#platform-panel.visible, #api-admin-panel.visible {
   display: block;
 }
 
@@ -519,13 +520,14 @@ main {
   /* All right sub-panels hidden by default on mobile;
      the .visible class (higher specificity 0,1,1,0 vs 0,1,0,0) shows the active one */
   #agents-panel, #screenshots-panel, #sessions-panel,
-  #costs-panel, #providers-panel, #projects-panel, #platform-panel {
+  #costs-panel, #providers-panel, #projects-panel, #platform-panel, #api-admin-panel {
     display: none;
     overflow-x: hidden;
   }
   /* Override: show whichever panel has .visible */
   #agents-panel.visible, #screenshots-panel.visible, #sessions-panel.visible,
-  #costs-panel.visible, #providers-panel.visible, #projects-panel.visible, #platform-panel.visible {
+  #costs-panel.visible, #providers-panel.visible, #projects-panel.visible,
+  #platform-panel.visible, #api-admin-panel.visible {
     display: block;
     flex: 1;
     overflow-y: auto;
@@ -1171,3 +1173,33 @@ main {
 }
 .budget-row .b-save:hover { border-color: var(--accent); color: var(--accent); }
 .budget-row .b-current { color: var(--yellow); margin-left: auto; font-size: 10px; }
+
+/* ── API Admin panel ── */
+.api-key-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  flex-wrap: wrap;
+}
+.api-key-badge {
+  font-family: var(--font);
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+.api-limit-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--bg3);
+  overflow: hidden;
+}
+.api-limit-fill { height: 100%; background: var(--green); border-radius: 2px; transition: width 0.3s; }
+.api-limit-fill.warn { background: var(--orange); }
+.api-limit-fill.over { background: var(--red); }

@@ -56,7 +56,13 @@ const GITHUB_TOKEN    = process.env.GITHUB_TOKEN;
 const CLAUDE_BIN      = process.env.CLAUDE_BIN || '/usr/local/bin/claude';
 const CLAUDE_USER     = process.env.CLAUDE_USER || 'claude-agent';
 const POLL_MS         = parseInt(process.env.POLL_MS || '15000');
-const CLAUDE_TIMEOUT_MS = parseInt(process.env.CLAUDE_TIMEOUT_MS || String(25 * 60 * 1000)); // 25 min default
+const CLAUDE_TIMEOUT_MS  = parseInt(process.env.CLAUDE_TIMEOUT_MS || String(25 * 60 * 1000)); // 25 min default
+const CLAUDE_MAX_TOKENS  = parseInt(process.env.CLAUDE_MAX_TOKENS  || '8192');
+
+// Kill-switch global — pausar todo el relay cuando el gasto diario supera umbrales
+let GLOBAL_KILLED   = false;
+let GLOBAL_KILL_TS  = null;
+let GLOBAL_KILL_MSG = '';
 
 // ─── Buzon IA (ia.vilarkptl.com → FiscalAI relay shared mailbox) ─────────────
 // When relay/buzon-ia.md in agentic-repo changes, relay-master mirrors it to
@@ -1274,7 +1280,7 @@ ${taskContent}`;
     `cd ${project.repo || '/var/www/html'} 2>/dev/null || true`,
     // Diagnostic first — visible in resultText so Telegram shows it on task completion
     `echo "RELAY_DIAG user=$(id -un 2>/dev/null||echo '?') home=$HOME task=$(test -r ${taskFile} && echo ok || echo UNREADABLE)" > ${outFile} 2>&1`,
-    `${CLAUDE_BIN} --dangerously-skip-permissions --output-format stream-json --verbose --print --model ${claudeModel} < ${taskFile} >> ${outFile} 2>&1`,
+    `${CLAUDE_BIN} --dangerously-skip-permissions --output-format stream-json --verbose --print --max-tokens ${CLAUDE_MAX_TOKENS} --model ${claudeModel} < ${taskFile} >> ${outFile} 2>&1`,
   ].join(' && ');
 
   function buildCmd(user) {
@@ -1706,6 +1712,7 @@ function saveDispatchQueue(q) {
 }
 
 async function processDispatchQueue(projects, hashes = null) {
+  if (GLOBAL_KILLED) { log(null, 'Kill-switch activo — dispatch queue pausada'); return; }
   const queue = readDispatchQueue();
   const pending = queue.filter(d => d.status === 'pending');
   if (!pending.length) return;
@@ -1827,6 +1834,7 @@ function checkOutboxWatchdog(projects) {
 // multiple times per cycle (coordinator + fiscalai + fiscalai-front share DeCabeceraTax)
 async function processProject(project, hashes, pulledRepos = new Set()) {
   if (!project.active || !project.inbox) return;
+  if (GLOBAL_KILLED) { log(project.id, `Kill-switch activo (${GLOBAL_KILL_MSG || 'gasto diario'}) — saltando`); return; }
 
   // Git pull — deduplicated per repo path to avoid concurrent git lock conflicts
   if (project.repo && project.branch && !pulledRepos.has(project.repo)) {
@@ -2324,6 +2332,71 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
       tg(`⚠️ <b>Watchdog — ${projectId}</b>\nSesión <code>${info.jobId}</code> terminada (${elapsedSec}s > ${Math.round(WATCHDOG_MAX_MS/60)}min máx)`);
       info.forceTimeout();
     }
+  }, 60 * 1000);
+
+  // Kill-switch poller — consulta kill-check cada 60s (multi-proveedor, persiste en DB)
+  const http = require('http');
+  const killCheck = () => new Promise((resolve) => {
+    const req = http.get(`${MONITOR_API}/api/platform/kill-check`, (res) => {
+      let body = '';
+      res.on('data', c => body += c);
+      res.on('end', () => { try { resolve(JSON.parse(body)); } catch(_) { resolve(null); } });
+    });
+    req.setTimeout(8000, () => { req.destroy(); resolve(null); });
+    req.on('error', () => resolve(null));
+  });
+
+  // También verificar kill por proveedor individual
+  const killStatusCheck = () => new Promise((resolve) => {
+    const req = http.get(`${MONITOR_API}/api/apiAdmin/killStatus`, (res) => {
+      let body = '';
+      res.on('data', c => body += c);
+      res.on('end', () => { try { resolve(JSON.parse(body)); } catch(_) { resolve(null); } });
+    });
+    req.setTimeout(8000, () => { req.destroy(); resolve(null); });
+    req.on('error', () => resolve(null));
+  });
+
+  setInterval(async () => {
+    try {
+      // Auto-reset a medianoche
+      if (GLOBAL_KILLED && GLOBAL_KILL_TS) {
+        if (new Date().toDateString() !== GLOBAL_KILL_TS.toDateString()) {
+          GLOBAL_KILLED = false; GLOBAL_KILL_TS = null; GLOBAL_KILL_MSG = '';
+          log(null, 'Kill-switch: nuevo día — auto-reset');
+          tg('✅ <b>Kill-switch reseteado</b> — nuevo día, sistema reanudado automáticamente');
+        }
+      }
+
+      // Consultar estado global (total)
+      const status = await killCheck();
+      if (status?.killed && !GLOBAL_KILLED) {
+        GLOBAL_KILLED   = true;
+        GLOBAL_KILL_TS  = new Date();
+        GLOBAL_KILL_MSG = status.reason || `$${status.daily_cost_usd} ≥ $${status.threshold_usd}`;
+        log(null, `KILL-SWITCH TOTAL: ${GLOBAL_KILL_MSG}`);
+        tg(`🛑 <b>Sistema PAUSADO — Kill-switch total</b>\n${GLOBAL_KILL_MSG}\nNinguna tarea se ejecutará. Usa /reanudar en dashboard o Telegram.`);
+        for (const [, info] of ACTIVE_PIDS.entries()) {
+          if (info.forceTimeout) info.forceTimeout();
+        }
+      }
+      if (!status?.killed && GLOBAL_KILLED && GLOBAL_KILL_TS) {
+        // Backend dijo que está reanudado (alguien llamó /resume)
+        GLOBAL_KILLED = false; GLOBAL_KILL_TS = null; GLOBAL_KILL_MSG = '';
+        log(null, 'Kill-switch: reanudado por dashboard');
+        tg('✅ <b>Sistema reanudado</b> desde dashboard');
+      }
+
+      // Consultar alertas por proveedor individual
+      const provStatus = await killStatusCheck();
+      if (provStatus?.provider_status) {
+        for (const p of provStatus.provider_status) {
+          if (p.over && p.provider !== 'total') {
+            tg(`⚠️ <b>Alerta de gasto — ${p.provider}</b>\n$${p.current_usd} de $${p.threshold_usd} (${p.pct}%)`);
+          }
+        }
+      }
+    } catch (_) { /* no interrumpir por fallos de red */ }
   }, 60 * 1000);
 
   const hashes = loadHashes();

@@ -44,6 +44,7 @@
   <button class="tab-btn" data-panel="projects">Proyectos</button>
   <button class="tab-btn" data-panel="conversations">Chats</button>
   <button class="tab-btn platform-tab" data-panel="platform">💸 Plataforma</button>
+  <button class="tab-btn" data-panel="api-admin">📊 APIs</button>
 </div>
 
 <!-- ── Main ── -->
@@ -72,6 +73,7 @@
       <button class="rtab" data-rtab="alerts" id="tab-alerts">Alertas</button>
       <button class="rtab" data-rtab="conversations">Chats</button>
       <button class="rtab platform-tab" data-rtab="platform">💸 Plataforma</button>
+      <button class="rtab" data-rtab="api-admin">📊 APIs</button>
     </div>
 
     <!-- Agents panel -->
@@ -216,6 +218,9 @@
         </div>
       </div>
 
+      <!-- Kill-switch banner -->
+      <div id="platform-kill-banner" style="display:none;margin:8px 14px 0;padding:10px 14px;background:color-mix(in srgb,var(--red) 15%,var(--bg3));border:1px solid var(--red);border-radius:6px;font-size:12px;color:var(--text)"></div>
+
       <!-- Alert banner -->
       <div id="platform-alerts-banner" style="display:none"></div>
 
@@ -257,6 +262,66 @@
 
       <!-- Error / raw response -->
       <div id="platform-error" style="display:none;margin:8px;padding:8px;background:var(--bg3);border-left:3px solid var(--red);border-radius:4px;font-size:11px;color:var(--text-muted)"></div>
+    </div>
+
+    <!-- API Admin Dashboard -->
+    <div id="api-admin-panel">
+      <div class="panel-header">
+        <span class="title">📊 API Admin</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <select id="api-admin-range" style="background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:10px">
+            <option value="1">Hoy</option>
+            <option value="7">7 días</option>
+            <option value="30" selected>30 días</option>
+          </select>
+          <button class="btn-sm" onclick="loadApiAdmin()">↻ Refresh</button>
+          <button class="btn-sm" onclick="snapshotNow()">📸 Snapshot</button>
+        </div>
+      </div>
+
+      <!-- Kill-switch status -->
+      <div id="api-kill-banner" style="display:none;margin:8px 14px 0;padding:10px 14px;background:color-mix(in srgb,var(--red) 15%,var(--bg3));border:1px solid var(--red);border-radius:6px;font-size:12px;color:var(--text)"></div>
+
+      <!-- Summary pills: total hoy / semana / mes -->
+      <div class="platform-pills" id="api-admin-pills"></div>
+
+      <!-- Donut: distribución por proveedor -->
+      <div class="chart-container">
+        <h3>Por proveedor (periodo seleccionado)</h3>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="chart-wrapper" style="height:160px;flex:1"><canvas id="api-donut-chart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Stacked bar: por proyecto -->
+      <div class="chart-container">
+        <h3>Por proyecto</h3>
+        <div class="chart-wrapper"><canvas id="api-bar-chart"></canvas></div>
+      </div>
+
+      <!-- Line: serie de tiempo diaria por proveedor -->
+      <div class="chart-container">
+        <h3>Serie de tiempo diaria</h3>
+        <div class="chart-wrapper"><canvas id="api-line-chart"></canvas></div>
+      </div>
+
+      <!-- Por API key -->
+      <div class="cost-section">
+        <h3>Por API key (mes actual)</h3>
+        <div id="api-by-key"></div>
+      </div>
+
+      <!-- Umbrales de kill por proveedor -->
+      <div class="cost-section">
+        <h3>Kill-switch por proveedor (USD/día)</h3>
+        <div id="api-thresholds"></div>
+      </div>
+
+      <!-- Alertas de kill activas -->
+      <div class="cost-section">
+        <h3>Alertas activas</h3>
+        <div id="api-kill-alerts"></div>
+      </div>
     </div>
 
   </div>

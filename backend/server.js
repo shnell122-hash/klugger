@@ -18,6 +18,7 @@ const screenshotsRouter    = require('./routes/screenshots');
 const alertsRouter         = require('./routes/alerts');
 const conversationsRouter  = require('./routes/conversations');
 const { router: platformRouter, fetchAndCacheUsage, checkBudgets } = require('./routes/platform');
+const { router: apiAdminRouter, dailySnapshot } = require('./routes/apiAdmin');
 
 const PORT = process.env.PORT || 3010;
 
@@ -48,6 +49,7 @@ app.use('/api/screenshots',     screenshotsRouter);
 app.use('/api/alerts',          alertsRouter);
 app.use('/api/conversations',   conversationsRouter);
 app.use('/api/platform',        platformRouter);
+app.use('/api/apiAdmin',        apiAdminRouter);
 
 // Serve screenshots directory (already covered by express.static on /frontend,
 // but also serve under /screenshots for direct access)
@@ -88,4 +90,12 @@ server.listen(PORT, '0.0.0.0', () => {
   } else {
     console.warn('[platform] ANTHROPIC_ADMIN_KEY no configurado — tab Plataforma sin datos');
   }
+
+  // Daily snapshot a las 23:55 — materializa agent_events en provider_daily_cost
+  setInterval(() => {
+    const n = new Date();
+    if (n.getHours() === 23 && n.getMinutes() === 55) {
+      dailySnapshot().catch(e => console.error('[apiAdmin] snapshot error:', e.message));
+    }
+  }, 60 * 1000);
 });
