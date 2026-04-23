@@ -27,6 +27,7 @@ const path    = require('path');
 const crypto  = require('crypto');
 const { execSync, exec, spawn } = require('child_process');
 const https   = require('https');
+const http    = require('http');
 
 // ─── Config ───────────────────────────────────────────────
 const PROJECTS_FILE   = path.join(__dirname, 'projects.json');
@@ -63,6 +64,7 @@ const CLAUDE_MAX_TOKENS  = parseInt(process.env.CLAUDE_MAX_TOKENS  || '8192');
 let GLOBAL_KILLED   = false;
 let GLOBAL_KILL_TS  = null;
 let GLOBAL_KILL_MSG = '';
+const PROVIDER_LAST_ALERT = {};  // proveedor → timestamp última alerta (antispam)
 
 // ─── Buzon IA (ia.vilarkptl.com → FiscalAI relay shared mailbox) ─────────────
 // When relay/buzon-ia.md in agentic-repo changes, relay-master mirrors it to
@@ -187,6 +189,8 @@ function registerBotCommands() {
     { command: 'activar',  description: 'Reactiva un agente detenido — /activar [id]' },
     { command: 'memoria',  description: 'Agrega nota a la memoria del agente — /memoria [id] [nota]' },
     { command: 'plan',     description: 'Ver plan activo del proyecto — /plan [id?]' },
+    { command: 'limite',   description: 'Cambiar límite de gasto — /limite [proveedor] [usd]' },
+    { command: 'reanudar', description: 'Reanudar relay si está pausado por kill-switch' },
     { command: 'comandos', description: 'Lista todos los comandos disponibles' },
     { command: 'ayuda',    description: 'Lista todos los comandos disponibles' },
   ];
@@ -311,6 +315,47 @@ async function handleTelegramCommand(text, imageContext) {
     if (!id) { tg('❓ Uso: /parar [project-id]'); return; }
     const j = loadJournal(id); j.state = 'stopped'; saveJournal(id, j);
     tg(`🛑 <b>${id}</b> detenido manualmente.\nUsa /activar ${id} para reanudar.`);
+    return;
+  }
+
+  // /limite [proveedor|total] [valor_usd]  — cambia umbral de kill-switch
+  if (lower.startsWith('/limite')) {
+    const parts    = raw.trim().split(/\s+/);
+    const provider = parts[1]?.toLowerCase();
+    const value    = parseFloat(parts[2]);
+    if (!provider || isNaN(value) || value < 0) {
+      tg('❓ Uso: <code>/limite [proveedor] [usd]</code>\nEjemplo: <code>/limite total 15</code> o <code>/limite anthropic 10</code>\nProveedores: total, anthropic, openai, deepseek, fal, elevenlabs');
+      return;
+    }
+    // Actualizar en DB via API del backend
+    const postData = JSON.stringify({ provider, threshold_usd: value, kill_enabled: 1 });
+    const req = http.request({
+      hostname: '127.0.0.1', port: 3010, path: '/api/apiAdmin/threshold',
+      method: 'PUT', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) },
+    }, (res) => {
+      res.resume();
+      // También limpiar kill si el nuevo límite es mayor al gasto actual
+      if (provider === 'total' || provider === 'anthropic') {
+        GLOBAL_KILLED = false; GLOBAL_KILL_TS = null; GLOBAL_KILL_MSG = '';
+        // Resetear en DB también
+        http.request({ hostname: '127.0.0.1', port: 3010, path: '/api/platform/resume', method: 'POST' }, r => r.resume()).end();
+        http.request({ hostname: '127.0.0.1', port: 3010, path: '/api/apiAdmin/resume', method: 'POST' }, r => r.resume()).end();
+      }
+      PROVIDER_LAST_ALERT[provider] = 0; // reset cooldown para este proveedor
+      tg(`✅ <b>Límite actualizado — ${provider}</b>\nNuevo umbral: <b>$${value.toFixed(2)}/día</b>${(provider === 'total' || provider === 'anthropic') ? '\nKill-switch reseteado.' : ''}`);
+    });
+    req.on('error', e => tg(`❌ Error actualizando límite: ${e.message}`));
+    req.write(postData);
+    req.end();
+    return;
+  }
+
+  // /reanudar — resume el relay si está pausado por kill-switch
+  if (lower === '/reanudar' || lower === '/resume') {
+    GLOBAL_KILLED = false; GLOBAL_KILL_TS = null; GLOBAL_KILL_MSG = '';
+    http.request({ hostname: '127.0.0.1', port: 3010, path: '/api/platform/resume', method: 'POST' }, r => r.resume()).end();
+    http.request({ hostname: '127.0.0.1', port: 3010, path: '/api/apiAdmin/resume', method: 'POST' }, r => r.resume()).end();
+    tg('✅ <b>Sistema reanudado</b> desde Telegram.\nEl relay procesará nuevas tareas normalmente.');
     return;
   }
 
@@ -2335,7 +2380,6 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
   }, 60 * 1000);
 
   // Kill-switch poller — consulta kill-check cada 60s (multi-proveedor, persiste en DB)
-  const http = require('http');
   const killCheck = () => new Promise((resolve) => {
     const req = http.get(`${MONITOR_API}/api/platform/kill-check`, (res) => {
       let body = '';
@@ -2357,6 +2401,9 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
     req.on('error', () => resolve(null));
   });
 
+  // Antispam: solo 1 alerta por hora por proveedor (PROVIDER_LAST_ALERT es global)
+  const ALERT_COOLDOWN_MS = 60 * 60 * 1000; // 1 hora
+
   setInterval(async () => {
     try {
       // Auto-reset a medianoche
@@ -2375,24 +2422,28 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
         GLOBAL_KILL_TS  = new Date();
         GLOBAL_KILL_MSG = status.reason || `$${status.daily_cost_usd} ≥ $${status.threshold_usd}`;
         log(null, `KILL-SWITCH TOTAL: ${GLOBAL_KILL_MSG}`);
-        tg(`🛑 <b>Sistema PAUSADO — Kill-switch total</b>\n${GLOBAL_KILL_MSG}\nNinguna tarea se ejecutará. Usa /reanudar en dashboard o Telegram.`);
+        tg(`🛑 <b>Sistema PAUSADO — Kill-switch total</b>\n${GLOBAL_KILL_MSG}\nNinguna tarea se ejecutará.\nUsa <code>/reanudar</code> o <code>/limite total 15</code> para ajustar.`);
         for (const [, info] of ACTIVE_PIDS.entries()) {
           if (info.forceTimeout) info.forceTimeout();
         }
       }
       if (!status?.killed && GLOBAL_KILLED && GLOBAL_KILL_TS) {
-        // Backend dijo que está reanudado (alguien llamó /resume)
         GLOBAL_KILLED = false; GLOBAL_KILL_TS = null; GLOBAL_KILL_MSG = '';
         log(null, 'Kill-switch: reanudado por dashboard');
         tg('✅ <b>Sistema reanudado</b> desde dashboard');
       }
 
-      // Consultar alertas por proveedor individual
-      const provStatus = await killStatusCheck();
-      if (provStatus?.provider_status) {
-        for (const p of provStatus.provider_status) {
-          if (p.over && p.provider !== 'total') {
-            tg(`⚠️ <b>Alerta de gasto — ${p.provider}</b>\n$${p.current_usd} de $${p.threshold_usd} (${p.pct}%)`);
+      // Consultar alertas por proveedor individual — con antispam (1 alerta/hora/proveedor)
+      if (!GLOBAL_KILLED) {
+        const provStatus = await killStatusCheck();
+        if (provStatus?.provider_status) {
+          const now = Date.now();
+          for (const p of provStatus.provider_status) {
+            if (!p.over || p.provider === 'total') continue;
+            const lastAlerted = PROVIDER_LAST_ALERT[p.provider] || 0;
+            if (now - lastAlerted < ALERT_COOLDOWN_MS) continue;
+            PROVIDER_LAST_ALERT[p.provider] = now;
+            tg(`⚠️ <b>Alerta de gasto — ${p.provider}</b>\n$${p.current_usd} de $${p.threshold_usd} (${p.pct}%)\nUsa <code>/limite ${p.provider} ${Math.ceil(p.current_usd * 1.5)}</code> para subir el límite.`);
           }
         }
       }
