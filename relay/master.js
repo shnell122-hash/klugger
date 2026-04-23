@@ -711,16 +711,19 @@ function postAlert(alertType, projectId, severity, title, details, autoFixed = f
 }
 
 // ─── Anthropic API directo (Opción B — buzon bidireccional) ──────────────────
-// Llama claude-sonnet-4-6 via HTTPS nativo sin spawn Claude CLI.
+// Llama claude-haiku-4-5 via HTTPS nativo sin spawn Claude CLI.
 // Usada cuando buzon-fiscalai.md cambia para responder directamente.
+// Haiku es suficiente para ACKs/pre-responses del buzon; el trabajo real
+// lo hace el coordinator dispatch (paso 2 en responderBuzonFiscalai).
+// Prompt caching activo en system prompt para reducir costos en llamadas repetidas.
 function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512) {
   const timeoutMs = 90000;
   const apiCall = new Promise((resolve, reject) => {
     if (!ANTHROPIC_KEY) { reject(new Error('ANTHROPIC_API_KEY no configurado')); return; }
     const body = JSON.stringify({
-      model:      'claude-sonnet-4-6',
+      model:      'claude-haiku-4-5-20251001',
       max_tokens: maxTokens,
-      system:     systemPrompt,
+      system:     [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
       messages:   [{ role: 'user', content: userMessage }],
     });
     const req = https.request({
@@ -730,6 +733,7 @@ function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512) {
       headers: {
         'x-api-key':         ANTHROPIC_KEY,
         'anthropic-version': '2023-06-01',
+        'anthropic-beta':    'prompt-caching-2024-07-31',
         'content-type':      'application/json',
         'content-length':    Buffer.byteLength(body),
       },
@@ -867,10 +871,10 @@ async function responderBuzonFiscalai(buzonContent) {
     }
     if (relayContext) systemPrompt += '\n\n---\n\n## Estado actual del relay' + relayContext;
 
-    const respuesta = await callAnthropicDirect(systemPrompt, buzonContent, 4096);
+    const respuesta = await callAnthropicDirect(systemPrompt, buzonContent, 1024);
     const richContent =
       `# Buzón IA — ia.vilarkptl.com → FiscalAI\n\n` +
-      `**[${timestamp} CST] — Anthropic API (claude-sonnet-4-6)**\n\n---\n\n${respuesta}\n`;
+      `**[${timestamp} CST] — Anthropic API (claude-haiku-4-5)**\n\n---\n\n${respuesta}\n`;
     fs.writeFileSync(BUZON_SRC, richContent);
     log(null, `buzon-ia: respuesta Anthropic API escrita (${respuesta.length} chars)`);
     tg(`📨 <b>FiscalAI respondido via Anthropic API</b>\n<code>${respuesta.slice(0, 400)}</code>`);
@@ -1774,6 +1778,15 @@ async function processDispatchQueue(projects, hashes = null) {
 
     log(null, `Dispatch → ${target.name}: ${dispatch.task.slice(0, 80)}`);
 
+    // Inject budget_usd_max for sub-dispatches without one (coordinator → agent).
+    // Prevents a coordinator session from spawning 10 × $2 tasks uncontrolled.
+    // The coordinator can override by including budget_usd_max explicitly in the task.
+    let inboxTask = dispatch.task;
+    if (!inboxTask.match(/budget_usd_max\s*[:=]/i) &&
+        (dispatch.depth >= 1 || dispatch.requester === 'coordinator')) {
+      inboxTask = `budget_usd_max: 1.50\n\n` + inboxTask;
+    }
+
     // Write task to target inbox (append outbox template so agent always fills it)
     const OUTBOX_TEMPLATE =
       '\n\n---\n## Outbox — [Rellenar después de completar]\n' +
@@ -1784,7 +1797,7 @@ async function processDispatchQueue(projects, hashes = null) {
       '**Usuario requerido**: [Sí/No]\n' +
       '\nDetalles: [describir qué se hizo]\n';
     try {
-      fs.writeFileSync(target.inbox, dispatch.task + OUTBOX_TEMPLATE);
+      fs.writeFileSync(target.inbox, inboxTask + OUTBOX_TEMPLATE);
     } catch (err) {
       log(null, `Dispatch ${dispatch.id}: no pudo escribir inbox: ${err.message}`);
       const idx = updated.findIndex(d => d.id === dispatch.id);
