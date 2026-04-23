@@ -13,11 +13,11 @@ const { execSync } = require('child_process');
 
 // ── Model registry ────────────────────────────────────────────────────────────
 const MODELS = {
-  sonnet:    { id: 'claude-sonnet-4-6',         provider: 'anthropic', label: 'Claude Sonnet 4.6',   costIn: 3,    costOut: 15    },
-  haiku:     { id: 'claude-haiku-4-5-20251001',  provider: 'anthropic', label: 'Claude Haiku 4.5',    costIn: 0.8,  costOut: 4     },
-  opus:      { id: 'claude-opus-4-7',            provider: 'anthropic', label: 'Claude Opus 4.7',     costIn: 15,   costOut: 75    },
-  deepseek:  { id: 'deepseek-chat',              provider: 'deepseek',  label: 'DeepSeek V3',         costIn: 0.07, costOut: 1.10  },
-  r1:        { id: 'deepseek-reasoner',          provider: 'deepseek',  label: 'DeepSeek R1',         costIn: 0.55, costOut: 2.19  },
+  sonnet:    { id: 'claude-sonnet-4-6',         proxyModel: 'kptl-chat',      provider: 'anthropic', label: 'Claude Sonnet 4.6',   costIn: 3,    costOut: 15    },
+  haiku:     { id: 'claude-haiku-4-5-20251001',  proxyModel: 'kptl-chat-fast', provider: 'anthropic', label: 'Claude Haiku 4.5',    costIn: 0.8,  costOut: 4     },
+  opus:      { id: 'claude-opus-4-7',            proxyModel: 'kptl-reasoning', provider: 'anthropic', label: 'Claude Opus 4.7',     costIn: 15,   costOut: 75    },
+  deepseek:  { id: 'deepseek-chat',              proxyModel: 'kptl-chat',      provider: 'deepseek',  label: 'DeepSeek V3',         costIn: 0.07, costOut: 1.10  },
+  r1:        { id: 'deepseek-reasoner',          proxyModel: 'kptl-reasoning', provider: 'deepseek',  label: 'DeepSeek R1',         costIn: 0.55, costOut: 2.19  },
 };
 const DEFAULT_MODEL = 'sonnet';
 
@@ -53,6 +53,14 @@ const deepseek = new OpenAI({
   apiKey:  process.env.DEEPSEEK_API_KEY || '',
   baseURL: 'https://api.deepseek.com/v1',
 });
+
+// LiteLLM proxy — routes through fallback chains if LITELLM_BASE_URL is set.
+// When unset, callModel() falls through to direct anthropic/deepseek clients.
+const LITELLM_URL = process.env.LITELLM_BASE_URL || null;
+const litellmProxy = LITELLM_URL ? new OpenAI({
+  apiKey:  process.env.LITELLM_MASTER_KEY || 'litellm',
+  baseURL: `${LITELLM_URL}/v1`,
+}) : null;
 
 const db = mysql.createPool({
   host:               process.env.DB_HOST || '127.0.0.1',
@@ -209,6 +217,7 @@ async function runTool(name, input, sessionDispatched = null) {
 // Returns { text, tokensIn, tokensOut, stopReason, toolCalls }
 async function callModel(modelKey, messages, ctx, onProgress, signal) {
   const m = MODELS[modelKey] || MODELS[DEFAULT_MODEL];
+  if (litellmProxy && m.proxyModel) return callLiteLLMProxy(m, messages, ctx, onProgress, signal);
   if (m.provider === 'anthropic') return callAnthropic(m, messages, ctx, onProgress, signal);
   return callDeepSeek(m, messages, ctx, onProgress, signal);
 }
@@ -395,6 +404,102 @@ async function callDeepSeek(m, messages, ctx, onProgress, signal) { // eslint-di
           session_id: ctx.sessionId, event_type: 'post_tool',
           tool_name: tc.function.name, tool_response_summary: result.slice(0, 500),
           project_name: ctx.projectName, api_provider: 'deepseek', agent_user: ctx.username,
+        });
+        msgs.push({ role: 'tool', tool_call_id: tc.id, content: result });
+      }
+      continue;
+    }
+
+    const text = choice.message?.content || '(sin respuesta)';
+    return { text, tokensIn: totalIn, tokensOut: totalOut };
+  }
+  return { text: '⚠️ Máximo de iteraciones alcanzado.', tokensIn: totalIn, tokensOut: totalOut };
+}
+
+// Routes all model calls through LiteLLM proxy using OpenAI-compat API.
+// LiteLLM handles the fallback chain (e.g. kptl-chat: Claude → DeepSeek → GPT-4o → Groq).
+// Same signature as callAnthropic/callDeepSeek — transparent to callers.
+async function callLiteLLMProxy(m, messages, ctx, onProgress, signal) {
+  let totalIn = 0, totalOut = 0;
+  const callHist          = [];
+  const sessionDispatched = new Set();
+
+  // Convert Anthropic-format history to OpenAI format (mirrors callDeepSeek conversion)
+  const history = messages.map(msg => {
+    if (typeof msg.content === 'string') return { role: msg.role, content: msg.content };
+    if (Array.isArray(msg.content)) {
+      if (msg.role === 'user') {
+        const toolResults = msg.content.filter(b => b.type === 'tool_result');
+        if (toolResults.length) {
+          return toolResults.map(tr => ({
+            role: 'tool', tool_call_id: tr.tool_use_id, content: String(tr.content),
+          }));
+        }
+        return { role: 'user', content: msg.content.filter(b => b.type === 'text').map(b => b.text).join('\n') };
+      }
+      if (msg.role === 'assistant') {
+        const text     = msg.content.filter(b => b.type === 'text').map(b => b.text).join('');
+        const toolUses = msg.content.filter(b => b.type === 'tool_use');
+        return {
+          role: 'assistant', content: text || null,
+          tool_calls: toolUses.map(t => ({
+            id: t.id, type: 'function',
+            function: { name: t.name, arguments: JSON.stringify(t.input) },
+          })),
+        };
+      }
+    }
+    return { role: msg.role, content: String(msg.content) };
+  }).flat().filter(Boolean);
+
+  const msgs = [{ role: 'system', content: SYSTEM_PROMPT }, ...history];
+
+  for (let i = 0; i < MAX_ITER; i++) {
+    const resp = await litellmProxy.chat.completions.create({
+      model: m.proxyModel, messages: msgs, tools: TOOLS_OPENAI, max_tokens: 8096,
+    }, { signal });
+
+    const choice = resp.choices[0];
+    totalIn  += resp.usage?.prompt_tokens     || 0;
+    totalOut += resp.usage?.completion_tokens || 0;
+
+    const cost = calcCost(ctx.modelKey, totalIn, totalOut);
+    if (cost > MAX_COST_USD) {
+      throw new Error(`💸 Límite de costo: $${cost.toFixed(4)} > $${MAX_COST_USD}. Abortando.`);
+    }
+    if (totalIn > TOKEN_BUDGET) {
+      throw new Error(`📊 Contexto agotado: ${totalIn.toLocaleString()}↑ > ${TOKEN_BUDGET.toLocaleString()} tokens. Divide la tarea en partes más pequeñas.`);
+    }
+
+    if (choice.finish_reason === 'tool_calls') {
+      const toolCalls = choice.message.tool_calls || [];
+
+      const sig = toolCalls.map(tc => `${tc.function.name}:${tc.function.arguments.slice(0, 200)}`).join('|');
+      callHist.push(sig);
+      checkLoop(callHist);
+
+      const preview = toolCalls.map(tc => {
+        let arg = '';
+        try { const p = JSON.parse(tc.function.arguments); arg = p.command || p.path || p.project || ''; } catch (_) {}
+        return `⚙️ ${tc.function.name}${arg ? ': ' + String(arg).slice(0, 80) : ''}`;
+      }).join('\n');
+      await onProgress(preview);
+
+      msgs.push(choice.message);
+      for (const tc of toolCalls) {
+        let input = {};
+        try { input = JSON.parse(tc.function.arguments); } catch (_) {}
+        const inputSummary = tc.function.arguments.slice(0, 500);
+        apiPost('/api/events', {
+          session_id: ctx.sessionId, event_type: 'pre_tool',
+          tool_name: tc.function.name, tool_input_summary: inputSummary,
+          project_name: ctx.projectName, api_provider: 'litellm', agent_user: ctx.username,
+        });
+        const result = await runTool(tc.function.name, input, sessionDispatched);
+        apiPost('/api/events', {
+          session_id: ctx.sessionId, event_type: 'post_tool',
+          tool_name: tc.function.name, tool_response_summary: result.slice(0, 500),
+          project_name: ctx.projectName, api_provider: 'litellm', agent_user: ctx.username,
         });
         msgs.push({ role: 'tool', tool_call_id: tc.id, content: result });
       }
