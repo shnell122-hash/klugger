@@ -30,6 +30,7 @@
   <div class="header-right">
     <div class="conn-dot" id="conn-dot"></div>
     <span style="color:var(--text-muted);font-size:10px">live</span>
+    <button id="btn-logout" onclick="doLogout()" title="Cerrar sesión" style="margin-left:8px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:4px;font-size:10px;padding:3px 8px;cursor:pointer">⏏ Salir</button>
   </div>
 </header>
 
@@ -44,6 +45,7 @@
   <button class="tab-btn" data-panel="projects">Proyectos</button>
   <button class="tab-btn" data-panel="conversations">Chats</button>
   <button class="tab-btn platform-tab" data-panel="platform">💸 Plataforma</button>
+  <button class="tab-btn" data-panel="keys">🔑 Keys</button>
 </div>
 
 <!-- ── Main ── -->
@@ -72,6 +74,7 @@
       <button class="rtab" data-rtab="alerts" id="tab-alerts">Alertas</button>
       <button class="rtab" data-rtab="conversations">Chats</button>
       <button class="rtab platform-tab" data-rtab="platform">💸 Plataforma</button>
+      <button class="rtab" data-rtab="keys">🔑 Keys</button>
     </div>
 
     <!-- Agents panel -->
@@ -259,6 +262,20 @@
       <div id="platform-error" style="display:none;margin:8px;padding:8px;background:var(--bg3);border-left:3px solid var(--red);border-radius:4px;font-size:11px;color:var(--text-muted)"></div>
     </div>
 
+    <!-- API Keys panel -->
+    <div id="keys-panel">
+      <div class="panel-header">
+        <span class="title">🔑 API Keys</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button class="btn-sm" onclick="keysLoad()">↻ Recargar</button>
+          <button class="btn-sm" id="btn-keys-reload-services" onclick="keysReloadServices()" title="Reinicia relay-master y claude-chat-bot">⟳ Aplicar</button>
+        </div>
+      </div>
+      <div id="keys-vault-path" style="font-size:10px;color:var(--text-muted);padding:4px 8px 8px"></div>
+      <div id="keys-list"></div>
+      <div id="keys-msg" style="display:none;margin:8px;padding:8px;border-radius:4px;font-size:11px"></div>
+    </div>
+
   </div>
 </main>
 
@@ -316,5 +333,6 @@
 </div>
 
 <script src="/js/dashboard.js"></script>
+<script src="/js/keys.js"></script>
 </body>
 </html>
