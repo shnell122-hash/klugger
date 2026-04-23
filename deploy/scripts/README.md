@@ -15,6 +15,7 @@ bash deploy/scripts/fase-1-seguridad.sh
 | Script | Qué hace | Cuándo correrlo |
 |--------|----------|-----------------|
 | `fase-1-seguridad.sh` | Crea vault, rota contraseñas SSH/MySQL, actualiza PAT de GitHub | Una vez, al setup inicial de seguridad |
+| `fase-2-mantenimiento.sh` | Limpia duplicados en relay/.env, git prune/gc, reinicia relay-master | Cuando haya entradas duplicadas en .env o se quiera limpiar el repo |
 
 ## Vault de secretos
 
