@@ -1457,11 +1457,7 @@ async function saveBudget(period, value) {
 }
 
 // ─── API Admin Dashboard ──────────────────────────────────
-const PROVIDER_COLORS = {
-  anthropic:  '#3fb950', openai: '#58a6ff', deepseek: '#bc8cff',
-  fal: '#ffa657', elevenlabs: '#ff79c6',
-};
-function provColor(p) { return PROVIDER_COLORS[p] || '#8b949e'; }
+function provColor(p) { return PROVIDER_COLORS[p] || PROVIDER_COLORS.default; }
 
 let apiDonutChart, apiBarChart, apiLineChart;
 
