@@ -58,7 +58,6 @@ const CLAUDE_BIN      = process.env.CLAUDE_BIN || '/usr/local/bin/claude';
 const CLAUDE_USER     = process.env.CLAUDE_USER || 'claude-agent';
 const POLL_MS         = parseInt(process.env.POLL_MS || '15000');
 const CLAUDE_TIMEOUT_MS  = parseInt(process.env.CLAUDE_TIMEOUT_MS || String(25 * 60 * 1000)); // 25 min default
-const CLAUDE_MAX_TOKENS  = parseInt(process.env.CLAUDE_MAX_TOKENS  || '8192');
 
 // Kill-switch global — pausar todo el relay cuando el gasto diario supera umbrales
 let GLOBAL_KILLED   = false;
@@ -1325,7 +1324,7 @@ ${taskContent}`;
     `cd ${project.repo || '/var/www/html'} 2>/dev/null || true`,
     // Diagnostic first — visible in resultText so Telegram shows it on task completion
     `echo "RELAY_DIAG user=$(id -un 2>/dev/null||echo '?') home=$HOME task=$(test -r ${taskFile} && echo ok || echo UNREADABLE)" > ${outFile} 2>&1`,
-    `${CLAUDE_BIN} --dangerously-skip-permissions --output-format stream-json --verbose --print --max-tokens ${CLAUDE_MAX_TOKENS} --model ${claudeModel} < ${taskFile} >> ${outFile} 2>&1`,
+    `${CLAUDE_BIN} --dangerously-skip-permissions --output-format stream-json --verbose --print --model ${claudeModel} < ${taskFile} >> ${outFile} 2>&1`,
   ].join(' && ');
 
   function buildCmd(user) {
