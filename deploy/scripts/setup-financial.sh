@@ -25,19 +25,29 @@ echo ""
 
 cd "$REPO_DIR"
 
+# ── Extraer DB_PASS desde backend/.env ───────────────────────────────────────
+DB_PASS=$(grep "^DB_PASS=" "$REPO_DIR/backend/.env" 2>/dev/null | cut -d= -f2-)
+DB_USER=$(grep "^DB_USER=" "$REPO_DIR/backend/.env" 2>/dev/null | cut -d= -f2- || echo "root")
+if [ -z "$DB_PASS" ]; then
+  echo "ERROR: No se encontró DB_PASS en backend/.env"
+  exit 1
+fi
+MYSQL="mysql -u $DB_USER -p$DB_PASS"
+echo "  DB user: $DB_USER | pass: ${DB_PASS:0:4}****"
+
 # ── 1. Git pull del branch ────────────────────────────────────────────────────
 echo "[1/7] Git pull..."
 git fetch origin claude/financial-multiagent-system-YwtYQ
 git checkout claude/financial-multiagent-system-YwtYQ
-git pull origin claude/financial-multiagent-system-YwtYQ
+git reset --hard origin/claude/financial-multiagent-system-YwtYQ
 echo "  ✓ Código actualizado"
 
 # ── 2. Migración de base de datos ─────────────────────────────────────────────
 echo "[2/7] Migrando base de datos ($DB_NAME)..."
-if mysql "$DB_NAME" -e "SHOW TABLES LIKE 'fin_clients';" 2>/dev/null | grep -q fin_clients; then
+if $MYSQL "$DB_NAME" -e "SHOW TABLES LIKE 'fin_clients';" 2>/dev/null | grep -q fin_clients; then
   echo "  Tablas financieras ya existen, omitiendo."
 else
-  mysql "$DB_NAME" < "$REPO_DIR/financial/db/migrate-financial-v1.sql"
+  $MYSQL "$DB_NAME" < "$REPO_DIR/financial/db/migrate-financial-v1.sql"
   echo "  ✓ Tablas fin_* creadas en $DB_NAME"
 fi
 
