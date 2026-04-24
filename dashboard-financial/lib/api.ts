@@ -1,7 +1,9 @@
 // API client para el dashboard financiero
 // Todos los endpoints proxeados a localhost:3010/api/financial/*
 
-const BASE = '/api/financial';
+const BASE = typeof window === 'undefined'
+  ? `${process.env.BACKEND_INTERNAL_URL ?? 'http://localhost:3010'}/api/financial`
+  : '/api/financial';
 
 export type KPIs = {
   total_clientes: number;
