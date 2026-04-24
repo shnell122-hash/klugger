@@ -28,7 +28,7 @@ export default async function ClientsPage() {
             {clients.map(c => (
               <tr key={c.id} className="border-b border-border/50 hover:bg-surface/80 transition-colors">
                 <td className="px-4 py-3">
-                  <div className="font-medium text-white">{c.nombre ?? `@${c.telegram_username}` ?? `ID ${c.telegram_user_id}`}</div>
+                  <div className="font-medium text-white">{c.nombre || c.telegram_username || String(c.telegram_user_id)}</div>
                   <div className="text-xs text-gray-500">@{c.telegram_username}</div>
                 </td>
                 <td className="px-4 py-3 font-mono font-semibold text-success">
