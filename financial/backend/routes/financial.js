@@ -7,10 +7,9 @@
  *   app.use('/api/financial', financialRoutes(pool, io));
  */
 
-const express = require('express');
 const q       = require('../../db/financial-queries');
 
-module.exports = function financialRoutes(pool, io) {
+module.exports = function financialRoutes(pool, io, express) {
   const router = express.Router();
 
   // ── KPIs ─────────────────────────────────────────────────────────────────

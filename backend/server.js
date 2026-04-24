@@ -47,7 +47,7 @@ app.use('/api/relay',           dispatchRouter);
 app.use('/api/screenshots',     screenshotsRouter);
 app.use('/api/alerts',          alertsRouter);
 app.use('/api/conversations',   conversationsRouter);
-app.use('/api/financial',       financialRoutes(require('./db/mysql'), io));
+app.use('/api/financial',       financialRoutes(require('./db/mysql'), io, express));
 
 // Serve screenshots directory (already covered by express.static on /frontend,
 // but also serve under /screenshots for direct access)
