@@ -4,7 +4,6 @@
  * Muestra: Telegram → Parser → Calculator → BalanceManager → PollHandler → Verifier → DB
  * Con animaciones de flujo y estado en vivo.
  */
-import { useCallback } from 'react';
 import {
   ReactFlow,
   Background,
@@ -15,7 +14,6 @@ import {
   useEdgesState,
   Handle,
   Position,
-  type NodeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -28,9 +26,11 @@ interface AgentNodeData {
   role: string;
   cost?: string;
   status?: 'idle' | 'active' | 'error';
+  [key: string]: unknown;
 }
 
-function AgentNode({ data }: NodeProps<AgentNodeData & Record<string, unknown>>) {
+// Tipado directo (evita incompatibilidad con NodeProps genérico de @xyflow/react v12)
+function AgentNode({ data }: { data: AgentNodeData }) {
   const statusColor = data.status === 'active' ? '#10b981'
                     : data.status === 'error'  ? '#ef4444'
                     : '#3a3a5c';
@@ -57,7 +57,7 @@ function AgentNode({ data }: NodeProps<AgentNodeData & Record<string, unknown>>)
 
 // ── Nodo de DB ────────────────────────────────────────────────────────────────
 
-function DBNode({ data }: NodeProps<AgentNodeData & Record<string, unknown>>) {
+function DBNode({ data }: { data: AgentNodeData }) {
   return (
     <div className="glass rounded-xl px-4 py-3 min-w-[120px] text-center"
       style={{ border: '1px solid #f59e0b40', boxShadow: '0 0 16px #f59e0b10' }}>
