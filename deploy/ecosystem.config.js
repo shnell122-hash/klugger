@@ -69,6 +69,27 @@ module.exports = {
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
     },
     {
+      // Financial Dashboard — Next.js 15 (flujos.fiscalai.mx → localhost:3020)
+      // Setup:  cd dashboard-financial && npm install && npm run build
+      // Apache: deploy/apache/flujos.fiscalai.mx.conf
+      name:        'financial-dashboard',
+      script:      'node_modules/.bin/next',
+      args:        'start -p 3020',
+      cwd:         '/var/www/html/vilarkptl.com/ai-monitor/dashboard-financial',
+      exec_mode:   'fork',
+      instances:   1,
+      autorestart: true,
+      watch:       false,
+      max_memory_restart: '512M',
+      env: {
+        NODE_ENV:             'production',
+        BACKEND_INTERNAL_URL: 'http://localhost:3010',
+      },
+      error_file:  '/var/log/ai-monitor/financial-dashboard-error.log',
+      out_file:    '/var/log/ai-monitor/financial-dashboard-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss',
+    },
+    {
       name:        'ai-monitor',
       script:      'backend/server.js',
       cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
