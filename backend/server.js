@@ -1,6 +1,6 @@
 'use strict';
 
-require('dotenv').config({ path: __dirname + '/.env' });
+require('dotenv').config({ path: __dirname + '/.env', override: true });
 
 const express   = require('express');
 const http      = require('http');
