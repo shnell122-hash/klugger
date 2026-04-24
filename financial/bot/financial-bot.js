@@ -12,7 +12,7 @@
  *   4. El admin usa comandos de administración (/saldo, /historial, /ajuste)
  */
 
-require('dotenv').config({ path: require('path').join(__dirname, '../../.env') });
+require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 
 const { Bot, GrammyError, HttpError } = require('grammy');
 const OpenAI = require('openai');

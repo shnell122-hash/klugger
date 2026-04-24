@@ -63,7 +63,7 @@ module.exports = {
       autorestart: true,
       watch:       false,
       max_memory_restart: '128M',
-      env_file:    'financial/.env',
+      env_file:    '/var/www/html/vilarkptl.com/ai-monitor/financial/.env',
       error_file:  '/var/log/ai-monitor/financial-bot-error.log',
       out_file:    '/var/log/ai-monitor/financial-bot-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
