@@ -17,8 +17,6 @@
     "@xyflow/react": "^12.3.6",
 
     "recharts": "^2.14.1",
-    "apexcharts": "^3.54.1",
-    "react-apexcharts": "^1.4.0",
 
     "framer-motion": "^11.12.0",
 
