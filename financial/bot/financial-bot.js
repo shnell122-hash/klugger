@@ -507,7 +507,9 @@ async function procesarOperacion(ctx, input, client, session) {
     comision_pct,
     es_entrada,
     solicita_neto:     tipo_monto === 'neto',
-    tipo_entrega:      'efectivo',
+    tipo_entrega:      parsed.tipo?.toUpperCase() === 'TARJETAS' ? 'tarjeta'
+                     : parsed.tipo?.toUpperCase() === 'EFECTIVO' ? 'efectivo'
+                     : 'spei',
     instrucciones_pago: null, // se configura por tipo de operación en fin_operation_types
     tiene_saldo_suficiente: tiene_saldo,
     tiene_factura:     false,
@@ -522,8 +524,8 @@ async function procesarOperacion(ctx, input, client, session) {
     Object.assign(draft, verification.correcciones);
   }
 
-  // 6. Pedir dirección si es efectivo y no tenemos
-  if (draft.tipo_entrega === 'efectivo' && !draft.direccion_entrega && !es_entrada) {
+  // 6. Pedir dirección solo para operaciones con entrega física
+  if (['efectivo', 'tarjeta'].includes(draft.tipo_entrega) && !draft.direccion_entrega && !es_entrada) {
     await ctx.reply(responseGen.formatAskDireccion());
     await updateSession(session.id, 'esperando_entrega', { ...draft, saldo_actual: saldo, saldo_nuevo });
     return;
