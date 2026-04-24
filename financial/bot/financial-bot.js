@@ -508,7 +508,7 @@ async function procesarOperacion(ctx, input, client, session) {
     es_entrada,
     solicita_neto:     tipo_monto === 'neto',
     tipo_entrega:      'efectivo',
-    instrucciones_pago: process.env.FIN_DATOS_BANCARIOS ?? null,
+    instrucciones_pago: null, // se configura por tipo de operación en fin_operation_types
     tiene_saldo_suficiente: tiene_saldo,
     tiene_factura:     false,
   };

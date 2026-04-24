@@ -149,11 +149,18 @@ async function getOperationTypes(pool) {
   return rows;
 }
 
-/** Actualizar comisión de un tipo */
-async function updateOperationType(pool, codigo, comision_pct) {
+/** Actualizar tipo de operación (comisión y/o instrucciones de pago) */
+async function updateOperationType(pool, codigo, { comision_pct, instrucciones_pago } = {}) {
+  const sets = [];
+  const params = [];
+  if (comision_pct !== undefined)       { sets.push('comision_pct=?');       params.push(comision_pct); }
+  if (instrucciones_pago !== undefined) { sets.push('instrucciones_pago=?'); params.push(instrucciones_pago); }
+  if (!sets.length) return;
+  sets.push('updated_at=NOW(3)');
+  params.push(codigo);
   await pool.query(
-    'UPDATE fin_operation_types SET comision_pct=?, updated_at=NOW(3) WHERE codigo=?',
-    [comision_pct, codigo]
+    `UPDATE fin_operation_types SET ${sets.join(', ')} WHERE codigo=?`,
+    params
   );
 }
 

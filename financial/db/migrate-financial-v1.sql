@@ -23,11 +23,12 @@ CREATE TABLE IF NOT EXISTS fin_clients (
 -- Tipos de operación con comisiones configurables
 CREATE TABLE IF NOT EXISTS fin_operation_types (
   id            INT AUTO_INCREMENT PRIMARY KEY,
-  codigo        VARCHAR(50) NOT NULL UNIQUE,
-  nombre        VARCHAR(100) NOT NULL,
-  comision_pct  DECIMAL(6,4) NOT NULL,
-  descripcion   TEXT,
-  is_active     TINYINT(1) DEFAULT 1,
+  codigo            VARCHAR(50) NOT NULL UNIQUE,
+  nombre            VARCHAR(100) NOT NULL,
+  comision_pct      DECIMAL(6,4) NOT NULL,
+  descripcion       TEXT,
+  instrucciones_pago TEXT,   -- datos bancarios configurables por admin desde dashboard
+  is_active         TINYINT(1) DEFAULT 1,
   created_at    DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
   updated_at    DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

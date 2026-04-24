@@ -141,11 +141,13 @@ module.exports = function financialRoutes(pool, io) {
 
   router.patch('/config/operation-types/:codigo', async (req, res) => {
     try {
-      const { comision_pct } = req.body;
-      if (typeof comision_pct !== 'number' || comision_pct < 0 || comision_pct >= 1) {
-        return res.status(400).json({ ok: false, error: 'comision_pct debe ser decimal entre 0 y 1' });
+      const { comision_pct, instrucciones_pago } = req.body;
+      if (comision_pct !== undefined) {
+        if (typeof comision_pct !== 'number' || comision_pct < 0 || comision_pct >= 1) {
+          return res.status(400).json({ ok: false, error: 'comision_pct debe ser decimal entre 0 y 1' });
+        }
       }
-      await q.updateOperationType(pool, req.params.codigo, comision_pct);
+      await q.updateOperationType(pool, req.params.codigo, { comision_pct, instrucciones_pago });
       res.json({ ok: true });
     } catch (err) {
       res.status(500).json({ ok: false, error: err.message });
