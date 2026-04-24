@@ -5,8 +5,6 @@ import type { NextConfig } from 'next';
 const BACKEND_INTERNAL = process.env.BACKEND_INTERNAL_URL ?? 'http://localhost:3010';
 
 const nextConfig: NextConfig = {
-  output: 'standalone',
-
   async rewrites() {
     return [
       {
