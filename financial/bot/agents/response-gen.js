@@ -39,6 +39,7 @@ class ResponseGen {
     instrucciones_pago,
     tipo_entrega,
     direccion_entrega,
+    cuentas_bancarias,
   }) {
     const partes = [];
 
@@ -76,6 +77,20 @@ class ResponseGen {
 
     if (tipo_entrega === 'efectivo' && direccion_entrega) {
       partes.push(`📍 <b>Dirección de entrega:</b> ${direccion_entrega}`);
+    }
+
+    if (cuentas_bancarias?.length) {
+      const maskNum = (num, tipo) => {
+        if (tipo === 'CLABE')   return `${num.slice(0,3)}···${num.slice(-4)}`;
+        if (tipo === 'tarjeta') return `●●●● ●●●● ●●●● ${num.slice(-4)}`;
+        return `···${num.slice(-4)}`;
+      };
+      const lineas = cuentas_bancarias.map(c => {
+        const banco   = c.banco   ? ` · ${c.banco}`   : '';
+        const titular = c.titular ? ` · ${c.titular}` : '';
+        return `💳 ${c.tipo} <code>${maskNum(c.numero, c.tipo)}</code>${banco}${titular}`;
+      });
+      partes.push(`\n📤 <b>Pago a:</b>\n${lineas.join('\n')}`);
     }
 
     // Tabla resumen

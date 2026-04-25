@@ -153,5 +153,27 @@ module.exports = function financialRoutes(pool, io, express) {
     }
   });
 
+  // ── Cuentas bancarias ─────────────────────────────────────────────────────
+
+  router.get('/banking-accounts', async (req, res) => {
+    try {
+      const limit  = parseInt(req.query.limit  ?? 200);
+      const offset = parseInt(req.query.offset ?? 0);
+      const data   = await q.getAllBankingAccounts(pool, limit, offset);
+      res.json({ ok: true, data });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  router.get('/clients/:id/banking-accounts', async (req, res) => {
+    try {
+      const data = await q.getBankingAccountsByClient(pool, parseInt(req.params.id));
+      res.json({ ok: true, data });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
   return router;
 };

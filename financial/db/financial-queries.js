@@ -164,6 +164,31 @@ async function updateOperationType(pool, codigo, { comision_pct, instrucciones_p
   );
 }
 
+/** Cuentas bancarias de un cliente */
+async function getBankingAccountsByClient(pool, clientId) {
+  const [rows] = await pool.query(
+    `SELECT * FROM fin_banking_accounts
+     WHERE client_id = ? AND is_active = 1
+     ORDER BY created_at DESC`,
+    [clientId]
+  );
+  return rows;
+}
+
+/** Todas las cuentas bancarias con info de cliente */
+async function getAllBankingAccounts(pool, limit = 200, offset = 0) {
+  const [rows] = await pool.query(
+    `SELECT b.*, c.nombre AS client_nombre, c.telegram_username
+     FROM fin_banking_accounts b
+     JOIN fin_clients c ON c.id = b.client_id
+     WHERE b.is_active = 1
+     ORDER BY b.created_at DESC
+     LIMIT ? OFFSET ?`,
+    [limit, offset]
+  );
+  return rows;
+}
+
 module.exports = {
   getClientSummary,
   getOperations,
@@ -172,6 +197,8 @@ module.exports = {
   getOpsByType,
   getBalanceHistory,
   getLLMCostsByAgent,
+  getBankingAccountsByClient,
+  getAllBankingAccounts,
   getLLMCostTimeSeries,
   getOperationTypes,
   updateOperationType,

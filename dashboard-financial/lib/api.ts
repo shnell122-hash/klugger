@@ -99,6 +99,20 @@ export type OperationType = {
   descripcion: string;
 };
 
+export type BankingAccount = {
+  id: number;
+  client_id: number;
+  client_nombre: string;
+  telegram_username: string;
+  operation_id: number | null;
+  tipo: 'CLABE' | 'tarjeta' | 'cuenta' | 'otro';
+  numero: string;
+  titular: string | null;
+  banco: string | null;
+  notas: string | null;
+  created_at: string;
+};
+
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`, { cache: 'no-store' });
   const json = await res.json();
@@ -140,6 +154,8 @@ export const api = {
   getOperationTypes:()                   => get<OperationType[]>('/config/operation-types'),
   updateOpType:     (codigo: string, comision_pct: number) =>
                                            patch(`/config/operation-types/${codigo}`, { comision_pct }),
+  getBankingAccounts: (limit = 200)       => get<BankingAccount[]>(`/banking-accounts?limit=${limit}`),
+  getBankingByClient: (id: number)        => get<BankingAccount[]>(`/clients/${id}/banking-accounts`),
 };
 
 export function fmt(n: number | null | undefined, decimals = 2): string {

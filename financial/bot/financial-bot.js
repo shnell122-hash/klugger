@@ -14,7 +14,7 @@
 
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 
-const { Bot, GrammyError, HttpError } = require('grammy');
+const { Bot, GrammyError, HttpError, InlineKeyboard } = require('grammy');
 const OpenAI = require('openai');
 const mysql  = require('mysql2/promise');
 
@@ -26,6 +26,7 @@ const Verifier        = require('./agents/verifier');
 const ResponseGen     = require('./agents/response-gen');
 const { getCommission, listTypes } = require('./config/commissions');
 const { handleIncomingFile, handleIncomingLink, extractFileFromMessage } = require('./tools/file-handler');
+const BankingManager = require('./agents/banking-manager');
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -54,7 +55,8 @@ const pool = mysql.createPool({
 const llm = new OpenAI({ apiKey: DEEPSEEK_KEY, baseURL: DEEPSEEK_URL });
 
 const bot            = new Bot(BOT_TOKEN);
-const balanceManager = new BalanceManager(pool);
+const balanceManager  = new BalanceManager(pool);
+const bankingManager  = new BankingManager(pool);
 const pollHandler    = new PollHandler(bot);
 const verifier       = new Verifier();
 const responseGen    = new ResponseGen(llm, {
@@ -153,6 +155,11 @@ async function saveConfirmedOperation(draft, clientId, chatId) {
       "UPDATE fin_operations SET estado='confirmada', updated_at=NOW(3) WHERE id=?",
       [operationId]
     );
+
+    // Guardar cuentas bancarias si las hay
+    if (draft.cuentas_bancarias?.length) {
+      await bankingManager.guardarCuentas(clientId, operationId, draft.cuentas_bancarias);
+    }
 
     await conn.commit();
     return { operationId, saldo_antes, saldo_despues };
@@ -310,6 +317,38 @@ bot.on('message:text', async (ctx) => {
     await mostrarResumenYPoll(ctx, draft, client, session);
     return;
   }
+  if (session.estado === 'esperando_datos_bancarios') {
+    const draft   = session.operation_draft_json ? JSON.parse(session.operation_draft_json) : {};
+    const cuentas = BankingManager.parsearTexto(text);
+    if (!cuentas.length) {
+      await ctx.reply('No encontré ninguna CLABE, tarjeta ni cuenta. Envíame el número directamente.');
+      return;
+    }
+    draft.cuentas_bancarias = cuentas;
+    await updateSession(session.id, 'esperando_datos_bancarios', draft);
+    const kb = new InlineKeyboard()
+      .text('✅ Sí, continuar', 'confirmar_cuentas')
+      .text('✏️ Corregir', 'nueva_cuenta');
+    await ctx.reply(
+      `✅ Datos encontrados:\n\n${BankingManager.formatearCuentas(cuentas)}\n\n¿Es correcto?`,
+      { parse_mode: 'HTML', reply_markup: kb }
+    );
+    return;
+  }
+  if (session.estado === 'confirmando_cuentas') {
+    // El usuario escribió texto en vez de usar el botón → re-mostrar opciones
+    const draft   = session.operation_draft_json ? JSON.parse(session.operation_draft_json) : {};
+    const cuentas = draft.cuentas_disponibles ?? [];
+    if (cuentas.length) {
+      const kb = new InlineKeyboard();
+      cuentas.forEach(c => {
+        kb.text(`${c.tipo} ···${c.numero.slice(-4)}${c.banco ? ' · ' + c.banco : ''}`, `usar_cuenta_${c.id}`).row();
+      });
+      kb.text('➕ Nuevos datos', 'nueva_cuenta');
+      await ctx.reply('Por favor selecciona una opción 👇', { reply_markup: kb });
+    }
+    return;
+  }
 
   // Detección implícita: ¿parece una solicitud de operación?
   if (isImplicitOperacion(text)) {
@@ -342,6 +381,38 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
     await handleIncomingLink({ pool, clientId: client.id, operationId, url: fileInfo.url });
     await ctx.reply('🔗 Link registrado.');
   } else {
+    // Si está esperando datos bancarios, intentar extraerlos del archivo
+    if (session.estado === 'esperando_datos_bancarios') {
+      const draft = session.operation_draft_json ? JSON.parse(session.operation_draft_json) : {};
+      try {
+        const { downloadTelegramFileAsBuffer } = require('./tools/file-handler');
+        const buffer = await downloadTelegramFileAsBuffer(BOT_TOKEN, fileInfo.file.file_id);
+        let cuentas = [];
+
+        if (fileInfo.mimeType?.includes('spreadsheet') || fileInfo.mimeType?.includes('excel') ||
+            fileInfo.fileName?.match(/\.xlsx?$/i)) {
+          cuentas = BankingManager.parsearXlsx(buffer);
+        } else {
+          cuentas = BankingManager.parsearCsv(buffer.toString('utf-8'));
+        }
+
+        if (cuentas.length) {
+          draft.cuentas_bancarias = cuentas;
+          await updateSession(session.id, 'esperando_datos_bancarios', draft);
+          const kb = new InlineKeyboard()
+            .text('✅ Sí, continuar', 'confirmar_cuentas')
+            .text('✏️ Corregir', 'nueva_cuenta');
+          await ctx.reply(
+            `📊 Encontré <b>${cuentas.length}</b> cuenta(s) en el archivo:\n\n${BankingManager.formatearCuentas(cuentas)}\n\n¿Es correcto?`,
+            { parse_mode: 'HTML', reply_markup: kb }
+          );
+          return;
+        }
+      } catch (_) {}
+      // Si no pudo parsear, registrar archivo y pedir datos como texto
+      await ctx.reply('No pude extraer cuentas del archivo. Por favor envíame los números directamente como texto.');
+    }
+
     await handleIncomingFile({
       pool, clientId: client.id, operationId,
       botToken: BOT_TOKEN,
@@ -349,7 +420,9 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
       mimeType: fileInfo.mimeType,
       fileName: fileInfo.fileName,
     });
-    await ctx.reply('📎 Archivo registrado.');
+    if (session.estado !== 'esperando_datos_bancarios') {
+      await ctx.reply('📎 Archivo registrado.');
+    }
   }
 });
 
@@ -397,11 +470,13 @@ bot.on('poll_answer', async (ctx) => {
   }
 });
 
-// Callbacks de InlineKeyboard (menú de edición)
+// Callbacks de InlineKeyboard
 bot.on('callback_query:data', async (ctx) => {
   const data   = ctx.callbackQuery.data;
   const chatId = ctx.chat?.id ?? ctx.callbackQuery.message?.chat.id;
+  const userId = ctx.from?.id;
 
+  // ── Edición de campos ────────────────────────────────────────────────────
   if (data.startsWith('edit_field:')) {
     const field = data.replace('edit_field:', '');
     const result = await pollHandler.processEditFieldSelection(
@@ -410,9 +485,52 @@ bot.on('callback_query:data', async (ctx) => {
     if (result?.action === 'cancel') {
       await ctx.reply(responseGen.formatCancelled());
     }
-  } else {
-    await ctx.answerCallbackQuery();
+    return;
   }
+
+  // ── Datos bancarios: usar cuenta existente ────────────────────────────────
+  if (data.startsWith('usar_cuenta_')) {
+    await ctx.answerCallbackQuery();
+    const cuentaId = parseInt(data.replace('usar_cuenta_', ''));
+    const client   = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const session  = await getOrCreateSession(chatId, client.id);
+    const draft    = session.operation_draft_json ? JSON.parse(session.operation_draft_json) : {};
+    const cuenta   = (draft.cuentas_disponibles ?? []).find(c => c.id === cuentaId);
+    if (!cuenta) { await ctx.reply('Cuenta no encontrada, intenta de nuevo.'); return; }
+    draft.cuentas_bancarias = [cuenta];
+    try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
+    await mostrarResumenYPoll(ctx, draft, client, session);
+    return;
+  }
+
+  // ── Datos bancarios: ingresar nuevos ──────────────────────────────────────
+  if (data === 'nueva_cuenta') {
+    await ctx.answerCallbackQuery();
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const session = await getOrCreateSession(chatId, client.id);
+    const draft   = session.operation_draft_json ? JSON.parse(session.operation_draft_json) : {};
+    delete draft.cuentas_bancarias;
+    try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
+    await ctx.reply(
+      '💳 Envíame la CLABE (18 dígitos), número de tarjeta o cuenta.\n' +
+      'También puedes subir un archivo Excel, CSV o TXT con varias cuentas.',
+    );
+    await updateSession(session.id, 'esperando_datos_bancarios', draft);
+    return;
+  }
+
+  // ── Datos bancarios: confirmar ────────────────────────────────────────────
+  if (data === 'confirmar_cuentas') {
+    await ctx.answerCallbackQuery();
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const session = await getOrCreateSession(chatId, client.id);
+    const draft   = session.operation_draft_json ? JSON.parse(session.operation_draft_json) : {};
+    try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
+    await mostrarResumenYPoll(ctx, draft, client, session);
+    return;
+  }
+
+  await ctx.answerCallbackQuery();
 });
 
 // ── Lógica central de procesamiento de operación ──────────────────────────────
@@ -528,6 +646,39 @@ async function procesarOperacion(ctx, input, client, session) {
   if (['efectivo', 'tarjeta'].includes(draft.tipo_entrega) && !draft.direccion_entrega && !es_entrada) {
     await ctx.reply(responseGen.formatAskDireccion());
     await updateSession(session.id, 'esperando_entrega', { ...draft, saldo_actual: saldo, saldo_nuevo });
+    return;
+  }
+
+  // 7. Pedir datos bancarios para transferencias salientes (IAS, SPEI, SINDICATO, TARJETAS)
+  const TIPOS_BANCARIOS = ['IAS', 'SPEI', 'SINDICATO', 'TARJETAS'];
+  if (TIPOS_BANCARIOS.includes(draft.tipo_operacion?.toUpperCase()) && !es_entrada && !draft.cuentas_bancarias?.length) {
+    const cuentas = await bankingManager.getCuentasRecientes(client.id, 3);
+
+    if (cuentas.length) {
+      const kb = new InlineKeyboard();
+      cuentas.forEach(c => {
+        const label = `${c.tipo} ···${c.numero.slice(-4)}${c.banco ? ' · ' + c.banco : ''}`;
+        kb.text(label, `usar_cuenta_${c.id}`).row();
+      });
+      kb.text('➕ Nuevos datos', 'nueva_cuenta');
+
+      await ctx.reply(
+        `💳 <b>Datos bancarios para el pago de $${fmt(draft.monto_neto)}</b>\n\n` +
+        `Cuentas registradas:\n\n${BankingManager.formatearCuentas(cuentas)}\n\n¿Cuál usar?`,
+        { parse_mode: 'HTML', reply_markup: kb }
+      );
+      await updateSession(session.id, 'confirmando_cuentas', { ...draft, cuentas_disponibles: cuentas, saldo_actual: saldo, saldo_nuevo });
+    } else {
+      await ctx.reply(
+        `💳 ¿A qué cuenta se realizará el pago de <b>$${fmt(draft.monto_neto)}</b>?\n\n` +
+        `Puedes enviarme:\n` +
+        `• CLABE (18 dígitos), número de tarjeta o cuenta\n` +
+        `• Archivo <b>Excel, CSV o TXT</b> con varias cuentas\n\n` +
+        `Incluye banco y nombre del titular si tienes.`,
+        { parse_mode: 'HTML' }
+      );
+      await updateSession(session.id, 'esperando_datos_bancarios', { ...draft, saldo_actual: saldo, saldo_nuevo });
+    }
     return;
   }
 

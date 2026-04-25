@@ -9,6 +9,7 @@ const navItems = [
   { href: '/operations', label: 'Operaciones', icon: '💸' },
   { href: '/analytics',  label: 'Analytics',   icon: '📈' },
   { href: '/clients',    label: 'Clientes',    icon: '👥' },
+  { href: '/banking',    label: 'Cuentas',     icon: '💳' },
   { href: '/admin',      label: 'Admin',       icon: '⚙️' },
 ];
 

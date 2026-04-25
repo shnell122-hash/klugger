@@ -180,4 +180,30 @@ function extractFileFromMessage(msg) {
   return null;
 }
 
-module.exports = { handleIncomingFile, handleIncomingLink, extractFileFromMessage, detectFileType };
+/**
+ * Descarga un archivo de Telegram y devuelve su contenido como Buffer.
+ * Útil para parsing en memoria sin guardar en disco.
+ */
+async function downloadTelegramFileAsBuffer(botToken, fileId) {
+  const fileMeta = await new Promise((resolve, reject) => {
+    https.get(
+      `https://api.telegram.org/bot${botToken}/getFile?file_id=${fileId}`,
+      (res) => {
+        let data = '';
+        res.on('data', c => (data += c));
+        res.on('end', () => { try { resolve(JSON.parse(data)); } catch (e) { reject(e); } });
+      }
+    ).on('error', reject);
+  });
+  if (!fileMeta.ok) throw new Error('Telegram getFile failed');
+  const url = `https://api.telegram.org/file/bot${botToken}/${fileMeta.result.file_path}`;
+  return new Promise((resolve, reject) => {
+    https.get(url, (res) => {
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => resolve(Buffer.concat(chunks)));
+    }).on('error', reject);
+  });
+}
+
+module.exports = { handleIncomingFile, handleIncomingLink, extractFileFromMessage, detectFileType, downloadTelegramFileAsBuffer };
