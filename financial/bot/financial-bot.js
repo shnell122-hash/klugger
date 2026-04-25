@@ -331,6 +331,36 @@ bot.command('operacion', async (ctx) => {
   await procesarOperacion(ctx, cmdArgs, client, session);
 });
 
+// /rol [cliente|proveedor|ambos] — admin clasifica al usuario del chat
+bot.command('rol', async (ctx) => {
+  const ADMIN_IDS = (process.env.ADMIN_TELEGRAM_IDS ?? '').split(',').map(s => s.trim()).filter(Boolean);
+  const fromId    = String(ctx.from?.id ?? '');
+  if (!ADMIN_IDS.includes(fromId)) {
+    await ctx.reply('⛔ Solo los administradores pueden usar este comando.');
+    return;
+  }
+  const arg = (ctx.match ?? '').trim().toLowerCase();
+  const roles = ['cliente', 'proveedor', 'ambos'];
+  if (!roles.includes(arg)) {
+    await ctx.reply(`Uso: /rol <b>${roles.join(' | ')}</b>\nEjemplo: /rol proveedor`, { parse_mode: 'HTML' });
+    return;
+  }
+  const chatId = ctx.chat?.id;
+  // Buscar el client_id vinculado a este chat
+  const [rows] = await pool.query(
+    `SELECT client_id FROM fin_sessions WHERE chat_id=? AND client_id IS NOT NULL ORDER BY updated_at DESC LIMIT 1`,
+    [chatId]
+  );
+  if (!rows.length) {
+    await ctx.reply('No encontré un cliente vinculado a este chat. El usuario debe haber interactuado antes.');
+    return;
+  }
+  const clientId = rows[0].client_id;
+  await pool.query(`UPDATE fin_clients SET rol=? WHERE id=?`, [arg, clientId]);
+  const labels = { cliente: '🏢 Cliente', proveedor: '🏭 Proveedor', ambos: '🔄 Ambos' };
+  await ctx.reply(`✅ Rol actualizado: <b>${labels[arg]}</b>`, { parse_mode: 'HTML' });
+});
+
 // Mensajes de texto — detecta operaciones implícitas o responde a flujo activo
 bot.on('message:text', async (ctx) => {
   const userId  = ctx.from?.id;
@@ -404,28 +434,80 @@ bot.on('message:text', async (ctx) => {
     return;
   }
 
-  // ── Confirmación de pago por texto (cliente con saldo negativo) ──────────
-  // Importante: esta lista debe evaluarse ANTES de isImplicitOperacion porque
-  // palabras como "pago", "deposito", "factura" también disparan ENTRADA_KEYWORDS
-  // del parser y causarían que el bot pregunte tipo de operación en vez de confirmar.
-  const PAGO_KEYWORDS = [
+  // ── Confirmación de pago por texto ───────────────────────────────────────
+  // EXPLICIT: frases que sin duda indican que el usuario está compartiendo un pago.
+  // Activan el flujo de pago SIEMPRE, independientemente del saldo.
+  // AMBIGUO: palabras sueltas que también aparecen en ENTRADA_KEYWORDS del parser.
+  // Solo activan el flujo si saldo < 0 (el cliente adeuda algo).
+  const PAGO_EXPLICIT = [
+    'comparto pago','comparto un pago','comparto el pago',
+    'adjunto comprobante','adjunto el comprobante','adjunto pago','adjunto el pago',
+    'aquí el comprobante','aqui el comprobante','aquí va el comprobante','aqui va el comprobante',
+    'aquí está el pago','aqui esta el pago','aquí va el pago','aqui va el pago',
+    'mando el comprobante','te mando el comprobante','mando comprobante',
+    'envío el comprobante','envio el comprobante',
+    'comprobante de pago','comprobante de transferencia',
     'pagué','pague','deposité','deposite','transferí','transferi',
-    'ya deposité','ya pague','ya pagué','realicé el pago','realice el pago',
-    'comprobante','hice el depósito','hice el deposito','te mando','ya enviamos',
-    // frases coloquiales de envío de pago
-    'comparto pago','comparto el pago','aquí va el pago','adjunto pago',
-    'aquí está el pago','mando pago','envío pago','te envío','aquí el comprobante',
+    'ya pagué','ya pague','ya deposité','ya deposite','ya enviamos',
+    'realicé el pago','realice el pago',
+    'hice el depósito','hice el deposito',
+    'retorno pagado','ya entregué','ya entregue','entregué el efectivo','entregue el efectivo',
+    'ya deposité al','ya deposite al','deposité el retorno','deposite el retorno',
   ];
-  // También interceptar cuando saldo < 0 y mensaje contiene keywords de ENTRADA_KEYWORDS del parser
   const PAGO_AMPLIO = /\b(?:pago|deposito|deposité|deposite|factura|cobro)\b/i;
   const { saldo: saldoActualPago } = await balanceManager.getSaldo(client.id);
-  const esPagoTexto = PAGO_KEYWORDS.some(k => text.toLowerCase().includes(k)) ||
+  const esExplicitoPago = PAGO_EXPLICIT.some(k => text.toLowerCase().includes(k));
+  const esPagoTexto = esExplicitoPago ||
                       (saldoActualPago < 0 && PAGO_AMPLIO.test(text) && !isOperacionCommand(text));
-  if (esPagoTexto && saldoActualPago < 0) {
+
+  // ── Detectar si es proveedor confirmando retorno ─────────────────────────
+  const RETORNO_KEYWORDS = [
+    'retorno pagado','ya entregué','ya entregue','entregué el efectivo','entregue el efectivo',
+    'ya deposité al','ya deposite al','deposité el retorno','deposite el retorno',
+    'entregué la facturación','entregue la facturacion',
+  ];
+  const esRetornoProveedor = RETORNO_KEYWORDS.some(k => text.toLowerCase().includes(k));
+
+  if (esPagoTexto) {
     const saldo = saldoActualPago;
+
+    // Si es proveedor confirmando que entregó → buscar op pendiente y marcar retorno
+    if (esRetornoProveedor || client.rol === 'proveedor') {
+      const [opsPendientes] = await pool.query(
+        `SELECT id FROM fin_operations
+         WHERE client_id=? AND es_entrada=1 AND retorno_pagado=0
+           AND estado IN ('completada','confirmada')
+         ORDER BY created_at DESC LIMIT 1`,
+        [client.id]
+      );
+      if (opsPendientes.length) {
+        const opId = opsPendientes[0].id;
+        const bm   = require('./agents/balance-manager');
+        const bmInst = new (bm)(pool);
+        const resultado = await bmInst.marcarRetornoPagado({
+          operationId: opId, clientId: client.id,
+          monto_neto: 0, // se recalcula desde la BD
+        }).catch(() => null);
+        if (resultado) {
+          await ctx.reply(
+            `✅ <b>Retorno registrado como pagado.</b>\n` +
+            `Operación #${opId} marcada como entregada.`,
+            { parse_mode: 'HTML' }
+          );
+          return;
+        }
+      }
+      // No hay operación pendiente → confirmar como pago normal
+      await ctx.reply(
+        '📩 Anotado. No encontré una operación de retorno pendiente — ¿me mandas el comprobante o el monto?'
+      );
+      return;
+    }
+
     // Intentar extraer monto del texto
-    const amtMatch = text.replace(/[,]/g, '').match(/\d+(?:\.\d{1,2})?/);
-    const monto = amtMatch ? parseFloat(amtMatch[0]) : Math.abs(saldo);
+    const amtMatch = text.replace(/[,]/g, '').match(/\$?\s*(\d+(?:\.\d{1,2})?)/);
+    const monto    = amtMatch ? parseFloat(amtMatch[1]) : (saldo < 0 ? Math.abs(saldo) : 0);
+
     if (monto > 0) {
       const pendingDraft = { tipo: 'texto', monto_bruto: monto, clientId: client.id, saldo_actual: saldo };
       await updateSession(session.id, 'confirmando_comprobante', pendingDraft);
@@ -440,8 +522,17 @@ bot.on('message:text', async (ctx) => {
         `Saldo después: <b>$${fmt(saldo + monto)}</b>`,
         { parse_mode: 'HTML', reply_markup: kb }
       );
-      return;
+    } else {
+      // No encontramos monto — pedir comprobante o monto
+      await updateSession(session.id, 'confirmando_comprobante',
+        { tipo: 'comprobante', monto_bruto: 0, clientId: client.id, saldo_actual: saldo });
+      await ctx.reply(
+        `🧾 Entendido, espero tu comprobante o escríbeme el monto del pago.` +
+        (saldo < 0 ? `\n\nSaldo pendiente: <b>$${fmt(Math.abs(saldo))}</b>` : ''),
+        { parse_mode: 'HTML' }
+      );
     }
+    return;
   }
 
   // ── Corregir monto de factura/comprobante ─────────────────────────────────
@@ -511,12 +602,19 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
     await handleIncomingLink({ pool, clientId: client.id, operationId, url: fileInfo.url });
     await ctx.reply('🔗 Link registrado.');
   } else {
-    // ── Solo intentar factura/comprobante si la sesión no está esperando datos bancarios ──
-    const ACTIVE_ESTADOS = ['esperando_tipo','esperando_monto','esperando_entrega',
-                            'esperando_datos_bancarios','confirmando_cuentas',
-                            'esperando_confirmacion','esperando_edicion',
-                            'confirmando_factura','confirmando_comprobante'];
-    const tryInvoice = !ACTIVE_ESTADOS.includes(session.estado);
+    // ── Intentar factura/comprobante: sesión idle O caption con intención de pago ──
+    const ACTIVE_ESTADOS_BANKING = ['esperando_datos_bancarios','confirmando_cuentas'];
+    const ACTIVE_ESTADOS_NO_INVOICE = [
+      'esperando_tipo','esperando_monto','esperando_entrega',
+      'esperando_confirmacion','esperando_edicion',
+      'confirmando_factura','confirmando_comprobante',
+    ];
+    const PAGO_CAPTION_RE = /comparto|comprobante|pago|deposito|deposité|transferencia|factura|retorno/i;
+    const captionEsPago   = msg.caption && PAGO_CAPTION_RE.test(msg.caption);
+    // Permitir invoice detection si: sesión idle, o caption indica pago explícito
+    // Bloquear solo si sesión bancaria (esperando cuentas)
+    const tryInvoice = !ACTIVE_ESTADOS_BANKING.includes(session.estado) &&
+                       (!ACTIVE_ESTADOS_NO_INVOICE.includes(session.estado) || captionEsPago);
     if (tryInvoice) {
       try {
         const buffer   = await downloadTelegramFileAsBuffer(BOT_TOKEN, fileInfo.file.file_id);
