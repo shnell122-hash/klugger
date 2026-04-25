@@ -311,6 +311,16 @@ bot.command('ajuste', async (ctx) => {
 });
 
 // Comando /operacion — punto de entrada principal
+// /reset — cancela cualquier sesión activa y limpia el estado
+bot.command('reset', async (ctx) => {
+  const userId = ctx.from?.id;
+  const chatId = ctx.chat?.id;
+  const client = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+  const session = await getOrCreateSession(chatId, client.id);
+  await updateSession(session.id, 'completado', null);
+  await ctx.reply('🔄 Sesión reiniciada. Puedes empezar de nuevo.');
+});
+
 bot.command('operacion', async (ctx) => {
   const userId  = ctx.from?.id;
   const chatId  = ctx.chat?.id;
@@ -602,20 +612,22 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
     await handleIncomingLink({ pool, clientId: client.id, operationId, url: fileInfo.url });
     await ctx.reply('🔗 Link registrado.');
   } else {
-    // ── Intentar factura/comprobante: sesión idle O esperando comprobante ────
-    // BLOQUEAR solo durante flujos de operación activa O esperando datos bancarios
-    // PERMITIR cuando la sesión está confirmando factura/comprobante (el archivo ES el pago)
-    const ACTIVE_ESTADOS_BANKING     = ['esperando_datos_bancarios','confirmando_cuentas'];
-    const ACTIVE_ESTADOS_BLOCK_INVOICE = [
+    // ── Intentar factura/comprobante ──────────────────────────────────────────
+    // PDFs y documentos: SIEMPRE intentar invoice (un PDF nunca es respuesta a
+    // "¿qué tipo de operación?" — siempre es factura o comprobante).
+    // Imágenes: bloquear si la sesión está en medio de un flujo de operación,
+    // salvo que el caption tenga intención de pago.
+    const ACTIVE_ESTADOS_BANKING = ['esperando_datos_bancarios','confirmando_cuentas'];
+    const ACTIVE_ESTADOS_BLOCK_IMG = [
       'esperando_tipo','esperando_monto','esperando_entrega',
       'esperando_confirmacion','esperando_edicion',
     ];
     const PAGO_CAPTION_RE = /comparto|comprobante|pago|deposito|deposité|transferencia|factura|retorno/i;
     const captionEsPago   = !!(msg.caption && PAGO_CAPTION_RE.test(msg.caption));
-    // Permitir invoice si: sesión idle o confirmando factura/comprobante
-    // Forzar si caption tiene intent de pago (sobrepasa bloqueo de sesión activa)
+    const esPDF           = !!(fileInfo.mimeType?.includes('pdf') || fileInfo.fileName?.match(/\.pdf$/i));
+    // PDFs siempre pasan; imágenes se bloquean en flujos activos salvo caption de pago
     const tryInvoice = !ACTIVE_ESTADOS_BANKING.includes(session.estado) &&
-                       (!ACTIVE_ESTADOS_BLOCK_INVOICE.includes(session.estado) || captionEsPago);
+                       (esPDF || captionEsPago || !ACTIVE_ESTADOS_BLOCK_IMG.includes(session.estado));
     if (tryInvoice) {
       try {
         const buffer   = await downloadTelegramFileAsBuffer(BOT_TOKEN, fileInfo.file.file_id);
