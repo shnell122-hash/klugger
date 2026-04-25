@@ -1,10 +1,12 @@
 -- Migración v4: saldo_bruto + saldo_neto por cliente, tabla de confirmaciones de pago
--- Compatible con MySQL 5.7+ / MariaDB (usa IF NOT EXISTS para ser idempotente)
+-- Compatible con MySQL 5.7+ / MariaDB
+-- NOTA: ALTER TABLE ADD COLUMN no soporta IF NOT EXISTS en MySQL 5.7.
+--       Correr solo una vez. Si ya se corrió, ignorar el error de "Duplicate column name".
 
 -- 1. Agregar columnas de saldo bruto y neto a fin_clients
 ALTER TABLE fin_clients
-  ADD COLUMN IF NOT EXISTS saldo_bruto DECIMAL(14,4) NOT NULL DEFAULT 0.0000 COMMENT 'Suma bruta (antes de comisiones) acumulada' AFTER saldo,
-  ADD COLUMN IF NOT EXISTS saldo_neto  DECIMAL(14,4) NOT NULL DEFAULT 0.0000 COMMENT 'Saldo disponible = saldo (alias para claridad)' AFTER saldo_bruto;
+  ADD COLUMN saldo_bruto DECIMAL(14,4) NOT NULL DEFAULT 0.0000 AFTER saldo,
+  ADD COLUMN saldo_neto  DECIMAL(14,4) NOT NULL DEFAULT 0.0000 AFTER saldo_bruto;
 
 -- 2. Sincronizar columnas con el saldo actual para clientes existentes
 UPDATE fin_clients SET saldo_neto = saldo, saldo_bruto = saldo WHERE saldo_neto = 0;
@@ -17,7 +19,7 @@ CREATE TABLE IF NOT EXISTS fin_payment_confirmations (
   tipo             ENUM('factura','comprobante','texto','manual') NOT NULL DEFAULT 'manual',
   monto_bruto      DECIMAL(14,4) NOT NULL DEFAULT 0.0000,
   monto_neto       DECIMAL(14,4) NOT NULL DEFAULT 0.0000,
-  tipo_operacion   VARCHAR(20)   NULL COMMENT 'IAS, SPEI, SINDICATO, TARJETAS…',
+  tipo_operacion   VARCHAR(20)   NULL,
   comision_pct     DECIMAL(6,4)  NOT NULL DEFAULT 0.0000,
   notas            TEXT          NULL,
   telegram_file_id VARCHAR(200)  NULL,
