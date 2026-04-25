@@ -1,58 +1,69 @@
 'use strict';
 /**
- * Vision Agent — OCR de imágenes con Claude claude-haiku-4-5.
- * Extrae cuentas bancarias de fotos de tablas Excel, y facturas/comprobantes de imágenes.
+ * Vision Agent — OCR de imágenes con Claude Haiku.
+ * Extrae cuentas bancarias de CUALQUIER tipo de imagen, y analiza facturas/comprobantes.
  */
 
 const Anthropic = require('@anthropic-ai/sdk');
 
 const VISION_MODEL = 'claude-haiku-4-5-20251001';
 
-const BANKING_PROMPT = `Eres un OCR especializado en tablas de cuentas bancarias mexicanas.
+// Acepta tablas Excel, capturas de WhatsApp/Telegram, fotos de papel, listas en cualquier formato
+const BANKING_PROMPT = `Analiza esta imagen y extrae TODA la información de cuentas bancarias que aparezca.
+La imagen puede ser: tabla de Excel, captura de pantalla de chat, foto de papel, lista de texto, comprobante bancario, etc.
 
-TAREA: Extrae TODOS los registros de la tabla visible en la imagen.
+TIPOS DE NÚMERO BANCARIO EN MÉXICO:
+- CLABE interbancaria: 18 dígitos (a veces con espacios: "1371 8010 4759 4208 28" → 137180104759420828)
+- Tarjeta: 16 dígitos (grupos de 4)
+- Cuenta bancaria: 10-11 dígitos
 
-CLABE INTERBANCARIA: exactamente 18 dígitos. En tablas de Excel aparece con espacios (grupos 4-4-4-4-2):
-  Ejemplo: "1371 8010 4759 4208 28" → número: "137180104759420828"
-Lee CADA dígito cuidadosamente. Si la imagen tiene fondo oscuro o colores, ignora el fondo y lee solo los dígitos.
+INSTRUCCIONES:
+- Extrae TODOS los registros que puedas leer, aunque sea parcialmente.
+- Para números con espacios o guiones: conviértelos a solo dígitos.
+- Si la imagen es oscura, con colores, o borrosa: haz tu mejor intento con los datos visibles.
+- "confianza": "alta" si lees el número completo con claridad, "media" si hay algo borroso, "baja" si reconstruiste.
+- Si un número parece incompleto o truncado, inclúyelo igual con confianza baja.
+- "banco": el nombre del banco si aparece. Acepta cualquier forma: BBVA, Banamex, Nu, STP, SPIN, etc.
+- "nombre": el titular o beneficiario si aparece en la imagen.
+- "monto": solo si aparece asociado a esa cuenta específicamente.
 
-REGLAS CRÍTICAS:
-1. OMITE cualquier fila cuyo número contenga caracteres enmascarados (●, *, X, •, ◉, 0000 al final sospechoso). NO adivines dígitos.
-2. Si no puedes leer un número con certeza, OMITE esa fila. Es mejor devolver menos registros correctos que inventar datos.
-3. "banco": nombre completo del banco (BBVA, Banamex, Santander, HSBC, Banorte, Scotiabank, etc.). Si no aparece, usa null.
-4. Lee el nombre completo del titular desde la columna NOMBRE o equivalente.
-5. Devuelve "total_filas_visibles": cuántas filas de datos ves en la tabla, aunque no puedas leerlas todas.
-
-Devuelve ÚNICAMENTE un JSON válido con este formato exacto:
+Devuelve ÚNICAMENTE un JSON válido:
 {
-  "tabla_detectada": true,
-  "total_filas_visibles": 8,
   "cuentas": [
-    { "nombre": "Juan García López", "numero": "137180104759420828", "banco": "BBVA", "monto": null }
-  ]
+    {
+      "nombre": "Juan García López",
+      "numero": "137180104759420828",
+      "banco": "BBVA",
+      "monto": null,
+      "confianza": "alta"
+    }
+  ],
+  "notas": "texto libre si hay algo relevante que no cabe en la estructura"
 }
-- "tabla_detectada": true si ves una tabla con filas de datos, false si no hay tabla clara.
-- "numero": solo dígitos, sin espacios ni guiones. 18 para CLABE, 16 para tarjeta, 10-11 para cuenta normal.
-- Devuelve SOLO el JSON, sin explicaciones adicionales.`;
+Si no hay ninguna cuenta bancaria en la imagen, devuelve: { "cuentas": [], "notas": null }
+Devuelve SOLO el JSON, sin explicaciones.`;
 
-const INVOICE_PROMPT = `Analiza esta imagen de factura o comprobante de pago.
-Devuelve ÚNICAMENTE un JSON válido con este formato:
+// Para facturas, comprobantes, capturas de pago
+const INVOICE_PROMPT = `Analiza esta imagen. Puede ser: factura SAT, comprobante de transferencia, captura de app bancaria, recibo de pago, screenshot de conversación mostrando un pago, etc.
+
+Extrae la información de pago que aparezca y devuelve ÚNICAMENTE un JSON válido:
 {
   "tipo": "factura" | "comprobante" | "desconocido",
   "monto_total": 12345.67,
-  "emisor_nombre": "Nombre de quien emite",
-  "emisor_rfc": "RFC si aparece",
-  "receptor_nombre": "Nombre de quien recibe",
-  "concepto": "Descripción breve del concepto",
+  "emisor_nombre": "Nombre de quien emite o paga",
+  "emisor_rfc": "RFC si aparece o null",
+  "receptor_nombre": "Nombre de quien recibe o null",
+  "concepto": "Descripción del concepto o null",
   "fecha": "YYYY-MM-DD o null",
-  "folio": "número de folio o null",
+  "folio": "número de folio, referencia o null",
   "datos_bancarios": [
     { "tipo": "CLABE|tarjeta|cuenta", "numero": "solo dígitos", "banco": "nombre banco o null", "titular": "nombre o null" }
   ]
 }
-- monto_total: suma total, solo número sin símbolos.
-- datos_bancarios: cuentas bancarias que aparezcan en la factura/comprobante (donde depositar).
-- Devuelve solo el JSON, sin texto adicional.`;
+- monto_total: número sin símbolos de moneda. null si no hay monto claro.
+- Si es una captura de chat mostrando transferencia: extrae el monto y la referencia/folio.
+- datos_bancarios: cuentas que aparezcan en la imagen (origen o destino del pago).
+Devuelve SOLO el JSON, sin explicaciones adicionales.`;
 
 class VisionAgent {
   constructor(apiKey) {
@@ -61,7 +72,7 @@ class VisionAgent {
   }
 
   async _callVision(imageBuffer, mimeType, prompt) {
-    const base64 = imageBuffer.toString('base64');
+    const base64    = imageBuffer.toString('base64');
     const mediaType = (mimeType && mimeType.startsWith('image/')) ? mimeType : 'image/jpeg';
 
     const msg = await this.client.messages.create({
@@ -76,69 +87,55 @@ class VisionAgent {
       }],
     });
 
-    const raw = msg.content[0]?.text ?? '';
-    // Extraer JSON de la respuesta (por si tiene texto decorativo)
+    const raw   = msg.content[0]?.text ?? '';
     const match = raw.match(/\{[\s\S]*\}/);
     if (!match) return null;
     return JSON.parse(match[0]);
   }
 
   /**
-   * Extrae cuentas bancarias de una imagen de tabla (Excel screenshot, lista, etc.)
-   * @returns {{ cuentas: Array<{tipo,numero,titular,banco,monto}>, warning: string|null }}
-   *   warning: 'tabla_no_legible' | 'baja_confianza' | null
+   * Extrae cuentas bancarias de cualquier imagen.
+   * @returns {{ cuentas: Array<{tipo,numero,titular,banco,monto,confianza}>, notas: string|null }}
    */
   async extraerCuentasBancarias(imageBuffer, mimeType) {
     try {
       const result = await this._callVision(imageBuffer, mimeType, BANKING_PROMPT);
-      const totalFilas       = result?.total_filas_visibles ?? 0;
-      const tablaDetectada   = result?.tabla_detectada === true;
-
       if (!result?.cuentas?.length) {
-        if (tablaDetectada && totalFilas > 1) {
-          console.warn(`[vision-agent] Tabla detectada (${totalFilas} filas) pero 0 cuentas legibles`);
-          return { cuentas: [], warning: 'tabla_no_legible' };
-        }
-        return { cuentas: [], warning: null };
+        return { cuentas: [], notas: result?.notas ?? null };
       }
 
       const cuentas = result.cuentas
         .map(c => {
-          const raw = String(c.numero ?? '').replace(/[\s\-]/g, '');
-          // Reject masked or non-digit content
-          if (/[●•○◉*xX]/.test(raw)) return null;
-          let tipo = null;
-          if      (/^\d{18}$/.test(raw))     tipo = 'CLABE';
-          else if (/^\d{16}$/.test(raw))     tipo = 'tarjeta';
-          else if (/^\d{10,11}$/.test(raw))  tipo = 'cuenta';
-          else return null;
+          const raw = String(c.numero ?? '').replace(/[\s\-\.]/g, '');
+          if (!/^\d{10,19}$/.test(raw)) return null; // must be numeric, reasonable length
 
-          const banco = c.banco ? String(c.banco).trim() : null;
+          let tipo = 'cuenta';
+          if      (/^\d{18}$/.test(raw))    tipo = 'CLABE';
+          else if (/^\d{16}$/.test(raw))    tipo = 'tarjeta';
+          else if (/^\d{10,11}$/.test(raw)) tipo = 'cuenta';
+          // Accept non-standard lengths with baja confidence
+          else                              tipo = 'cuenta';
+
           return {
             tipo,
-            numero:  raw,
-            titular: c.nombre ? String(c.nombre).trim() : null,
-            banco:   banco && banco.length >= 2 ? banco : null,
-            monto:   c.monto  ? parseFloat(c.monto)    : null,
+            numero:     raw,
+            titular:    c.nombre     ? String(c.nombre).trim()    : null,
+            banco:      c.banco      ? String(c.banco).trim()     : null,
+            monto:      c.monto      ? parseFloat(c.monto)        : null,
+            confianza:  c.confianza  ?? 'media',
           };
         })
         .filter(Boolean);
 
-      // Reject if we got far fewer accounts than visible rows (likely hallucination)
-      if (tablaDetectada && totalFilas >= 4 && cuentas.length <= 1) {
-        console.warn(`[vision-agent] Solo ${cuentas.length} cuenta(s) de ${totalFilas} filas visibles — baja confianza, descartando`);
-        return { cuentas: [], warning: 'baja_confianza' };
-      }
-
-      return { cuentas, warning: null };
+      return { cuentas, notas: result.notas ?? null };
     } catch (e) {
       console.error('[vision-agent] extraerCuentasBancarias:', e.message);
-      return { cuentas: [], warning: null };
+      return { cuentas: [], notas: null };
     }
   }
 
   /**
-   * Analiza una imagen de factura/comprobante.
+   * Analiza una imagen de factura, comprobante o captura de pago.
    * @returns {{ tipo, monto_total, emisor_nombre, emisor_rfc, receptor_nombre,
    *             concepto, fecha, folio, datos_bancarios }}
    */
@@ -146,12 +143,11 @@ class VisionAgent {
     try {
       const result = await this._callVision(imageBuffer, mimeType, INVOICE_PROMPT);
       if (!result) return null;
-      // Normalizar datos bancarios
       if (result.datos_bancarios?.length) {
         result.datos_bancarios = result.datos_bancarios
           .map(d => {
-            const num = String(d.numero ?? '').replace(/[\s\-]/g, '');
-            return num.length >= 10 ? { ...d, numero: num } : null;
+            const num = String(d.numero ?? '').replace(/[\s\-\.]/g, '');
+            return /^\d{10,19}$/.test(num) ? { ...d, numero: num } : null;
           })
           .filter(Boolean);
       }

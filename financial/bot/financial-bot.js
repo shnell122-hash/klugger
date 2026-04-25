@@ -650,10 +650,13 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
 
           if (visionAgent) {
             // 1. Siempre intentar extraer cuentas bancarias de la imagen
-            const { cuentas, warning } = await visionAgent.extraerCuentasBancarias(imgBuffer, mimeImg);
+            const { cuentas, notas } = await visionAgent.extraerCuentasBancarias(imgBuffer, mimeImg);
             if (cuentas.length) {
+              const hayBajaConfianza = cuentas.some(c => c.confianza === 'baja');
+              const aviso = hayBajaConfianza
+                ? '\n\n⚠️ Algunos números pueden tener errores. Por favor verifica antes de confirmar.'
+                : '';
               if (session.estado === 'esperando_datos_bancarios') {
-                // Vincular a operación en curso
                 const draft = parseDraft(session.operation_draft_json);
                 draft.cuentas_bancarias = cuentas;
                 await updateSession(session.id, 'esperando_datos_bancarios', draft);
@@ -661,26 +664,17 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
                   .text('✅ Sí, continuar', 'confirmar_cuentas')
                   .text('✏️ Corregir', 'nueva_cuenta');
                 await ctx.reply(
-                  `📊 Encontré <b>${cuentas.length}</b> cuenta(s) en la imagen:\n\n${BankingManager.formatearCuentas(cuentas)}\n\n¿Es correcto?`,
+                  `📊 Encontré <b>${cuentas.length}</b> cuenta(s):\n\n${BankingManager.formatearCuentas(cuentas)}${aviso}\n\n¿Es correcto?`,
                   { parse_mode: 'HTML', reply_markup: kb }
                 );
               } else {
-                // Sesión idle: guardar y confirmar al usuario
                 await bankingManager.guardarCuentas(client.id, null, cuentas);
                 await ctx.reply(
-                  `📊 Detecté y guardé <b>${cuentas.length}</b> cuenta(s) bancarias:\n\n${BankingManager.formatearCuentas(cuentas)}\n\n` +
+                  `📊 Detecté y guardé <b>${cuentas.length}</b> cuenta(s) bancarias:\n\n${BankingManager.formatearCuentas(cuentas)}${aviso}\n\n` +
                   `Quedan registradas. Si son para una operación, iníciala con <code>/operacion</code>.`,
                   { parse_mode: 'HTML' }
                 );
               }
-              return;
-            }
-            if (warning === 'baja_confianza' || warning === 'tabla_no_legible') {
-              await ctx.reply(
-                `📊 Detecté una tabla en la imagen pero no pude leer los números con precisión suficiente.\n\n` +
-                `Para registrar cuentas bancarias con exactitud, por favor envía el <b>archivo Excel (.xlsx)</b> directamente en lugar de una captura de pantalla.`,
-                { parse_mode: 'HTML' }
-              );
               return;
             }
 
