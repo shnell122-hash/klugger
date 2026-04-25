@@ -511,13 +511,12 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
     await handleIncomingLink({ pool, clientId: client.id, operationId, url: fileInfo.url });
     await ctx.reply('🔗 Link registrado.');
   } else {
-    // ── Siempre intentar detectar factura/comprobante si saldo negativo O sesión idle ──
-    const { saldo: saldoFile } = await balanceManager.getSaldo(client.id);
+    // ── Solo intentar factura/comprobante si la sesión no está esperando datos bancarios ──
     const ACTIVE_ESTADOS = ['esperando_tipo','esperando_monto','esperando_entrega',
                             'esperando_datos_bancarios','confirmando_cuentas',
                             'esperando_confirmacion','esperando_edicion',
                             'confirmando_factura','confirmando_comprobante'];
-    const tryInvoice = !ACTIVE_ESTADOS.includes(session.estado) || saldoFile < 0;
+    const tryInvoice = !ACTIVE_ESTADOS.includes(session.estado);
     if (tryInvoice) {
       try {
         const buffer   = await downloadTelegramFileAsBuffer(BOT_TOKEN, fileInfo.file.file_id);

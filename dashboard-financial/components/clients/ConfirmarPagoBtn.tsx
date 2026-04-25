@@ -45,8 +45,8 @@ export default function ConfirmarPagoBtn({ clientId, saldoActual }: { clientId: 
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setOpen(false)}>
-          <div className="glass border border-border rounded-xl p-5 w-80 space-y-3" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-4" onClick={() => setOpen(false)}>
+          <div className="glass border border-border rounded-xl p-5 w-full max-w-sm space-y-3 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-white">Confirmar pago recibido</h3>
               <button onClick={() => setOpen(false)} className="text-gray-500 hover:text-white text-lg leading-none">✕</button>

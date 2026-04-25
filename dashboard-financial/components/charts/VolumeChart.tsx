@@ -30,10 +30,11 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function VolumeChart({ data, height = 280 }: VolumeChartProps) {
-  const formatted = data.map(d => ({
-    ...d,
-    fecha_fmt: format(parseISO(d.fecha), 'd MMM', { locale: es }),
-  }));
+  const formatted = data.map(d => {
+    let fecha_fmt = d.fecha ?? '';
+    try { fecha_fmt = format(parseISO(d.fecha), 'd MMM', { locale: es }); } catch (_) {}
+    return { ...d, fecha_fmt };
+  });
 
   return (
     <ResponsiveContainer width="100%" height={height}>

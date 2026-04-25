@@ -144,13 +144,68 @@ class BankingManager {
     try {
       const XLSX = require('xlsx');
       const wb   = XLSX.read(buffer, { type: 'buffer' });
-      const rows = [];
+      const cuentas = [];
+
       for (const sheetName of wb.SheetNames) {
-        const ws    = wb.Sheets[sheetName];
-        const datos = XLSX.utils.sheet_to_csv(ws);
-        rows.push(datos);
+        const ws   = wb.Sheets[sheetName];
+        // raw:false → números como strings, header:1 → array de arrays
+        const filas = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+        if (!filas.length) continue;
+
+        // Detectar fila de encabezados (primera fila no vacía)
+        let headerIdx = -1;
+        let colNombre = -1, colCuenta = -1, colBanco = -1, colMonto = -1;
+
+        for (let i = 0; i < Math.min(filas.length, 5); i++) {
+          const fila = filas[i].map(c => String(c).toUpperCase().trim());
+          const iNombre = fila.findIndex(c => /NOMBRE|TITULAR|BENEFICIARIO/.test(c));
+          const iCuenta = fila.findIndex(c => /CUENTA|CLABE|NUMERO|NÚMERO/.test(c));
+          if (iNombre >= 0 || iCuenta >= 0) {
+            headerIdx = i;
+            colNombre = iNombre;
+            colCuenta = iCuenta;
+            colBanco  = fila.findIndex(c => /BANCO|INSTITUCIÓN|INSTITUCION/.test(c));
+            colMonto  = fila.findIndex(c => /MONTO|IMPORTE|CANTIDAD/.test(c));
+            break;
+          }
+        }
+
+        if (headerIdx >= 0) {
+          // Parseo estructurado fila a fila
+          for (let i = headerIdx + 1; i < filas.length; i++) {
+            const fila = filas[i];
+            const raw  = colCuenta >= 0 ? String(fila[colCuenta] ?? '').replace(/[\s\-]/g, '') : '';
+            if (!raw) continue;
+
+            let tipo = 'cuenta';
+            let numero = raw;
+            if (/^\d{18}$/.test(raw))   { tipo = 'CLABE'; }
+            else if (/^\d{16}$/.test(raw)) { tipo = 'tarjeta'; }
+            else if (/^\d{10,11}$/.test(raw)) { tipo = 'cuenta'; }
+            else { continue; } // no reconocida
+
+            const titular = colNombre >= 0 ? String(fila[colNombre] ?? '').trim() || null : null;
+            const banco   = colBanco  >= 0 ? String(fila[colBanco]  ?? '').trim() || null : null;
+            const monto   = colMonto  >= 0 ? parseFloat(String(fila[colMonto] ?? '').replace(/[,$\s]/g, '')) || null : null;
+
+            if (!cuentas.some(c => c.numero === numero)) {
+              cuentas.push({ tipo, numero, titular, banco, ...(monto ? { monto } : {}) });
+            }
+          }
+        } else {
+          // Sin encabezados detectados — escanear celda a celda buscando CLABEs (quitar espacios)
+          for (const fila of filas) {
+            for (const celda of fila) {
+              const raw = String(celda ?? '').replace(/[\s\-]/g, '');
+              if (/^\d{18}$/.test(raw) && !cuentas.some(c => c.numero === raw)) {
+                cuentas.push({ tipo: 'CLABE', numero: raw, titular: null, banco: null });
+              }
+            }
+          }
+        }
       }
-      return BankingManager.parsearTexto(rows.join('\n'));
+
+      return cuentas;
     } catch (e) {
       return [];
     }
