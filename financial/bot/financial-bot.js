@@ -641,7 +641,7 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
     if (tryInvoice) {
       try {
         const buffer   = await downloadTelegramFileAsBuffer(BOT_TOKEN, fileInfo.file.file_id);
-        const detected = await invoiceAgent.procesarBuffer(buffer, fileInfo.mimeType, fileInfo.fileName);
+        let detected = await invoiceAgent.procesarBuffer(buffer, fileInfo.mimeType, fileInfo.fileName);
 
         if (detected?.tipo === 'imagen_sin_ocr') {
           // Imagen: intentar OCR con Claude Haiku Vision si está disponible
