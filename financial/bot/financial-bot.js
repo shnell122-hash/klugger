@@ -313,12 +313,16 @@ bot.command('ajuste', async (ctx) => {
 // Comando /operacion — punto de entrada principal
 // /reset — cancela cualquier sesión activa y limpia el estado
 bot.command('reset', async (ctx) => {
-  const userId = ctx.from?.id;
-  const chatId = ctx.chat?.id;
-  const client = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
-  const session = await getOrCreateSession(chatId, client.id);
-  await updateSession(session.id, 'completado', null);
-  await ctx.reply('🔄 Sesión reiniciada. Puedes empezar de nuevo.');
+  try {
+    const userId  = ctx.from?.id;
+    const chatId  = ctx.chat?.id;
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const session = await getOrCreateSession(chatId, client.id);
+    await updateSession(session.id, 'completado', null);
+    await ctx.reply('🔄 Sesión reiniciada. Puedes empezar de nuevo.');
+  } catch (err) {
+    await ctx.reply('⚠️ No pude reiniciar la sesión. Intenta de nuevo.').catch(() => {});
+  }
 });
 
 bot.command('operacion', async (ctx) => {
