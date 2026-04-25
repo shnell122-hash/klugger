@@ -858,10 +858,15 @@ bot.on('poll_answer', async (ctx) => {
   }
 
   if (action === 'confirm') {
-    const session = await getOrCreateSession(chatId);
+    const session  = await getOrCreateSession(chatId);
+    const clientId = operationDraft.clientId ?? session.client_id;
+    if (!clientId) {
+      await bot.api.sendMessage(chatId, '❌ No se pudo identificar el cliente. Reinicia con /reset e intenta de nuevo.');
+      return;
+    }
     try {
       const { operationId, saldo_despues } = await saveConfirmedOperation(
-        operationDraft, operationDraft.clientId, chatId
+        operationDraft, clientId, chatId
       );
       await updateSession(session.id, 'completado', null);
       await bot.api.sendMessage(
@@ -1035,6 +1040,21 @@ bot.on('callback_query:data', async (ctx) => {
     const session = await getOrCreateSession(chatId, client.id);
     const draft   = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
+
+    // Garantizar clientId siempre presente
+    draft.clientId = draft.clientId ?? client.id;
+
+    // Si falta tipo u monto, el draft llegó sin contexto de operación → pedirlos
+    if (!draft.tipo_operacion || !draft.monto_bruto) {
+      await updateSession(session.id, 'esperando_tipo', draft);
+      await ctx.reply(
+        '✅ Cuentas listas. Para procesarlas, ¿qué operación es?\n' +
+        'Escribe tipo y monto. Ejemplo: <code>IAS 9836</code>',
+        { parse_mode: 'HTML' }
+      );
+      return;
+    }
+
     await mostrarResumenYPoll(ctx, draft, client, session);
     return;
   }
