@@ -25,8 +25,9 @@ const { PollHandler } = require('./agents/poll-handler');
 const Verifier        = require('./agents/verifier');
 const ResponseGen     = require('./agents/response-gen');
 const { getCommission, listTypes } = require('./config/commissions');
-const { handleIncomingFile, handleIncomingLink, extractFileFromMessage } = require('./tools/file-handler');
-const BankingManager = require('./agents/banking-manager');
+const { handleIncomingFile, handleIncomingLink, extractFileFromMessage, downloadTelegramFileAsBuffer } = require('./tools/file-handler');
+const BankingManager  = require('./agents/banking-manager');
+const InvoiceAgent    = require('./agents/invoice-agent');
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -54,14 +55,14 @@ const pool = mysql.createPool({
 
 const llm = new OpenAI({ apiKey: DEEPSEEK_KEY, baseURL: DEEPSEEK_URL });
 
+const pctStr = (pct) => `${(pct * 100).toFixed(1).replace('.0', '')}%`;
+
 const bot            = new Bot(BOT_TOKEN);
 const balanceManager  = new BalanceManager(pool);
 const bankingManager  = new BankingManager(pool);
 const pollHandler    = new PollHandler(bot);
 const verifier       = new Verifier();
-const responseGen    = new ResponseGen(llm, {
-  model: DEEPSEEK_MODEL,
-  logUsage: async (usage) => {
+const logUsageFn = async (usage) => {
     try {
       await pool.query(
         `INSERT INTO fin_llm_usage (agent_name, model, provider, tokens_in, tokens_out, cost_usd, duration_ms)
@@ -72,8 +73,10 @@ const responseGen    = new ResponseGen(llm, {
          usage.duration_ms ?? 0]
       );
     } catch (e) { console.error('[llm-usage]', e.message); }
-  },
-});
+  };
+
+const responseGen    = new ResponseGen(llm, { model: DEEPSEEK_MODEL, logUsage: logUsageFn });
+const invoiceAgent   = new InvoiceAgent(llm,  { model: DEEPSEEK_MODEL, logUsage: logUsageFn });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -350,6 +353,61 @@ bot.on('message:text', async (ctx) => {
     return;
   }
 
+  // ── Confirmación de pago por texto (cliente con saldo negativo) ──────────
+  const PAGO_KEYWORDS = [
+    'pagué','pague','deposité','deposite','transferí','transferi','ya deposité',
+    'ya pague','ya pagué','realicé el pago','realice el pago','comprobante',
+    'hice el depósito','hice el deposito','te mando','ya enviamos',
+  ];
+  if (PAGO_KEYWORDS.some(k => text.toLowerCase().includes(k))) {
+    const { saldo } = await balanceManager.getSaldo(client.id);
+    if (saldo < 0) {
+      // Intentar extraer monto del texto
+      const amtMatch = text.match(/[\d,]+\.?\d*/);
+      const monto = amtMatch ? parseFloat(amtMatch[0].replace(/,/g, '')) : Math.abs(saldo);
+      if (monto > 0) {
+        const pendingDraft = { tipo: 'texto', monto_bruto: monto, clientId: client.id, saldo_actual: saldo };
+        await updateSession(session.id, 'confirmando_comprobante', pendingDraft);
+        const kb = new InlineKeyboard()
+          .text(`✅ Confirmar $${fmt(monto)}`, 'confirmar_comprobante')
+          .row()
+          .text('✏️ Corregir monto', 'corregir_comprobante')
+          .text('❌ Cancelar', 'cancelar_comprobante');
+        await ctx.reply(
+          `🧾 Entendido. ¿Confirmo un pago de <b>$${fmt(monto)}</b>?\n\n` +
+          `Saldo actual: <b>$${fmt(saldo)}</b>\n` +
+          `Saldo después: <b>$${fmt(saldo + monto)}</b>`,
+          { parse_mode: 'HTML', reply_markup: kb }
+        );
+        return;
+      }
+    }
+  }
+
+  // ── Corregir monto de factura/comprobante ─────────────────────────────────
+  if (session.estado === 'confirmando_factura' || session.estado === 'confirmando_comprobante') {
+    const draft  = session.operation_draft_json ? JSON.parse(session.operation_draft_json) : {};
+    const num    = parseFloat(text.replace(/[^0-9.]/g, ''));
+    if (num > 0) {
+      draft.monto_bruto = num;
+      if (draft.tipo === 'factura') {
+        draft.monto_neto = Math.round(num * (1 - (draft.comision_pct ?? 0)) * 100) / 100;
+      } else {
+        draft.monto_neto = num;
+      }
+      await updateSession(session.id, session.estado, draft);
+      const esFactura = session.estado === 'confirmando_factura';
+      const label = esFactura
+        ? `📋 Monto actualizado: $${fmt(num)}\nNeto: $${fmt(draft.monto_neto)} (comisión ${pctStr(draft.comision_pct ?? 0)})`
+        : `🧾 Monto actualizado: $${fmt(num)}`;
+      const kb = new InlineKeyboard()
+        .text('✅ Confirmar', esFactura ? 'confirmar_factura' : 'confirmar_comprobante')
+        .text('❌ Cancelar', esFactura ? 'cancelar_factura' : 'cancelar_comprobante');
+      await ctx.reply(label + '\n\n¿Correcto?', { parse_mode: 'HTML', reply_markup: kb });
+    }
+    return;
+  }
+
   // Detección implícita: ¿parece una solicitud de operación?
   if (isImplicitOperacion(text)) {
     await procesarOperacion(ctx, text, client, session);
@@ -381,6 +439,81 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
     await handleIncomingLink({ pool, clientId: client.id, operationId, url: fileInfo.url });
     await ctx.reply('🔗 Link registrado.');
   } else {
+    // ── Si no hay sesión activa → intentar detectar factura/comprobante ──────
+    const ACTIVE_ESTADOS = ['esperando_tipo','esperando_monto','esperando_entrega',
+                            'esperando_datos_bancarios','confirmando_cuentas',
+                            'esperando_confirmacion','esperando_edicion',
+                            'confirmando_factura','confirmando_comprobante'];
+    if (!ACTIVE_ESTADOS.includes(session.estado)) {
+      try {
+        const buffer   = await downloadTelegramFileAsBuffer(BOT_TOKEN, fileInfo.file.file_id);
+        const detected = await invoiceAgent.procesarBuffer(buffer, fileInfo.mimeType, fileInfo.fileName);
+
+        if (detected?.tipo === 'imagen_sin_ocr') {
+          // Imagen: no tenemos OCR. Si hay saldo negativo, pedir monto manualmente.
+          const { saldo } = await balanceManager.getSaldo(client.id);
+          if (saldo < 0) {
+            await updateSession(session.id, 'confirmando_comprobante',
+              { tipo: 'comprobante', monto_bruto: 0, clientId: client.id, saldo_actual: saldo });
+            await ctx.reply(
+              `📸 Recibí tu comprobante. Tu saldo actual es <b>$${fmt(saldo)}</b>.\n` +
+              `¿Cuánto fue el depósito? Escríbeme el monto.`,
+              { parse_mode: 'HTML' }
+            );
+            await handleIncomingFile({ pool, clientId: client.id, operationId, botToken: BOT_TOKEN,
+              telegramFileOrPhoto: fileInfo.file, mimeType: fileInfo.mimeType, fileName: fileInfo.fileName });
+            return;
+          }
+        } else if (detected?.tipo === 'factura' && detected.monto_total > 0) {
+          const tipoOp    = detected.tipo_operacion ?? 'IAS';
+          const commission = await getCommission(tipoOp, pool);
+          const pct       = commission?.pct ?? 0.055;
+          const mb        = detected.monto_total;
+          const mn        = Math.round(mb * (1 - pct) * 100) / 100;
+          const draft     = { tipo: 'factura', monto_bruto: mb, monto_neto: mn, comision_pct: pct,
+                              tipo_operacion: tipoOp, clientId: client.id,
+                              telegram_file_id: fileInfo.file.file_id, confianza: detected.confianza };
+          await updateSession(session.id, 'confirmando_factura', draft);
+          const kb = new InlineKeyboard()
+            .text(`✅ Registrar $${fmt(mb)}`, 'confirmar_factura').row()
+            .text('✏️ Corregir monto', 'corregir_factura')
+            .text('❌ Cancelar', 'cancelar_factura');
+          await ctx.reply(
+            `📋 <b>Factura(s) detectada(s)</b>\n\n` +
+            `Tipo operación: <b>${tipoOp}</b>\n` +
+            `Monto bruto: <b>$${fmt(mb)}</b>\n` +
+            `Comisión (${pctStr(pct)}): -$${fmt(mb - mn)}\n` +
+            `<b>Monto neto a acreditar: $${fmt(mn)}</b>\n\n` +
+            `¿Registro esta entrada a tu saldo?`,
+            { parse_mode: 'HTML', reply_markup: kb }
+          );
+          return;
+
+        } else if (detected?.tipo === 'comprobante' && detected.monto_total > 0) {
+          const { saldo } = await balanceManager.getSaldo(client.id);
+          const mb   = detected.monto_total;
+          const draft = { tipo: 'comprobante', monto_bruto: mb, monto_neto: mb,
+                          clientId: client.id, saldo_actual: saldo,
+                          telegram_file_id: fileInfo.file.file_id };
+          await updateSession(session.id, 'confirmando_comprobante', draft);
+          const kb = new InlineKeyboard()
+            .text(`✅ Confirmar $${fmt(mb)}`, 'confirmar_comprobante').row()
+            .text('✏️ Corregir monto', 'corregir_comprobante')
+            .text('❌ Cancelar', 'cancelar_comprobante');
+          await ctx.reply(
+            `🧾 <b>Comprobante de pago detectado</b>\n\n` +
+            `Monto: <b>$${fmt(mb)}</b>\n` +
+            `Saldo actual: $${fmt(saldo)} → <b>$${fmt(saldo + mb)}</b>\n\n` +
+            `¿Confirmo y actualizo tu saldo?`,
+            { parse_mode: 'HTML', reply_markup: kb }
+          );
+          return;
+        }
+      } catch (err) {
+        console.error('[invoice-detect]', err.message);
+      }
+    }
+
     // Si está esperando datos bancarios, intentar extraerlos del archivo
     if (session.estado === 'esperando_datos_bancarios') {
       const draft = session.operation_draft_json ? JSON.parse(session.operation_draft_json) : {};
@@ -485,6 +618,104 @@ bot.on('callback_query:data', async (ctx) => {
     if (result?.action === 'cancel') {
       await ctx.reply(responseGen.formatCancelled());
     }
+    return;
+  }
+
+  // ── Confirmar factura ─────────────────────────────────────────────────────
+  if (data === 'confirmar_factura') {
+    await ctx.answerCallbackQuery();
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const session = await getOrCreateSession(chatId, client.id);
+    const draft   = session.operation_draft_json ? JSON.parse(session.operation_draft_json) : {};
+    try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
+
+    const { operationId, saldo_despues } = await saveConfirmedOperation({
+      ...draft,
+      tipo_operacion:   draft.tipo_operacion,
+      monto_bruto:      draft.monto_bruto,
+      monto_neto:       draft.monto_neto,
+      comision_pct:     draft.comision_pct,
+      es_entrada:       true,
+      solicita_neto:    false,
+      tipo_monto:       'bruto',
+      monto_solicitado: draft.monto_bruto,
+      tipo_entrega:     'spei',
+      tiene_factura:    true,
+    }, client.id, chatId);
+    await updateSession(session.id, 'completado', null);
+    await ctx.reply(
+      `✅ <b>Factura registrada</b>\n` +
+      `Operación #${operationId} — ${draft.tipo_operacion}\n` +
+      `Bruto: $${fmt(draft.monto_bruto)} · Neto acreditado: <b>$${fmt(draft.monto_neto)}</b>\n` +
+      `<b>Nuevo saldo: $${fmt(saldo_despues)}</b>`,
+      { parse_mode: 'HTML' }
+    );
+    return;
+  }
+
+  if (data === 'corregir_factura') {
+    await ctx.answerCallbackQuery();
+    try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
+    await ctx.reply('✏️ Envíame el monto correcto de la factura:');
+    return;
+  }
+
+  if (data === 'cancelar_factura') {
+    await ctx.answerCallbackQuery();
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const session = await getOrCreateSession(chatId, client.id);
+    await updateSession(session.id, 'completado', null);
+    try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
+    await ctx.reply('❌ Registro cancelado.');
+    return;
+  }
+
+  // ── Confirmar comprobante de pago ─────────────────────────────────────────
+  if (data === 'confirmar_comprobante') {
+    await ctx.answerCallbackQuery();
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const session = await getOrCreateSession(chatId, client.id);
+    const draft   = session.operation_draft_json ? JSON.parse(session.operation_draft_json) : {};
+    try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
+
+    if (!draft.monto_bruto || draft.monto_bruto <= 0) {
+      await ctx.reply('⚠️ No hay monto registrado. Escríbeme cuánto depositaste.');
+      return;
+    }
+    const { saldo_antes, saldo_despues } = await balanceManager.confirmarPago({
+      clientId:         client.id,
+      monto:            draft.monto_bruto,
+      montoNeto:        draft.monto_neto ?? draft.monto_bruto,
+      tipo:             draft.tipo ?? 'comprobante',
+      tipo_operacion:   draft.tipo_operacion ?? null,
+      telegram_file_id: draft.telegram_file_id ?? null,
+      notas:            'Comprobante confirmado por cliente',
+    });
+    await updateSession(session.id, 'completado', null);
+    await ctx.reply(
+      `✅ <b>Pago confirmado</b>\n` +
+      `Monto: $${fmt(draft.monto_bruto)}\n` +
+      `Saldo anterior: $${fmt(saldo_antes)}\n` +
+      `<b>Nuevo saldo: $${fmt(saldo_despues)}</b>`,
+      { parse_mode: 'HTML' }
+    );
+    return;
+  }
+
+  if (data === 'corregir_comprobante') {
+    await ctx.answerCallbackQuery();
+    try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
+    await ctx.reply('✏️ Envíame el monto correcto del pago:');
+    return;
+  }
+
+  if (data === 'cancelar_comprobante') {
+    await ctx.answerCallbackQuery();
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const session = await getOrCreateSession(chatId, client.id);
+    await updateSession(session.id, 'completado', null);
+    try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
+    await ctx.reply('❌ Confirmación cancelada.');
     return;
   }
 

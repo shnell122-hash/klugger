@@ -22,6 +22,8 @@ export type Client = {
   telegram_username: string;
   nombre: string;
   saldo: number;
+  saldo_bruto: number;
+  saldo_neto: number;
   saldo_pendiente: number;
   total_operaciones: number;
   ops_completadas: number;
@@ -29,6 +31,24 @@ export type Client = {
   total_entrada: number;
   total_salida: number;
   ultima_operacion: string;
+};
+
+export type PaymentConfirmation = {
+  id: number;
+  client_id: number;
+  client_nombre: string;
+  telegram_username: string;
+  operation_id: number | null;
+  tipo: 'factura' | 'comprobante' | 'texto' | 'manual';
+  monto_bruto: number;
+  monto_neto: number;
+  tipo_operacion: string | null;
+  comision_pct: number;
+  notas: string | null;
+  estado: 'pendiente' | 'confirmado' | 'rechazado';
+  saldo_antes: number;
+  saldo_despues: number;
+  created_at: string;
 };
 
 export type Operation = {
@@ -154,8 +174,11 @@ export const api = {
   getOperationTypes:()                   => get<OperationType[]>('/config/operation-types'),
   updateOpType:     (codigo: string, comision_pct: number) =>
                                            patch(`/config/operation-types/${codigo}`, { comision_pct }),
-  getBankingAccounts: (limit = 200)       => get<BankingAccount[]>(`/banking-accounts?limit=${limit}`),
-  getBankingByClient: (id: number)        => get<BankingAccount[]>(`/clients/${id}/banking-accounts`),
+  getBankingAccounts:      (limit = 200)  => get<BankingAccount[]>(`/banking-accounts?limit=${limit}`),
+  getBankingByClient:      (id: number)   => get<BankingAccount[]>(`/clients/${id}/banking-accounts`),
+  getPaymentConfirmations: (params = '')  => get<PaymentConfirmation[]>(`/payment-confirmations${params ? `?${params}` : ''}`),
+  confirmarPago:           (id: number, body: { monto: number; tipo_operacion?: string; notas?: string }) =>
+                                            post<{saldo_antes:number,saldo_despues:number}>(`/clients/${id}/confirmar-pago`, body),
 };
 
 export function fmt(n: number | null | undefined, decimals = 2): string {

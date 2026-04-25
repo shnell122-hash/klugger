@@ -45,13 +45,15 @@ class BalanceManager {
    */
   async getSaldo(clientId) {
     const [rows] = await this.pool.query(
-      'SELECT saldo, saldo_pendiente FROM fin_clients WHERE id = ?',
+      'SELECT saldo, saldo_bruto, saldo_neto, saldo_pendiente FROM fin_clients WHERE id = ?',
       [clientId]
     );
     if (!rows.length) throw new Error(`Cliente ${clientId} no encontrado`);
     return {
-      saldo: parseFloat(rows[0].saldo),
-      saldo_pendiente: parseFloat(rows[0].saldo_pendiente),
+      saldo:           parseFloat(rows[0].saldo           ?? 0),
+      saldo_bruto:     parseFloat(rows[0].saldo_bruto     ?? 0),
+      saldo_neto:      parseFloat(rows[0].saldo_neto      ?? rows[0].saldo ?? 0),
+      saldo_pendiente: parseFloat(rows[0].saldo_pendiente ?? 0),
     };
   }
 
@@ -80,28 +82,28 @@ class BalanceManager {
 
     // Saldo actual
     const [rows] = await db.query(
-      'SELECT saldo FROM fin_clients WHERE id = ? FOR UPDATE',
+      'SELECT saldo, saldo_bruto FROM fin_clients WHERE id = ? FOR UPDATE',
       [clientId]
     );
-    const saldo_antes = parseFloat(rows[0].saldo);
+    const saldo_antes       = parseFloat(rows[0].saldo      ?? 0);
+    const saldo_bruto_antes = parseFloat(rows[0].saldo_bruto ?? saldo_antes);
 
-    let saldo_despues;
-    let tipo_movimiento;
+    let saldo_despues, saldo_bruto_despues, tipo_movimiento;
 
     if (es_entrada) {
-      // Cliente pagó → su saldo sube
-      saldo_despues = round(saldo_antes + monto_neto);
+      saldo_despues       = round(saldo_antes       + monto_neto);
+      saldo_bruto_despues = round(saldo_bruto_antes + monto_bruto);
       tipo_movimiento = 'entrada';
     } else {
-      // Nosotros pagamos → descontamos del saldo del cliente
-      saldo_despues = round(saldo_antes - monto_bruto);
+      saldo_despues       = round(saldo_antes       - monto_bruto);
+      saldo_bruto_despues = round(saldo_bruto_antes - monto_bruto);
       tipo_movimiento = 'salida';
     }
 
-    // Actualizar saldo
+    // Actualizar saldo (saldo = saldo_neto para compatibilidad con código existente)
     await db.query(
-      'UPDATE fin_clients SET saldo = ?, updated_at = NOW(3) WHERE id = ?',
-      [saldo_despues, clientId]
+      'UPDATE fin_clients SET saldo=?, saldo_bruto=?, saldo_neto=?, updated_at=NOW(3) WHERE id=?',
+      [saldo_despues, saldo_bruto_despues, saldo_despues, clientId]
     );
 
     // Registrar en historial
@@ -184,15 +186,17 @@ class BalanceManager {
       await conn.beginTransaction();
 
       const [rows] = await conn.query(
-        'SELECT saldo FROM fin_clients WHERE id=? FOR UPDATE',
+        'SELECT saldo, saldo_bruto FROM fin_clients WHERE id=? FOR UPDATE',
         [clientId]
       );
-      const saldo_antes = parseFloat(rows[0].saldo);
-      const saldo_despues = round(saldo_antes + monto);
+      const saldo_antes       = parseFloat(rows[0].saldo      ?? 0);
+      const saldo_bruto_antes = parseFloat(rows[0].saldo_bruto ?? saldo_antes);
+      const saldo_despues       = round(saldo_antes       + monto);
+      const saldo_bruto_despues = round(saldo_bruto_antes + monto);
 
       await conn.query(
-        'UPDATE fin_clients SET saldo=?, updated_at=NOW(3) WHERE id=?',
-        [saldo_despues, clientId]
+        'UPDATE fin_clients SET saldo=?, saldo_bruto=?, saldo_neto=?, updated_at=NOW(3) WHERE id=?',
+        [saldo_despues, saldo_bruto_despues, saldo_despues, clientId]
       );
       await conn.query(
         `INSERT INTO fin_balance_history
@@ -200,6 +204,69 @@ class BalanceManager {
          VALUES (?,?,?,?,?,?)`,
         [clientId, 'ajuste_manual', monto, saldo_antes, saldo_despues,
          descripcion ?? `Ajuste manual por admin ${adminId}`]
+      );
+
+      await conn.commit();
+      return { saldo_antes, saldo_despues };
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  }
+
+  /**
+   * Confirma un pago recibido del cliente (comprobante, factura, o ajuste manual).
+   * Incrementa saldo + saldo_bruto + registra en historial y fin_payment_confirmations.
+   *
+   * @param {object} params
+   * @param {number}  params.clientId
+   * @param {number}  params.monto           - monto bruto recibido
+   * @param {number}  [params.montoNeto]     - monto neto acreditado (si hay comisión; default = monto)
+   * @param {number}  [params.operationId]
+   * @param {string}  [params.tipo]          - 'factura'|'comprobante'|'texto'|'manual'
+   * @param {string}  [params.tipo_operacion]
+   * @param {number}  [params.comision_pct]
+   * @param {string}  [params.notas]
+   * @param {string}  [params.telegram_file_id]
+   */
+  async confirmarPago({ clientId, monto, montoNeto, operationId = null, tipo = 'manual',
+                        tipo_operacion = null, comision_pct = 0, notas = null, telegram_file_id = null }) {
+    const monto_neto_real = montoNeto ?? monto;
+    const conn = await this.pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      const [rows] = await conn.query(
+        'SELECT saldo, saldo_bruto FROM fin_clients WHERE id=? FOR UPDATE',
+        [clientId]
+      );
+      const saldo_antes       = parseFloat(rows[0].saldo      ?? 0);
+      const saldo_bruto_antes = parseFloat(rows[0].saldo_bruto ?? saldo_antes);
+      const saldo_despues       = round(saldo_antes       + monto_neto_real);
+      const saldo_bruto_despues = round(saldo_bruto_antes + monto);
+
+      await conn.query(
+        'UPDATE fin_clients SET saldo=?, saldo_bruto=?, saldo_neto=?, updated_at=NOW(3) WHERE id=?',
+        [saldo_despues, saldo_bruto_despues, saldo_despues, clientId]
+      );
+
+      await conn.query(
+        `INSERT INTO fin_balance_history
+           (client_id, operation_id, tipo_movimiento, monto, saldo_antes, saldo_despues, descripcion)
+         VALUES (?,?,?,?,?,?,?)`,
+        [clientId, operationId, 'pago_recibido', monto_neto_real, saldo_antes, saldo_despues,
+         notas ?? `Pago confirmado (${tipo})`]
+      );
+
+      await conn.query(
+        `INSERT INTO fin_payment_confirmations
+           (client_id, operation_id, tipo, monto_bruto, monto_neto, tipo_operacion,
+            comision_pct, notas, telegram_file_id, estado, saldo_antes, saldo_despues)
+         VALUES (?,?,?,?,?,?,?,?,?,'confirmado',?,?)`,
+        [clientId, operationId, tipo, monto, monto_neto_real, tipo_operacion,
+         comision_pct, notas ?? '', telegram_file_id, saldo_antes, saldo_despues]
       );
 
       await conn.commit();

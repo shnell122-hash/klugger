@@ -175,5 +175,36 @@ module.exports = function financialRoutes(pool, io, express) {
     }
   });
 
+  // ── Confirmaciones de pago ────────────────────────────────────────────────
+
+  router.get('/payment-confirmations', async (req, res) => {
+    try {
+      const data = await q.getPaymentConfirmations(pool, {
+        clientId: req.query.client_id ? parseInt(req.query.client_id) : undefined,
+        estado:   req.query.estado,
+        limit:    parseInt(req.query.limit  ?? 100),
+        offset:   parseInt(req.query.offset ?? 0),
+      });
+      res.json({ ok: true, data });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  // Confirmar pago desde el dashboard (admin)
+  router.post('/clients/:id/confirmar-pago', async (req, res) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      const { monto, tipo_operacion, notas } = req.body;
+      if (!monto || monto <= 0) return res.status(400).json({ ok: false, error: 'monto requerido' });
+
+      const result = await q.confirmarPagoAdmin(pool, clientId, { monto: parseFloat(monto), tipo_operacion, notas });
+      io?.emit('financial:payment_confirmed', { clientId, ...result });
+      res.json({ ok: true, data: result });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
   return router;
 };

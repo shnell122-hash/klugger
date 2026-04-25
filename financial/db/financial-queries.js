@@ -189,6 +189,38 @@ async function getAllBankingAccounts(pool, limit = 200, offset = 0) {
   return rows;
 }
 
+/** Listar confirmaciones de pago (últimas N, opcionalmente filtradas por cliente) */
+async function getPaymentConfirmations(pool, { clientId, estado, limit = 100, offset = 0 } = {}) {
+  const where  = ['1=1'];
+  const params = [];
+  if (clientId) { where.push('pc.client_id = ?'); params.push(clientId); }
+  if (estado)   { where.push('pc.estado = ?');    params.push(estado); }
+  const [rows] = await pool.query(
+    `SELECT pc.*, c.nombre AS client_nombre, c.telegram_username
+     FROM fin_payment_confirmations pc
+     JOIN fin_clients c ON c.id = pc.client_id
+     WHERE ${where.join(' AND ')}
+     ORDER BY pc.created_at DESC
+     LIMIT ? OFFSET ?`,
+    [...params, limit, offset]
+  );
+  return rows;
+}
+
+/** Confirmar pago manualmente desde el dashboard (admin) */
+async function confirmarPagoAdmin(pool, clientId, { monto, tipo_operacion, notas, adminId }) {
+  // Reutiliza BalanceManager para consistencia
+  const BalanceManager = require('../bot/agents/balance-manager');
+  const bm = new BalanceManager(pool);
+  return bm.confirmarPago({
+    clientId,
+    monto,
+    tipo: 'manual',
+    tipo_operacion: tipo_operacion ?? null,
+    notas: notas ?? `Ajuste manual por admin ${adminId ?? 'dashboard'}`,
+  });
+}
+
 module.exports = {
   getClientSummary,
   getOperations,
@@ -202,4 +234,6 @@ module.exports = {
   getLLMCostTimeSeries,
   getOperationTypes,
   updateOperationType,
+  getPaymentConfirmations,
+  confirmarPagoAdmin,
 };
