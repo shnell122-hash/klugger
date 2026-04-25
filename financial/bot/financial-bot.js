@@ -116,10 +116,13 @@ function parseDraft(json) {
  */
 async function getOrCreateSession(chatId, clientId) {
   const [rows] = await pool.query(
-    'SELECT * FROM fin_sessions WHERE chat_id=? ORDER BY updated_at DESC LIMIT 1',
+    `SELECT * FROM fin_sessions
+     WHERE chat_id=? AND estado != 'completado'
+       AND updated_at > DATE_SUB(NOW(3), INTERVAL 4 HOUR)
+     ORDER BY updated_at DESC LIMIT 1`,
     [chatId]
   );
-  if (rows.length > 0 && rows[0].estado !== 'completado') {
+  if (rows.length > 0) {
     return rows[0];
   }
   const [result] = await pool.query(
@@ -585,7 +588,21 @@ bot.on('message:text', async (ctx) => {
     return;
   }
 
-  // No es una operación → no responder (el bot solo habla cuando es necesario)
+  // Fallback: contextReader decide si hay algo útil que responder
+  try {
+    const mensajesCtx = await contextManager.getRecientes(chatId, 25);
+    const { saldo: saldoCtx } = await balanceManager.getSaldo(client.id);
+    const { responder, mensaje } = await contextReader.analizar(
+      mensajesCtx,
+      { estado: session.estado, saldo: saldoCtx, nombre: client.nombre },
+      text
+    );
+    if (responder && mensaje) {
+      await ctx.reply(mensaje);
+    }
+  } catch (e) {
+    console.error('[context-reader fallback]', e.message);
+  }
 });
 
 // Archivos (documentos, fotos)
@@ -644,13 +661,17 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
         let detected = await invoiceAgent.procesarBuffer(buffer, fileInfo.mimeType, fileInfo.fileName);
 
         if (detected?.tipo === 'imagen_sin_ocr') {
-          // Imagen: intentar OCR con Claude Haiku Vision si está disponible
-          const imgBuffer = await downloadTelegramFileAsBuffer(BOT_TOKEN, fileInfo.file.file_id);
+          // Reutilizar el buffer ya descargado arriba
+          const imgBuffer = buffer;
           const mimeImg   = fileInfo.mimeType ?? 'image/jpeg';
 
           if (visionAgent) {
-            // 1. Siempre intentar extraer cuentas bancarias de la imagen
-            const { cuentas, notas } = await visionAgent.extraerCuentasBancarias(imgBuffer, mimeImg);
+            // Lanzar ambos análisis en paralelo: cuentas bancarias + factura
+            const [{ cuentas }, visionResult] = await Promise.all([
+              visionAgent.extraerCuentasBancarias(imgBuffer, mimeImg),
+              visionAgent.analizarFactura(imgBuffer, mimeImg),
+            ]);
+
             if (cuentas.length) {
               const hayBajaConfianza = cuentas.some(c => c.confianza === 'baja');
               const aviso = hayBajaConfianza
@@ -665,8 +686,6 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
               return;
             }
 
-            // 2. Intentar leer como factura/comprobante con visión
-            const visionResult = await visionAgent.analizarFactura(imgBuffer, mimeImg);
             if (visionResult?.monto_total > 0) {
               detected = {
                 tipo:           visionResult.tipo === 'factura' ? 'factura' : 'comprobante',
@@ -677,7 +696,6 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
                 emisor_rfc:     visionResult.emisor_rfc,
                 datos_bancarios: visionResult.datos_bancarios ?? [],
               };
-              // Continuar al bloque de factura/comprobante abajo
             }
           }
 
