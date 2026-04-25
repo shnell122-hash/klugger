@@ -645,42 +645,50 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
 
         if (detected?.tipo === 'imagen_sin_ocr') {
           // Imagen: intentar OCR con Claude Haiku Vision si está disponible
-          const buffer = await downloadTelegramFileAsBuffer(BOT_TOKEN, fileInfo.file.file_id);
-          const mimeImg = fileInfo.mimeType ?? 'image/jpeg';
+          const imgBuffer = await downloadTelegramFileAsBuffer(BOT_TOKEN, fileInfo.file.file_id);
+          const mimeImg   = fileInfo.mimeType ?? 'image/jpeg';
 
-          // 1. Si estamos esperando datos bancarios → extraer tabla bancaria
-          if (session.estado === 'esperando_datos_bancarios' && visionAgent) {
-            const cuentas = await visionAgent.extraerCuentasBancarias(buffer, mimeImg);
+          if (visionAgent) {
+            // 1. Siempre intentar extraer cuentas bancarias de la imagen
+            const cuentas = await visionAgent.extraerCuentasBancarias(imgBuffer, mimeImg);
             if (cuentas.length) {
-              const draft = parseDraft(session.operation_draft_json);
-              draft.cuentas_bancarias = cuentas;
-              await updateSession(session.id, 'esperando_datos_bancarios', draft);
-              const kb = new InlineKeyboard()
-                .text('✅ Sí, continuar', 'confirmar_cuentas')
-                .text('✏️ Corregir', 'nueva_cuenta');
-              await ctx.reply(
-                `📊 Encontré <b>${cuentas.length}</b> cuenta(s) en la imagen:\n\n${BankingManager.formatearCuentas(cuentas)}\n\n¿Es correcto?`,
-                { parse_mode: 'HTML', reply_markup: kb }
-              );
+              if (session.estado === 'esperando_datos_bancarios') {
+                // Vincular a operación en curso
+                const draft = parseDraft(session.operation_draft_json);
+                draft.cuentas_bancarias = cuentas;
+                await updateSession(session.id, 'esperando_datos_bancarios', draft);
+                const kb = new InlineKeyboard()
+                  .text('✅ Sí, continuar', 'confirmar_cuentas')
+                  .text('✏️ Corregir', 'nueva_cuenta');
+                await ctx.reply(
+                  `📊 Encontré <b>${cuentas.length}</b> cuenta(s) en la imagen:\n\n${BankingManager.formatearCuentas(cuentas)}\n\n¿Es correcto?`,
+                  { parse_mode: 'HTML', reply_markup: kb }
+                );
+              } else {
+                // Sesión idle: guardar y confirmar al usuario
+                await bankingManager.guardarCuentas(client.id, null, cuentas);
+                await ctx.reply(
+                  `📊 Detecté y guardé <b>${cuentas.length}</b> cuenta(s) bancarias:\n\n${BankingManager.formatearCuentas(cuentas)}\n\n` +
+                  `Quedan registradas. Si son para una operación, iníciala con <code>/operacion</code>.`,
+                  { parse_mode: 'HTML' }
+                );
+              }
               return;
             }
-          }
 
-          // 2. Intentar leer como factura/comprobante con visión
-          if (visionAgent) {
-            const visionResult = await visionAgent.analizarFactura(buffer, mimeImg);
+            // 2. Intentar leer como factura/comprobante con visión
+            const visionResult = await visionAgent.analizarFactura(imgBuffer, mimeImg);
             if (visionResult?.monto_total > 0) {
-              // Re-entrar al flujo normal con los datos extraídos
               detected = {
-                tipo:          visionResult.tipo === 'factura' ? 'factura' : 'comprobante',
-                monto_total:   visionResult.monto_total,
+                tipo:           visionResult.tipo === 'factura' ? 'factura' : 'comprobante',
+                monto_total:    visionResult.monto_total,
                 tipo_operacion: null,
-                confianza:     'media',
-                emisor:        visionResult.emisor_nombre,
-                emisor_rfc:    visionResult.emisor_rfc,
+                confianza:      'media',
+                emisor:         visionResult.emisor_nombre,
+                emisor_rfc:     visionResult.emisor_rfc,
                 datos_bancarios: visionResult.datos_bancarios ?? [],
               };
-              // Continuar al bloque de factura/comprobante abajo (no return aquí)
+              // Continuar al bloque de factura/comprobante abajo
             }
           }
 
