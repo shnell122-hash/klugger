@@ -650,7 +650,7 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
 
           if (visionAgent) {
             // 1. Siempre intentar extraer cuentas bancarias de la imagen
-            const cuentas = await visionAgent.extraerCuentasBancarias(imgBuffer, mimeImg);
+            const { cuentas, warning } = await visionAgent.extraerCuentasBancarias(imgBuffer, mimeImg);
             if (cuentas.length) {
               if (session.estado === 'esperando_datos_bancarios') {
                 // Vincular a operación en curso
@@ -673,6 +673,14 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
                   { parse_mode: 'HTML' }
                 );
               }
+              return;
+            }
+            if (warning === 'baja_confianza' || warning === 'tabla_no_legible') {
+              await ctx.reply(
+                `📊 Detecté una tabla en la imagen pero no pude leer los números con precisión suficiente.\n\n` +
+                `Para registrar cuentas bancarias con exactitud, por favor envía el <b>archivo Excel (.xlsx)</b> directamente en lugar de una captura de pantalla.`,
+                { parse_mode: 'HTML' }
+              );
               return;
             }
 
