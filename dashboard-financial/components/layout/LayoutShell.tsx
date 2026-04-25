@@ -11,6 +11,7 @@ const navItems = [
   { href: '/clients',    label: 'Clientes',    icon: '👥' },
   { href: '/banking',    label: 'Cuentas',     icon: '💳' },
   { href: '/pagos',      label: 'Pagos',       icon: '🧾' },
+  { href: '/chats',      label: 'Chats',       icon: '💬' },
   { href: '/admin',      label: 'Admin',       icon: '⚙️' },
 ];
 

@@ -33,6 +33,31 @@ export type Client = {
   ultima_operacion: string;
 };
 
+export type Chat = {
+  chat_id: string;
+  client_id: number | null;
+  client_nombre: string | null;
+  titulo: string | null;
+  concepto: string | null;
+  is_group: boolean;
+  total_msgs: number;
+  saldo: number | null;
+  ultimo_texto: string | null;
+  ultimo_msg_at: string | null;
+};
+
+export type ChatMessage = {
+  id: number;
+  chat_id: string;
+  client_id: number | null;
+  from_username: string | null;
+  tipo: string;
+  texto: string | null;
+  file_name: string | null;
+  es_bot: boolean;
+  created_at: string;
+};
+
 export type PaymentConfirmation = {
   id: number;
   client_id: number;
@@ -179,6 +204,8 @@ export const api = {
   getPaymentConfirmations: (params = '')  => get<PaymentConfirmation[]>(`/payment-confirmations${params ? `?${params}` : ''}`),
   confirmarPago:           (id: number, body: { monto: number; tipo_operacion?: string; notas?: string }) =>
                                             post<{saldo_antes:number,saldo_despues:number}>(`/clients/${id}/confirmar-pago`, body),
+  getChats:               (limit = 200)  => get<Chat[]>(`/chats?limit=${limit}`),
+  getChatMessages:        (chatId: string, limit = 50) => get<ChatMessage[]>(`/chats/${chatId}/messages?limit=${limit}`),
 };
 
 export function fmt(n: number | null | undefined, decimals = 2): string {

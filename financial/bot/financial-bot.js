@@ -28,6 +28,7 @@ const { getCommission, listTypes } = require('./config/commissions');
 const { handleIncomingFile, handleIncomingLink, extractFileFromMessage, downloadTelegramFileAsBuffer } = require('./tools/file-handler');
 const BankingManager  = require('./agents/banking-manager');
 const InvoiceAgent    = require('./agents/invoice-agent');
+const ContextManager  = require('./agents/context-manager');
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -75,8 +76,9 @@ const logUsageFn = async (usage) => {
     } catch (e) { console.error('[llm-usage]', e.message); }
   };
 
-const responseGen    = new ResponseGen(llm, { model: DEEPSEEK_MODEL, logUsage: logUsageFn });
-const invoiceAgent   = new InvoiceAgent(llm,  { model: DEEPSEEK_MODEL, logUsage: logUsageFn });
+const responseGen      = new ResponseGen(llm,   { model: DEEPSEEK_MODEL, logUsage: logUsageFn });
+const invoiceAgent     = new InvoiceAgent(llm,   { model: DEEPSEEK_MODEL, logUsage: logUsageFn });
+const contextManager   = new ContextManager(pool);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -179,6 +181,46 @@ async function saveConfirmedOperation(draft, clientId, chatId) {
 // Middleware de autenticación
 bot.use(async (ctx, next) => {
   if (!isAllowedChat(ctx)) return;
+  await next();
+});
+
+// ── Middleware pasivo: log de todos los mensajes ──────────────────────────────
+bot.use(async (ctx, next) => {
+  try {
+    const msg      = ctx.message ?? ctx.channelPost;
+    const chatId   = ctx.chat?.id;
+    const from     = ctx.from;
+    if (!chatId || !msg) { await next(); return; }
+
+    const isGroup  = ['group','supergroup','channel'].includes(ctx.chat?.type);
+    const titulo   = isGroup
+      ? (ctx.chat?.title ?? null)
+      : (from?.first_name ? `${from.first_name}${from.last_name ? ' ' + from.last_name : ''}` : null);
+
+    // Asegurar chat en DB (no esperamos para no bloquear)
+    contextManager.upsertChat({ chatId, titulo, isGroup }).catch(() => {});
+
+    // Determinar tipo de mensaje
+    let tipo = 'texto';
+    let texto = msg.text ?? msg.caption ?? null;
+    let fileName = null;
+    if (msg.photo)    { tipo = 'foto';      fileName = `foto_${msg.date}.jpg`; }
+    if (msg.document) { tipo = 'documento'; fileName = msg.document.file_name ?? 'archivo'; texto = texto ?? fileName; }
+    if (msg.voice)    { tipo = 'voz'; }
+    if (msg.video)    { tipo = 'video'; }
+
+    contextManager.logMessage({
+      chatId,
+      telegramMsgId: msg.message_id,
+      fromUserId:    from?.id ?? null,
+      fromUsername:  from?.username ?? null,
+      tipo,
+      texto,
+      fileName,
+      esBot: false,
+    }).catch(() => {});
+  } catch (_) {}
+
   await next();
 });
 
@@ -354,33 +396,42 @@ bot.on('message:text', async (ctx) => {
   }
 
   // ── Confirmación de pago por texto (cliente con saldo negativo) ──────────
+  // Importante: esta lista debe evaluarse ANTES de isImplicitOperacion porque
+  // palabras como "pago", "deposito", "factura" también disparan ENTRADA_KEYWORDS
+  // del parser y causarían que el bot pregunte tipo de operación en vez de confirmar.
   const PAGO_KEYWORDS = [
-    'pagué','pague','deposité','deposite','transferí','transferi','ya deposité',
-    'ya pague','ya pagué','realicé el pago','realice el pago','comprobante',
-    'hice el depósito','hice el deposito','te mando','ya enviamos',
+    'pagué','pague','deposité','deposite','transferí','transferi',
+    'ya deposité','ya pague','ya pagué','realicé el pago','realice el pago',
+    'comprobante','hice el depósito','hice el deposito','te mando','ya enviamos',
+    // frases coloquiales de envío de pago
+    'comparto pago','comparto el pago','aquí va el pago','adjunto pago',
+    'aquí está el pago','mando pago','envío pago','te envío','aquí el comprobante',
   ];
-  if (PAGO_KEYWORDS.some(k => text.toLowerCase().includes(k))) {
-    const { saldo } = await balanceManager.getSaldo(client.id);
-    if (saldo < 0) {
-      // Intentar extraer monto del texto
-      const amtMatch = text.match(/[\d,]+\.?\d*/);
-      const monto = amtMatch ? parseFloat(amtMatch[0].replace(/,/g, '')) : Math.abs(saldo);
-      if (monto > 0) {
-        const pendingDraft = { tipo: 'texto', monto_bruto: monto, clientId: client.id, saldo_actual: saldo };
-        await updateSession(session.id, 'confirmando_comprobante', pendingDraft);
-        const kb = new InlineKeyboard()
-          .text(`✅ Confirmar $${fmt(monto)}`, 'confirmar_comprobante')
-          .row()
-          .text('✏️ Corregir monto', 'corregir_comprobante')
-          .text('❌ Cancelar', 'cancelar_comprobante');
-        await ctx.reply(
-          `🧾 Entendido. ¿Confirmo un pago de <b>$${fmt(monto)}</b>?\n\n` +
-          `Saldo actual: <b>$${fmt(saldo)}</b>\n` +
-          `Saldo después: <b>$${fmt(saldo + monto)}</b>`,
-          { parse_mode: 'HTML', reply_markup: kb }
-        );
-        return;
-      }
+  // También interceptar cuando saldo < 0 y mensaje contiene keywords de ENTRADA_KEYWORDS del parser
+  const PAGO_AMPLIO = /\b(?:pago|deposito|deposité|deposite|factura|cobro)\b/i;
+  const { saldo: saldoActualPago } = await balanceManager.getSaldo(client.id);
+  const esPagoTexto = PAGO_KEYWORDS.some(k => text.toLowerCase().includes(k)) ||
+                      (saldoActualPago < 0 && PAGO_AMPLIO.test(text) && !isOperacionCommand(text));
+  if (esPagoTexto && saldoActualPago < 0) {
+    const saldo = saldoActualPago;
+    // Intentar extraer monto del texto
+    const amtMatch = text.replace(/[,]/g, '').match(/\d+(?:\.\d{1,2})?/);
+    const monto = amtMatch ? parseFloat(amtMatch[0]) : Math.abs(saldo);
+    if (monto > 0) {
+      const pendingDraft = { tipo: 'texto', monto_bruto: monto, clientId: client.id, saldo_actual: saldo };
+      await updateSession(session.id, 'confirmando_comprobante', pendingDraft);
+      const kb = new InlineKeyboard()
+        .text(`✅ Confirmar $${fmt(monto)}`, 'confirmar_comprobante')
+        .row()
+        .text('✏️ Corregir monto', 'corregir_comprobante')
+        .text('❌ Cancelar', 'cancelar_comprobante');
+      await ctx.reply(
+        `🧾 Entendido. ¿Confirmo un pago de <b>$${fmt(monto)}</b>?\n\n` +
+        `Saldo actual: <b>$${fmt(saldo)}</b>\n` +
+        `Saldo después: <b>$${fmt(saldo + monto)}</b>`,
+        { parse_mode: 'HTML', reply_markup: kb }
+      );
+      return;
     }
   }
 
@@ -435,16 +486,30 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
     operationId = draft.operationId ?? null;
   }
 
+  // Log del archivo al historial de mensajes
+  contextManager.logMessage({
+    chatId,
+    clientId: client.id,
+    telegramMsgId: msg.message_id,
+    fromUserId:    ctx.from?.id,
+    fromUsername:  ctx.from?.username,
+    tipo: fileInfo.isLink ? 'link' : (fileInfo.mimeType?.startsWith('image/') ? 'foto' : 'documento'),
+    texto: msg.caption ?? fileInfo.fileName ?? null,
+    fileName: fileInfo.fileName ?? null,
+  }).catch(() => {});
+
   if (fileInfo.isLink) {
     await handleIncomingLink({ pool, clientId: client.id, operationId, url: fileInfo.url });
     await ctx.reply('🔗 Link registrado.');
   } else {
-    // ── Si no hay sesión activa → intentar detectar factura/comprobante ──────
+    // ── Siempre intentar detectar factura/comprobante si saldo negativo O sesión idle ──
+    const { saldo: saldoFile } = await balanceManager.getSaldo(client.id);
     const ACTIVE_ESTADOS = ['esperando_tipo','esperando_monto','esperando_entrega',
                             'esperando_datos_bancarios','confirmando_cuentas',
                             'esperando_confirmacion','esperando_edicion',
                             'confirmando_factura','confirmando_comprobante'];
-    if (!ACTIVE_ESTADOS.includes(session.estado)) {
+    const tryInvoice = !ACTIVE_ESTADOS.includes(session.estado) || saldoFile < 0;
+    if (tryInvoice) {
       try {
         const buffer   = await downloadTelegramFileAsBuffer(BOT_TOKEN, fileInfo.file.file_id);
         const detected = await invoiceAgent.procesarBuffer(buffer, fileInfo.mimeType, fileInfo.fileName);

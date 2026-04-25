@@ -175,6 +175,45 @@ module.exports = function financialRoutes(pool, io, express) {
     }
   });
 
+  // ── Chats y mensajes ─────────────────────────────────────────────────────
+
+  router.get('/chats', async (req, res) => {
+    try {
+      const data = await q.getChatList(pool, parseInt(req.query.limit ?? 200));
+      res.json({ ok: true, data });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  router.get('/chats/:chatId/messages', async (req, res) => {
+    try {
+      const data = await q.getChatMessages(
+        pool, req.params.chatId,
+        parseInt(req.query.limit ?? 50), parseInt(req.query.offset ?? 0)
+      );
+      res.json({ ok: true, data });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  router.patch('/chats/:chatId', async (req, res) => {
+    try {
+      const { concepto, titulo } = req.body;
+      const sets = []; const params = [];
+      if (concepto !== undefined) { sets.push('concepto=?'); params.push(concepto); }
+      if (titulo   !== undefined) { sets.push('titulo=?');   params.push(titulo); }
+      if (!sets.length) return res.status(400).json({ ok: false, error: 'Nada que actualizar' });
+      sets.push('updated_at=NOW(3)');
+      params.push(req.params.chatId);
+      await pool.query(`UPDATE fin_chats SET ${sets.join(',')} WHERE chat_id=?`, params);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
   // ── Confirmaciones de pago ────────────────────────────────────────────────
 
   router.get('/payment-confirmations', async (req, res) => {

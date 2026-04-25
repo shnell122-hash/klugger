@@ -189,6 +189,34 @@ async function getAllBankingAccounts(pool, limit = 200, offset = 0) {
   return rows;
 }
 
+/** Lista de chats con info de cliente y último mensaje */
+async function getChatList(pool, limit = 100) {
+  const [rows] = await pool.query(
+    `SELECT fc.*, c.nombre AS client_nombre, c.saldo, c.saldo_neto,
+            (SELECT texto FROM fin_messages
+             WHERE chat_id=fc.chat_id AND es_bot=0
+             ORDER BY created_at DESC LIMIT 1) AS ultimo_texto
+     FROM fin_chats fc
+     LEFT JOIN fin_clients c ON c.id = fc.client_id
+     ORDER BY fc.ultimo_msg_at DESC
+     LIMIT ?`,
+    [limit]
+  );
+  return rows;
+}
+
+/** Mensajes de un chat (paginados, más recientes primero) */
+async function getChatMessages(pool, chatId, limit = 50, offset = 0) {
+  const [rows] = await pool.query(
+    `SELECT * FROM fin_messages
+     WHERE chat_id = ?
+     ORDER BY created_at DESC
+     LIMIT ? OFFSET ?`,
+    [chatId, limit, offset]
+  );
+  return rows.reverse();
+}
+
 /** Listar confirmaciones de pago (últimas N, opcionalmente filtradas por cliente) */
 async function getPaymentConfirmations(pool, { clientId, estado, limit = 100, offset = 0 } = {}) {
   const where  = ['1=1'];
@@ -236,4 +264,6 @@ module.exports = {
   updateOperationType,
   getPaymentConfirmations,
   confirmarPagoAdmin,
+  getChatList,
+  getChatMessages,
 };
