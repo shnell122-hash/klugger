@@ -40,38 +40,63 @@ class ResponseGen {
     tipo_entrega,
     direccion_entrega,
     cuentas_bancarias,
+    tabla_pagos,
+    tabla_total,
+    monto_neto_original,
   }) {
     const partes = [];
+    const esPagoTabla = tabla_total > 0 && tabla_pagos?.length > 0;
 
-    if (tipo_monto === 'neto') {
+    if (esPagoTabla) {
+      // Modo pago parcial por tabla
+      const restante = monto_neto_original && monto_neto_original > tabla_total
+        ? Math.round((monto_neto_original - tabla_total) * 100) / 100
+        : null;
       partes.push(
-        `Correcto, el monto bruto a operar es de ` +
-        `$${fmt(monto_solicitado)}/(1-${pctStr(comision_pct)})=` +
-        `<b>$${fmt(monto_bruto)}</b>.`
+        `Pago parcial a <b>${tabla_pagos.length} beneficiarios</b>.\n` +
+        `Total esta entrega: <b>$${fmt(tabla_total)}</b>` +
+        (monto_neto_original ? ` de $${fmt(monto_neto_original)} operación total` : '') + '.'
       );
-    } else {
-      partes.push(
-        `Correcto, el monto neto es de ` +
-        `$${fmt(monto_solicitado)}×(1-${pctStr(comision_pct)})=` +
-        `<b>$${fmt(monto_neto)}</b>.`
-      );
-    }
-
-    if (es_entrada) {
+      if (restante !== null) {
+        partes.push(`Saldo restante de operación tras esta entrega: <b>$${fmt(restante)}</b>.`);
+      }
       if (saldo_actual !== undefined) {
         partes.push(
-          `Su saldo anterior es <b>$${fmt(saldo_actual)}</b> y su saldo nuevo ` +
-          `$${fmt(saldo_actual)}+$${fmt(monto_neto)}=<b>$${fmt(saldo_nuevo)}</b>.`
+          `Saldo cliente: <b>$${fmt(saldo_actual)}</b> → <b>$${fmt(saldo_nuevo)}</b>.`
         );
       }
     } else {
-      if (tiene_saldo && saldo_actual !== undefined) {
+      // Modo operación normal
+      if (tipo_monto === 'neto') {
         partes.push(
-          `Su saldo anterior es <b>$${fmt(saldo_actual)}</b> y su saldo nuevo ` +
-          `$${fmt(saldo_actual)}-$${fmt(monto_bruto)}=<b>$${fmt(saldo_nuevo)}</b>.`
+          `Correcto, el monto bruto a operar es de ` +
+          `$${fmt(monto_solicitado)}/(1-${pctStr(comision_pct)})=` +
+          `<b>$${fmt(monto_bruto)}</b>.`
         );
-      } else if (instrucciones_pago) {
-        partes.push(`\n📤 <b>Datos bancarios para el pago:</b>\n<code>${instrucciones_pago}</code>`);
+      } else {
+        partes.push(
+          `Correcto, el monto neto es de ` +
+          `$${fmt(monto_solicitado)}×(1-${pctStr(comision_pct)})=` +
+          `<b>$${fmt(monto_neto)}</b>.`
+        );
+      }
+
+      if (es_entrada) {
+        if (saldo_actual !== undefined) {
+          partes.push(
+            `Su saldo anterior es <b>$${fmt(saldo_actual)}</b> y su saldo nuevo ` +
+            `$${fmt(saldo_actual)}+$${fmt(monto_neto)}=<b>$${fmt(saldo_nuevo)}</b>.`
+          );
+        }
+      } else {
+        if (tiene_saldo && saldo_actual !== undefined) {
+          partes.push(
+            `Su saldo anterior es <b>$${fmt(saldo_actual)}</b> y su saldo nuevo ` +
+            `$${fmt(saldo_actual)}-$${fmt(monto_bruto)}=<b>$${fmt(saldo_nuevo)}</b>.`
+          );
+        } else if (instrucciones_pago) {
+          partes.push(`\n📤 <b>Datos bancarios para el pago:</b>\n<code>${instrucciones_pago}</code>`);
+        }
       }
     }
 
@@ -79,7 +104,7 @@ class ResponseGen {
       partes.push(`📍 <b>Dirección de entrega:</b> ${direccion_entrega}`);
     }
 
-    if (cuentas_bancarias?.length) {
+    if (cuentas_bancarias?.length && !esPagoTabla) {
       const maskNum = (num, tipo) => {
         if (tipo === 'CLABE')   return `${num.slice(0,3)}···${num.slice(-4)}`;
         if (tipo === 'tarjeta') return `●●●● ●●●● ●●●● ${num.slice(-4)}`;
@@ -94,13 +119,23 @@ class ResponseGen {
     }
 
     // Tabla resumen
-    partes.push(
-      `\n<b>━━━━ Resumen ━━━━</b>\n` +
-      `Operación: <b>${tipo_operacion}</b>\n` +
-      `Monto bruto: $${fmt(monto_bruto)}\n` +
-      `Comisión (${pctStr(comision_pct)}): -$${fmt(monto_bruto - monto_neto)}\n` +
-      `<b>Monto neto: $${fmt(monto_neto)}</b>`
-    );
+    if (esPagoTabla) {
+      partes.push(
+        `\n<b>━━━━ Resumen ━━━━</b>\n` +
+        `Operación: <b>${tipo_operacion}</b>\n` +
+        `Beneficiarios: ${tabla_pagos.length}\n` +
+        `<b>Total neto pagado: $${fmt(tabla_total)}</b>` +
+        (monto_neto_original ? `\nRestante operación: $${fmt(Math.round((monto_neto_original - tabla_total) * 100) / 100)}` : '')
+      );
+    } else {
+      partes.push(
+        `\n<b>━━━━ Resumen ━━━━</b>\n` +
+        `Operación: <b>${tipo_operacion}</b>\n` +
+        `Monto bruto: $${fmt(monto_bruto)}\n` +
+        `Comisión (${pctStr(comision_pct)}): -$${fmt(monto_bruto - monto_neto)}\n` +
+        `<b>Monto neto: $${fmt(monto_neto)}</b>`
+      );
+    }
 
     return partes.join('\n');
   }
@@ -108,12 +143,21 @@ class ResponseGen {
   /**
    * Mensaje de operación confirmada.
    */
-  formatConfirmed({ tipo_operacion, monto_neto, saldo_nuevo }) {
-    return (
-      `✅ <b>Operación confirmada</b>\n` +
-      `Tipo: ${tipo_operacion} | Neto: $${fmt(monto_neto)}\n` +
-      `Saldo actualizado: <b>$${fmt(saldo_nuevo)}</b>`
-    );
+  formatConfirmed({ tipo_operacion, monto_neto, saldo_nuevo, tabla_total, monto_neto_original }) {
+    const esPagoTabla = tabla_total > 0;
+    const restante = (esPagoTabla && monto_neto_original && monto_neto_original > tabla_total)
+      ? Math.round((monto_neto_original - tabla_total) * 100) / 100
+      : null;
+
+    let msg = `✅ <b>Operación confirmada</b>\n`;
+    if (esPagoTabla) {
+      msg += `Tipo: ${tipo_operacion} | Entrega: $${fmt(tabla_total)}\n`;
+      if (restante !== null) msg += `Restante operación: <b>$${fmt(restante)}</b>\n`;
+    } else {
+      msg += `Tipo: ${tipo_operacion} | Neto: $${fmt(monto_neto)}\n`;
+    }
+    msg += `Saldo actualizado: <b>$${fmt(saldo_nuevo)}</b>`;
+    return msg;
   }
 
   /**

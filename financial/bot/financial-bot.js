@@ -152,17 +152,21 @@ async function saveConfirmedOperation(draft, clientId, chatId) {
   try {
     await conn.beginTransaction();
 
+    const subtablaJson = draft.tabla_pagos?.length
+      ? JSON.stringify(draft.tabla_pagos)
+      : null;
+
     const [result] = await conn.query(
       `INSERT INTO fin_operations
          (client_id, tipo_operacion, monto_bruto, comision_pct, monto_neto,
           es_entrada, solicita_neto, tipo_entrega, instrucciones_pago, direccion_entrega,
-          estado, tiene_factura, telegram_chat_id)
-       VALUES (?,?,?,?,?,?,?,?,?,?,'pendiente',?,?)`,
+          subtabla_json, estado, tiene_factura, telegram_chat_id)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,'pendiente',?,?)`,
       [
         clientId, draft.tipo_operacion, draft.monto_bruto, draft.comision_pct, draft.monto_neto,
         draft.es_entrada ? 1 : 0, draft.solicita_neto ? 1 : 0,
         draft.tipo_entrega ?? 'efectivo', draft.instrucciones_pago ?? null,
-        draft.direccion_entrega ?? null, draft.tiene_factura ? 1 : 0, chatId,
+        draft.direccion_entrega ?? null, subtablaJson, draft.tiene_factura ? 1 : 0, chatId,
       ]
     );
     const operationId = result.insertId;
@@ -803,13 +807,38 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
         const aviso = hayBajaConfianza
           ? '\n\n⚠️ Algunos números pueden tener errores. Por favor verifica antes de confirmar.'
           : '';
+
+        // Calcular total de montos individuales si la tabla los incluye
+        const tabla_total = Math.round(
+          cuentas.reduce((sum, c) => sum + (parseFloat(c.monto) || 0), 0) * 100
+        ) / 100;
+
         draft.cuentas_bancarias = cuentas;
+        draft.tabla_pagos       = cuentas;
+        draft.tabla_total       = tabla_total > 0 ? tabla_total : null;
+
+        // Si hay montos individuales y el draft tiene una operación mayor, ajustar el batch
+        if (tabla_total > 0 && draft.monto_neto && draft.monto_neto > tabla_total + 0.01) {
+          draft.monto_neto_original  = draft.monto_neto;
+          draft.monto_bruto_original = draft.monto_bruto;
+          // El batch solo procesa tabla_total (sin comisión adicional, ya fue descontada al inicio)
+          draft.monto_neto  = tabla_total;
+          draft.monto_bruto = tabla_total;
+          draft.comision_pct = 0;
+        }
+
         await updateSession(session.id, 'esperando_datos_bancarios', draft);
+
+        const totalLine = tabla_total > 0
+          ? `\n💰 <b>Total detectado: $${tabla_total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</b>` +
+            (draft.monto_neto_original ? ` de $${draft.monto_neto_original.toLocaleString('es-MX', { minimumFractionDigits: 2 })} operación total` : '')
+          : '';
+
         const kb = new InlineKeyboard()
           .text('✅ Sí, continuar', 'confirmar_cuentas')
           .text('✏️ Corregir', 'nueva_cuenta');
         await ctx.reply(
-          `📊 Encontré <b>${cuentas.length}</b> cuenta(s):\n\n${BankingManager.formatearCuentas(cuentas)}${aviso}\n\n¿Es correcto?`,
+          `📊 Encontré <b>${cuentas.length}</b> cuenta(s):\n\n${BankingManager.formatearCuentas(cuentas)}${aviso}${totalLine}\n\n¿Es correcto?`,
           { parse_mode: 'HTML', reply_markup: kb }
         );
         return;

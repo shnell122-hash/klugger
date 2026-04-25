@@ -17,15 +17,22 @@ TIPOS DE NÚMERO BANCARIO EN MÉXICO:
 - Tarjeta: 16 dígitos (grupos de 4)
 - Cuenta bancaria: 10-11 dígitos
 
-INSTRUCCIONES:
+INSTRUCCIONES GENERALES:
 - Extrae TODOS los registros que puedas leer, aunque sea parcialmente.
 - Para números con espacios o guiones: conviértelos a solo dígitos.
 - Si la imagen es oscura, con colores, o borrosa: haz tu mejor intento con los datos visibles.
 - "confianza": "alta" si lees el número completo con claridad, "media" si hay algo borroso, "baja" si reconstruiste.
 - Si un número parece incompleto o truncado, inclúyelo igual con confianza baja.
-- "banco": el nombre del banco si aparece. Acepta cualquier forma: BBVA, Banamex, Nu, STP, SPIN, etc.
+- "banco": el nombre del banco si aparece. Acepta cualquier forma: BBVA, Banamex, Nu, STP, SPIN, Azteca, Coppel, etc.
 - "nombre": el titular o beneficiario si aparece en la imagen.
-- "monto": solo si aparece asociado a esa cuenta específicamente.
+
+TABLAS (EXCEL, HOJAS DE CÁLCULO):
+- Lee CADA FILA como un registro independiente.
+- El monto de esa persona está en la MISMA FILA que su cuenta; búscalo en columnas con nombres como:
+  "AHORRO", "EFECTIVO", "MONTO", "PAGO", "IMPORTE", "SALARIO", "CANTIDAD".
+- Convierte el monto a número sin símbolo de moneda: "$1,152.69" → 1152.69
+- El total al pie de la tabla (suma de todos) NO es el monto individual de nadie; ignóralo para el campo "monto".
+- Si una fila tiene número de cuenta pero no tiene monto, pon "monto": null.
 
 Devuelve ÚNICAMENTE un JSON válido:
 {
@@ -34,7 +41,7 @@ Devuelve ÚNICAMENTE un JSON válido:
       "nombre": "Juan García López",
       "numero": "137180104759420828",
       "banco": "BBVA",
-      "monto": null,
+      "monto": 1152.69,
       "confianza": "alta"
     }
   ],

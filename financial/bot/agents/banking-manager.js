@@ -226,7 +226,8 @@ class BankingManager {
       const banco   = c.banco   ? `🏦 ${c.banco}`   : '';
       const titular = c.titular ? `👤 ${c.titular}` : '';
       const detalle = [banco, titular].filter(Boolean).join(' · ');
-      return `${i + 1}. <b>${c.tipo}</b>: <code>${masked}</code>${detalle ? '\n   ' + detalle : ''}`;
+      const monto   = c.monto   ? `\n   💰 $${Number(c.monto).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '';
+      return `${i + 1}. <b>${c.tipo}</b>: <code>${masked}</code>${detalle ? '\n   ' + detalle : ''}${monto}`;
     }).join('\n\n');
   }
 
