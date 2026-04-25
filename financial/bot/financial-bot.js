@@ -97,6 +97,15 @@ function calcLLMCost(tokensIn, tokensOut) {
 }
 
 /**
+ * Parsea el draft JSON de la sesión de forma defensiva.
+ * Si el valor es inválido (p. ej. "[object Object]") devuelve {}.
+ */
+function parseDraft(json) {
+  if (!json) return {};
+  try { return JSON.parse(json); } catch { return {}; }
+}
+
+/**
  * Obtiene o crea sesión financiera para el chat.
  */
 async function getOrCreateSession(chatId, clientId) {
@@ -352,18 +361,18 @@ bot.on('message:text', async (ctx) => {
     return;
   }
   if (session.estado === 'esperando_monto') {
-    const draft = session.operation_draft_json ? JSON.parse(session.operation_draft_json) : {};
+    const draft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     await procesarOperacion(ctx, `${draft.tipo_operacion} ${text}`, client, session);
     return;
   }
   if (session.estado === 'esperando_entrega') {
-    const draft = session.operation_draft_json ? JSON.parse(session.operation_draft_json) : {};
+    const draft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     draft.direccion_entrega = text;
     await mostrarResumenYPoll(ctx, draft, client, session);
     return;
   }
   if (session.estado === 'esperando_datos_bancarios') {
-    const draft   = session.operation_draft_json ? JSON.parse(session.operation_draft_json) : {};
+    const draft   = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     const cuentas = BankingManager.parsearTexto(text);
     if (!cuentas.length) {
       await ctx.reply('No encontré ninguna CLABE, tarjeta ni cuenta. Envíame el número directamente.');
@@ -382,7 +391,7 @@ bot.on('message:text', async (ctx) => {
   }
   if (session.estado === 'confirmando_cuentas') {
     // El usuario escribió texto en vez de usar el botón → re-mostrar opciones
-    const draft   = session.operation_draft_json ? JSON.parse(session.operation_draft_json) : {};
+    const draft   = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     const cuentas = draft.cuentas_disponibles ?? [];
     if (cuentas.length) {
       const kb = new InlineKeyboard();
@@ -437,7 +446,7 @@ bot.on('message:text', async (ctx) => {
 
   // ── Corregir monto de factura/comprobante ─────────────────────────────────
   if (session.estado === 'confirmando_factura' || session.estado === 'confirmando_comprobante') {
-    const draft  = session.operation_draft_json ? JSON.parse(session.operation_draft_json) : {};
+    const draft  = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     const num    = parseFloat(text.replace(/[^0-9.]/g, ''));
     if (num > 0) {
       draft.monto_bruto = num;
@@ -482,7 +491,7 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
 
   let operationId = null;
   if (session.operation_draft_json) {
-    const draft = JSON.parse(session.operation_draft_json);
+    const draft = parseDraft(session.operation_draft_json);
     operationId = draft.operationId ?? null;
   }
 
@@ -581,7 +590,7 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
 
     // Si está esperando datos bancarios, intentar extraerlos del archivo
     if (session.estado === 'esperando_datos_bancarios') {
-      const draft = session.operation_draft_json ? JSON.parse(session.operation_draft_json) : {};
+      const draft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
       try {
         const { downloadTelegramFileAsBuffer } = require('./tools/file-handler');
         const buffer = await downloadTelegramFileAsBuffer(BOT_TOKEN, fileInfo.file.file_id);
@@ -691,7 +700,7 @@ bot.on('callback_query:data', async (ctx) => {
     await ctx.answerCallbackQuery();
     const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
     const session = await getOrCreateSession(chatId, client.id);
-    const draft   = session.operation_draft_json ? JSON.parse(session.operation_draft_json) : {};
+    const draft   = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
 
     const { operationId, saldo_despues } = await saveConfirmedOperation({
@@ -740,7 +749,7 @@ bot.on('callback_query:data', async (ctx) => {
     await ctx.answerCallbackQuery();
     const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
     const session = await getOrCreateSession(chatId, client.id);
-    const draft   = session.operation_draft_json ? JSON.parse(session.operation_draft_json) : {};
+    const draft   = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
 
     if (!draft.monto_bruto || draft.monto_bruto <= 0) {
@@ -790,7 +799,7 @@ bot.on('callback_query:data', async (ctx) => {
     const cuentaId = parseInt(data.replace('usar_cuenta_', ''));
     const client   = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
     const session  = await getOrCreateSession(chatId, client.id);
-    const draft    = session.operation_draft_json ? JSON.parse(session.operation_draft_json) : {};
+    const draft    = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     const cuenta   = (draft.cuentas_disponibles ?? []).find(c => c.id === cuentaId);
     if (!cuenta) { await ctx.reply('Cuenta no encontrada, intenta de nuevo.'); return; }
     draft.cuentas_bancarias = [cuenta];
@@ -804,7 +813,7 @@ bot.on('callback_query:data', async (ctx) => {
     await ctx.answerCallbackQuery();
     const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
     const session = await getOrCreateSession(chatId, client.id);
-    const draft   = session.operation_draft_json ? JSON.parse(session.operation_draft_json) : {};
+    const draft   = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     delete draft.cuentas_bancarias;
     try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
     await ctx.reply(
@@ -820,7 +829,7 @@ bot.on('callback_query:data', async (ctx) => {
     await ctx.answerCallbackQuery();
     const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
     const session = await getOrCreateSession(chatId, client.id);
-    const draft   = session.operation_draft_json ? JSON.parse(session.operation_draft_json) : {};
+    const draft   = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
     await mostrarResumenYPoll(ctx, draft, client, session);
     return;
