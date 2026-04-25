@@ -28,6 +28,8 @@ const { getCommission, listTypes } = require('./config/commissions');
 const { handleIncomingFile, handleIncomingLink, extractFileFromMessage, downloadTelegramFileAsBuffer } = require('./tools/file-handler');
 const BankingManager  = require('./agents/banking-manager');
 const InvoiceAgent    = require('./agents/invoice-agent');
+const VisionAgent     = require('./agents/vision-agent');
+const ContextReader   = require('./agents/context-reader');
 const ContextManager  = require('./agents/context-manager');
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -79,6 +81,10 @@ const logUsageFn = async (usage) => {
 const responseGen      = new ResponseGen(llm,   { model: DEEPSEEK_MODEL, logUsage: logUsageFn });
 const invoiceAgent     = new InvoiceAgent(llm,   { model: DEEPSEEK_MODEL, logUsage: logUsageFn });
 const contextManager   = new ContextManager(pool);
+const contextReader    = new ContextReader(llm,   { model: DEEPSEEK_MODEL });
+const visionAgent      = process.env.ANTHROPIC_API_KEY
+  ? new VisionAgent(process.env.ANTHROPIC_API_KEY)
+  : null;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -638,41 +644,95 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
         const detected = await invoiceAgent.procesarBuffer(buffer, fileInfo.mimeType, fileInfo.fileName);
 
         if (detected?.tipo === 'imagen_sin_ocr') {
-          // Imagen: no tenemos OCR. Si hay saldo negativo, pedir monto manualmente.
-          const { saldo } = await balanceManager.getSaldo(client.id);
-          if (saldo < 0) {
-            await updateSession(session.id, 'confirmando_comprobante',
-              { tipo: 'comprobante', monto_bruto: 0, clientId: client.id, saldo_actual: saldo });
-            await ctx.reply(
-              `📸 Recibí tu comprobante. Tu saldo actual es <b>$${fmt(saldo)}</b>.\n` +
-              `¿Cuánto fue el depósito? Escríbeme el monto.`,
-              { parse_mode: 'HTML' }
-            );
+          // Imagen: intentar OCR con Claude Haiku Vision si está disponible
+          const buffer = await downloadTelegramFileAsBuffer(BOT_TOKEN, fileInfo.file.file_id);
+          const mimeImg = fileInfo.mimeType ?? 'image/jpeg';
+
+          // 1. Si estamos esperando datos bancarios → extraer tabla bancaria
+          if (session.estado === 'esperando_datos_bancarios' && visionAgent) {
+            const cuentas = await visionAgent.extraerCuentasBancarias(buffer, mimeImg);
+            if (cuentas.length) {
+              const draft = parseDraft(session.operation_draft_json);
+              draft.cuentas_bancarias = cuentas;
+              await updateSession(session.id, 'esperando_datos_bancarios', draft);
+              const kb = new InlineKeyboard()
+                .text('✅ Sí, continuar', 'confirmar_cuentas')
+                .text('✏️ Corregir', 'nueva_cuenta');
+              await ctx.reply(
+                `📊 Encontré <b>${cuentas.length}</b> cuenta(s) en la imagen:\n\n${BankingManager.formatearCuentas(cuentas)}\n\n¿Es correcto?`,
+                { parse_mode: 'HTML', reply_markup: kb }
+              );
+              return;
+            }
+          }
+
+          // 2. Intentar leer como factura/comprobante con visión
+          if (visionAgent) {
+            const visionResult = await visionAgent.analizarFactura(buffer, mimeImg);
+            if (visionResult?.monto_total > 0) {
+              // Re-entrar al flujo normal con los datos extraídos
+              detected = {
+                tipo:          visionResult.tipo === 'factura' ? 'factura' : 'comprobante',
+                monto_total:   visionResult.monto_total,
+                tipo_operacion: null,
+                confianza:     'media',
+                emisor:        visionResult.emisor_nombre,
+                emisor_rfc:    visionResult.emisor_rfc,
+                datos_bancarios: visionResult.datos_bancarios ?? [],
+              };
+              // Continuar al bloque de factura/comprobante abajo (no return aquí)
+            }
+          }
+
+          // 3. Sin visión o sin resultado → pedir monto si saldo negativo
+          if (detected?.tipo === 'imagen_sin_ocr') {
+            const { saldo } = await balanceManager.getSaldo(client.id);
+            if (saldo < 0) {
+              await updateSession(session.id, 'confirmando_comprobante',
+                { tipo: 'comprobante', monto_bruto: 0, clientId: client.id, saldo_actual: saldo });
+              await ctx.reply(
+                `📸 Recibí la imagen. Saldo actual: <b>$${fmt(saldo)}</b>.\n` +
+                `¿Cuánto fue el monto? Escríbeme el número.`,
+                { parse_mode: 'HTML' }
+              );
+            } else {
+              await ctx.reply('📸 Imagen registrada. Si es un comprobante o factura, escríbeme el monto.');
+            }
             await handleIncomingFile({ pool, clientId: client.id, operationId, botToken: BOT_TOKEN,
               telegramFileOrPhoto: fileInfo.file, mimeType: fileInfo.mimeType, fileName: fileInfo.fileName });
             return;
           }
-        } else if (detected?.tipo === 'factura' && detected.monto_total > 0) {
-          const tipoOp    = detected.tipo_operacion ?? 'IAS';
+        }
+
+        if (detected?.tipo === 'factura' && detected.monto_total > 0) {
+          const tipoOp     = detected.tipo_operacion ?? 'IAS';
           const commission = await getCommission(tipoOp, pool);
-          const pct       = commission?.pct ?? 0.055;
-          const mb        = detected.monto_total;
-          const mn        = Math.round(mb * (1 - pct) * 100) / 100;
-          const draft     = { tipo: 'factura', monto_bruto: mb, monto_neto: mn, comision_pct: pct,
-                              tipo_operacion: tipoOp, clientId: client.id,
-                              telegram_file_id: fileInfo.file.file_id, confianza: detected.confianza };
+          const pct        = commission?.pct ?? 0.055;
+          const mb         = detected.monto_total;
+          const mn         = Math.round(mb * (1 - pct) * 100) / 100;
+          const { saldo: saldoAntesFactura } = await balanceManager.getSaldo(client.id);
+          const draft      = { tipo: 'factura', monto_bruto: mb, monto_neto: mn, comision_pct: pct,
+                               tipo_operacion: tipoOp, clientId: client.id,
+                               telegram_file_id: fileInfo.file.file_id, confianza: detected.confianza,
+                               emisor: detected.emisor ?? null, emisor_rfc: detected.emisor_rfc ?? null };
           await updateSession(session.id, 'confirmando_factura', draft);
+
+          // Guardar cuentas bancarias del emisor para futura referencia
+          if (detected.datos_bancarios?.length) {
+            bankingManager.guardarCuentas(client.id, null, detected.datos_bancarios).catch(() => {});
+          }
+
+          const emisorLine = detected.emisor ? `\nEmisor: <b>${detected.emisor}</b>` : '';
           const kb = new InlineKeyboard()
-            .text(`✅ Registrar $${fmt(mb)}`, 'confirmar_factura').row()
+            .text(`✅ Confirmar $${fmt(mb)}`, 'confirmar_factura').row()
             .text('✏️ Corregir monto', 'corregir_factura')
             .text('❌ Cancelar', 'cancelar_factura');
           await ctx.reply(
-            `📋 <b>Factura(s) detectada(s)</b>\n\n` +
-            `Tipo operación: <b>${tipoOp}</b>\n` +
-            `Monto bruto: <b>$${fmt(mb)}</b>\n` +
-            `Comisión (${pctStr(pct)}): -$${fmt(mb - mn)}\n` +
-            `<b>Monto neto a acreditar: $${fmt(mn)}</b>\n\n` +
-            `¿Registro esta entrada a tu saldo?`,
+            `📋 <b>Factura detectada</b>${emisorLine}\n\n` +
+            `Tipo: <b>${tipoOp}</b> · Comisión ${pctStr(pct)}\n` +
+            `Bruto: <b>$${fmt(mb)}</b>  →  Neto: <b>$${fmt(mn)}</b>\n` +
+            `Saldo actual: $${fmt(saldoAntesFactura)}  →  Nuevo: <b>$${fmt(saldoAntesFactura + mn)}</b>\n\n` +
+            `¿Confirmo y actualizo tu saldo?`,
             { parse_mode: 'HTML', reply_markup: kb }
           );
           return;

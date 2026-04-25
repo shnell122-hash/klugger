@@ -8,6 +8,7 @@
     "dev": "node --watch financial-bot.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
     "dotenv": "^16.4.5",
     "grammy": "^1.31.0",
     "mysql2": "^3.9.7",
