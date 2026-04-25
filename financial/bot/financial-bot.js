@@ -602,19 +602,20 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
     await handleIncomingLink({ pool, clientId: client.id, operationId, url: fileInfo.url });
     await ctx.reply('🔗 Link registrado.');
   } else {
-    // ── Intentar factura/comprobante: sesión idle O caption con intención de pago ──
-    const ACTIVE_ESTADOS_BANKING = ['esperando_datos_bancarios','confirmando_cuentas'];
-    const ACTIVE_ESTADOS_NO_INVOICE = [
+    // ── Intentar factura/comprobante: sesión idle O esperando comprobante ────
+    // BLOQUEAR solo durante flujos de operación activa O esperando datos bancarios
+    // PERMITIR cuando la sesión está confirmando factura/comprobante (el archivo ES el pago)
+    const ACTIVE_ESTADOS_BANKING     = ['esperando_datos_bancarios','confirmando_cuentas'];
+    const ACTIVE_ESTADOS_BLOCK_INVOICE = [
       'esperando_tipo','esperando_monto','esperando_entrega',
       'esperando_confirmacion','esperando_edicion',
-      'confirmando_factura','confirmando_comprobante',
     ];
     const PAGO_CAPTION_RE = /comparto|comprobante|pago|deposito|deposité|transferencia|factura|retorno/i;
-    const captionEsPago   = msg.caption && PAGO_CAPTION_RE.test(msg.caption);
-    // Permitir invoice detection si: sesión idle, o caption indica pago explícito
-    // Bloquear solo si sesión bancaria (esperando cuentas)
+    const captionEsPago   = !!(msg.caption && PAGO_CAPTION_RE.test(msg.caption));
+    // Permitir invoice si: sesión idle o confirmando factura/comprobante
+    // Forzar si caption tiene intent de pago (sobrepasa bloqueo de sesión activa)
     const tryInvoice = !ACTIVE_ESTADOS_BANKING.includes(session.estado) &&
-                       (!ACTIVE_ESTADOS_NO_INVOICE.includes(session.estado) || captionEsPago);
+                       (!ACTIVE_ESTADOS_BLOCK_INVOICE.includes(session.estado) || captionEsPago);
     if (tryInvoice) {
       try {
         const buffer   = await downloadTelegramFileAsBuffer(BOT_TOKEN, fileInfo.file.file_id);
