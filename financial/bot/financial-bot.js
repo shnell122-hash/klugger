@@ -656,25 +656,12 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
               const aviso = hayBajaConfianza
                 ? '\n\n⚠️ Algunos números pueden tener errores. Por favor verifica antes de confirmar.'
                 : '';
-              if (session.estado === 'esperando_datos_bancarios') {
-                const draft = parseDraft(session.operation_draft_json);
-                draft.cuentas_bancarias = cuentas;
-                await updateSession(session.id, 'esperando_datos_bancarios', draft);
-                const kb = new InlineKeyboard()
-                  .text('✅ Sí, continuar', 'confirmar_cuentas')
-                  .text('✏️ Corregir', 'nueva_cuenta');
-                await ctx.reply(
-                  `📊 Encontré <b>${cuentas.length}</b> cuenta(s):\n\n${BankingManager.formatearCuentas(cuentas)}${aviso}\n\n¿Es correcto?`,
-                  { parse_mode: 'HTML', reply_markup: kb }
-                );
-              } else {
-                await bankingManager.guardarCuentas(client.id, null, cuentas);
-                await ctx.reply(
-                  `📊 Detecté y guardé <b>${cuentas.length}</b> cuenta(s) bancarias:\n\n${BankingManager.formatearCuentas(cuentas)}${aviso}\n\n` +
-                  `Quedan registradas. Si son para una operación, iníciala con <code>/operacion</code>.`,
-                  { parse_mode: 'HTML' }
-                );
-              }
+              await bankingManager.guardarCuentas(client.id, null, cuentas);
+              await ctx.reply(
+                `📊 Detecté y guardé <b>${cuentas.length}</b> cuenta(s) bancarias:\n\n${BankingManager.formatearCuentas(cuentas)}${aviso}\n\n` +
+                `Quedan registradas. Si son para una operación, iníciala con <code>/operacion</code>.`,
+                { parse_mode: 'HTML' }
+              );
               return;
             }
 
@@ -772,36 +759,51 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
       }
     }
 
-    // Si está esperando datos bancarios, intentar extraerlos del archivo
+    // Si está esperando datos bancarios, intentar extraerlos del archivo o imagen
     if (session.estado === 'esperando_datos_bancarios') {
-      const draft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
+      const draft    = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
+      const esImagen = fileInfo.mimeType?.startsWith('image/');
+      const esXlsx   = fileInfo.mimeType?.includes('spreadsheet') ||
+                       fileInfo.mimeType?.includes('excel')       ||
+                       fileInfo.fileName?.match(/\.xlsx?$/i);
+      let cuentas = [];
       try {
-        const { downloadTelegramFileAsBuffer } = require('./tools/file-handler');
         const buffer = await downloadTelegramFileAsBuffer(BOT_TOKEN, fileInfo.file.file_id);
-        let cuentas = [];
 
-        if (fileInfo.mimeType?.includes('spreadsheet') || fileInfo.mimeType?.includes('excel') ||
-            fileInfo.fileName?.match(/\.xlsx?$/i)) {
+        if (esImagen && visionAgent) {
+          const { cuentas: cs } = await visionAgent.extraerCuentasBancarias(buffer, fileInfo.mimeType);
+          cuentas = cs;
+        } else if (esXlsx) {
           cuentas = BankingManager.parsearXlsx(buffer);
         } else {
           cuentas = BankingManager.parsearCsv(buffer.toString('utf-8'));
         }
+      } catch (e) { console.error('[banking-file]', e.message); }
 
-        if (cuentas.length) {
-          draft.cuentas_bancarias = cuentas;
-          await updateSession(session.id, 'esperando_datos_bancarios', draft);
-          const kb = new InlineKeyboard()
-            .text('✅ Sí, continuar', 'confirmar_cuentas')
-            .text('✏️ Corregir', 'nueva_cuenta');
-          await ctx.reply(
-            `📊 Encontré <b>${cuentas.length}</b> cuenta(s) en el archivo:\n\n${BankingManager.formatearCuentas(cuentas)}\n\n¿Es correcto?`,
-            { parse_mode: 'HTML', reply_markup: kb }
-          );
-          return;
-        }
-      } catch (_) {}
-      // Si no pudo parsear, registrar archivo y pedir datos como texto
-      await ctx.reply('No pude extraer cuentas del archivo. Por favor envíame los números directamente como texto.');
+      if (cuentas.length) {
+        const hayBajaConfianza = cuentas.some(c => c.confianza === 'baja');
+        const aviso = hayBajaConfianza
+          ? '\n\n⚠️ Algunos números pueden tener errores. Por favor verifica antes de confirmar.'
+          : '';
+        draft.cuentas_bancarias = cuentas;
+        await updateSession(session.id, 'esperando_datos_bancarios', draft);
+        const kb = new InlineKeyboard()
+          .text('✅ Sí, continuar', 'confirmar_cuentas')
+          .text('✏️ Corregir', 'nueva_cuenta');
+        await ctx.reply(
+          `📊 Encontré <b>${cuentas.length}</b> cuenta(s):\n\n${BankingManager.formatearCuentas(cuentas)}${aviso}\n\n¿Es correcto?`,
+          { parse_mode: 'HTML', reply_markup: kb }
+        );
+        return;
+      }
+      if (esImagen) {
+        await ctx.reply(
+          '📷 No pude leer los números en la imagen.\n\nIntenta enviar el <b>archivo Excel (.xlsx)</b> directamente, o escríbeme los números.',
+          { parse_mode: 'HTML' }
+        );
+      } else {
+        await ctx.reply('No pude extraer cuentas del archivo. Por favor envíame los números directamente como texto.');
+      }
     }
 
     await handleIncomingFile({
