@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS fin_comisionista_rates (
 
 -- ── 3. Asignar comisionista al cliente ────────────────────────────────────────
 ALTER TABLE fin_clients
-  ADD COLUMN IF NOT EXISTS comisionista_id INT NULL,
+  ADD COLUMN comisionista_id INT NULL;
+ALTER TABLE fin_clients
   ADD CONSTRAINT fk_client_comisionista
     FOREIGN KEY (comisionista_id) REFERENCES fin_comisionistas(id) ON DELETE SET NULL;
 
