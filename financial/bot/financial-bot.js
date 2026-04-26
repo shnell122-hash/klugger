@@ -25,6 +25,7 @@ const { PollHandler } = require('./agents/poll-handler');
 const Verifier        = require('./agents/verifier');
 const ResponseGen     = require('./agents/response-gen');
 const { getCommission, listTypes, registrarComisionista } = require('./config/commissions');
+const q = require('../db/financial-queries');
 const { handleIncomingFile, handleIncomingLink, extractFileFromMessage, downloadTelegramFileAsBuffer } = require('./tools/file-handler');
 const BankingManager  = require('./agents/banking-manager');
 const InvoiceAgent    = require('./agents/invoice-agent');
@@ -830,6 +831,12 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
         draft.tabla_pagos       = cuentas;
         draft.tabla_total       = tabla_total > 0 ? tabla_total : null;
 
+        // Guardar cuentas como empresa del cliente (fire-and-forget)
+        if (!draft.es_entrada && client?.id) {
+          q.saveEmpresaClienteFromChat(pool, client.id, cuentas)
+            .catch(err => console.error('[empresa-chat]', err.message));
+        }
+
         // Si hay montos individuales y el draft tiene una operación mayor, ajustar el batch
         if (tabla_total > 0 && draft.monto_neto && draft.monto_neto > tabla_total + 0.01) {
           draft.monto_neto_original  = draft.monto_neto;
@@ -1326,6 +1333,23 @@ async function procesarOperacion(ctx, input, client, session) {
       });
       saldo_nuevo = sAdj;
     }
+  }
+
+  // 4.6 Para operaciones de salida: cargar instrucciones de pago desde nuestra empresa asignada
+  if (!es_entrada && !draft.instrucciones_pago) {
+    try {
+      const empRow = await q.getEmpresaNuestraForClient(pool, client.id);
+      if (empRow) {
+        draft.instrucciones_pago = [
+          empRow.empresa_nombre,
+          `Banco: ${empRow.banco}`,
+          empRow.titular    ? `Titular: ${empRow.titular}`   : '',
+          empRow.clabe      ? `CLABE: ${empRow.clabe}`       : '',
+          empRow.num_cuenta ? `Cuenta: ${empRow.num_cuenta}` : '',
+          empRow.alias      ? `(${empRow.alias})`            : '',
+        ].filter(Boolean).join('\n');
+      }
+    } catch (err) { console.error('[empresa-pago]', err.message); }
   }
 
   // 5. Verificar consistencia

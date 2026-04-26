@@ -326,6 +326,18 @@ module.exports = function financialRoutes(pool, io, express) {
     } catch (err) { res.status(500).json({ ok: false, error: err.message }); }
   });
 
+  router.get('/empresas/:id/clientes', async (req, res) => {
+    try { res.json({ ok: true, data: await q.getClientesAsignadosEmpresa(pool, req.params.id) }); }
+    catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+  });
+
+  router.put('/empresas/:empresaId/clientes/:clientId', async (req, res) => {
+    try {
+      await q.toggleClienteEmpresa(pool, req.params.clientId, req.params.empresaId, req.body.is_active !== false);
+      res.json({ ok: true });
+    } catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+  });
+
   router.patch('/empresa-cuentas/:id', async (req, res) => {
     try {
       await q.updateEmpresaCuenta(pool, req.params.id, req.body);

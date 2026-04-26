@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { api, type Empresa, type EmpresaCuenta } from '@/lib/api';
+import { api, fmt, type Empresa, type EmpresaCuenta, type ClienteAsignado } from '@/lib/api';
 
 interface Props { initialData: Empresa[] }
 
@@ -13,6 +13,10 @@ export default function EmpresasClient({ initialData }: Props) {
   const [selected, setSelected]       = useState<Empresa | null>(null);
   const [cuentas, setCuentas]         = useState<EmpresaCuenta[]>([]);
   const [loadingC, setLoadingC]       = useState(false);
+  const [clientesAsignados, setClientesAsignados] = useState<ClienteAsignado[]>([]);
+  const [loadingCl, setLoadingCl]     = useState(false);
+  const [allClients, setAllClients]   = useState<import('@/lib/api').Client[]>([]);
+  const [showAsignar, setShowAsignar] = useState(false);
   const [showEmpForm, setShowEmpForm] = useState(false);
   const [showCuForm, setShowCuForm]   = useState(false);
   const [editingEmp, setEditingEmp]   = useState<Empresa | null>(null);
@@ -25,9 +29,30 @@ export default function EmpresasClient({ initialData }: Props) {
   const [error, setError]             = useState('');
 
   async function openEmpresa(e: Empresa) {
-    setSelected(e); setLoadingC(true);
-    try { setCuentas(await api.getEmpresaCuentas(e.id)); }
-    finally { setLoadingC(false); }
+    setSelected(e); setLoadingC(true); setShowAsignar(false);
+    try {
+      const [cs, cls] = await Promise.all([
+        api.getEmpresaCuentas(e.id),
+        e.origen === 'nuestra' ? api.getEmpresaClientes(e.id) : Promise.resolve([]),
+      ]);
+      setCuentas(cs);
+      setClientesAsignados(cls as ClienteAsignado[]);
+    } finally { setLoadingC(false); }
+  }
+
+  async function openAsignar() {
+    if (!allClients.length) {
+      setLoadingCl(true);
+      try { setAllClients(await api.getClients(200)); } finally { setLoadingCl(false); }
+    }
+    setShowAsignar(true);
+  }
+
+  async function toggleAsignacion(clientId: number, isActive: boolean) {
+    if (!selected) return;
+    await api.toggleEmpresaCliente(selected.id, clientId, isActive);
+    const updated = await api.getEmpresaClientes(selected.id);
+    setClientesAsignados(updated as ClienteAsignado[]);
   }
 
   function openNewEmp() {
@@ -140,45 +165,84 @@ export default function EmpresasClient({ initialData }: Props) {
         </div>
       </div>
 
-      {/* Cuentas bancarias */}
-      <div className="glass rounded-xl border border-border">
-        {!selected ? (
-          <div className="flex items-center justify-center h-48 text-gray-600 text-sm">Selecciona una empresa</div>
-        ) : (
-          <>
+      {/* Panel derecho: cuentas + (si nuestra) clientes asignados */}
+      <div className="space-y-4">
+        {/* Cuentas bancarias */}
+        <div className="glass rounded-xl border border-border">
+          {!selected ? (
+            <div className="flex items-center justify-center h-48 text-gray-600 text-sm">Selecciona una empresa</div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between p-4 border-b border-border">
+                <div>
+                  <span className="text-sm font-semibold text-white">{selected.nombre}</span>
+                  <span className="text-xs text-gray-500 ml-2">— Cuentas bancarias</span>
+                </div>
+                <button onClick={openNewCuenta}
+                  className="px-3 py-1 rounded text-xs bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20 transition">
+                  + Cuenta
+                </button>
+              </div>
+              {loadingC ? (
+                <div className="p-6 text-center text-gray-500 text-sm">Cargando…</div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {cuentas.map(c => (
+                    <div key={c.id} className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="text-sm font-medium text-white">{c.titular}</div>
+                          <div className="text-xs text-gray-400">{c.banco}{c.alias ? ` · ${c.alias}` : ''}</div>
+                          {c.clabe       && <div className="text-xs font-mono text-gray-500 mt-1">CLABE: {c.clabe}</div>}
+                          {c.num_cuenta  && <div className="text-xs font-mono text-gray-500">Cuenta: {c.num_cuenta}</div>}
+                          {c.num_tarjeta && <div className="text-xs font-mono text-gray-500">Tarjeta: ●●●● {c.num_tarjeta.slice(-4)}</div>}
+                        </div>
+                        <button onClick={() => openEditCuenta(c)}
+                          className="text-xs px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 text-gray-400 shrink-0">Editar</button>
+                      </div>
+                    </div>
+                  ))}
+                  {cuentas.length === 0 && <p className="p-6 text-center text-gray-600 text-sm">Sin cuentas bancarias</p>}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Clientes asignados (solo para nuestras empresas) */}
+        {selected?.origen === 'nuestra' && (
+          <div className="glass rounded-xl border border-border">
             <div className="flex items-center justify-between p-4 border-b border-border">
               <div>
-                <span className="text-sm font-semibold text-white">{selected.nombre}</span>
-                <span className="text-xs text-gray-500 ml-2">— Cuentas bancarias</span>
+                <span className="text-sm font-semibold text-gray-300">Clientes asignados</span>
+                <span className="text-xs text-gray-500 ml-2">— El bot usará esta cuenta para cobrar a estos clientes</span>
               </div>
-              <button onClick={openNewCuenta}
-                className="px-3 py-1 rounded text-xs bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20 transition">
-                + Cuenta
+              <button onClick={openAsignar}
+                className="px-3 py-1 rounded text-xs bg-accent/10 text-accent-light border border-accent/20 hover:bg-accent/20 transition">
+                + Asignar
               </button>
             </div>
-            {loadingC ? (
-              <div className="p-6 text-center text-gray-500 text-sm">Cargando…</div>
-            ) : (
-              <div className="divide-y divide-border">
-                {cuentas.map(c => (
-                  <div key={c.id} className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="text-sm font-medium text-white">{c.titular}</div>
-                        <div className="text-xs text-gray-400">{c.banco}{c.alias ? ` · ${c.alias}` : ''}</div>
-                        {c.clabe       && <div className="text-xs font-mono text-gray-500 mt-1">CLABE: {c.clabe}</div>}
-                        {c.num_cuenta  && <div className="text-xs font-mono text-gray-500">Cuenta: {c.num_cuenta}</div>}
-                        {c.num_tarjeta && <div className="text-xs font-mono text-gray-500">Tarjeta: ●●●● {c.num_tarjeta.slice(-4)}</div>}
-                      </div>
-                      <button onClick={() => openEditCuenta(c)}
-                        className="text-xs px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 text-gray-400 shrink-0">Editar</button>
-                    </div>
+            <div className="divide-y divide-border">
+              {clientesAsignados.filter(c => c.is_active).map(c => (
+                <div key={c.id} className="flex items-center justify-between p-3">
+                  <div>
+                    <div className="text-sm text-white">{c.nombre || c.telegram_username || `#${c.id}`}</div>
+                    {c.telegram_username && <div className="text-xs text-gray-500">@{c.telegram_username}</div>}
                   </div>
-                ))}
-                {cuentas.length === 0 && <p className="p-6 text-center text-gray-600 text-sm">Sin cuentas bancarias</p>}
-              </div>
-            )}
-          </>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500 font-mono">${fmt(c.saldo)}</span>
+                    <button onClick={() => toggleAsignacion(c.id, false)}
+                      className="text-xs px-2 py-0.5 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 transition">
+                      Quitar
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {clientesAsignados.filter(c => c.is_active).length === 0 && (
+                <p className="p-4 text-center text-gray-600 text-xs">Sin clientes asignados</p>
+              )}
+            </div>
+          </div>
         )}
       </div>
 

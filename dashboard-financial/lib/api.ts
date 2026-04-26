@@ -218,6 +218,14 @@ export type Comision = {
   created_at: string;
 };
 
+export type ClienteAsignado = {
+  id: number;
+  nombre: string;
+  telegram_username: string;
+  saldo: number;
+  is_active: boolean;
+};
+
 export type ClientModel = {
   id: number;
   client_id: number;
@@ -311,6 +319,9 @@ export const api = {
   getEmpresaCuentas:      (id: number)   => get<EmpresaCuenta[]>(`/empresas/${id}/cuentas`),
   createEmpresaCuenta:    (id: number, body: Partial<EmpresaCuenta>) => post<{id:number}>(`/empresas/${id}/cuentas`, body),
   updateEmpresaCuenta:    (id: number, body: Partial<EmpresaCuenta>) => patch(`/empresa-cuentas/${id}`, body),
+  getEmpresaClientes:     (id: number) => get<ClienteAsignado[]>(`/empresas/${id}/clientes`),
+  toggleEmpresaCliente:   (empresaId: number, clientId: number, isActive: boolean) =>
+                            put(`/empresas/${empresaId}/clientes/${clientId}`, { is_active: isActive }),
 
   // Comisiones
   getComisiones:          (params = '')  => get<Comision[]>(`/comisiones${params ? `?${params}` : ''}`),

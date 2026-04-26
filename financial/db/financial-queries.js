@@ -412,6 +412,81 @@ async function assignComisionistaToClient(pool, clientId, comisionistaId) {
   );
 }
 
+async function getEmpresaNuestraForClient(pool, clientId) {
+  const [rows] = await pool.query(`
+    SELECT e.nombre AS empresa_nombre, ec.banco, ec.titular, ec.clabe, ec.num_cuenta, ec.alias
+    FROM fin_client_empresas ce
+    JOIN fin_empresas e ON e.id = ce.empresa_id AND e.origen = 'nuestra' AND e.is_active = 1
+    JOIN fin_empresa_cuentas ec ON ec.empresa_id = e.id AND ec.is_active = 1
+    WHERE ce.client_id = ? AND ce.is_active = 1
+    ORDER BY ec.id ASC LIMIT 1
+  `, [clientId]);
+  return rows[0] ?? null;
+}
+
+async function saveEmpresaClienteFromChat(pool, clientId, cuentas) {
+  for (const c of cuentas) {
+    const titular = (c.titular || 'Sin nombre').trim();
+    const [existing] = await pool.query(`
+      SELECT e.id FROM fin_empresas e
+      JOIN fin_client_empresas ce ON ce.empresa_id = e.id AND ce.client_id = ?
+      WHERE e.nombre = ? AND e.origen = 'cliente' AND e.is_active = 1 LIMIT 1
+    `, [clientId, titular]);
+
+    let empresaId;
+    if (existing.length > 0) {
+      empresaId = existing[0].id;
+    } else {
+      const [res] = await pool.query(
+        `INSERT INTO fin_empresas (nombre, origen) VALUES (?, 'cliente')`, [titular]
+      );
+      empresaId = res.insertId;
+      await pool.query(
+        `INSERT INTO fin_client_empresas (client_id, empresa_id) VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE is_active=1, updated_at=NOW(3)`,
+        [clientId, empresaId]
+      );
+    }
+
+    const numero = c.numero ?? c.clabe ?? c.num_cuenta ?? c.num_tarjeta;
+    if (!numero) continue;
+    const clabe    = c.tipo === 'CLABE'   ? numero : null;
+    const tarjeta  = c.tipo === 'tarjeta' ? numero : null;
+    const numCuenta = (!clabe && !tarjeta) ? numero : null;
+    const checkCol = clabe ? 'clabe' : tarjeta ? 'num_tarjeta' : 'num_cuenta';
+    const checkVal = clabe ?? tarjeta ?? numCuenta;
+
+    const [dup] = await pool.query(
+      `SELECT id FROM fin_empresa_cuentas WHERE empresa_id=? AND ${checkCol}=? LIMIT 1`,
+      [empresaId, checkVal]
+    );
+    if (!dup.length) {
+      await pool.query(
+        `INSERT INTO fin_empresa_cuentas (empresa_id, banco, titular, clabe, num_tarjeta, num_cuenta)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [empresaId, c.banco || 'Sin banco', titular, clabe, tarjeta, numCuenta]
+      );
+    }
+  }
+}
+
+async function getClientesAsignadosEmpresa(pool, empresaId) {
+  const [rows] = await pool.query(`
+    SELECT c.id, c.nombre, c.telegram_username, c.saldo, ce.is_active
+    FROM fin_client_empresas ce
+    JOIN fin_clients c ON c.id = ce.client_id
+    WHERE ce.empresa_id = ? ORDER BY c.nombre
+  `, [empresaId]);
+  return rows;
+}
+
+async function toggleClienteEmpresa(pool, clientId, empresaId, isActive) {
+  await pool.query(`
+    INSERT INTO fin_client_empresas (client_id, empresa_id, is_active)
+    VALUES (?,?,?) ON DUPLICATE KEY UPDATE is_active=VALUES(is_active), updated_at=NOW(3)
+  `, [clientId, empresaId, isActive ? 1 : 0]);
+}
+
 module.exports = {
   getClientSummary,
   getOperations,
@@ -429,6 +504,8 @@ module.exports = {
   confirmarPagoAdmin,
   getChatList,
   getChatMessages,
+  getEmpresaNuestraForClient, saveEmpresaClienteFromChat,
+  getClientesAsignadosEmpresa, toggleClienteEmpresa,
   getComisionistas, createComisionista, updateComisionista,
   getComisionistaRates, upsertComisionistaRates, deleteComisionistaRate,
   getEmpresas, createEmpresa, updateEmpresa,
