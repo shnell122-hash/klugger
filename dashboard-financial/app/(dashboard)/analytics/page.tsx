@@ -1,9 +1,9 @@
 import { api } from '@/lib/api';
-import dynamic from 'next/dynamic';
+import dynamicImport from 'next/dynamic';
 import VolumeChart from '@/components/charts/VolumeChart';
 import OpsTypeChart from '@/components/charts/OpsTypeChart';
 
-const AgentFlowGraph = dynamic(() => import('@/components/graph/AgentFlowGraph'), { ssr: false });
+const AgentFlowGraph = dynamicImport(() => import('@/components/graph/AgentFlowGraph'), { ssr: false });
 
 export const dynamic = 'force-dynamic';
 
