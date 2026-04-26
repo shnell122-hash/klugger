@@ -942,9 +942,12 @@ bot.on('poll_answer', async (ctx) => {
       await bot.api.sendMessage(
         chatId,
         responseGen.formatConfirmed({
-          tipo_operacion: operationDraft.tipo_operacion,
-          monto_neto:     operationDraft.monto_neto,
-          saldo_nuevo:    saldo_despues,
+          tipo_operacion:    operationDraft.tipo_operacion,
+          monto_neto:        operationDraft.monto_neto,
+          monto_bruto:       operationDraft.monto_bruto,
+          saldo_nuevo:       saldo_despues,
+          es_entrada:        operationDraft.es_entrada,
+          instrucciones_pago: operationDraft.instrucciones_pago,
         }),
         { parse_mode: 'HTML' }
       );
@@ -1343,8 +1346,9 @@ async function procesarOperacion(ctx, input, client, session) {
     }
   }
 
-  // 4.6 Para operaciones de salida: cargar instrucciones de pago desde nuestra empresa asignada
-  if (!es_entrada && !draft.instrucciones_pago) {
+  // 4.6 Cargar instrucciones de pago desde nuestra empresa asignada al cliente
+  //     (aplica tanto para entrada como para salida con saldo insuficiente)
+  if (!draft.instrucciones_pago) {
     try {
       const empRow = await q.getEmpresaNuestraForClient(pool, client.id);
       if (empRow) {

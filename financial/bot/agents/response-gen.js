@@ -78,10 +78,12 @@ class ResponseGen {
       }
 
       if (es_entrada) {
+        if (instrucciones_pago) {
+          partes.push(`\n📥 <b>Datos para tu depósito:</b>\n<code>${instrucciones_pago}</code>`);
+        }
         if (saldo_actual !== undefined) {
           partes.push(
-            `Su saldo anterior es <b>$${fmt(saldo_actual)}</b> y su saldo nuevo ` +
-            `$${fmt(saldo_actual)}+$${fmt(monto_neto)}=<b>$${fmt(saldo_nuevo)}</b>.`
+            `Tu saldo actual es <b>$${fmt(saldo_actual)}</b>. Al acreditarse quedará en <b>$${fmt(saldo_nuevo)}</b>.`
           );
         }
       } else {
@@ -101,17 +103,12 @@ class ResponseGen {
     }
 
     if (cuentas_bancarias?.length && !esPagoTabla) {
-      const maskNum = (num, tipo) => {
-        if (tipo === 'CLABE')   return `${num.slice(0,3)}···${num.slice(-4)}`;
-        if (tipo === 'tarjeta') return `●●●● ●●●● ●●●● ${num.slice(-4)}`;
-        return `···${num.slice(-4)}`;
-      };
       const lineas = cuentas_bancarias.map(c => {
-        const banco   = c.banco   ? ` · ${c.banco}`   : '';
-        const titular = c.titular ? ` · ${c.titular}` : '';
-        return `💳 ${c.tipo} <code>${maskNum(c.numero, c.tipo)}</code>${banco}${titular}`;
+        const banco   = c.banco   ? `\nBanco: ${c.banco}`     : '';
+        const titular = c.titular ? `\nTitular: ${c.titular}` : '';
+        return `💳 <b>${c.tipo}:</b> <code>${c.numero}</code>${banco}${titular}`;
       });
-      partes.push(`\n📤 <b>Pago a:</b>\n${lineas.join('\n')}`);
+      partes.push(`\n📤 <b>Pago a:</b>\n${lineas.join('\n\n')}`);
     }
 
     // Tabla resumen
@@ -138,7 +135,7 @@ class ResponseGen {
   /**
    * Mensaje de operación confirmada.
    */
-  formatConfirmed({ tipo_operacion, monto_neto, saldo_nuevo, tabla_total, monto_neto_original }) {
+  formatConfirmed({ tipo_operacion, monto_neto, monto_bruto, saldo_nuevo, tabla_total, monto_neto_original, es_entrada, instrucciones_pago }) {
     const esPagoTabla = tabla_total > 0;
     const restante = (esPagoTabla && monto_neto_original && monto_neto_original > tabla_total)
       ? Math.round((monto_neto_original - tabla_total) * 100) / 100
@@ -152,6 +149,12 @@ class ResponseGen {
       msg += `Tipo: ${tipo_operacion} | Neto: $${fmt(monto_neto)}\n`;
     }
     msg += `Saldo actualizado: <b>$${fmt(saldo_nuevo)}</b>`;
+
+    if (es_entrada && instrucciones_pago) {
+      msg += `\n\n📥 <b>Realiza tu transferencia de $${fmt(monto_bruto)} a:</b>\n<code>${instrucciones_pago}</code>`;
+      msg += `\n\nCompartenos el comprobante para acreditar tu saldo.`;
+    }
+
     return msg;
   }
 
