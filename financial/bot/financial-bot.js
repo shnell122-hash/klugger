@@ -1221,7 +1221,8 @@ async function procesarOperacion(ctx, input, client, session) {
     if (!parsed.tipo) {
       const tipos = listTypes();
       await ctx.reply(responseGen.formatAskTipo(tipos), { parse_mode: 'HTML' });
-      await updateSession(session.id, 'esperando_tipo', { clientId: client.id });
+      const baseDraft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
+      await updateSession(session.id, 'esperando_tipo', { ...baseDraft, clientId: client.id });
       return;
     }
   }
@@ -1230,7 +1231,8 @@ async function procesarOperacion(ctx, input, client, session) {
   if (!parsed.monto) {
     const commission = await getCommission(parsed.tipo, pool);
     await ctx.reply(responseGen.formatAskMonto(parsed.tipo, commission.pct), { parse_mode: 'HTML' });
-    await updateSession(session.id, 'esperando_monto', { tipo_operacion: parsed.tipo, clientId: client.id });
+    const baseDraft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
+    await updateSession(session.id, 'esperando_monto', { ...baseDraft, tipo_operacion: parsed.tipo, clientId: client.id });
     return;
   }
 
@@ -1287,7 +1289,9 @@ async function procesarOperacion(ctx, input, client, session) {
   };
 
   // 4.5 Recuperar tabla_pagos si el usuario envió la imagen antes de indicar tipo/monto
-  const prevDraft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
+  // Leer siempre directo de DB para evitar usar el objeto session cacheado al inicio del handler
+  const [_freshRows] = await pool.query('SELECT operation_draft_json FROM fin_sessions WHERE id=?', [session.id]);
+  const prevDraft = parseDraft(_freshRows[0]?.operation_draft_json ?? session.operation_draft_json);
   if (prevDraft.tabla_pagos?.length && !draft.cuentas_bancarias?.length) {
     draft.tabla_pagos       = prevDraft.tabla_pagos;
     draft.tabla_total       = prevDraft.tabla_total ?? null;
