@@ -24,7 +24,7 @@ const BalanceManager  = require('./agents/balance-manager');
 const { PollHandler } = require('./agents/poll-handler');
 const Verifier        = require('./agents/verifier');
 const ResponseGen     = require('./agents/response-gen');
-const { getCommission, listTypes } = require('./config/commissions');
+const { getCommission, listTypes, registrarComisionista } = require('./config/commissions');
 const { handleIncomingFile, handleIncomingLink, extractFileFromMessage, downloadTelegramFileAsBuffer } = require('./tools/file-handler');
 const BankingManager  = require('./agents/banking-manager');
 const InvoiceAgent    = require('./agents/invoice-agent');
@@ -190,6 +190,16 @@ async function saveConfirmedOperation(draft, clientId, chatId) {
     }
 
     await conn.commit();
+
+    // Registrar comisión del comisionista (falla silenciosamente)
+    registrarComisionista({
+      pool,
+      clientId,
+      operationId,
+      tipoOperacion: draft.tipo_operacion,
+      montoBruto:    draft.monto_bruto,
+    }).catch(err => console.error('[saveConfirmedOperation] registrarComisionista:', err.message));
+
     return { operationId, saldo_antes, saldo_despues };
   } catch (err) {
     await conn.rollback();
@@ -726,7 +736,7 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
 
         if (detected?.tipo === 'factura' && detected.monto_total > 0) {
           const tipoOp     = detected.tipo_operacion ?? 'IAS';
-          const commission = await getCommission(tipoOp, pool);
+          const commission = await getCommission(tipoOp, pool, client.id);
           const pct        = commission?.pct ?? 0.055;
           const mb         = detected.monto_total;
           const mn         = Math.round(mb * (1 - pct) * 100) / 100;
@@ -786,10 +796,6 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
     if (session.estado === 'esperando_datos_bancarios') {
       // Fresh read para no usar session.operation_draft_json cacheado al inicio del handler
       const [_bRows] = await pool.query('SELECT operation_draft_json FROM fin_sessions WHERE id=?', [session.id]);
-      console.error('[DEBUG-bank] session.id=%s tipo=%s bruto=%s',
-        session.id,
-        (typeof _bRows[0]?.operation_draft_json === 'object' ? _bRows[0].operation_draft_json : parseDraft(_bRows[0]?.operation_draft_json))?.tipo_operacion,
-        (typeof _bRows[0]?.operation_draft_json === 'object' ? _bRows[0].operation_draft_json : parseDraft(_bRows[0]?.operation_draft_json))?.monto_bruto);
       const draft    = parseDraft(_bRows[0]?.operation_draft_json ?? session.operation_draft_json);
       const esImagen = fileInfo.mimeType?.startsWith('image/');
       const esXlsx   = fileInfo.mimeType?.includes('spreadsheet') ||
@@ -1236,7 +1242,12 @@ async function procesarOperacion(ctx, input, client, session) {
 
   // Si falta monto → preguntar
   if (!parsed.monto) {
-    const commission = await getCommission(parsed.tipo, pool);
+    const commission = await getCommission(parsed.tipo, pool, client.id);
+    if (!commission) {
+      await ctx.reply(`❌ El tipo de operación <b>${parsed.tipo}</b> no está disponible para tu cuenta.`, { parse_mode: 'HTML' });
+      await updateSession(session.id, 'idle', null);
+      return;
+    }
     await ctx.reply(responseGen.formatAskMonto(parsed.tipo, commission.pct), { parse_mode: 'HTML' });
     const baseDraft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     await updateSession(session.id, 'esperando_monto', { ...baseDraft, tipo_operacion: parsed.tipo, clientId: client.id });
@@ -1244,9 +1255,10 @@ async function procesarOperacion(ctx, input, client, session) {
   }
 
   // 2. Calcular
-  const commission = await getCommission(parsed.tipo, pool);
+  const commission = await getCommission(parsed.tipo, pool, client.id);
   if (!commission) {
-    await ctx.reply(`Tipo de operación "${parsed.tipo}" no encontrado.`);
+    await ctx.reply(`❌ El tipo de operación <b>${parsed.tipo}</b> no está disponible para tu cuenta.`, { parse_mode: 'HTML' });
+    await updateSession(session.id, 'idle', null);
     return;
   }
 
@@ -1361,8 +1373,6 @@ async function procesarOperacion(ctx, input, client, session) {
         { parse_mode: 'HTML' }
       );
       const savedDraft = { ...draft, saldo_actual: saldo, saldo_nuevo };
-      console.error('[DEBUG-step7] session.id=%s tipo=%s bruto=%s draft_keys=%s',
-        session.id, savedDraft.tipo_operacion, savedDraft.monto_bruto, Object.keys(savedDraft).join(','));
       await updateSession(session.id, 'esperando_datos_bancarios', savedDraft);
     }
     return;
