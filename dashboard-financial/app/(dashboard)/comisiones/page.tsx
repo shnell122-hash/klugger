@@ -4,10 +4,13 @@ import ComisionesClient from './ComisionesClient';
 export const dynamic = 'force-dynamic';
 
 export default async function ComisionesPage() {
-  const [todas, comisionistas] = await Promise.all([
-    api.getComisiones(),
-    api.getComisionistas(),
-  ]);
+  let todas: import('@/lib/api').Comision[] = [], comisionistas: import('@/lib/api').Comisionista[] = [];
+  try {
+    [todas, comisionistas] = await Promise.all([
+      api.getComisiones(),
+      api.getComisionistas(),
+    ]);
+  } catch {}
 
   return (
     <main className="p-6 max-w-[1600px] mx-auto space-y-6">

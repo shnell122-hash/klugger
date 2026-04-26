@@ -4,7 +4,8 @@ import EmpresasClient from './EmpresasClient';
 export const dynamic = 'force-dynamic';
 
 export default async function EmpresasPage() {
-  const empresas = await api.getEmpresas();
+  let empresas: import('@/lib/api').Empresa[] = [];
+  try { empresas = await api.getEmpresas(); } catch {}
 
   return (
     <main className="p-6 max-w-[1600px] mx-auto space-y-6">
