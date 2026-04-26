@@ -827,12 +827,25 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
           draft.comision_pct = 0;
         }
 
-        await updateSession(session.id, 'esperando_datos_bancarios', draft);
-
         const totalLine = tabla_total > 0
           ? `\n💰 <b>Total detectado: $${tabla_total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</b>` +
             (draft.monto_neto_original ? ` de $${draft.monto_neto_original.toLocaleString('es-MX', { minimumFractionDigits: 2 })} operación total` : '')
           : '';
+
+        // Si falta tipo/monto, pedir la operación de inmediato (evita el guard al confirmar)
+        if (!draft.tipo_operacion || !draft.monto_bruto) {
+          await updateSession(session.id, 'esperando_tipo', draft);
+          const ejemplo = tabla_total > 0 ? fmt(tabla_total) : '9836';
+          await ctx.reply(
+            `📊 Encontré <b>${cuentas.length}</b> cuenta(s):\n\n${BankingManager.formatearCuentas(cuentas)}${aviso}${totalLine}\n\n` +
+            `✅ Cuentas listas. ¿Qué operación es?\n` +
+            `Escribe tipo y monto. Ejemplo: <code>IAS ${ejemplo}</code>`,
+            { parse_mode: 'HTML' }
+          );
+          return;
+        }
+
+        await updateSession(session.id, 'esperando_datos_bancarios', draft);
 
         const kb = new InlineKeyboard()
           .text('✅ Sí, continuar', 'confirmar_cuentas')

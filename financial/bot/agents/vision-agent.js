@@ -84,7 +84,7 @@ class VisionAgent {
 
     const msg = await this.client.messages.create({
       model:      VISION_MODEL,
-      max_tokens: 1024,
+      max_tokens: 2048,
       messages: [{
         role: 'user',
         content: [
