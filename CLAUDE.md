@@ -62,8 +62,9 @@ pm2 restart relay-master
 # Aplicar cambios en ecosystem.config.js
 pm2 reload /var/www/html/vilarkptl.com/ai-monitor/deploy/ecosystem.config.js
 
-# Correr migración SQL
-sudo mysql ai_monitoring < /var/www/html/vilarkptl.com/ai-monitor/backend/db/migrate-v6.sql
+# Correr migración SQL (leer contraseña del .env — usar siempre esta forma)
+DB_PASS=$(grep -oP 'DB_PASS=\K.*' /var/www/html/vilarkptl.com/ai-monitor/backend/.env)
+mysql -u root -p"$DB_PASS" ai_monitoring < /var/www/html/vilarkptl.com/ai-monitor/backend/db/migrate-v6.sql
 
 # Ver status
 pm2 status
@@ -191,3 +192,8 @@ Visibles en dashboard → tab **Alertas**.
 4. **Nunca commitear**: `node_modules/`, `.env`, `nohup.out`, `FETCH_HEAD`
 5. **Siempre terminar con bloque outbox estructurado**
 6. **Coordinator**: si solo escribe inbox.md, completar en <60s
+7. **Migraciones SQL con contraseña del .env**: nunca usar `mysql -u root -p` interactivo; leer siempre la contraseña con:
+   ```bash
+   DB_PASS=$(grep -oP 'DB_PASS=\K.*' /ruta/al/.env)
+   mysql -u root -p"$DB_PASS" nombre_db < migrate.sql
+   ```
