@@ -149,8 +149,9 @@ async function updateSession(sessionId, estado, draftJson = null) {
  * Guarda una operación confirmada en la base de datos.
  * Envuelve todo en una transacción.
  */
-async function saveConfirmedOperation(draft, clientId, chatId) {
+async function saveConfirmedOperation(draft, clientId, chatId, _attempt = 0) {
   const conn = await pool.getConnection();
+  let operationId, saldo_antes, saldo_despues;
   try {
     await conn.beginTransaction();
 
@@ -171,13 +172,13 @@ async function saveConfirmedOperation(draft, clientId, chatId) {
         draft.direccion_entrega ?? null, subtablaJson, draft.tiene_factura ? 1 : 0, chatId,
       ]
     );
-    const operationId = result.insertId;
+    operationId = result.insertId;
 
     // Aplicar al saldo
-    const { saldo_antes, saldo_despues } = await balanceManager.aplicarOperacion(
+    ({ saldo_antes, saldo_despues } = await balanceManager.aplicarOperacion(
       { operationId, clientId, monto_neto: draft.monto_neto, monto_bruto: draft.monto_bruto, es_entrada: draft.es_entrada },
       conn
-    );
+    ));
 
     // Marcar confirmada
     await conn.query(
@@ -185,29 +186,36 @@ async function saveConfirmedOperation(draft, clientId, chatId) {
       [operationId]
     );
 
-    // Guardar cuentas bancarias si las hay
-    if (draft.cuentas_bancarias?.length) {
-      await bankingManager.guardarCuentas(clientId, operationId, draft.cuentas_bancarias);
-    }
-
     await conn.commit();
-
-    // Registrar comisión del comisionista (falla silenciosamente)
-    registrarComisionista({
-      pool,
-      clientId,
-      operationId,
-      tipoOperacion: draft.tipo_operacion,
-      montoBruto:    draft.monto_bruto,
-    }).catch(err => console.error('[saveConfirmedOperation] registrarComisionista:', err.message));
-
-    return { operationId, saldo_antes, saldo_despues };
   } catch (err) {
     await conn.rollback();
+    // Reintentar hasta 3 veces en lock wait timeout
+    if ((err.code === 'ER_LOCK_WAIT_TIMEOUT' || err.errno === 1205) && _attempt < 3) {
+      conn.release();
+      const delay = (2 ** _attempt) * 500;
+      await new Promise(r => setTimeout(r, delay));
+      return saveConfirmedOperation(draft, clientId, chatId, _attempt + 1);
+    }
     throw err;
   } finally {
     conn.release();
   }
+
+  // Fuera de la transacción: cuentas bancarias y comisión (no críticas para atomicidad)
+  if (draft.cuentas_bancarias?.length) {
+    bankingManager.guardarCuentas(clientId, operationId, draft.cuentas_bancarias)
+      .catch(err => console.error('[saveConfirmedOperation] guardarCuentas:', err.message));
+  }
+
+  registrarComisionista({
+    pool,
+    clientId,
+    operationId,
+    tipoOperacion: draft.tipo_operacion,
+    montoBruto:    draft.monto_bruto,
+  }).catch(err => console.error('[saveConfirmedOperation] registrarComisionista:', err.message));
+
+  return { operationId, saldo_antes, saldo_despues };
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
