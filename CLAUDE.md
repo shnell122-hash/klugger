@@ -184,6 +184,34 @@ Visibles en dashboard → tab **Alertas**.
 
 ---
 
+## Financial System — Rutas y procesos PM2
+
+| Directorio (repo) | Ruta en servidor | Proceso PM2 | Puerto |
+|-------------------|-----------------|-------------|--------|
+| `financial/bot/` | `/var/www/html/vilarkptl.com/ai-monitor/financial/bot/` | `financial-bot` | — |
+| `dashboard-financial/` | `/var/www/html/vilarkptl.com/ai-monitor/dashboard-financial/` | `financial-dashboard` | 3020 |
+
+### Comandos de deploy por subsistema
+
+```bash
+# ── Raíz común ────────────────────────────────────────────────────────────────
+cd /var/www/html/vilarkptl.com/ai-monitor
+git fetch origin claude/financial-multiagent-system-YwtYQ
+git reset --hard origin/claude/financial-multiagent-system-YwtYQ
+
+# ── Solo financial-bot (cambios en financial/bot/**) ─────────────────────────
+pm2 restart financial-bot
+
+# ── Solo dashboard-financial (cambios en dashboard-financial/**) ─────────────
+cd dashboard-financial && npm run build && pm2 restart financial-dashboard
+
+# ── Ambos subsistemas ─────────────────────────────────────────────────────────
+pm2 restart financial-bot
+cd dashboard-financial && npm run build && pm2 restart financial-dashboard
+```
+
+---
+
 ## Reglas para agentes en este repo
 
 1. **Máximo 3 objetivos por sesión**
@@ -197,3 +225,4 @@ Visibles en dashboard → tab **Alertas**.
    DB_PASS=$(grep -oP 'DB_PASS=\K.*' /ruta/al/.env)
    mysql -u root -p"$DB_PASS" nombre_db < migrate.sql
    ```
+8. **Deploy al terminar cada commit**: incluir bloque `DEPLOY` con los comandos exactos según los archivos modificados (ver sección *Financial System — Rutas y procesos PM2*). Copiar y pegar sin editar.
