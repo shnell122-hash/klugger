@@ -245,5 +245,137 @@ module.exports = function financialRoutes(pool, io, express) {
     }
   });
 
+  // ── Comisionistas ─────────────────────────────────────────────────────────
+
+  router.get('/comisionistas', async (req, res) => {
+    try { res.json({ ok: true, data: await q.getComisionistas(pool) }); }
+    catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+  });
+
+  router.post('/comisionistas', async (req, res) => {
+    try {
+      const { nombre } = req.body;
+      if (!nombre) return res.status(400).json({ ok: false, error: 'nombre requerido' });
+      const id = await q.createComisionista(pool, req.body);
+      res.json({ ok: true, data: { id } });
+    } catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+  });
+
+  router.patch('/comisionistas/:id', async (req, res) => {
+    try {
+      await q.updateComisionista(pool, req.params.id, req.body);
+      res.json({ ok: true });
+    } catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+  });
+
+  router.get('/comisionistas/:id/rates', async (req, res) => {
+    try { res.json({ ok: true, data: await q.getComisionistaRates(pool, req.params.id) }); }
+    catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+  });
+
+  router.put('/comisionistas/:id/rates', async (req, res) => {
+    try {
+      const { rates } = req.body;
+      if (!Array.isArray(rates)) return res.status(400).json({ ok: false, error: 'rates[] requerido' });
+      await q.upsertComisionistaRates(pool, req.params.id, rates);
+      res.json({ ok: true });
+    } catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+  });
+
+  router.delete('/comisionistas/:id/rates/:tipo', async (req, res) => {
+    try {
+      await q.deleteComisionistaRate(pool, req.params.id, req.params.tipo);
+      res.json({ ok: true });
+    } catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+  });
+
+  // ── Empresas ──────────────────────────────────────────────────────────────
+
+  router.get('/empresas', async (req, res) => {
+    try { res.json({ ok: true, data: await q.getEmpresas(pool) }); }
+    catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+  });
+
+  router.post('/empresas', async (req, res) => {
+    try {
+      const { nombre } = req.body;
+      if (!nombre) return res.status(400).json({ ok: false, error: 'nombre requerido' });
+      const id = await q.createEmpresa(pool, req.body);
+      res.json({ ok: true, data: { id } });
+    } catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+  });
+
+  router.patch('/empresas/:id', async (req, res) => {
+    try {
+      await q.updateEmpresa(pool, req.params.id, req.body);
+      res.json({ ok: true });
+    } catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+  });
+
+  router.get('/empresas/:id/cuentas', async (req, res) => {
+    try { res.json({ ok: true, data: await q.getEmpresaCuentas(pool, req.params.id) }); }
+    catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+  });
+
+  router.post('/empresas/:id/cuentas', async (req, res) => {
+    try {
+      const { banco, titular } = req.body;
+      if (!banco || !titular) return res.status(400).json({ ok: false, error: 'banco y titular requeridos' });
+      const id = await q.createEmpresaCuenta(pool, req.params.id, req.body);
+      res.json({ ok: true, data: { id } });
+    } catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+  });
+
+  router.patch('/empresa-cuentas/:id', async (req, res) => {
+    try {
+      await q.updateEmpresaCuenta(pool, req.params.id, req.body);
+      res.json({ ok: true });
+    } catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+  });
+
+  // ── Comisiones ────────────────────────────────────────────────────────────
+
+  router.get('/comisiones', async (req, res) => {
+    try {
+      const pagado = req.query.pagado !== undefined ? req.query.pagado === '1' : undefined;
+      const data = await q.getComisiones(pool, {
+        pagado,
+        comisionistaId: req.query.comisionista_id ? parseInt(req.query.comisionista_id) : undefined,
+        clientId:       req.query.client_id       ? parseInt(req.query.client_id)       : undefined,
+        limit:          parseInt(req.query.limit  ?? 200),
+        offset:         parseInt(req.query.offset ?? 0),
+      });
+      res.json({ ok: true, data });
+    } catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+  });
+
+  router.post('/comisiones/:id/pagar', async (req, res) => {
+    try {
+      await q.marcarComisionPagada(pool, req.params.id);
+      res.json({ ok: true });
+    } catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+  });
+
+  // ── Modelos por cliente ───────────────────────────────────────────────────
+
+  router.get('/clients/:id/models', async (req, res) => {
+    try { res.json({ ok: true, data: await q.getClientModelsFull(pool, req.params.id) }); }
+    catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+  });
+
+  router.put('/clients/:id/models/:tipo', async (req, res) => {
+    try {
+      await q.upsertClientModel(pool, req.params.id, req.params.tipo, req.body);
+      res.json({ ok: true });
+    } catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+  });
+
+  router.patch('/clients/:id/comisionista', async (req, res) => {
+    try {
+      await q.assignComisionistaToClient(pool, req.params.id, req.body.comisionista_id ?? null);
+      res.json({ ok: true });
+    } catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+  });
+
   return router;
 };

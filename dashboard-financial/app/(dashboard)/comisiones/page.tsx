@@ -1,0 +1,21 @@
+import { api } from '@/lib/api';
+import ComisionesClient from './ComisionesClient';
+
+export const dynamic = 'force-dynamic';
+
+export default async function ComisionesPage() {
+  const [todas, comisionistas] = await Promise.all([
+    api.getComisiones(),
+    api.getComisionistas(),
+  ]);
+
+  return (
+    <main className="p-6 max-w-[1600px] mx-auto space-y-6">
+      <div>
+        <h1 className="text-xl font-bold text-white">Comisiones</h1>
+        <p className="text-sm text-gray-500">Seguimiento de comisiones por comisionista — pagadas y pendientes</p>
+      </div>
+      <ComisionesClient initialData={todas} comisionistas={comisionistas} />
+    </main>
+  );
+}

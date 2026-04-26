@@ -158,6 +158,94 @@ export type BankingAccount = {
   created_at: string;
 };
 
+export type Comisionista = {
+  id: number;
+  nombre: string;
+  telegram_user_id: string | null;
+  email: string | null;
+  notas: string | null;
+  is_active: boolean;
+  total_rates: number;
+  created_at: string;
+};
+
+export type ComisionistaRate = {
+  id: number;
+  comisionista_id: number;
+  tipo_operacion: string;
+  pct: number;
+};
+
+export type Empresa = {
+  id: number;
+  nombre: string;
+  rfc: string | null;
+  origen: 'nuestra' | 'cliente';
+  representante_nombre: string | null;
+  notas: string | null;
+  is_active: boolean;
+  total_cuentas: number;
+  created_at: string;
+};
+
+export type EmpresaCuenta = {
+  id: number;
+  empresa_id: number;
+  banco: string;
+  titular: string;
+  clabe: string | null;
+  num_cuenta: string | null;
+  num_tarjeta: string | null;
+  moneda: string;
+  alias: string | null;
+  is_active: boolean;
+};
+
+export type Comision = {
+  id: number;
+  comisionista_id: number;
+  comisionista_nombre: string;
+  client_id: number;
+  client_nombre: string;
+  operation_id: number;
+  tipo_operacion: string;
+  monto_base: number;
+  pct: number;
+  monto_comision: number;
+  pagado: boolean;
+  fecha_pago: string | null;
+  notas: string | null;
+  created_at: string;
+};
+
+export type ClientModel = {
+  id: number;
+  client_id: number;
+  tipo_operacion: string;
+  comision_pct: number;
+  es_credito: boolean;
+  is_active: boolean;
+  notas: string | null;
+};
+
+async function del<T>(path: string): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, { method: 'DELETE' });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error ?? 'API error');
+  return json.data as T;
+}
+
+async function put<T>(path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error ?? 'API error');
+  return json.data as T;
+}
+
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`, { cache: 'no-store' });
   const json = await res.json();
@@ -206,6 +294,34 @@ export const api = {
                                             post<{saldo_antes:number,saldo_despues:number}>(`/clients/${id}/confirmar-pago`, body),
   getChats:               (limit = 200)  => get<Chat[]>(`/chats?limit=${limit}`),
   getChatMessages:        (chatId: string, limit = 50) => get<ChatMessage[]>(`/chats/${chatId}/messages?limit=${limit}`),
+
+  // Comisionistas
+  getComisionistas:       ()             => get<Comisionista[]>('/comisionistas'),
+  createComisionista:     (body: Partial<Comisionista>) => post<{id:number}>('/comisionistas', body),
+  updateComisionista:     (id: number, body: Partial<Comisionista>) => patch(`/comisionistas/${id}`, body),
+  getComisionistaRates:   (id: number)   => get<ComisionistaRate[]>(`/comisionistas/${id}/rates`),
+  upsertComisionistaRates:(id: number, rates: {tipo_operacion:string; pct:number}[]) =>
+                                           put(`/comisionistas/${id}/rates`, { rates }),
+  deleteComisionistaRate: (id: number, tipo: string) => del(`/comisionistas/${id}/rates/${tipo}`),
+
+  // Empresas
+  getEmpresas:            ()             => get<Empresa[]>('/empresas'),
+  createEmpresa:          (body: Partial<Empresa>) => post<{id:number}>('/empresas', body),
+  updateEmpresa:          (id: number, body: Partial<Empresa>) => patch(`/empresas/${id}`, body),
+  getEmpresaCuentas:      (id: number)   => get<EmpresaCuenta[]>(`/empresas/${id}/cuentas`),
+  createEmpresaCuenta:    (id: number, body: Partial<EmpresaCuenta>) => post<{id:number}>(`/empresas/${id}/cuentas`, body),
+  updateEmpresaCuenta:    (id: number, body: Partial<EmpresaCuenta>) => patch(`/empresa-cuentas/${id}`, body),
+
+  // Comisiones
+  getComisiones:          (params = '')  => get<Comision[]>(`/comisiones${params ? `?${params}` : ''}`),
+  pagarComision:          (id: number)   => post(`/comisiones/${id}/pagar`),
+
+  // Modelos por cliente
+  getClientModels:        (id: number)   => get<ClientModel[]>(`/clients/${id}/models`),
+  upsertClientModel:      (clientId: number, tipo: string, body: Partial<ClientModel>) =>
+                                           put(`/clients/${clientId}/models/${tipo}`, body),
+  assignComisionista:     (clientId: number, comisionistaId: number | null) =>
+                                           patch(`/clients/${clientId}/comisionista`, { comisionista_id: comisionistaId }),
 };
 
 export function fmt(n: number | null | undefined, decimals = 2): string {

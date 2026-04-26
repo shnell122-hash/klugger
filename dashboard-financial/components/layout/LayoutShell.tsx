@@ -5,14 +5,17 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 
 const navItems = [
-  { href: '/',           label: 'Inicio',      icon: '🏠' },
-  { href: '/operations', label: 'Operaciones', icon: '💸' },
-  { href: '/analytics',  label: 'Analytics',   icon: '📈' },
-  { href: '/clients',    label: 'Clientes',    icon: '👥' },
-  { href: '/banking',    label: 'Cuentas',     icon: '💳' },
-  { href: '/pagos',      label: 'Pagos',       icon: '🧾' },
-  { href: '/chats',      label: 'Chats',       icon: '💬' },
-  { href: '/admin',      label: 'Admin',       icon: '⚙️' },
+  { href: '/',               label: 'Inicio',        icon: '🏠' },
+  { href: '/operations',     label: 'Operaciones',   icon: '💸' },
+  { href: '/analytics',      label: 'Analytics',     icon: '📈' },
+  { href: '/clients',        label: 'Clientes',      icon: '👥' },
+  { href: '/banking',        label: 'Cuentas',       icon: '💳' },
+  { href: '/pagos',          label: 'Pagos',         icon: '🧾' },
+  { href: '/chats',          label: 'Chats',         icon: '💬' },
+  { href: '/comisionistas',  label: 'Comisionistas', icon: '🤝' },
+  { href: '/empresas',       label: 'Empresas',      icon: '🏢' },
+  { href: '/comisiones',     label: 'Comisiones',    icon: '💰' },
+  { href: '/admin',          label: 'Admin',         icon: '⚙️' },
 ];
 
 export default function LayoutShell({ children }: { children: React.ReactNode }) {

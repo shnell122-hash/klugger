@@ -249,6 +249,169 @@ async function confirmarPagoAdmin(pool, clientId, { monto, tipo_operacion, notas
   });
 }
 
+// ── Comisionistas ─────────────────────────────────────────────────────────────
+
+async function getComisionistas(pool) {
+  const [rows] = await pool.query(`
+    SELECT c.*, COUNT(r.id) AS total_rates
+    FROM fin_comisionistas c
+    LEFT JOIN fin_comisionista_rates r ON r.comisionista_id = c.id
+    GROUP BY c.id ORDER BY c.nombre`);
+  return rows;
+}
+
+async function createComisionista(pool, { nombre, telegram_user_id, email, notas }) {
+  const [res] = await pool.query(
+    `INSERT INTO fin_comisionistas (nombre, telegram_user_id, email, notas) VALUES (?,?,?,?)`,
+    [nombre, telegram_user_id ?? null, email ?? null, notas ?? null]
+  );
+  return res.insertId;
+}
+
+async function updateComisionista(pool, id, fields) {
+  const map = { nombre: 'nombre', telegram_user_id: 'telegram_user_id', email: 'email', notas: 'notas', is_active: 'is_active' };
+  const sets = []; const params = [];
+  for (const [k, col] of Object.entries(map)) {
+    if (fields[k] !== undefined) { sets.push(`${col}=?`); params.push(k === 'is_active' ? (fields[k] ? 1 : 0) : fields[k]); }
+  }
+  if (!sets.length) return;
+  params.push(id);
+  await pool.query(`UPDATE fin_comisionistas SET ${sets.join(',')},updated_at=NOW(3) WHERE id=?`, params);
+}
+
+async function getComisionistaRates(pool, comisionistaId) {
+  const [rows] = await pool.query(
+    `SELECT * FROM fin_comisionista_rates WHERE comisionista_id=? ORDER BY tipo_operacion`,
+    [comisionistaId]
+  );
+  return rows;
+}
+
+async function upsertComisionistaRates(pool, comisionistaId, rates) {
+  for (const r of rates) {
+    await pool.query(
+      `INSERT INTO fin_comisionista_rates (comisionista_id, tipo_operacion, pct)
+       VALUES (?,?,?) ON DUPLICATE KEY UPDATE pct=VALUES(pct), updated_at=NOW(3)`,
+      [comisionistaId, r.tipo_operacion.toUpperCase(), r.pct]
+    );
+  }
+}
+
+async function deleteComisionistaRate(pool, comisionistaId, tipoOperacion) {
+  await pool.query(
+    `DELETE FROM fin_comisionista_rates WHERE comisionista_id=? AND tipo_operacion=?`,
+    [comisionistaId, tipoOperacion.toUpperCase()]
+  );
+}
+
+// ── Empresas ──────────────────────────────────────────────────────────────────
+
+async function getEmpresas(pool) {
+  const [rows] = await pool.query(`
+    SELECT e.*, COUNT(c.id) AS total_cuentas
+    FROM fin_empresas e
+    LEFT JOIN fin_empresa_cuentas c ON c.empresa_id = e.id AND c.is_active = 1
+    GROUP BY e.id ORDER BY e.origen, e.nombre`);
+  return rows;
+}
+
+async function createEmpresa(pool, { nombre, rfc, origen, representante_nombre, notas }) {
+  const [res] = await pool.query(
+    `INSERT INTO fin_empresas (nombre, rfc, origen, representante_nombre, notas) VALUES (?,?,?,?,?)`,
+    [nombre, rfc ?? null, origen ?? 'nuestra', representante_nombre ?? null, notas ?? null]
+  );
+  return res.insertId;
+}
+
+async function updateEmpresa(pool, id, fields) {
+  const map = { nombre: 'nombre', rfc: 'rfc', origen: 'origen', representante_nombre: 'representante_nombre', notas: 'notas', is_active: 'is_active' };
+  const sets = []; const params = [];
+  for (const [k, col] of Object.entries(map)) {
+    if (fields[k] !== undefined) { sets.push(`${col}=?`); params.push(k === 'is_active' ? (fields[k] ? 1 : 0) : fields[k]); }
+  }
+  if (!sets.length) return;
+  params.push(id);
+  await pool.query(`UPDATE fin_empresas SET ${sets.join(',')},updated_at=NOW(3) WHERE id=?`, params);
+}
+
+async function getEmpresaCuentas(pool, empresaId) {
+  const [rows] = await pool.query(
+    `SELECT * FROM fin_empresa_cuentas WHERE empresa_id=? AND is_active=1 ORDER BY created_at DESC`,
+    [empresaId]
+  );
+  return rows;
+}
+
+async function createEmpresaCuenta(pool, empresaId, { banco, titular, clabe, num_cuenta, num_tarjeta, moneda, alias }) {
+  const [res] = await pool.query(
+    `INSERT INTO fin_empresa_cuentas (empresa_id, banco, titular, clabe, num_cuenta, num_tarjeta, moneda, alias)
+     VALUES (?,?,?,?,?,?,?,?)`,
+    [empresaId, banco, titular, clabe ?? null, num_cuenta ?? null, num_tarjeta ?? null, moneda ?? 'MXN', alias ?? null]
+  );
+  return res.insertId;
+}
+
+async function updateEmpresaCuenta(pool, id, fields) {
+  const map = { banco:'banco', titular:'titular', clabe:'clabe', num_cuenta:'num_cuenta', num_tarjeta:'num_tarjeta', moneda:'moneda', alias:'alias', is_active:'is_active' };
+  const sets = []; const params = [];
+  for (const [k, col] of Object.entries(map)) {
+    if (fields[k] !== undefined) { sets.push(`${col}=?`); params.push(k === 'is_active' ? (fields[k] ? 1 : 0) : fields[k]); }
+  }
+  if (!sets.length) return;
+  params.push(id);
+  await pool.query(`UPDATE fin_empresa_cuentas SET ${sets.join(',')},updated_at=NOW(3) WHERE id=?`, params);
+}
+
+// ── Comisiones ────────────────────────────────────────────────────────────────
+
+async function getComisiones(pool, { pagado, comisionistaId, clientId, limit = 100, offset = 0 } = {}) {
+  const where = ['1=1']; const params = [];
+  if (pagado !== undefined) { where.push('fc.pagado=?'); params.push(pagado ? 1 : 0); }
+  if (comisionistaId)       { where.push('fc.comisionista_id=?'); params.push(comisionistaId); }
+  if (clientId)             { where.push('fc.client_id=?'); params.push(clientId); }
+  const [rows] = await pool.query(`
+    SELECT fc.*, cs.nombre AS comisionista_nombre, cl.nombre AS client_nombre
+    FROM fin_comisiones fc
+    JOIN fin_comisionistas cs ON cs.id = fc.comisionista_id
+    JOIN fin_clients cl ON cl.id = fc.client_id
+    WHERE ${where.join(' AND ')}
+    ORDER BY fc.created_at DESC LIMIT ? OFFSET ?`,
+    [...params, limit, offset]);
+  return rows;
+}
+
+async function marcarComisionPagada(pool, id) {
+  await pool.query(
+    `UPDATE fin_comisiones SET pagado=1, fecha_pago=NOW(3), updated_at=NOW(3) WHERE id=?`, [id]
+  );
+}
+
+// ── Modelos por cliente ───────────────────────────────────────────────────────
+
+async function getClientModelsFull(pool, clientId) {
+  const [rows] = await pool.query(
+    `SELECT * FROM fin_client_models WHERE client_id=? ORDER BY tipo_operacion`, [clientId]
+  );
+  return rows;
+}
+
+async function upsertClientModel(pool, clientId, tipoOperacion, { comision_pct, es_credito, is_active, notas }) {
+  await pool.query(
+    `INSERT INTO fin_client_models (client_id, tipo_operacion, comision_pct, es_credito, is_active, notas)
+     VALUES (?,?,?,?,?,?)
+     ON DUPLICATE KEY UPDATE comision_pct=VALUES(comision_pct), es_credito=VALUES(es_credito),
+       is_active=VALUES(is_active), notas=VALUES(notas), updated_at=NOW(3)`,
+    [clientId, tipoOperacion.toUpperCase(), comision_pct, es_credito ? 1 : 0, is_active !== false ? 1 : 0, notas ?? null]
+  );
+}
+
+async function assignComisionistaToClient(pool, clientId, comisionistaId) {
+  await pool.query(
+    `UPDATE fin_clients SET comisionista_id=?, updated_at=NOW(3) WHERE id=?`,
+    [comisionistaId ?? null, clientId]
+  );
+}
+
 module.exports = {
   getClientSummary,
   getOperations,
@@ -266,4 +429,10 @@ module.exports = {
   confirmarPagoAdmin,
   getChatList,
   getChatMessages,
+  getComisionistas, createComisionista, updateComisionista,
+  getComisionistaRates, upsertComisionistaRates, deleteComisionistaRate,
+  getEmpresas, createEmpresa, updateEmpresa,
+  getEmpresaCuentas, createEmpresaCuenta, updateEmpresaCuenta,
+  getComisiones, marcarComisionPagada,
+  getClientModelsFull, upsertClientModel, assignComisionistaToClient,
 };
