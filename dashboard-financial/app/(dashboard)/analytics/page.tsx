@@ -1,9 +1,7 @@
 import { api } from '@/lib/api';
-import dynamicImport from 'next/dynamic';
 import VolumeChart from '@/components/charts/VolumeChart';
 import OpsTypeChart from '@/components/charts/OpsTypeChart';
-
-const AgentFlowGraph = dynamicImport(() => import('@/components/graph/AgentFlowGraph'), { ssr: false });
+import AgentFlowGraphClient from '@/components/graph/AgentFlowGraphClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,7 +64,7 @@ export default async function AnalyticsPage() {
       {/* Agent flow */}
       <div className="glass rounded-xl p-5 border border-border">
         <h2 className="text-sm font-semibold text-gray-300 mb-4">Arquitectura del sistema</h2>
-        <AgentFlowGraph />
+        <AgentFlowGraphClient />
       </div>
     </main>
   );
