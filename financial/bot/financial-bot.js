@@ -783,7 +783,9 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
 
     // Si está esperando datos bancarios, intentar extraerlos del archivo o imagen
     if (session.estado === 'esperando_datos_bancarios') {
-      const draft    = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
+      // Fresh read para no usar session.operation_draft_json cacheado al inicio del handler
+      const [_bRows] = await pool.query('SELECT operation_draft_json FROM fin_sessions WHERE id=?', [session.id]);
+      const draft    = parseDraft(_bRows[0]?.operation_draft_json ?? session.operation_draft_json);
       const esImagen = fileInfo.mimeType?.startsWith('image/');
       const esXlsx   = fileInfo.mimeType?.includes('spreadsheet') ||
                        fileInfo.mimeType?.includes('excel')       ||
