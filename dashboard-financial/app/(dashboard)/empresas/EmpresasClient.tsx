@@ -9,18 +9,20 @@ const emptyEmpresa = { nombre: '', rfc: '', origen: 'nuestra' as OrigenType, rep
 const emptyCuenta  = { banco: '', titular: '', clabe: '', num_cuenta: '', num_tarjeta: '', moneda: 'MXN', alias: '' };
 
 export default function EmpresasClient({ initialData }: Props) {
-  const [lista, setLista]           = useState(initialData);
-  const [selected, setSelected]     = useState<Empresa | null>(null);
-  const [cuentas, setCuentas]       = useState<EmpresaCuenta[]>([]);
-  const [loadingC, setLoadingC]     = useState(false);
+  const [lista, setLista]             = useState(initialData);
+  const [selected, setSelected]       = useState<Empresa | null>(null);
+  const [cuentas, setCuentas]         = useState<EmpresaCuenta[]>([]);
+  const [loadingC, setLoadingC]       = useState(false);
   const [showEmpForm, setShowEmpForm] = useState(false);
   const [showCuForm, setShowCuForm]   = useState(false);
   const [editingEmp, setEditingEmp]   = useState<Empresa | null>(null);
   const [editingCu, setEditingCu]     = useState<EmpresaCuenta | null>(null);
-  const [empForm, setEmpForm]       = useState<typeof emptyEmpresa>(emptyEmpresa);
-  const [cuForm, setCuForm]         = useState(emptyCuenta);
-  const [saving, setSaving]         = useState(false);
-  const [error, setError]           = useState('');
+  const [empForm, setEmpForm]         = useState<typeof emptyEmpresa>(emptyEmpresa);
+  // Cuenta incrustada en el form de nueva empresa
+  const [cuInline, setCuInline]       = useState(emptyCuenta);
+  const [cuForm, setCuForm]           = useState(emptyCuenta);
+  const [saving, setSaving]           = useState(false);
+  const [error, setError]             = useState('');
 
   async function openEmpresa(e: Empresa) {
     setSelected(e); setLoadingC(true);
@@ -28,7 +30,10 @@ export default function EmpresasClient({ initialData }: Props) {
     finally { setLoadingC(false); }
   }
 
-  function openNewEmp() { setEditingEmp(null); setEmpForm(emptyEmpresa); setShowEmpForm(true); setError(''); }
+  function openNewEmp() {
+    setEditingEmp(null); setEmpForm(emptyEmpresa); setCuInline(emptyCuenta);
+    setShowEmpForm(true); setError('');
+  }
   function openEditEmp(e: Empresa) {
     setEditingEmp(e);
     setEmpForm({ nombre: e.nombre, rfc: e.rfc ?? '', origen: e.origen as OrigenType, representante_nombre: e.representante_nombre ?? '', notas: e.notas ?? '' });
@@ -43,6 +48,11 @@ export default function EmpresasClient({ initialData }: Props) {
 
   async function saveEmpresa() {
     if (!empForm.nombre.trim()) { setError('Nombre requerido'); return; }
+    // Si es nueva empresa, la cuenta es obligatoria
+    if (!editingEmp && (!cuInline.banco.trim() || !cuInline.titular.trim())) {
+      setError('Banco y titular de la cuenta son requeridos');
+      return;
+    }
     setSaving(true); setError('');
     try {
       const body = { nombre: empForm.nombre, rfc: empForm.rfc || null, origen: empForm.origen, representante_nombre: empForm.representante_nombre || null, notas: empForm.notas || null };
@@ -52,7 +62,11 @@ export default function EmpresasClient({ initialData }: Props) {
         if (selected?.id === editingEmp.id) setSelected(s => s ? { ...s, ...body } : s);
       } else {
         const res = await api.createEmpresa(body as Partial<Empresa>);
-        setLista(prev => [...prev, { id: res.id, ...body, is_active: true, total_cuentas: 0, created_at: new Date().toISOString() } as Empresa]);
+        // Guardar cuenta bancaria al crear la empresa
+        const cuBody = { banco: cuInline.banco, titular: cuInline.titular, clabe: cuInline.clabe || null, num_cuenta: cuInline.num_cuenta || null, num_tarjeta: cuInline.num_tarjeta || null, moneda: cuInline.moneda, alias: cuInline.alias || null };
+        await api.createEmpresaCuenta(res.id, cuBody as Partial<EmpresaCuenta>);
+        const newEmp = { id: res.id, ...body, is_active: true, total_cuentas: 1, created_at: new Date().toISOString() } as Empresa;
+        setLista(prev => [...prev, newEmp]);
       }
       setShowEmpForm(false);
     } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Error'); }
@@ -168,14 +182,16 @@ export default function EmpresasClient({ initialData }: Props) {
         )}
       </div>
 
-      {/* Modal empresa */}
+      {/* Modal empresa (nueva o editar) */}
       {showEmpForm && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="glass rounded-xl border border-border p-6 w-full max-w-md space-y-4">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="glass rounded-xl border border-border p-6 w-full max-w-md space-y-4 my-4">
             <h2 className="text-base font-semibold text-white">{editingEmp ? 'Editar empresa' : 'Nueva empresa'}</h2>
             {error && <p className="text-xs text-red-400 bg-red-500/10 rounded p-2">{error}</p>}
+
+            {/* Datos de la empresa */}
             <div className="space-y-3">
-              {([['nombre','Nombre *',true],['rfc','RFC',false],['representante_nombre','Representante legal',false],['notas','Notas',false]] as const).map(([key, label]) => (
+              {([['nombre','Nombre *'],['rfc','RFC'],['representante_nombre','Representante legal'],['notas','Notas']] as const).map(([key, label]) => (
                 <div key={key}>
                   <label className="block text-xs text-gray-400 mb-1">{label}</label>
                   <input type="text" value={empForm[key as keyof typeof empForm]}
@@ -185,13 +201,57 @@ export default function EmpresasClient({ initialData }: Props) {
               ))}
               <div>
                 <label className="block text-xs text-gray-400 mb-1">Origen</label>
-                <select value={empForm.origen} onChange={e => setEmpForm(p => ({ ...p, origen: e.target.value as 'nuestra' | 'cliente' }))}
+                <select value={empForm.origen} onChange={e => setEmpForm(p => ({ ...p, origen: e.target.value as OrigenType }))}
                   className="w-full px-3 py-2 rounded bg-white/5 border border-border text-sm text-white focus:outline-none focus:border-accent/50">
                   <option value="nuestra">Nuestra</option>
                   <option value="cliente">Del cliente</option>
                 </select>
               </div>
             </div>
+
+            {/* Cuenta bancaria (solo en creación) */}
+            {!editingEmp && (
+              <>
+                <div className="border-t border-border pt-4">
+                  <p className="text-xs font-semibold text-gray-300 mb-3">Cuenta bancaria principal</p>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Banco *</label>
+                      <input type="text" value={cuInline.banco} placeholder="Ej: BBVA, HSBC, Banamex"
+                        onChange={e => setCuInline(p => ({ ...p, banco: e.target.value }))}
+                        className="w-full px-3 py-2 rounded bg-white/5 border border-border text-sm text-white focus:outline-none focus:border-accent/50" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Titular *</label>
+                      <input type="text" value={cuInline.titular} placeholder="Nombre del titular"
+                        onChange={e => setCuInline(p => ({ ...p, titular: e.target.value }))}
+                        className="w-full px-3 py-2 rounded bg-white/5 border border-border text-sm text-white focus:outline-none focus:border-accent/50" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">CLABE (18 dígitos)</label>
+                      <input type="text" value={cuInline.clabe} maxLength={18} placeholder="000000000000000000"
+                        onChange={e => setCuInline(p => ({ ...p, clabe: e.target.value }))}
+                        className="w-full px-3 py-2 rounded bg-white/5 border border-border text-sm text-white font-mono focus:outline-none focus:border-accent/50" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Núm. cuenta</label>
+                        <input type="text" value={cuInline.num_cuenta}
+                          onChange={e => setCuInline(p => ({ ...p, num_cuenta: e.target.value }))}
+                          className="w-full px-3 py-2 rounded bg-white/5 border border-border text-sm text-white font-mono focus:outline-none focus:border-accent/50" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Alias</label>
+                        <input type="text" value={cuInline.alias} placeholder="Ej: Principal"
+                          onChange={e => setCuInline(p => ({ ...p, alias: e.target.value }))}
+                          className="w-full px-3 py-2 rounded bg-white/5 border border-border text-sm text-white focus:outline-none focus:border-accent/50" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
             <div className="flex gap-2 justify-end pt-2">
               <button onClick={() => setShowEmpForm(false)} className="px-4 py-2 text-sm text-gray-400 hover:text-white transition">Cancelar</button>
               <button onClick={saveEmpresa} disabled={saving}
@@ -203,7 +263,7 @@ export default function EmpresasClient({ initialData }: Props) {
         </div>
       )}
 
-      {/* Modal cuenta */}
+      {/* Modal cuenta adicional */}
       {showCuForm && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="glass rounded-xl border border-border p-6 w-full max-w-md space-y-4">
