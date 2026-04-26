@@ -587,7 +587,7 @@ bot.on('message:text', async (ctx) => {
       await updateSession(session.id, session.estado, draft);
       const esFactura = session.estado === 'confirmando_factura';
       const label = esFactura
-        ? `📋 Monto actualizado: $${fmt(num)}\nNeto: $${fmt(draft.monto_neto)} (comisión ${pctStr(draft.comision_pct ?? 0)})`
+        ? `📋 Monto actualizado: $${fmt(num)}\nNeto: $${fmt(draft.monto_neto)}`
         : `🧾 Monto actualizado: $${fmt(num)}`;
       const kb = new InlineKeyboard()
         .text('✅ Confirmar', esFactura ? 'confirmar_factura' : 'confirmar_comprobante')
@@ -759,7 +759,7 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
             .text('❌ Cancelar', 'cancelar_factura');
           await ctx.reply(
             `📋 <b>Factura detectada</b>${emisorLine}\n\n` +
-            `Tipo: <b>${tipoOp}</b> · Comisión ${pctStr(pct)}\n` +
+            `Tipo: <b>${tipoOp}</b>\n` +
             `Bruto: <b>$${fmt(mb)}</b>  →  Neto: <b>$${fmt(mn)}</b>\n` +
             `Saldo actual: $${fmt(saldoAntesFactura)}  →  Nuevo: <b>$${fmt(saldoAntesFactura + mn)}</b>\n\n` +
             `¿Confirmo y actualizo tu saldo?`,
@@ -1248,7 +1248,7 @@ async function procesarOperacion(ctx, input, client, session) {
       await updateSession(session.id, 'idle', null);
       return;
     }
-    await ctx.reply(responseGen.formatAskMonto(parsed.tipo, commission.pct), { parse_mode: 'HTML' });
+    await ctx.reply(responseGen.formatAskMonto(parsed.tipo), { parse_mode: 'HTML' });
     const baseDraft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     await updateSession(session.id, 'esperando_monto', { ...baseDraft, tipo_operacion: parsed.tipo, clientId: client.id });
     return;

@@ -5,7 +5,7 @@
  * El 80% de las respuestas son templates (costo cero).
  */
 
-const { fmt, pctStr } = require('./calculator');
+const { fmt } = require('./calculator');
 
 class ResponseGen {
   /**
@@ -69,15 +69,11 @@ class ResponseGen {
       // Modo operación normal
       if (tipo_monto === 'neto') {
         partes.push(
-          `Correcto, el monto bruto a operar es de ` +
-          `$${fmt(monto_solicitado)}/(1-${pctStr(comision_pct)})=` +
-          `<b>$${fmt(monto_bruto)}</b>.`
+          `Correcto, el monto bruto a operar es de <b>$${fmt(monto_bruto)}</b>.`
         );
       } else {
         partes.push(
-          `Correcto, el monto neto es de ` +
-          `$${fmt(monto_solicitado)}×(1-${pctStr(comision_pct)})=` +
-          `<b>$${fmt(monto_neto)}</b>.`
+          `Correcto, el monto neto es de <b>$${fmt(monto_neto)}</b>.`
         );
       }
 
@@ -132,7 +128,6 @@ class ResponseGen {
         `\n<b>━━━━ Resumen ━━━━</b>\n` +
         `Operación: <b>${tipo_operacion}</b>\n` +
         `Monto bruto: $${fmt(monto_bruto)}\n` +
-        `Comisión (${pctStr(comision_pct)}): -$${fmt(monto_bruto - monto_neto)}\n` +
         `<b>Monto neto: $${fmt(monto_neto)}</b>`
       );
     }
@@ -193,16 +188,16 @@ class ResponseGen {
    * Respuesta cuando el bot pide el tipo de operación.
    */
   formatAskTipo(tipos) {
-    const lista = tipos.map(t => `• ${t.codigo} — ${t.nombre} (${pctStr(t.pct)})`).join('\n');
+    const lista = tipos.map(t => `• ${t.codigo} — ${t.nombre}`).join('\n');
     return `¿Qué tipo de operación deseas realizar?\n\n${lista}\n\nResponde con el código o usa:\n/operacion [tipo] [neto|bruto] [monto]`;
   }
 
   /**
    * Respuesta cuando el bot pide el monto.
    */
-  formatAskMonto(tipo_operacion, comision_pct) {
+  formatAskMonto(tipo_operacion) {
     return (
-      `Operación <b>${tipo_operacion}</b> (comisión ${pctStr(comision_pct)}).\n` +
+      `Operación <b>${tipo_operacion}</b>.\n` +
       `¿Cuánto deseas operar? Indica si es neto o bruto.\n` +
       `Ej: <code>neto 100000</code> o <code>bruto 103092</code>`
     );
