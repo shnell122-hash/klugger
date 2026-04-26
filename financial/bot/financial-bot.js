@@ -1004,6 +1004,36 @@ bot.on('callback_query:data', async (ctx) => {
       notas:            'Comprobante confirmado por cliente',
     });
     await updateSession(session.id, 'completado', null);
+
+    // Si hay una distribución pendiente (entrega a terceros), procesarla ahora
+    if (draft.post_confirm_distribucion) {
+      const dist = { ...draft.post_confirm_distribucion, clientId: client.id };
+      try {
+        const { saldo_despues: saldoFinal } = await saveConfirmedOperation(dist, client.id, chatId);
+        const restante = dist.monto_neto_original && dist.monto_neto_original > dist.monto_neto + 0.01
+          ? Math.round((dist.monto_neto_original - dist.monto_neto) * 100) / 100
+          : null;
+        await ctx.reply(
+          `✅ <b>Pago recibido y entrega procesada</b>\n\n` +
+          `Comprobante: $${fmt(draft.monto_bruto)} → ${draft.tipo_operacion}\n` +
+          `Entrega: $${fmt(dist.tabla_total ?? dist.monto_neto)}` +
+          (dist.tabla_pagos?.length ? ` a ${dist.tabla_pagos.length} personas` : '') + `\n` +
+          (restante !== null ? `Restante de operación: <b>$${fmt(restante)}</b>\n` : '') +
+          `<b>Saldo actualizado: $${fmt(saldoFinal)}</b>`,
+          { parse_mode: 'HTML' }
+        );
+      } catch (e) {
+        console.error('[dist-post-confirm]', e.message);
+        await ctx.reply(
+          `✅ <b>Pago confirmado</b>\n` +
+          `Saldo: <b>$${fmt(saldo_despues)}</b>\n` +
+          `⚠️ La distribución requiere atención manual: ${e.message}`,
+          { parse_mode: 'HTML' }
+        );
+      }
+      return;
+    }
+
     await ctx.reply(
       `✅ <b>Pago confirmado</b>\n` +
       `Monto: $${fmt(draft.monto_bruto)}\n` +
@@ -1082,6 +1112,58 @@ bot.on('callback_query:data', async (ctx) => {
         { parse_mode: 'HTML' }
       );
       return;
+    }
+
+    // Si es salida, verificar saldo antes de mostrar el poll
+    if (!draft.es_entrada) {
+      const { saldo } = await balanceManager.getSaldo(client.id);
+      const montoNeto      = draft.monto_neto  ?? draft.monto_bruto ?? 0;
+      const montoOrigNeto  = draft.monto_neto_original  ?? montoNeto;
+      const montoOrigBruto = draft.monto_bruto_original ?? draft.monto_bruto ?? montoNeto;
+
+      if (saldo < montoNeto - 0.01) {
+        const saldoFinalEstimado = Math.round((saldo + montoOrigNeto - montoNeto) * 100) / 100;
+        const esParcialpago = montoOrigNeto !== montoNeto;
+
+        await ctx.reply(
+          `💳 <b>Se requiere pago previo</b>\n\n` +
+          `Saldo neto anterior: <b>$${fmt(saldo)}</b>\n` +
+          (esParcialpago
+            ? `Operación total: $${fmt(montoOrigBruto)} bruto → <b>$${fmt(montoOrigNeto)} neto</b>\n`
+            : '') +
+          `Esta entrega: <b>$${fmt(montoNeto)}</b>` +
+          (draft.tabla_pagos?.length ? ` a ${draft.tabla_pagos.length} personas` : '') + `\n` +
+          `Saldo neto tras el pago y la entrega: <b>$${fmt(saldoFinalEstimado)}</b>\n\n` +
+          `¿Ya realizaste el pago de <b>$${fmt(montoOrigBruto)}</b>?\n` +
+          `Comparte el comprobante para confirmar y procesar la entrega.`,
+          { parse_mode: 'HTML' }
+        );
+
+        await updateSession(session.id, 'confirmando_comprobante', {
+          tipo:           'comprobante',
+          monto_bruto:    montoOrigBruto,
+          monto_neto:     montoOrigNeto,
+          tipo_operacion: draft.tipo_operacion,
+          clientId:       client.id,
+          saldo_actual:   saldo,
+          post_confirm_distribucion: {
+            tipo_operacion: draft.tipo_operacion,
+            monto_neto:     montoNeto,
+            monto_bruto:    montoNeto,
+            comision_pct:   0,
+            es_entrada:     false,
+            solicita_neto:  false,
+            tipo_entrega:   draft.tipo_entrega ?? 'spei',
+            tabla_pagos:    draft.tabla_pagos   ?? null,
+            tabla_total:    draft.tabla_total   ?? null,
+            monto_neto_original:  montoOrigNeto,
+            monto_bruto_original: montoOrigBruto,
+            cuentas_bancarias: draft.cuentas_bancarias ?? [],
+            clientId: client.id,
+          },
+        });
+        return;
+      }
     }
 
     await mostrarResumenYPoll(ctx, draft, client, session);
