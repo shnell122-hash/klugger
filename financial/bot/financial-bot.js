@@ -108,6 +108,7 @@ function calcLLMCost(tokensIn, tokensOut) {
  */
 function parseDraft(json) {
   if (!json) return {};
+  if (typeof json === 'object') return json; // MySQL2 auto-parsea columnas JSON
   try { return JSON.parse(json); } catch { return {}; }
 }
 
@@ -785,8 +786,10 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
     if (session.estado === 'esperando_datos_bancarios') {
       // Fresh read para no usar session.operation_draft_json cacheado al inicio del handler
       const [_bRows] = await pool.query('SELECT operation_draft_json FROM fin_sessions WHERE id=?', [session.id]);
-      console.error('[DEBUG-bank] session.id=%s raw_json=%s',
-        session.id, (_bRows[0]?.operation_draft_json ?? 'NULL').substring(0, 120));
+      console.error('[DEBUG-bank] session.id=%s tipo=%s bruto=%s',
+        session.id,
+        (typeof _bRows[0]?.operation_draft_json === 'object' ? _bRows[0].operation_draft_json : parseDraft(_bRows[0]?.operation_draft_json))?.tipo_operacion,
+        (typeof _bRows[0]?.operation_draft_json === 'object' ? _bRows[0].operation_draft_json : parseDraft(_bRows[0]?.operation_draft_json))?.monto_bruto);
       const draft    = parseDraft(_bRows[0]?.operation_draft_json ?? session.operation_draft_json);
       const esImagen = fileInfo.mimeType?.startsWith('image/');
       const esXlsx   = fileInfo.mimeType?.includes('spreadsheet') ||
