@@ -1273,6 +1273,25 @@ async function procesarOperacion(ctx, input, client, session) {
     tiene_factura:     false,
   };
 
+  // 4.5 Recuperar tabla_pagos si el usuario envió la imagen antes de indicar tipo/monto
+  const prevDraft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
+  if (prevDraft.tabla_pagos?.length && !draft.cuentas_bancarias?.length) {
+    draft.tabla_pagos       = prevDraft.tabla_pagos;
+    draft.tabla_total       = prevDraft.tabla_total ?? null;
+    draft.cuentas_bancarias = prevDraft.cuentas_bancarias ?? prevDraft.tabla_pagos;
+    if (draft.tabla_total && draft.monto_neto > draft.tabla_total + 0.01) {
+      draft.monto_neto_original  = draft.monto_neto;
+      draft.monto_bruto_original = draft.monto_bruto;
+      draft.monto_neto           = draft.tabla_total;
+      draft.monto_bruto          = draft.tabla_total;
+      draft.comision_pct         = 0;
+      const { saldo_nuevo: sAdj } = proyectarSaldo({
+        saldo_actual: saldo, monto_neto: draft.monto_neto, monto_bruto: draft.monto_bruto, es_entrada,
+      });
+      saldo_nuevo = sAdj;
+    }
+  }
+
   // 5. Verificar consistencia
   const verification = verifier.verificarConsistencia(draft);
   if (!verification.ok) {
@@ -1319,6 +1338,51 @@ async function procesarOperacion(ctx, input, client, session) {
       );
       await updateSession(session.id, 'esperando_datos_bancarios', { ...draft, saldo_actual: saldo, saldo_nuevo });
     }
+    return;
+  }
+
+  // Saldo check para cuentas ya cargadas que no pasaron por confirmar_cuentas
+  if (!es_entrada && draft.cuentas_bancarias?.length && saldo < (draft.monto_neto ?? 0) - 0.01) {
+    const montoNeto      = draft.monto_neto ?? draft.monto_bruto ?? 0;
+    const montoOrigNeto  = draft.monto_neto_original  ?? montoNeto;
+    const montoOrigBruto = draft.monto_bruto_original ?? draft.monto_bruto ?? montoNeto;
+    const saldoFinal     = Math.round((saldo + montoOrigNeto - montoNeto) * 100) / 100;
+    const esParcialpago  = montoOrigNeto !== montoNeto;
+
+    await ctx.reply(
+      `💳 <b>Se requiere pago previo</b>\n\n` +
+      `Saldo neto anterior: <b>$${fmt(saldo)}</b>\n` +
+      (esParcialpago ? `Operación total: $${fmt(montoOrigBruto)} bruto → <b>$${fmt(montoOrigNeto)} neto</b>\n` : '') +
+      `Esta entrega: <b>$${fmt(montoNeto)}</b>` +
+      (draft.tabla_pagos?.length ? ` a ${draft.tabla_pagos.length} personas` : '') + `\n` +
+      `Saldo neto tras el pago y la entrega: <b>$${fmt(saldoFinal)}</b>\n\n` +
+      `¿Ya realizaste el pago de <b>$${fmt(montoOrigBruto)}</b>?\n` +
+      `Comparte el comprobante para confirmar y procesar la entrega.`,
+      { parse_mode: 'HTML' }
+    );
+    await updateSession(session.id, 'confirmando_comprobante', {
+      tipo:           'comprobante',
+      monto_bruto:    montoOrigBruto,
+      monto_neto:     montoOrigNeto,
+      tipo_operacion: draft.tipo_operacion,
+      clientId:       client.id,
+      saldo_actual:   saldo,
+      post_confirm_distribucion: {
+        tipo_operacion: draft.tipo_operacion,
+        monto_neto:     montoNeto,
+        monto_bruto:    montoNeto,
+        comision_pct:   0,
+        es_entrada:     false,
+        solicita_neto:  false,
+        tipo_entrega:   draft.tipo_entrega ?? 'spei',
+        tabla_pagos:    draft.tabla_pagos   ?? null,
+        tabla_total:    draft.tabla_total   ?? null,
+        monto_neto_original:  montoOrigNeto,
+        monto_bruto_original: montoOrigBruto,
+        cuentas_bancarias: draft.cuentas_bancarias ?? [],
+        clientId: client.id,
+      },
+    });
     return;
   }
 
