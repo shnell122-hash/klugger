@@ -785,6 +785,8 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
     if (session.estado === 'esperando_datos_bancarios') {
       // Fresh read para no usar session.operation_draft_json cacheado al inicio del handler
       const [_bRows] = await pool.query('SELECT operation_draft_json FROM fin_sessions WHERE id=?', [session.id]);
+      console.error('[DEBUG-bank] session.id=%s raw_json=%s',
+        session.id, (_bRows[0]?.operation_draft_json ?? 'NULL').substring(0, 120));
       const draft    = parseDraft(_bRows[0]?.operation_draft_json ?? session.operation_draft_json);
       const esImagen = fileInfo.mimeType?.startsWith('image/');
       const esXlsx   = fileInfo.mimeType?.includes('spreadsheet') ||
@@ -1355,7 +1357,10 @@ async function procesarOperacion(ctx, input, client, session) {
         `Incluye banco y nombre del titular si tienes.`,
         { parse_mode: 'HTML' }
       );
-      await updateSession(session.id, 'esperando_datos_bancarios', { ...draft, saldo_actual: saldo, saldo_nuevo });
+      const savedDraft = { ...draft, saldo_actual: saldo, saldo_nuevo };
+      console.error('[DEBUG-step7] session.id=%s tipo=%s bruto=%s draft_keys=%s',
+        session.id, savedDraft.tipo_operacion, savedDraft.monto_bruto, Object.keys(savedDraft).join(','));
+      await updateSession(session.id, 'esperando_datos_bancarios', savedDraft);
     }
     return;
   }
