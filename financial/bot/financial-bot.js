@@ -908,6 +908,20 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
           return;
 
         } else if (detected?.tipo === 'comprobante' && detected.monto_total > 0) {
+          // Si ya hay confirmación pendiente, recordar usar los botones en lugar de crear otra
+          if (session.estado === 'confirmando_comprobante') {
+            const prevDraft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
+            const kb = new InlineKeyboard()
+              .text(`✅ Confirmar $${fmt(prevDraft.monto_bruto ?? detected.monto_total)}`, 'confirmar_comprobante').row()
+              .text('✏️ Corregir monto', 'corregir_comprobante')
+              .text('❌ Cancelar', 'cancelar_comprobante');
+            await ctx.reply(
+              `Ya tengo un comprobante pendiente por <b>$${fmt(prevDraft.monto_bruto ?? detected.monto_total)}</b>. ` +
+              `Usa los botones para confirmar o cancela para reemplazarlo.`,
+              { parse_mode: 'HTML', reply_markup: kb }
+            );
+            return;
+          }
           const { saldo } = await balanceManager.getSaldo(client.id);
           const mb   = detected.monto_total;
           const draft = { tipo: 'comprobante', monto_bruto: mb, monto_neto: mb,
