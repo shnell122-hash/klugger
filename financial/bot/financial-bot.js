@@ -860,7 +860,8 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
               const { ajenas, eraVuelta } = await filtrarCuentasAjenas(cuentas);
               if (eraVuelta && !ajenas.length) {
                 // Todas las cuentas detectadas son nuestras → es un comprobante de pago
-                detected = { tipo: 'comprobante', monto_total: 0, datos_bancarios: [] };
+                // Intentar extraer monto del texto de la imagen via visionResult si lo tiene
+                detected = { tipo: 'comprobante', monto_total: visionResult?.monto_total ?? 0, datos_bancarios: [] };
               } else if (ajenas.length) {
                 const hayBajaConfianza = ajenas.some(c => c.confianza === 'baja');
                 const aviso = hayBajaConfianza
@@ -942,7 +943,7 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
           );
           return;
 
-        } else if (detected?.tipo === 'comprobante' && detected.monto_total > 0) {
+        } else if (detected?.tipo === 'comprobante') {
           // Si ya hay confirmación pendiente, recordar usar los botones en lugar de crear otra
           if (session.estado === 'confirmando_comprobante') {
             const prevDraft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
@@ -958,7 +959,20 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
             return;
           }
           const { saldo } = await balanceManager.getSaldo(client.id);
-          const mb   = detected.monto_total;
+          const mb = detected.monto_total ?? 0;
+          if (mb <= 0) {
+            // Comprobante detectado pero sin monto (ej. nuestra CLABE como receptor) → pedir monto
+            await updateSession(session.id, 'confirmando_comprobante',
+              { tipo: 'comprobante', monto_bruto: 0, clientId: client.id, saldo_actual: saldo,
+                telegram_file_id: fileInfo.file.file_id });
+            await ctx.reply(
+              `🧾 <b>Comprobante recibido.</b>\n` +
+              `Saldo actual: <b>$${fmt(saldo)}</b>\n\n` +
+              `¿Cuánto fue el monto del pago?`,
+              { parse_mode: 'HTML' }
+            );
+            return;
+          }
           const draft = { tipo: 'comprobante', monto_bruto: mb, monto_neto: mb,
                           clientId: client.id, saldo_actual: saldo,
                           telegram_file_id: fileInfo.file.file_id };
