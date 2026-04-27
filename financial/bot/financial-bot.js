@@ -1625,35 +1625,34 @@ async function mostrarResumenYPoll(ctx, draft, client, session) {
 // ── /miid: muestra tu Telegram ID y ofrece guardarte como admin ──────────────
 
 bot.command('miid', async (ctx) => {
-  const userId   = ctx.from?.id;
-  const username = ctx.from?.username ? `@${ctx.from.username}` : ctx.from?.first_name ?? 'Sin nombre';
-  const yaEsAdmin = ADMIN_USER_IDS.has(userId);
-
-  const kb = new InlineKeyboard();
-  if (!yaEsAdmin) {
-    // Bootstrap: cualquiera puede ser primer admin; si ya hay admins, solo ellos pueden añadir más
+  try {
+    const userId   = ctx.from?.id;
+    const username = ctx.from?.username ? `@${ctx.from.username}` : ctx.from?.first_name ?? 'Sin nombre';
+    const yaEsAdmin = ADMIN_USER_IDS.has(userId);
     const hayAdmins = ADMIN_USER_IDS.size > 0;
-    if (!hayAdmins) {
-      kb.text('✅ Guardarme como administrador', `admin_self_${userId}`);
-    } else {
-      kb.text('✅ Solicitar ser administrador', `admin_self_${userId}`);
+
+    let text = `ID: <code>${userId}</code>\nUsuario: ${username}`;
+    if (yaEsAdmin) {
+      text += `\n\n✅ Ya eres administrador.`;
+      await ctx.reply(text, { parse_mode: 'HTML' });
+      return;
     }
+
+    text += hayAdmins
+      ? `\n\n🔒 Hay administradores configurados. Pídele a uno que te agregue.`
+      : `\n\n⚠️ No hay administradores aún. Puedes ser el primero.`;
+
+    const kb = new InlineKeyboard()
+      .text(
+        hayAdmins ? '✅ Solicitar acceso admin' : '✅ Guardarme como administrador',
+        `admin_self_${userId}`
+      );
+
+    await ctx.reply(text, { parse_mode: 'HTML', reply_markup: kb });
+  } catch (err) {
+    console.error('[/miid]', err.message);
+    await ctx.reply(`ID: <code>${ctx.from?.id}</code>`, { parse_mode: 'HTML' }).catch(() => {});
   }
-
-  const lines = [
-    `🪪 <b>Tu información de Telegram:</b>`,
-    `ID: <code>${userId}</code>`,
-    `Usuario: ${username}`,
-    yaEsAdmin ? `\n✅ Ya eres administrador de este bot.` : '',
-    !yaEsAdmin && ADMIN_USER_IDS.size === 0
-      ? `\n⚠️ No hay administradores configurados. Puedes ser el primero.`
-      : '',
-  ].filter(Boolean).join('\n');
-
-  await ctx.reply(lines, {
-    parse_mode: 'HTML',
-    reply_markup: kb.inline_keyboard.length ? kb : undefined,
-  });
 });
 
 // Callback: guardar como admin
