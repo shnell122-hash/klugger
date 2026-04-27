@@ -146,10 +146,19 @@ Validates: amounts in range, account number format, session state consistency.
 
 ## Environment Variables
 
-| Variable | Used by | Required for |
-|----------|---------|-------------|
-| `GEMINI_API_KEY` | DocumentIntelligenceAgent | New document/image processing |
-| `ANTHROPIC_API_KEY` | TransactionOrchestrator, VisionAgent (fallback) | Orchestration + image OCR fallback |
-| `DEEPSEEK_API_KEY` | InvoiceAgent, ContextReader, ResponseGen | All legacy LLM calls |
-| `FIN_TELEGRAM_BOT_TOKEN` | Bot | Required |
-| `DB_*` | MySQL | Required |
+Las keys son **independientes** — cada una activa un conjunto de agentes distinto:
+
+| Variable | Activa | Sin ella |
+|----------|--------|----------|
+| `GEMINI_API_KEY` | `DocumentIntelligenceAgent` (imágenes + docs) | Cae a `InvoiceAgent` + `VisionAgent` |
+| `ANTHROPIC_API_KEY` | `TransactionOrchestrator` + `VisionAgent` (fallback OCR) | Sin orchestrator ni OCR de imágenes |
+| `DEEPSEEK_API_KEY` | `InvoiceAgent`, `ContextReader`, `ResponseGen` | Bot no arranca |
+| `FIN_TELEGRAM_BOT_TOKEN` | Bot Telegram | Bot no arranca |
+| `DB_*` | MySQL | Bot no arranca |
+
+**Configuración mínima para nuevos agentes activos:**
+```
+DEEPSEEK_API_KEY=...      # siempre requerido
+ANTHROPIC_API_KEY=...     # activa TransactionOrchestrator + VisionAgent
+GEMINI_API_KEY=...        # activa DocumentIntelligenceAgent (preferido sobre VisionAgent)
+```

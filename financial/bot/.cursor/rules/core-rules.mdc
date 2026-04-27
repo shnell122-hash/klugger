@@ -16,7 +16,7 @@ alwaysApply: true
 |--------|--------|-------|
 | DocumentIntelligenceAgent | `gemini-2.5-flash-preview-04-17` | Multimodal nativo, más barato para OCR |
 | TransactionOrchestrator | `claude-sonnet-4-6` | Razonamiento estructurado, tool use |
-| VisionAgent (fallback) | `claude-haiku-4-5-20251001` | Fallback si no hay GEMINI_API_KEY |
+| VisionAgent (fallback) | `claude-haiku-4-5-20251001` | Fallback para imágenes si no hay GEMINI_API_KEY (requiere ANTHROPIC_API_KEY) |
 | InvoiceAgent, ContextReader, ResponseGen | `deepseek-chat` | Tareas de texto simple, económico |
 
 ## Llamadas LLM
@@ -40,7 +40,7 @@ alwaysApply: true
 ## Git
 - Nunca `git add .` — usar `git add <archivos específicos>`
 - Mensajes de commit descriptivos en español o inglés
-- Rama de desarrollo: `claude/financial-multiagent-system-YwtYQ`
+- Consultar la rama activa con `git branch --show-current` antes de trabajar
 
 ## Deploy
 - Después de cada commit: `pm2 restart financial-bot`
