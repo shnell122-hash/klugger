@@ -37,7 +37,10 @@ const ContextManager  = require('./agents/context-manager');
 
 const BOT_TOKEN     = process.env.FIN_TELEGRAM_BOT_TOKEN;
 const ALLOWED_CHATS = (process.env.FIN_ALLOWED_CHAT_IDS ?? '').split(',').map(s => BigInt(s.trim())).filter(Boolean);
-const ADMIN_USER_IDS= (process.env.FIN_ADMIN_USER_IDS   ?? '').split(',').map(s => parseInt(s.trim())).filter(Boolean);
+// Set mutable: se carga desde .env + DB al arrancar
+const ADMIN_USER_IDS = new Set(
+  (process.env.FIN_ADMIN_USER_IDS ?? '').split(',').map(s => parseInt(s.trim())).filter(Boolean)
+);
 const DEEPSEEK_KEY  = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_URL  = 'https://api.deepseek.com/v1';
 const DEEPSEEK_MODEL= 'deepseek-chat';
@@ -95,7 +98,7 @@ function isAllowedChat(ctx) {
 }
 
 function isAdmin(userId) {
-  return ADMIN_USER_IDS.includes(userId);
+  return ADMIN_USER_IDS.has(userId);
 }
 
 // Retorna las cuentas que NO pertenecen a nuestras empresas, y un flag si alguna sí era nuestra
@@ -384,7 +387,7 @@ bot.command('reset', async (ctx) => {
 const testModeChats = new Set();
 bot.command('testmode', async (ctx) => {
   const userId = ctx.from?.id;
-  if (!ADMIN_USER_IDS.includes(userId)) {
+  if (!ADMIN_USER_IDS.has(userId)) {
     await ctx.reply('⛔ Solo administradores pueden usar este comando.');
     return;
   }
@@ -1080,6 +1083,34 @@ bot.on('callback_query:data', async (ctx) => {
   const chatId = ctx.chat?.id ?? ctx.callbackQuery.message?.chat.id;
   const userId = ctx.from?.id;
 
+  // ── Admin: guardarme como admin ──────────────────────────────────────────
+  if (data.startsWith('admin_self_')) {
+    await ctx.answerCallbackQuery();
+    const targetId = parseInt(data.replace('admin_self_', ''));
+    if (targetId !== userId && !ADMIN_USER_IDS.has(userId)) {
+      await ctx.reply('⛔ Solo tú puedes solicitar tu propio acceso.');
+      return;
+    }
+    if (ADMIN_USER_IDS.size > 0 && !ADMIN_USER_IDS.has(userId)) {
+      await ctx.reply('⛔ Ya hay administradores. Solo un admin existente puede añadir nuevos.');
+      return;
+    }
+    try {
+      await q.setClientAdmin(pool, targetId, true);
+      ADMIN_USER_IDS.add(targetId);
+      try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
+      await ctx.reply(
+        `✅ <b>Guardado como administrador.</b>\n` +
+        `ID <code>${targetId}</code> tiene acceso completo.\n\n` +
+        `Usa <code>/testmode</code> para activar el modo de prueba.`,
+        { parse_mode: 'HTML' }
+      );
+    } catch (err) {
+      await ctx.reply(`❌ Error al guardar: ${err.message}`);
+    }
+    return;
+  }
+
   // ── Edición de campos ────────────────────────────────────────────────────
   if (data.startsWith('edit_field:')) {
     const field = data.replace('edit_field:', '');
@@ -1591,6 +1622,41 @@ async function mostrarResumenYPoll(ctx, draft, client, session) {
   await updateSession(session.id, 'esperando_confirmacion', draft);
 }
 
+// ── /miid: muestra tu Telegram ID y ofrece guardarte como admin ──────────────
+
+bot.command('miid', async (ctx) => {
+  const userId   = ctx.from?.id;
+  const username = ctx.from?.username ? `@${ctx.from.username}` : ctx.from?.first_name ?? 'Sin nombre';
+  const yaEsAdmin = ADMIN_USER_IDS.has(userId);
+
+  const kb = new InlineKeyboard();
+  if (!yaEsAdmin) {
+    // Bootstrap: cualquiera puede ser primer admin; si ya hay admins, solo ellos pueden añadir más
+    const hayAdmins = ADMIN_USER_IDS.size > 0;
+    if (!hayAdmins) {
+      kb.text('✅ Guardarme como administrador', `admin_self_${userId}`);
+    } else {
+      kb.text('✅ Solicitar ser administrador', `admin_self_${userId}`);
+    }
+  }
+
+  const lines = [
+    `🪪 <b>Tu información de Telegram:</b>`,
+    `ID: <code>${userId}</code>`,
+    `Usuario: ${username}`,
+    yaEsAdmin ? `\n✅ Ya eres administrador de este bot.` : '',
+    !yaEsAdmin && ADMIN_USER_IDS.size === 0
+      ? `\n⚠️ No hay administradores configurados. Puedes ser el primero.`
+      : '',
+  ].filter(Boolean).join('\n');
+
+  await ctx.reply(lines, {
+    parse_mode: 'HTML',
+    reply_markup: kb.inline_keyboard.length ? kb : undefined,
+  });
+});
+
+// Callback: guardar como admin
 // ── Error handling ────────────────────────────────────────────────────────────
 
 bot.catch((err) => {
@@ -1604,6 +1670,11 @@ bot.catch((err) => {
 });
 
 // ── Start ─────────────────────────────────────────────────────────────────────
+
+// Cargar admins desde DB al arrancar (merge con los del .env)
+q.getAdminUserIds(pool)
+  .then(ids => ids.forEach(id => ADMIN_USER_IDS.add(id)))
+  .catch(err => console.error('[admin-load]', err.message));
 
 bot.start({
   onStart: (info) => {

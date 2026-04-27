@@ -487,6 +487,22 @@ async function toggleClienteEmpresa(pool, clientId, empresaId, isActive) {
   `, [clientId, empresaId, isActive ? 1 : 0]);
 }
 
+/** Retorna array de telegram_user_id de clientes marcados como admin */
+async function getAdminUserIds(pool) {
+  const [rows] = await pool.query(
+    `SELECT telegram_user_id FROM fin_clients WHERE is_admin = 1`
+  );
+  return rows.map(r => parseInt(r.telegram_user_id)).filter(Boolean);
+}
+
+/** Activa o desactiva is_admin en fin_clients por telegram_user_id */
+async function setClientAdmin(pool, telegramUserId, isAdmin) {
+  await pool.query(
+    `UPDATE fin_clients SET is_admin = ? WHERE telegram_user_id = ?`,
+    [isAdmin ? 1 : 0, String(telegramUserId)]
+  );
+}
+
 /** Retorna un Set con todos los números de cuenta propios (origen='nuestra') */
 async function getNuestrasCLABEs(pool) {
   const [rows] = await pool.query(
@@ -530,4 +546,5 @@ module.exports = {
   getComisiones, marcarComisionPagada,
   getClientModelsFull, upsertClientModel, assignComisionistaToClient,
   getNuestrasCLABEs,
+  getAdminUserIds, setClientAdmin,
 };
