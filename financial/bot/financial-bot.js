@@ -247,6 +247,9 @@ async function saveConfirmedOperation(draft, clientId, chatId, _attempt = 0) {
 
 // Middleware de autenticación
 bot.use(async (ctx, next) => {
+  // /miid debe funcionar desde cualquier chat (incluido el privado del admin)
+  const cmdText = ctx.message?.text ?? '';
+  if (cmdText === '/miid' || cmdText.startsWith('/miid ')) { await next(); return; }
   if (!isAllowedChat(ctx)) return;
   await next();
 });
