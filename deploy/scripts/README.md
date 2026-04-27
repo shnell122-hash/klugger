@@ -19,6 +19,10 @@ bash deploy/scripts/fase-1-seguridad.sh
 | `fase-3-litellm.sh` | Instala LiteLLM proxy con fallback Claude→DeepSeek→OpenAI→Groq | Una vez, al configurar el AI Gateway |
 | `fase-a-diagnostico.sh` | Diagnóstico read-only: PM2 status, logs, memoria | Cuando relay-master tenga restarts inesperados |
 | `fase-b-fix-restarts.sh` | Crea `/var/lib/ai-monitor/`, ajusta max_memory, reinicia PM2 | Si fase-a confirma bug de directorio faltante |
+| `llm-0-diagnostico.sh` | Diagnóstico read-only: vhosts Apache, DNS, certbot, módulos | Antes de exponer llm.vilarkptl.com |
+| `llm-1-apache.sh` | Crea vhost Apache para llm.vilarkptl.com (requiere DNS propagado) | Después de crear registro A en DNS |
+| `llm-2-certbot.sh` | Obtiene certificado TLS Let's Encrypt para llm.vilarkptl.com | Después de llm-1-apache.sh |
+| `llm-3-verificacion.sh` | Verifica HTTPS, health, modelos, cert TLS de llm.vilarkptl.com | Después de llm-2-certbot.sh |
 
 ## Vault de secretos
 
