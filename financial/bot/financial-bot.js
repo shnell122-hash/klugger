@@ -549,9 +549,8 @@ bot.on('message:text', async (ctx, next) => {
   }
 
   // ── Texto estructurado tipo comprobante bancario ─────────────────────────
-  // Si el texto tiene formato de "TRANSFERENCIA EXITOSA / Ordenante: / Receptor: / Monto:"
-  // se trata como pago, no como datos bancarios para entrega.
-  if (isComprobante(text)) {
+  // No re-detectar si ya hay una confirmación pendiente
+  if (isComprobante(text) && session.estado !== 'confirmando_comprobante' && session.estado !== 'confirmando_factura') {
     const chatId_ = ctx.chat?.id;
     const amtMatch = text.replace(/,/g, '').match(/(?:monto|importe|total|cantidad)\s*:?\s*\$?\s*([\d]+(?:\.\d{1,2})?)/i);
     const monto = amtMatch ? parseFloat(amtMatch[1]) : 0;
@@ -697,17 +696,17 @@ bot.on('message:text', async (ctx, next) => {
 
   // ── Corregir monto de factura/comprobante ─────────────────────────────────
   if (session.estado === 'confirmando_factura' || session.estado === 'confirmando_comprobante') {
-    const draft  = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
-    const num    = parseFloat(text.replace(/[^0-9.]/g, ''));
+    const draft    = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
+    const esFactura = session.estado === 'confirmando_factura';
+    const num      = parseFloat(text.replace(/[^0-9.]/g, ''));
     if (num > 0) {
       draft.monto_bruto = num;
-      if (draft.tipo === 'factura') {
+      if (esFactura) {
         draft.monto_neto = Math.round(num * (1 - (draft.comision_pct ?? 0)) * 100) / 100;
       } else {
         draft.monto_neto = num;
       }
       await updateSession(session.id, session.estado, draft);
-      const esFactura = session.estado === 'confirmando_factura';
       const label = esFactura
         ? `📋 Monto actualizado: $${fmt(num)}\nNeto: $${fmt(draft.monto_neto)}`
         : `🧾 Monto actualizado: $${fmt(num)}`;
@@ -715,6 +714,17 @@ bot.on('message:text', async (ctx, next) => {
         .text('✅ Confirmar', esFactura ? 'confirmar_factura' : 'confirmar_comprobante')
         .text('❌ Cancelar', esFactura ? 'cancelar_factura' : 'cancelar_comprobante');
       await ctx.reply(label + '\n\n¿Correcto?', { parse_mode: 'HTML', reply_markup: kb });
+    } else {
+      // Texto no reconocido (ej. comprobante enviado otra vez) → recordar usar botones
+      const monto = draft.monto_bruto ?? 0;
+      const kb = new InlineKeyboard()
+        .text(`✅ Confirmar $${fmt(monto)}`, esFactura ? 'confirmar_factura' : 'confirmar_comprobante').row()
+        .text('✏️ Corregir monto', esFactura ? 'corregir_factura' : 'corregir_comprobante')
+        .text('❌ Cancelar', esFactura ? 'cancelar_factura' : 'cancelar_comprobante');
+      await ctx.reply(
+        `Ya tengo tu comprobante por <b>$${fmt(monto)}</b>. Usa los botones para confirmar.`,
+        { parse_mode: 'HTML', reply_markup: kb }
+      );
     }
     return;
   }
