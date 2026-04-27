@@ -23,6 +23,7 @@ bash deploy/scripts/fase-1-seguridad.sh
 | `llm-1-apache.sh` | Crea vhost Apache para llm.vilarkptl.com (requiere DNS propagado) | Después de crear registro A en DNS |
 | `llm-2-certbot.sh` | Obtiene certificado TLS Let's Encrypt para llm.vilarkptl.com | Después de llm-1-apache.sh |
 | `llm-3-verificacion.sh` | Verifica HTTPS, health, modelos, cert TLS de llm.vilarkptl.com | Después de llm-2-certbot.sh |
+| `migracion-litellm.sh` | Migra apps al proxy LiteLLM, llena vault, instala deps ai-monitor | Después de llm.vilarkptl.com operativo |
 
 ## Vault de secretos
 
