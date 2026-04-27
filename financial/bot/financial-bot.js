@@ -459,13 +459,13 @@ bot.command('rol', async (ctx) => {
 });
 
 // Mensajes de texto — detecta operaciones implícitas o responde a flujo activo
-bot.on('message:text', async (ctx) => {
+bot.on('message:text', async (ctx, next) => {
   const userId  = ctx.from?.id;
   const chatId  = ctx.chat?.id;
   const text    = ctx.message.text;
 
-  // Ignorar comandos (ya manejados arriba)
-  if (text.startsWith('/')) return;
+  // Ignorar comandos (pasar al siguiente handler en la cadena)
+  if (text.startsWith('/')) return next();
 
   const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
   const session = await getOrCreateSession(chatId, client.id);
