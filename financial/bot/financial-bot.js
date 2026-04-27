@@ -1102,6 +1102,21 @@ bot.on('callback_query:data', async (ctx) => {
       await q.setClientAdmin(pool, targetId, true);
       ADMIN_USER_IDS.add(targetId);
       try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
+      // Actualizar menú de comandos para el nuevo admin
+      const comandosAdmin = [
+        { command: 'start',     description: 'Bienvenida / comenzar' },
+        { command: 'saldo',     description: 'Ver tu saldo actual' },
+        { command: 'historial', description: 'Ver historial de operaciones' },
+        { command: 'operacion', description: 'Iniciar una nueva operación' },
+        { command: 'reset',     description: 'Reiniciar sesión actual' },
+        { command: 'miid',      description: 'Ver tu Telegram ID' },
+        { command: 'ajuste',    description: '(Admin) Ajuste manual de saldo' },
+        { command: 'testmode',  description: '(Admin) Activar/desactivar modo prueba' },
+        { command: 'rol',       description: '(Admin) Cambiar rol del chat' },
+      ];
+      bot.api.setMyCommands(comandosAdmin, {
+        scope: { type: 'chat', chat_id: targetId },
+      }).catch(() => {});
       await ctx.reply(
         `✅ <b>Guardado como administrador.</b>\n` +
         `ID <code>${targetId}</code> tiene acceso completo.\n\n` +
@@ -1679,8 +1694,39 @@ q.getAdminUserIds(pool)
   .catch(err => console.error('[admin-load]', err.message));
 
 bot.start({
-  onStart: (info) => {
+  onStart: async (info) => {
     console.log(`[financial-bot] Bot @${info.username} iniciado`);
+
+    // Comandos visibles para todos los usuarios
+    const comandosUsuario = [
+      { command: 'start',     description: 'Bienvenida / comenzar' },
+      { command: 'saldo',     description: 'Ver tu saldo actual' },
+      { command: 'historial', description: 'Ver historial de operaciones' },
+      { command: 'operacion', description: 'Iniciar una nueva operación' },
+      { command: 'reset',     description: 'Reiniciar sesión actual' },
+      { command: 'miid',      description: 'Ver tu Telegram ID' },
+    ];
+
+    // Comandos adicionales de administrador
+    const comandosAdmin = [
+      ...comandosUsuario,
+      { command: 'ajuste',    description: '(Admin) Ajuste manual de saldo' },
+      { command: 'testmode',  description: '(Admin) Activar/desactivar modo prueba' },
+      { command: 'rol',       description: '(Admin) Cambiar rol del chat' },
+    ];
+
+    try {
+      await bot.api.setMyCommands(comandosUsuario);
+      // Registrar comandos admin por cada admin conocido
+      for (const adminId of ADMIN_USER_IDS) {
+        await bot.api.setMyCommands(comandosAdmin, {
+          scope: { type: 'chat', chat_id: adminId },
+        }).catch(() => {});
+      }
+      console.log('[financial-bot] Menú de comandos registrado');
+    } catch (err) {
+      console.error('[setMyCommands]', err.message);
+    }
   },
 });
 
