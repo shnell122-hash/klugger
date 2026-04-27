@@ -98,6 +98,16 @@ function isAdmin(userId) {
   return ADMIN_USER_IDS.includes(userId);
 }
 
+// Detecta si un texto es un comprobante bancario (no datos de cuenta para entrega)
+function isComprobante(text) {
+  const t = text ?? '';
+  const hasSuccessLine = /transferencia exitosa|pago exitoso|operaci[oó]n exitosa|dep[oó]sito exitoso|transacci[oó]n exitosa/i.test(t);
+  const hasReceptorOrdenante = /\b(receptor|beneficiario|destinatario|ordenante|remitente|emisor)\s*:/i.test(t);
+  const hasMonto = /\b(monto|importe|cantidad|total)\s*:?\s*\$?[\d,]+\.?\d*\s*(MXN|USD)?/i.test(t);
+  const hasReferencia = /\b(referencia|folio|no\.\s*op|num\s*op|numero\s*de\s*operacion)\s*:?\s*\d+/i.test(t);
+  return hasSuccessLine || (hasReceptorOrdenante && hasMonto) || (hasReferencia && hasMonto);
+}
+
 function calcLLMCost(tokensIn, tokensOut) {
   // DeepSeek Chat: $0.07/1M input, $1.10/1M output (con cache puede ser ~10% del input)
   return ((tokensIn * 0.07) + (tokensOut * 1.10)) / 1_000_000;
@@ -358,6 +368,28 @@ bot.command('reset', async (ctx) => {
   }
 });
 
+// Modo de prueba: acepta comprobantes de texto sin validación de imagen (solo admins)
+const testModeChats = new Set();
+bot.command('testmode', async (ctx) => {
+  const userId = ctx.from?.id;
+  if (!ADMIN_USER_IDS.includes(userId)) {
+    await ctx.reply('⛔ Solo administradores pueden usar este comando.');
+    return;
+  }
+  const chatId = ctx.chat?.id;
+  if (testModeChats.has(chatId)) {
+    testModeChats.delete(chatId);
+    await ctx.reply('🧪 Modo prueba <b>desactivado</b>.', { parse_mode: 'HTML' });
+  } else {
+    testModeChats.add(chatId);
+    await ctx.reply(
+      '🧪 Modo prueba <b>activado</b>.\n' +
+      'Los comprobantes de texto serán aceptados como pagos válidos sin validación de imagen.',
+      { parse_mode: 'HTML' }
+    );
+  }
+});
+
 bot.command('operacion', async (ctx) => {
   const userId  = ctx.from?.id;
   const chatId  = ctx.chat?.id;
@@ -450,6 +482,13 @@ bot.on('message:text', async (ctx) => {
   }
   if (session.estado === 'esperando_datos_bancarios') {
     const draft   = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
+    if (isComprobante(text)) {
+      await ctx.reply(
+        '📝 Este texto parece un comprobante, no datos de cuenta para entrega.\n' +
+        'Envíame la CLABE, número de tarjeta o cuenta a la que debo enviar el dinero.'
+      );
+      return;
+    }
     const cuentas = BankingManager.parsearTexto(text);
     if (!cuentas.length) {
       await ctx.reply('No encontré ninguna CLABE, tarjeta ni cuenta. Envíame el número directamente.');
@@ -477,6 +516,52 @@ bot.on('message:text', async (ctx) => {
       });
       kb.text('➕ Nuevos datos', 'nueva_cuenta');
       await ctx.reply('Por favor selecciona una opción 👇', { reply_markup: kb });
+    }
+    return;
+  }
+
+  // ── Texto estructurado tipo comprobante bancario ─────────────────────────
+  // Si el texto tiene formato de "TRANSFERENCIA EXITOSA / Ordenante: / Receptor: / Monto:"
+  // se trata como pago, no como datos bancarios para entrega.
+  if (isComprobante(text)) {
+    const chatId_ = ctx.chat?.id;
+    const amtMatch = text.replace(/,/g, '').match(/(?:monto|importe|total|cantidad)\s*:?\s*\$?\s*([\d]+(?:\.\d{1,2})?)/i);
+    const monto = amtMatch ? parseFloat(amtMatch[1]) : 0;
+    const { saldo: saldoComp } = await balanceManager.getSaldo(client.id);
+
+    if (testModeChats.has(chatId_) && monto > 0) {
+      // Modo prueba: aceptar directamente sin confirmación admin
+      const pendingDraft = { tipo: 'texto', monto_bruto: monto, monto_neto: monto,
+        tipo_operacion: 'COMPROBANTE', clientId: client.id, saldo_actual: saldoComp };
+      await updateSession(session.id, 'confirmando_comprobante', pendingDraft);
+      const kb = new InlineKeyboard()
+        .text(`✅ Confirmar $${fmt(monto)}`, 'confirmar_comprobante').row()
+        .text('✏️ Corregir monto', 'corregir_comprobante')
+        .text('❌ Cancelar', 'cancelar_comprobante');
+      await ctx.reply(
+        `🧪 <b>[Modo prueba]</b> Comprobante detectado.\n\n` +
+        `Monto: <b>$${fmt(monto)}</b>\n` +
+        `Saldo actual: <b>$${fmt(saldoComp)}</b>\n` +
+        `Saldo tras acreditar: <b>$${fmt(saldoComp + monto)}</b>`,
+        { parse_mode: 'HTML', reply_markup: kb }
+      );
+    } else if (monto > 0) {
+      const pendingDraft = { tipo: 'comprobante', monto_bruto: monto, clientId: client.id, saldo_actual: saldoComp };
+      await updateSession(session.id, 'confirmando_comprobante', pendingDraft);
+      const kb = new InlineKeyboard()
+        .text(`✅ Confirmar $${fmt(monto)}`, 'confirmar_comprobante').row()
+        .text('✏️ Corregir monto', 'corregir_comprobante')
+        .text('❌ Cancelar', 'cancelar_comprobante');
+      await ctx.reply(
+        `🧾 Recibí un comprobante de <b>$${fmt(monto)}</b>.\n\n` +
+        `Saldo actual: <b>$${fmt(saldoComp)}</b>\n` +
+        `Saldo después: <b>$${fmt(saldoComp + monto)}</b>`,
+        { parse_mode: 'HTML', reply_markup: kb }
+      );
+    } else {
+      await updateSession(session.id, 'confirmando_comprobante',
+        { tipo: 'comprobante', monto_bruto: 0, clientId: client.id, saldo_actual: saldoComp });
+      await ctx.reply('🧾 Recibí el comprobante. ¿Cuánto fue el monto del pago?');
     }
     return;
   }
@@ -696,7 +781,9 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
               visionAgent.analizarFactura(imgBuffer, mimeImg),
             ]);
 
-            if (cuentas.length) {
+            // Si también hay monto detectado, es un comprobante (no lista de cuentas para entrega)
+            // — en ese caso preferir la interpretación de comprobante para no guardar cuentas del receptor
+            if (cuentas.length && !visionResult?.monto_total) {
               const hayBajaConfianza = cuentas.some(c => c.confianza === 'baja');
               const aviso = hayBajaConfianza
                 ? '\n\n⚠️ Algunos números pueden tener errores. Por favor verifica antes de confirmar.'
