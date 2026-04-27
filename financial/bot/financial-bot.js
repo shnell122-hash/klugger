@@ -32,6 +32,8 @@ const InvoiceAgent    = require('./agents/invoice-agent');
 const VisionAgent     = require('./agents/vision-agent');
 const ContextReader   = require('./agents/context-reader');
 const ContextManager  = require('./agents/context-manager');
+const DocumentIntelligenceAgent = require('./agents/DocumentIntelligenceAgent');
+const TransactionOrchestrator   = require('./agents/TransactionOrchestrator');
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -88,6 +90,12 @@ const contextManager   = new ContextManager(pool);
 const contextReader    = new ContextReader(llm,   { model: DEEPSEEK_MODEL });
 const visionAgent      = process.env.ANTHROPIC_API_KEY
   ? new VisionAgent(process.env.ANTHROPIC_API_KEY)
+  : null;
+const docAgent = process.env.GEMINI_API_KEY
+  ? new DocumentIntelligenceAgent(process.env.GEMINI_API_KEY)
+  : null;
+const transactionOrchestrator = process.env.ANTHROPIC_API_KEY
+  ? new TransactionOrchestrator(process.env.ANTHROPIC_API_KEY)
   : null;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -770,17 +778,33 @@ bot.on('message:text', async (ctx, next) => {
     return;
   }
 
-  // Fallback: contextReader decide si hay algo útil que responder
+  // Fallback: decide si hay algo útil que responder
   try {
     const mensajesCtx = await contextManager.getRecientes(chatId, 25);
     const { saldo: saldoCtx } = await balanceManager.getSaldo(client.id);
-    const { responder, mensaje } = await contextReader.analizar(
-      mensajesCtx,
-      { estado: session.estado, saldo: saldoCtx, nombre: client.nombre },
-      text
-    );
-    if (responder && mensaje) {
-      await ctx.reply(mensaje);
+
+    if (transactionOrchestrator) {
+      const decision = await transactionOrchestrator.rutear({
+        estado:           session.estado,
+        mensajesRecientes: mensajesCtx,
+        textoUsuario:     text,
+        saldo:            saldoCtx,
+        nombre:           client.nombre,
+      });
+      if (decision.accion === 'responder_info' && decision.params?.mensaje_respuesta) {
+        await ctx.reply(decision.params.mensaje_respuesta);
+      } else if (decision.accion !== 'ignorar' && decision.accion !== 'responder_info') {
+        await procesarOperacion(ctx, text, client, session);
+      }
+    } else {
+      const { responder, mensaje } = await contextReader.analizar(
+        mensajesCtx,
+        { estado: session.estado, saldo: saldoCtx, nombre: client.nombre },
+        text
+      );
+      if (responder && mensaje) {
+        await ctx.reply(mensaje);
+      }
     }
   } catch (e) {
     console.error('[context-reader fallback]', e.message);
@@ -847,11 +871,12 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
           const imgBuffer = buffer;
           const mimeImg   = fileInfo.mimeType ?? 'image/jpeg';
 
-          if (visionAgent) {
+          const imgAgent = docAgent ?? visionAgent;
+          if (imgAgent) {
             // Lanzar ambos análisis en paralelo: cuentas bancarias + factura
             const [{ cuentas }, visionResult] = await Promise.all([
-              visionAgent.extraerCuentasBancarias(imgBuffer, mimeImg),
-              visionAgent.analizarFactura(imgBuffer, mimeImg),
+              imgAgent.extraerCuentasBancarias(imgBuffer, mimeImg),
+              imgAgent.analizarFactura(imgBuffer, mimeImg),
             ]);
 
             // Si también hay monto detectado, es un comprobante (no lista de cuentas para entrega)
@@ -1008,8 +1033,9 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
       try {
         const buffer = await downloadTelegramFileAsBuffer(BOT_TOKEN, fileInfo.file.file_id);
 
-        if (esImagen && visionAgent) {
-          const { cuentas: cs } = await visionAgent.extraerCuentasBancarias(buffer, fileInfo.mimeType);
+        const imgAgentBanking = docAgent ?? visionAgent;
+        if (esImagen && imgAgentBanking) {
+          const { cuentas: cs } = await imgAgentBanking.extraerCuentasBancarias(buffer, fileInfo.mimeType);
           cuentas = cs;
         } else if (esXlsx) {
           cuentas = BankingManager.parsearXlsx(buffer);
