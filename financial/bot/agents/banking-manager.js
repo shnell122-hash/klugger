@@ -45,6 +45,21 @@ class BankingManager {
   async guardarCuentas(clientId, operationId, cuentas) {
     const ids = [];
     for (const c of cuentas) {
+      // Deduplicar: si ya existe el mismo número para este cliente, reutilizar
+      const [existing] = await this.pool.query(
+        `SELECT id FROM fin_banking_accounts WHERE client_id=? AND numero=? LIMIT 1`,
+        [clientId, c.numero]
+      );
+      if (existing.length) {
+        ids.push(existing[0].id);
+        if (operationId) {
+          await this.pool.query(
+            `UPDATE fin_banking_accounts SET operation_id=?, updated_at=NOW(3) WHERE id=?`,
+            [operationId, existing[0].id]
+          );
+        }
+        continue;
+      }
       const [r] = await this.pool.query(
         `INSERT INTO fin_banking_accounts
            (client_id, operation_id, tipo, numero, titular, banco, notas)

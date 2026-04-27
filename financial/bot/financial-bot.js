@@ -98,6 +98,18 @@ function isAdmin(userId) {
   return ADMIN_USER_IDS.includes(userId);
 }
 
+// Retorna las cuentas que NO pertenecen a nuestras empresas, y un flag si alguna sí era nuestra
+async function filtrarCuentasAjenas(cuentas) {
+  try {
+    const nuestras = await q.getNuestrasCLABEs(pool);
+    const ajenas   = cuentas.filter(c => !nuestras.has((c.numero ?? '').replace(/\s/g, '')));
+    const eraVuelta = ajenas.length < cuentas.length;
+    return { ajenas, eraVuelta };
+  } catch {
+    return { ajenas: cuentas, eraVuelta: false };
+  }
+}
+
 // Detecta si un texto es un comprobante bancario (no datos de cuenta para entrega)
 function isComprobante(text) {
   const t = text ?? '';
@@ -489,11 +501,21 @@ bot.on('message:text', async (ctx) => {
       );
       return;
     }
-    const cuentas = BankingManager.parsearTexto(text);
-    if (!cuentas.length) {
+    const rawCuentas = BankingManager.parsearTexto(text);
+    if (!rawCuentas.length) {
       await ctx.reply('No encontré ninguna CLABE, tarjeta ni cuenta. Envíame el número directamente.');
       return;
     }
+    // Si el número coincide con una de nuestras cuentas, es un comprobante de pago
+    const { ajenas, eraVuelta } = await filtrarCuentasAjenas(rawCuentas);
+    if (eraVuelta) {
+      await ctx.reply(
+        '⚠️ El número que enviaste coincide con una de nuestras cuentas bancarias.\n' +
+        'Si ya realizaste la transferencia, comparte el comprobante completo o escribe el monto pagado.'
+      );
+      return;
+    }
+    const cuentas = ajenas;
     draft.cuentas_bancarias = cuentas;
     await updateSession(session.id, 'esperando_datos_bancarios', draft);
     const kb = new InlineKeyboard()
@@ -784,17 +806,23 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
             // Si también hay monto detectado, es un comprobante (no lista de cuentas para entrega)
             // — en ese caso preferir la interpretación de comprobante para no guardar cuentas del receptor
             if (cuentas.length && !visionResult?.monto_total) {
-              const hayBajaConfianza = cuentas.some(c => c.confianza === 'baja');
-              const aviso = hayBajaConfianza
-                ? '\n\n⚠️ Algunos números pueden tener errores. Por favor verifica antes de confirmar.'
-                : '';
-              await bankingManager.guardarCuentas(client.id, null, cuentas);
-              await ctx.reply(
-                `📊 Detecté y guardé <b>${cuentas.length}</b> cuenta(s) bancarias:\n\n${BankingManager.formatearCuentas(cuentas)}${aviso}\n\n` +
-                `Quedan registradas. Si son para una operación, iníciala con <code>/operacion</code>.`,
-                { parse_mode: 'HTML' }
-              );
-              return;
+              const { ajenas, eraVuelta } = await filtrarCuentasAjenas(cuentas);
+              if (eraVuelta && !ajenas.length) {
+                // Todas las cuentas detectadas son nuestras → es un comprobante de pago
+                detected = { tipo: 'comprobante', monto_total: 0, datos_bancarios: [] };
+              } else if (ajenas.length) {
+                const hayBajaConfianza = ajenas.some(c => c.confianza === 'baja');
+                const aviso = hayBajaConfianza
+                  ? '\n\n⚠️ Algunos números pueden tener errores. Por favor verifica antes de confirmar.'
+                  : '';
+                await bankingManager.guardarCuentas(client.id, null, ajenas);
+                await ctx.reply(
+                  `📊 Detecté y guardé <b>${ajenas.length}</b> cuenta(s) bancarias:\n\n${BankingManager.formatearCuentas(ajenas)}${aviso}\n\n` +
+                  `Quedan registradas. Si son para una operación, iníciala con <code>/operacion</code>.`,
+                  { parse_mode: 'HTML' }
+                );
+                return;
+              }
             }
 
             if (visionResult?.monto_total > 0) {

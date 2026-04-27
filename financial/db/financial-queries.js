@@ -487,6 +487,23 @@ async function toggleClienteEmpresa(pool, clientId, empresaId, isActive) {
   `, [clientId, empresaId, isActive ? 1 : 0]);
 }
 
+/** Retorna un Set con todos los números de cuenta propios (origen='nuestra') */
+async function getNuestrasCLABEs(pool) {
+  const [rows] = await pool.query(
+    `SELECT ec.clabe, ec.num_cuenta, ec.num_tarjeta
+     FROM fin_empresa_cuentas ec
+     JOIN fin_empresas e ON e.id = ec.empresa_id
+     WHERE e.origen = 'nuestra' AND ec.is_active = 1`
+  );
+  const set = new Set();
+  for (const r of rows) {
+    if (r.clabe)       set.add(r.clabe.replace(/\s/g, ''));
+    if (r.num_cuenta)  set.add(r.num_cuenta.replace(/\s/g, ''));
+    if (r.num_tarjeta) set.add(r.num_tarjeta.replace(/\s/g, ''));
+  }
+  return set;
+}
+
 module.exports = {
   getClientSummary,
   getOperations,
@@ -512,4 +529,5 @@ module.exports = {
   getEmpresaCuentas, createEmpresaCuenta, updateEmpresaCuenta,
   getComisiones, marcarComisionPagada,
   getClientModelsFull, upsertClientModel, assignComisionistaToClient,
+  getNuestrasCLABEs,
 };
