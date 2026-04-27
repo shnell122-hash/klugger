@@ -698,7 +698,42 @@ bot.on('message:text', async (ctx, next) => {
   if (session.estado === 'confirmando_factura' || session.estado === 'confirmando_comprobante') {
     const draft    = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     const esFactura = session.estado === 'confirmando_factura';
-    const num      = parseFloat(text.replace(/[^0-9.]/g, ''));
+
+    // Respuesta afirmativa por texto → ejecutar confirmación directamente
+    const AFIRMATIVO = /^\s*(s[íi]|yes|ok|dale|correcto|confirm[ao]?|adelante|listo|va|sale|claro|exacto|as[íi] es)\s*$/i;
+    if (AFIRMATIVO.test(text)) {
+      if (!draft.monto_bruto || draft.monto_bruto <= 0) {
+        await ctx.reply('⚠️ No hay monto registrado. Escríbeme cuánto depositaste.');
+        return;
+      }
+      if (esFactura) {
+        // Factura: delegar al callback (lanzar como si hubiera presionado el botón)
+        const kb = new InlineKeyboard()
+          .text(`✅ Confirmar $${fmt(draft.monto_bruto)}`, 'confirmar_factura');
+        await ctx.reply('✅ Confirmando…', { reply_markup: kb });
+      } else {
+        const { saldo_antes, saldo_despues } = await balanceManager.confirmarPago({
+          clientId:         client.id,
+          monto:            draft.monto_bruto,
+          montoNeto:        draft.monto_neto ?? draft.monto_bruto,
+          tipo:             draft.tipo ?? 'comprobante',
+          tipo_operacion:   draft.tipo_operacion ?? null,
+          telegram_file_id: draft.telegram_file_id ?? null,
+          notas:            'Comprobante confirmado por cliente (texto)',
+        });
+        await updateSession(session.id, 'completado', null);
+        await ctx.reply(
+          `✅ <b>Pago confirmado</b>\n` +
+          `Monto: $${fmt(draft.monto_bruto)}\n` +
+          `Saldo anterior: $${fmt(saldo_antes)}\n` +
+          `<b>Nuevo saldo: $${fmt(saldo_despues)}</b>`,
+          { parse_mode: 'HTML' }
+        );
+      }
+      return;
+    }
+
+    const num = parseFloat(text.replace(/[^0-9.]/g, ''));
     if (num > 0) {
       draft.monto_bruto = num;
       if (esFactura) {
@@ -715,7 +750,7 @@ bot.on('message:text', async (ctx, next) => {
         .text('❌ Cancelar', esFactura ? 'cancelar_factura' : 'cancelar_comprobante');
       await ctx.reply(label + '\n\n¿Correcto?', { parse_mode: 'HTML', reply_markup: kb });
     } else {
-      // Texto no reconocido (ej. comprobante enviado otra vez) → recordar usar botones
+      // Texto no reconocido → recordar usar botones
       const monto = draft.monto_bruto ?? 0;
       const kb = new InlineKeyboard()
         .text(`✅ Confirmar $${fmt(monto)}`, esFactura ? 'confirmar_factura' : 'confirmar_comprobante').row()
