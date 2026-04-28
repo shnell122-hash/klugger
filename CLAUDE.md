@@ -272,3 +272,23 @@ Actualizar estos archivos cada vez que se agregue o modifique un agente.
 | ContextReader (fallback routing) | `agents/context-reader.js` | `deepseek-chat` | `DEEPSEEK_API_KEY` |
 | ResponseGen | `agents/response-gen.js` | `deepseek-chat` | `DEEPSEEK_API_KEY` |
 | Verifier | `agents/verifier.js` | rule-based | — |
+
+### Cursor Cloud Agents — Self-Hosted Worker
+
+El servidor (`143.198.228.78`) debe tener el worker de Cursor corriendo para que Cursor Cloud Agents pueda ejecutar tareas remotamente.
+
+```bash
+# Instalar CLI de Cursor (una sola vez)
+curl https://cursor.com/install -fsS | bash
+
+# Iniciar worker (pide login en el navegador la primera vez)
+agent worker start
+
+# Verificar que está corriendo
+ps aux | grep -E 'agent worker|cursor-agent'
+```
+
+- Dashboard para ver el servidor conectado: https://cursor.com/dashboard/cloud-agents
+- Aparece como **My Machines → Connected / Idle** cuando está activo
+- Los Secrets (`ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `DEEPSEEK_API_KEY`) se configuran en el dashboard de Cursor, no en el `.env` local del worker
+- Claude Code CLI **nunca** inicia ni detiene el worker — eso lo hace el usuario desde el servidor
