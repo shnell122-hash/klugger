@@ -292,3 +292,4 @@ ps aux | grep -E 'agent worker|cursor-agent'
 - Aparece como **My Machines → Connected / Idle** cuando está activo
 - Los Secrets (`ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `DEEPSEEK_API_KEY`) se configuran en el dashboard de Cursor, no en el `.env` local del worker
 - Claude Code CLI **nunca** inicia ni detiene el worker — eso lo hace el usuario desde el servidor
+- Worker registrado como proceso PM2: `cursor-worker` (id 26) — ya configurado y persistente
