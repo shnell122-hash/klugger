@@ -1,6 +1,6 @@
 # CLAUDE.md — ai-monitor / agentic-repo
 
-> Archivo de referencia para agentes Claude Code. Actualizado 2026-04-20.
+> Archivo de referencia para agentes Claude Code. Actualizado 2026-04-27.
 
 ---
 
@@ -226,3 +226,49 @@ cd dashboard-financial && npm run build && pm2 restart financial-dashboard
    mysql -u root -p"$DB_PASS" nombre_db < migrate.sql
    ```
 8. **Deploy al terminar cada commit**: incluir bloque `DEPLOY` con los comandos exactos según los archivos modificados (ver sección *Financial System — Rutas y procesos PM2*). Copiar y pegar sin editar.
+
+---
+
+## Financial-Bot — Flujo de desarrollo (LEER ANTES DE TOCAR financial/)
+
+### Roles
+
+| Herramienta | Rol |
+|-------------|-----|
+| **Claude Code CLI** (este agente) | Desarrolla todo el código, hace commits y push |
+| **Cursor Cloud Agents** (servidor) | Revisa, prueba y optimiza el código en el servidor |
+
+Claude Code CLI **nunca** corre el código en producción — solo escribe y commitea.  
+Cursor Cloud Agents **nunca** escribe código — solo ejecuta y valida lo que Claude generó.
+
+### Variables de entorno obligatorias en financial/bot
+
+Siempre usar exactamente estos nombres (están en el servidor y en Cursor Cloud Agents):
+
+```js
+process.env.ANTHROPIC_API_KEY   // Claude Sonnet → TransactionOrchestrator + VisionAgent (fallback)
+process.env.GOOGLE_API_KEY      // Gemini 2.5 Flash → DocumentIntelligenceAgent
+process.env.DEEPSEEK_API_KEY    // DeepSeek → InvoiceAgent, ContextReader, ResponseGen
+```
+
+**Nunca hardcodear claves. Nunca usar otros nombres de variables.**
+
+### Archivos de contexto para Cursor Agents (mantener actualizados)
+
+- `financial/bot/AGENTS.md` — roles, modelos, métodos, fallback de cada agente
+- `financial/bot/AGENT-TREE.md` — árbol visual del flujo de agentes
+- `financial/bot/.cursor/rules/core-rules.mdc` — reglas de desarrollo para Cursor Agents
+
+Actualizar estos archivos cada vez que se agregue o modifique un agente.
+
+### Agentes activos (2026-04-27)
+
+| Agente | Archivo | Modelo | Env var |
+|--------|---------|--------|---------|
+| DocumentIntelligenceAgent | `agents/DocumentIntelligenceAgent.js` | `gemini-2.5-flash-preview-04-17` | `GOOGLE_API_KEY` |
+| TransactionOrchestrator | `agents/TransactionOrchestrator.js` | `claude-sonnet-4-6` | `ANTHROPIC_API_KEY` |
+| VisionAgent (fallback OCR) | `agents/vision-agent.js` | `claude-haiku-4-5-20251001` | `ANTHROPIC_API_KEY` |
+| InvoiceAgent (fallback docs) | `agents/invoice-agent.js` | `deepseek-chat` | `DEEPSEEK_API_KEY` |
+| ContextReader (fallback routing) | `agents/context-reader.js` | `deepseek-chat` | `DEEPSEEK_API_KEY` |
+| ResponseGen | `agents/response-gen.js` | `deepseek-chat` | `DEEPSEEK_API_KEY` |
+| Verifier | `agents/verifier.js` | rule-based | — |
