@@ -871,7 +871,15 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
     if (tryInvoice) {
       try {
         const buffer   = await downloadTelegramFileAsBuffer(BOT_TOKEN, fileInfo.file.file_id);
-        let detected = await invoiceAgent.procesarBuffer(buffer, fileInfo.mimeType, fileInfo.fileName);
+        // docAgent (Gemini) is primary for non-image docs; images take the imagen_sin_ocr path below
+        const _docMime = fileInfo.mimeType?.toLowerCase() ?? '';
+        let detected = null;
+        if (docAgent && !_docMime.startsWith('image/')) {
+          detected = await docAgent.procesarBuffer(buffer, fileInfo.mimeType, fileInfo.fileName);
+        }
+        if (!detected) {
+          detected = await invoiceAgent.procesarBuffer(buffer, fileInfo.mimeType, fileInfo.fileName);
+        }
 
         if (detected?.tipo === 'imagen_sin_ocr') {
           // Reutilizar el buffer ya descargado arriba
