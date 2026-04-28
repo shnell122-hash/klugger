@@ -1,0 +1,52 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg:      #0a0a0f;
+  --surface: #111118;
+  --border:  #1e1e2e;
+  --muted:   #3a3a5c;
+  --accent:  #7c3aed;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: #e2e2f0;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar       { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--surface); }
+::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 2px; }
+
+/* Glass card */
+.glass {
+  background: rgba(17, 17, 24, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+}
+
+/* Glow effect for accents */
+.glow-accent { box-shadow: 0 0 20px rgba(124, 58, 237, 0.3); }
+.glow-success { box-shadow: 0 0 20px rgba(16, 185, 129, 0.3); }
+
+/* Recharts overrides */
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: var(--border) !important;
+}
+.recharts-text { fill: #6b7280 !important; font-size: 11px !important; }
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+}
+
+/* React Flow overrides */
+.react-flow__background { background: var(--bg); }
+.react-flow__edge-path  { stroke: var(--muted); }

@@ -1,6 +1,6 @@
 'use strict';
 
-require('dotenv').config({ path: __dirname + '/.env' });
+require('dotenv').config({ path: __dirname + '/.env', override: true });
 
 const express   = require('express');
 const http      = require('http');
@@ -18,6 +18,7 @@ const dispatchRouter       = require('./routes/dispatch');
 const screenshotsRouter    = require('./routes/screenshots');
 const alertsRouter         = require('./routes/alerts');
 const conversationsRouter  = require('./routes/conversations');
+const financialRoutes      = require('../financial/backend/routes/financial');
 const authRouter           = require('./routes/auth');
 const keysRouter           = require('./routes/keys');
 const { router: platformRouter, fetchAndCacheUsage, checkBudgets } = require('./routes/platform');
@@ -86,6 +87,7 @@ app.use('/api/relay',           dispatchRouter);
 app.use('/api/screenshots',     screenshotsRouter);
 app.use('/api/alerts',          alertsRouter);
 app.use('/api/conversations',   conversationsRouter);
+app.use('/api/financial',       financialRoutes(require('./db/mysql'), io, express));
 app.use('/api/platform',        platformRouter);
 app.use('/api/keys',            keysRouter);  // protected by requireAuth inside the router
 
