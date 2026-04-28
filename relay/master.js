@@ -624,7 +624,7 @@ function screenshot(url, outPath, callback) {
   if (!CHROMIUM_BIN || !url) return callback(null);
   const cmd = `${CHROMIUM_BIN} --headless --no-sandbox --disable-gpu ` +
     `--screenshot="${outPath}" --window-size=1280,800 "${url}" 2>/dev/null`;
-  exec(cmd, { timeout: 25000 }, (err) => {
+  exec(cmd, { timeout: 90000 }, (err) => {
     if (err) { log(null, `Screenshot error para ${url}: ${err.message?.slice(0,100)}`); return callback(null); }
     callback(outPath);
   });
@@ -1342,7 +1342,8 @@ ${taskContent}`;
 
   // Register in ACTIVE_PIDS for independent watchdog
   const jobId = `${project.id}-${Date.now()}`;
-  const activePidInfo = { pid: child.pid, startTime: Date.now(), jobId, forceTimeout: null };
+  // Initialize forceTimeout as dummy to prevent watchdog null check race condition
+  const activePidInfo = { pid: child.pid, startTime: Date.now(), jobId, forceTimeout: () => {} };
   ACTIVE_PIDS.set(project.id, activePidInfo);
 
   let callbackFired = false;
@@ -1604,19 +1605,18 @@ function gitPull(repoPath, branch) {
     }
     try {
       execSync(
-        `cd ${repoPath} && git pull origin ${branch} --rebase --quiet`,
+        `cd ${repoPath} && git pull origin ${branch} --rebase --autostash --quiet`,
         { stdio: 'pipe', timeout: 30000 }
       );
     } catch (rebaseErr) {
       const reason = (rebaseErr.stderr?.toString() || rebaseErr.stdout?.toString() || rebaseErr.message || '').slice(0, 200).trim();
-      // Rebase failed — abort and stash+pull (preserves agent commits, doesn't destroy work)
       try {
         execSync(`cd ${repoPath} && git rebase --abort 2>/dev/null || true`, { stdio: 'pipe', timeout: 5000 });
         execSync(
           `cd ${repoPath} && git stash --quiet 2>/dev/null || true && git pull origin ${branch} --quiet && git stash pop --quiet 2>/dev/null || true`,
           { stdio: 'pipe', timeout: 30000 }
         );
-        log(projectId, `gitPull: rebase falló (${reason || 'sin detalle'}) — usé stash+pull`);
+        log(projectId, `gitPull: rebase+autostash falló (${reason || 'sin detalle'}) — usé stash+pull`);
       } catch (stashErr) {
         log(projectId, `gitPull: stash+pull también falló — ${stashErr.message?.slice(0, 100)}`);
       }
@@ -1725,8 +1725,13 @@ async function processDispatchQueue(projects, hashes = null) {
 
     // Write task to target inbox (append outbox template so agent always fills it)
     const OUTBOX_TEMPLATE =
-      '\n\n---\n## Outbox\n' +
-      'STATUS: \nARCHIVOS_MODIFICADOS: \nCOMMIT: \nDEPLOY_PROD: \nUSER_REQUIRED: \n';
+      '\n\n---\n## Outbox — [Rellenar después de completar]\n' +
+      '**Status**: ⏳ En progreso | ✅ Completo | ⚠️ Parcial | ❌ Error\n' +
+      '**Archivos modificados**: [listar rutas]\n' +
+      '**Commit**: [hash o "Sin cambios"]\n' +
+      '**Deploy PROD**: [OK, pendiente, error]\n' +
+      '**Usuario requerido**: [Sí/No]\n' +
+      '\nDetalles: [describir qué se hizo]\n';
     try {
       fs.writeFileSync(target.inbox, dispatch.task + OUTBOX_TEMPLATE);
     } catch (err) {

@@ -555,7 +555,7 @@ function initTabs() {
 }
 
 function switchRightTab(tab) {
-  ['agents','screenshots','sessions','costs','providers','projects','alerts','conversations'].forEach(t => {
+  ['agents','screenshots','sessions','costs','providers','projects','alerts','conversations','platform'].forEach(t => {
     const el = document.getElementById(t + '-panel');
     if (el) el.classList.toggle('visible', t === tab);
   });
@@ -566,6 +566,7 @@ function switchRightTab(tab) {
   if (tab === 'screenshots')   loadScreenshots();
   if (tab === 'alerts')        loadAlerts();
   if (tab === 'conversations') loadConversaciones();
+  if (tab === 'platform')      loadPlatform();
 }
 
 // ─── Screenshots panel ────────────────────────────────────
@@ -1284,6 +1285,154 @@ function convShowUsers() {
 
 function escHtml(str) {
   return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Platform (Anthropic Admin API spend) ─────────────────
+let platformHourlyChart = null;
+
+async function loadPlatform() {
+  try {
+    const [summary, hourly] = await Promise.all([
+      fetch(`${API}/api/platform/summary`).then(r => r.json()),
+      fetch(`${API}/api/platform/hourly`).then(r => r.json()),
+    ]);
+
+    if (summary.error) throw new Error(summary.error);
+
+    // Pills
+    document.getElementById('pp-hour').textContent  = `$${Number(summary.hour?.cost  || 0).toFixed(4)}`;
+    document.getElementById('pp-today').textContent  = `$${Number(summary.today?.cost || 0).toFixed(4)}`;
+    document.getElementById('pp-month').textContent = `$${Number(summary.month?.cost || 0).toFixed(4)}`;
+
+    // Color today pill red if > $10
+    const todayCost = parseFloat(summary.today?.cost || 0);
+    document.getElementById('pp-today').style.color = todayCost > 10 ? 'var(--red)' : todayCost > 5 ? 'var(--orange, #f59e0b)' : '';
+
+    // Last fetch
+    if (summary.last_fetch) {
+      document.getElementById('platform-last-fetch').textContent =
+        'Actualizado: ' + new Date(summary.last_fetch).toLocaleString('es-MX', { hour12: false });
+    }
+
+    // Alert banner
+    const banner = document.getElementById('platform-alerts-banner');
+    if (summary.alerts?.length) {
+      banner.style.display = '';
+      banner.innerHTML = summary.alerts.map(a =>
+        `<div class="platform-alert-row">
+           🚨 Presupuesto <b>${a.period}</b> superado: <b>$${Number(a.actual_usd).toFixed(4)}</b>
+           (límite $${Number(a.threshold_usd).toFixed(2)}) — ${escHtml(a.model_breakdown || '')}
+           <button class="btn-sm" onclick="ackPlatformAlert(${a.id})">OK</button>
+         </div>`
+      ).join('');
+    } else {
+      banner.style.display = 'none';
+    }
+
+    // Hourly chart
+    if (Array.isArray(hourly) && hourly.length) {
+      const labels = hourly.map(r => r.hour_bucket?.slice(11, 16) || '');
+      const costs  = hourly.map(r => parseFloat(r.cost || 0));
+
+      const ctx = document.getElementById('platform-hourly-chart');
+      if (platformHourlyChart) { platformHourlyChart.destroy(); platformHourlyChart = null; }
+      platformHourlyChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'USD',
+            data: costs,
+            backgroundColor: costs.map(c => c > 5 ? '#ef444480' : c > 1 ? '#f59e0b80' : '#10b98180'),
+            borderColor:     costs.map(c => c > 5 ? '#ef4444'   : c > 1 ? '#f59e0b'   : '#10b981'),
+            borderWidth: 1,
+          }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#9ca3af', font: { size: 9 } }, grid: { color: '#1f2937' } },
+            y: { ticks: { color: '#9ca3af', font: { size: 9 }, callback: v => `$${v.toFixed(2)}` }, grid: { color: '#1f2937' } },
+          },
+        },
+      });
+    }
+
+    // By model
+    const modelDiv = document.getElementById('platform-by-model');
+    if (summary.by_model?.length) {
+      const maxCost = Math.max(...summary.by_model.map(r => parseFloat(r.cost)));
+      modelDiv.innerHTML = summary.by_model.map(r => {
+        const c = parseFloat(r.cost);
+        const pct = maxCost > 0 ? (c / maxCost * 100).toFixed(0) : 0;
+        const model = (r.model || 'unknown').replace('claude-', '').replace(/-\d{8}$/, '');
+        return `<div class="cost-row" style="flex-direction:column;align-items:stretch;gap:2px">
+          <div style="display:flex;justify-content:space-between">
+            <span class="label">${escHtml(model)}</span>
+            <span class="val" style="color:${c>5?'var(--red)':c>1?'var(--orange,#f59e0b)':''}">$${c.toFixed(4)}</span>
+          </div>
+          <div style="height:4px;background:var(--bg3);border-radius:2px">
+            <div style="height:4px;width:${pct}%;background:var(--accent);border-radius:2px"></div>
+          </div>
+        </div>`;
+      }).join('');
+    } else {
+      modelDiv.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:4px">Sin datos de modelos hoy</div>';
+    }
+
+    // Budgets
+    const budgetDiv = document.getElementById('platform-budgets');
+    if (summary.budgets?.length) {
+      budgetDiv.innerHTML = summary.budgets.map(b =>
+        `<div class="cost-row">
+           <span class="label">${b.period}</span>
+           <div style="display:flex;align-items:center;gap:6px">
+             <input type="number" step="0.01" min="0" value="${Number(b.threshold_usd).toFixed(2)}"
+               style="width:70px;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:2px 4px;font-size:11px"
+               onchange="saveBudget('${b.period}', this.value)">
+             <span style="color:var(--text-muted);font-size:10px">USD</span>
+           </div>
+         </div>`
+      ).join('');
+    }
+
+    document.getElementById('platform-error').style.display = 'none';
+  } catch (err) {
+    const errDiv = document.getElementById('platform-error');
+    errDiv.style.display = '';
+    errDiv.textContent = `Error: ${err.message}`;
+  }
+}
+
+async function refreshPlatform() {
+  const btn = document.querySelector('#platform-panel .btn-sm');
+  if (btn) { btn.textContent = '…'; btn.disabled = true; }
+  try {
+    const r = await fetch(`${API}/api/platform/refresh`, { method: 'POST' });
+    const j = await r.json();
+    if (j.error) throw new Error(j.error);
+    await loadPlatform();
+  } catch (err) {
+    const errDiv = document.getElementById('platform-error');
+    errDiv.style.display = '';
+    errDiv.textContent = `Error sync: ${err.message}`;
+  } finally {
+    if (btn) { btn.textContent = '↻ Sync'; btn.disabled = false; }
+  }
+}
+
+async function ackPlatformAlert(id) {
+  await fetch(`${API}/api/platform/alerts/${id}/ack`, { method: 'POST' });
+  loadPlatform();
+}
+
+async function saveBudget(period, value) {
+  await fetch(`${API}/api/platform/budget`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ period, threshold_usd: parseFloat(value) }),
+  });
 }
 
 // ─── Init ─────────────────────────────────────────────────
