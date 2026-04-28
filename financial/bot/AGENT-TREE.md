@@ -16,13 +16,13 @@ financial-bot.js  (GrammY · state machine)
       │
       ├─── [DOCUMENTO / IMAGEN]
       │         │
-      │         ├── DocumentIntelligenceAgent   ← GEMINI_API_KEY presente
+      │         ├── DocumentIntelligenceAgent   ← GOOGLE_API_KEY presente
       │         │         └── gemini-2.5-flash-preview-04-17  (multimodal nativo)
       │         │               ├── procesarBuffer()           PDF · XLSX · CSV · TXT · imágenes
       │         │               ├── extraerCuentasBancarias()  tablas · fotos · capturas
       │         │               └── analizarFactura()          CFDI · comprobantes SPEI
       │         │
-      │         └── [fallback — sin GEMINI_API_KEY]
+      │         └── [fallback — sin GOOGLE_API_KEY]
       │                   ├── InvoiceAgent      PDF · XLSX · CSV · TXT
       │                   │         └── deepseek-chat
       │                   └── VisionAgent       imágenes
@@ -59,7 +59,7 @@ financial-bot.js  (GrammY · state machine)
 
 | Agente | Archivo | Modelo | API Key | Estado |
 |--------|---------|--------|---------|--------|
-| DocumentIntelligenceAgent | `agents/DocumentIntelligenceAgent.js` | `gemini-2.5-flash-preview-04-17` | `GEMINI_API_KEY` | Activo (preferido) |
+| DocumentIntelligenceAgent | `agents/DocumentIntelligenceAgent.js` | `gemini-2.5-flash-preview-04-17` | `GOOGLE_API_KEY` | Activo (preferido) |
 | TransactionOrchestrator | `agents/TransactionOrchestrator.js` | `claude-sonnet-4-6` | `ANTHROPIC_API_KEY` | Activo (preferido) |
 | VisionAgent | `agents/vision-agent.js` | `claude-haiku-4-5-20251001` | `ANTHROPIC_API_KEY` | Fallback imágenes |
 | InvoiceAgent | `agents/invoice-agent.js` | `deepseek-chat` | `DEEPSEEK_API_KEY` | Fallback docs |
@@ -79,5 +79,5 @@ financial-bot.js  (GrammY · state machine)
 ```
 DEEPSEEK_API_KEY   →  InvoiceAgent + ContextReader + ResponseGen   (requerido siempre)
 ANTHROPIC_API_KEY  →  TransactionOrchestrator + VisionAgent
-GEMINI_API_KEY     →  DocumentIntelligenceAgent                    (reemplaza VisionAgent para imágenes)
+GOOGLE_API_KEY     →  DocumentIntelligenceAgent                    (reemplaza VisionAgent para imágenes)
 ```

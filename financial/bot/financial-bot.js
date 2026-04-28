@@ -49,6 +49,13 @@ const DEEPSEEK_MODEL= 'deepseek-chat';
 
 if (!BOT_TOKEN) throw new Error('FIN_TELEGRAM_BOT_TOKEN no está configurado');
 
+const LLM_KEYS_STATUS = {
+  ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ? 'set' : 'missing',
+  GOOGLE_API_KEY:    process.env.GOOGLE_API_KEY    ? 'set' : 'missing',
+  DEEPSEEK_API_KEY:  process.env.DEEPSEEK_API_KEY  ? 'set' : 'missing',
+};
+console.log('[startup] LLM keys status:', LLM_KEYS_STATUS);
+
 // ── Init servicios ────────────────────────────────────────────────────────────
 
 const pool = mysql.createPool({
