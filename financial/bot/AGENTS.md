@@ -11,7 +11,7 @@ Telegram message
 financial-bot.js  (GrammY bot, state machine)
       │
       ├─── DocumentIntelligenceAgent  (images, PDFs, XLSX)
-      │         └── Gemini 2.5 Flash  [GEMINI_API_KEY]
+      │         └── Gemini 2.5 Flash  [GOOGLE_API_KEY]
       │         └── fallback: InvoiceAgent + VisionAgent
       │
       ├─── TransactionOrchestrator    (ambiguous text routing)
@@ -37,7 +37,7 @@ financial-bot.js  (GrammY bot, state machine)
 
 **File:** `agents/DocumentIntelligenceAgent.js`
 **Model:** `gemini-2.5-flash-preview-04-17`
-**Activated by:** `GEMINI_API_KEY` in `.env`
+**Activated by:** `GOOGLE_API_KEY` in `.env`
 **Replaces:** InvoiceAgent (para imágenes) + VisionAgent
 
 ### Purpose
@@ -61,7 +61,7 @@ await docAgent.analizarFactura(imageBuffer, mimeType)
 ```
 
 ### Fallback
-If `GEMINI_API_KEY` is not set, `financial-bot.js` uses the original `InvoiceAgent` + `VisionAgent` path unchanged.
+If `GOOGLE_API_KEY` is not set, `financial-bot.js` uses the original `InvoiceAgent` + `VisionAgent` path unchanged.
 
 ---
 
@@ -98,7 +98,7 @@ If `ANTHROPIC_API_KEY` is not set, uses `ContextReader` (DeepSeek) instead.
 
 **File:** `agents/invoice-agent.js`
 **Model:** `deepseek-chat` via OpenAI-compatible API
-**Status:** Active as fallback when `GEMINI_API_KEY` is not available
+**Status:** Active as fallback when `GOOGLE_API_KEY` is not available
 
 Handles PDF, XLSX, CSV, TXT. Returns `{ tipo: 'imagen_sin_ocr' }` for images (cannot do OCR).
 
@@ -108,7 +108,7 @@ Handles PDF, XLSX, CSV, TXT. Returns `{ tipo: 'imagen_sin_ocr' }` for images (ca
 
 **File:** `agents/vision-agent.js`
 **Model:** `claude-haiku-4-5-20251001`
-**Status:** Active as fallback when `GEMINI_API_KEY` is not available
+**Status:** Active as fallback when `GOOGLE_API_KEY` is not available
 
 Handles images only. Two methods: `extraerCuentasBancarias` and `analizarFactura`.
 
@@ -150,7 +150,7 @@ Las keys son **independientes** — cada una activa un conjunto de agentes disti
 
 | Variable | Activa | Sin ella |
 |----------|--------|----------|
-| `GEMINI_API_KEY` | `DocumentIntelligenceAgent` (imágenes + docs) | Cae a `InvoiceAgent` + `VisionAgent` |
+| `GOOGLE_API_KEY` | `DocumentIntelligenceAgent` (imágenes + docs) | Cae a `InvoiceAgent` + `VisionAgent` |
 | `ANTHROPIC_API_KEY` | `TransactionOrchestrator` + `VisionAgent` (fallback OCR) | Sin orchestrator ni OCR de imágenes |
 | `DEEPSEEK_API_KEY` | `InvoiceAgent`, `ContextReader`, `ResponseGen` | Bot no arranca |
 | `FIN_TELEGRAM_BOT_TOKEN` | Bot Telegram | Bot no arranca |
@@ -160,5 +160,5 @@ Las keys son **independientes** — cada una activa un conjunto de agentes disti
 ```
 DEEPSEEK_API_KEY=...      # siempre requerido
 ANTHROPIC_API_KEY=...     # activa TransactionOrchestrator + VisionAgent
-GEMINI_API_KEY=...        # activa DocumentIntelligenceAgent (preferido sobre VisionAgent)
+GOOGLE_API_KEY=...        # activa DocumentIntelligenceAgent (preferido sobre VisionAgent)
 ```

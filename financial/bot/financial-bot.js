@@ -91,8 +91,8 @@ const contextReader    = new ContextReader(llm,   { model: DEEPSEEK_MODEL });
 const visionAgent      = process.env.ANTHROPIC_API_KEY
   ? new VisionAgent(process.env.ANTHROPIC_API_KEY)
   : null;
-const docAgent = process.env.GEMINI_API_KEY
-  ? new DocumentIntelligenceAgent(process.env.GEMINI_API_KEY)
+const docAgent = process.env.GOOGLE_API_KEY
+  ? new DocumentIntelligenceAgent(process.env.GOOGLE_API_KEY)
   : null;
 const transactionOrchestrator = process.env.ANTHROPIC_API_KEY
   ? new TransactionOrchestrator(process.env.ANTHROPIC_API_KEY)

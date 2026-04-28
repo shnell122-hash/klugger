@@ -11,7 +11,7 @@ const SYSTEM_INSTRUCTION =
 
 class DocumentIntelligenceAgent {
   constructor(apiKey) {
-    if (!apiKey) throw new Error('DocumentIntelligenceAgent requiere GEMINI_API_KEY');
+    if (!apiKey) throw new Error('DocumentIntelligenceAgent requiere GOOGLE_API_KEY');
     this.genAI = new GoogleGenerativeAI(apiKey);
     this.model = this.genAI.getGenerativeModel({
       model: MODEL,

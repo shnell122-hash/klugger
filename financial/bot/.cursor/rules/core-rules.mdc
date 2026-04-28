@@ -16,7 +16,7 @@ alwaysApply: true
 |--------|--------|-------|
 | DocumentIntelligenceAgent | `gemini-2.5-flash-preview-04-17` | Multimodal nativo, más barato para OCR |
 | TransactionOrchestrator | `claude-sonnet-4-6` | Razonamiento estructurado, tool use |
-| VisionAgent (fallback) | `claude-haiku-4-5-20251001` | Fallback para imágenes si no hay GEMINI_API_KEY (requiere ANTHROPIC_API_KEY) |
+| VisionAgent (fallback) | `claude-haiku-4-5-20251001` | Fallback para imágenes si no hay GOOGLE_API_KEY (requiere ANTHROPIC_API_KEY) |
 | InvoiceAgent, ContextReader, ResponseGen | `deepseek-chat` | Tareas de texto simple, económico |
 
 ## Llamadas LLM
@@ -45,4 +45,4 @@ alwaysApply: true
 ## Deploy
 - Después de cada commit: `pm2 restart financial-bot`
 - Verificar logs: `pm2 logs financial-bot --lines 50`
-- La GEMINI_API_KEY debe estar en el `.env` del servidor para activar los nuevos agentes
+- La GOOGLE_API_KEY debe estar en el `.env` del servidor para activar los nuevos agentes
