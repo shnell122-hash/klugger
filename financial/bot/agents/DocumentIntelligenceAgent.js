@@ -1,7 +1,7 @@
 'use strict';
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-const MODEL = 'gemini-2.5-flash-preview-04-17';
+const MODEL = 'gemini-2.0-flash';
 
 const SYSTEM_INSTRUCTION =
   'Eres un agente de inteligencia financiera especializado en México. ' +
@@ -13,14 +13,11 @@ class DocumentIntelligenceAgent {
   constructor(apiKey) {
     if (!apiKey) throw new Error('DocumentIntelligenceAgent requiere GOOGLE_API_KEY');
     this.genAI = new GoogleGenerativeAI(apiKey);
-    this.model = this.genAI.getGenerativeModel(
-      {
-        model: MODEL,
-        systemInstruction: SYSTEM_INSTRUCTION,
-        generationConfig: { responseMimeType: 'application/json', temperature: 0 },
-      },
-      { apiVersion: 'v1alpha' },
-    );
+    this.model = this.genAI.getGenerativeModel({
+      model: MODEL,
+      systemInstruction: SYSTEM_INSTRUCTION,
+      generationConfig: { responseMimeType: 'application/json', temperature: 0 },
+    });
   }
 
   // Drop-in replacement for InvoiceAgent.procesarBuffer
