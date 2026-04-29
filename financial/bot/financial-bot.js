@@ -888,11 +888,16 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
 
           const imgAgent = docAgent ?? visionAgent;
           if (imgAgent) {
-            // Lanzar ambos análisis en paralelo: cuentas bancarias + factura
-            const [{ cuentas }, visionResult] = await Promise.all([
-              imgAgent.extraerCuentasBancarias(imgBuffer, mimeImg),
-              imgAgent.analizarFactura(imgBuffer, mimeImg),
-            ]);
+            // docAgent uses a single Gemini call for both; visionAgent uses two parallel calls
+            let cuentas, visionResult;
+            if (docAgent) {
+              ({ cuentas, visionResult } = await docAgent.analizarImagenCompleta(imgBuffer, mimeImg));
+            } else {
+              ([{ cuentas }, visionResult] = await Promise.all([
+                imgAgent.extraerCuentasBancarias(imgBuffer, mimeImg),
+                imgAgent.analizarFactura(imgBuffer, mimeImg),
+              ]));
+            }
 
             // Si también hay monto detectado, es un comprobante (no lista de cuentas para entrega)
             // — en ese caso preferir la interpretación de comprobante para no guardar cuentas del receptor
