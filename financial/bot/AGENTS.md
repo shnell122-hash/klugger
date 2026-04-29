@@ -36,7 +36,7 @@ financial-bot.js  (GrammY bot, state machine)
 ## DocumentIntelligenceAgent
 
 **File:** `agents/DocumentIntelligenceAgent.js`
-**Model:** `gemini-2.5-flash-preview-04-17`
+**Model:** `gemini-2.0-flash`
 **Activated by:** `GOOGLE_API_KEY` in `.env`
 **Replaces:** InvoiceAgent (para imágenes) + VisionAgent
 

@@ -266,7 +266,7 @@ Actualizar estos archivos cada vez que se agregue o modifique un agente.
 
 | Agente | Archivo | Modelo | Env var |
 |--------|---------|--------|---------|
-| DocumentIntelligenceAgent | `agents/DocumentIntelligenceAgent.js` | `gemini-2.5-flash-preview-04-17` | `GOOGLE_API_KEY` |
+| DocumentIntelligenceAgent | `agents/DocumentIntelligenceAgent.js` | `gemini-2.0-flash` | `GOOGLE_API_KEY` |
 | TransactionOrchestrator | `agents/TransactionOrchestrator.js` | `claude-sonnet-4-6` | `ANTHROPIC_API_KEY` |
 | VisionAgent (fallback OCR) | `agents/vision-agent.js` | `claude-haiku-4-5-20251001` | `ANTHROPIC_API_KEY` |
 | InvoiceAgent (fallback docs) | `agents/invoice-agent.js` | `deepseek-chat` | `DEEPSEEK_API_KEY` |
