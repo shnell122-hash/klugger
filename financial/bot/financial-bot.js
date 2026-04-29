@@ -892,6 +892,14 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
             let cuentas, visionResult;
             if (docAgent) {
               ({ cuentas, visionResult } = await docAgent.analizarImagenCompleta(imgBuffer, mimeImg));
+              // If Gemini failed (rate limit, quota, etc.) fall back to visionAgent
+              if (!cuentas.length && !visionResult && visionAgent) {
+                console.warn('[docAgent] Gemini sin resultado — fallback a visionAgent (Haiku)');
+                ([{ cuentas }, visionResult] = await Promise.all([
+                  visionAgent.extraerCuentasBancarias(imgBuffer, mimeImg),
+                  visionAgent.analizarFactura(imgBuffer, mimeImg),
+                ]));
+              }
             } else {
               ([{ cuentas }, visionResult] = await Promise.all([
                 imgAgent.extraerCuentasBancarias(imgBuffer, mimeImg),
