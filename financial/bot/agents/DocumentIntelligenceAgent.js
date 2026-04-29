@@ -13,11 +13,14 @@ class DocumentIntelligenceAgent {
   constructor(apiKey) {
     if (!apiKey) throw new Error('DocumentIntelligenceAgent requiere GOOGLE_API_KEY');
     this.genAI = new GoogleGenerativeAI(apiKey);
-    this.model = this.genAI.getGenerativeModel({
-      model: MODEL,
-      systemInstruction: SYSTEM_INSTRUCTION,
-      generationConfig: { responseMimeType: 'application/json', temperature: 0 },
-    });
+    this.model = this.genAI.getGenerativeModel(
+      {
+        model: MODEL,
+        systemInstruction: SYSTEM_INSTRUCTION,
+        generationConfig: { responseMimeType: 'application/json', temperature: 0 },
+      },
+      { apiVersion: 'v1alpha' },
+    );
   }
 
   // Drop-in replacement for InvoiceAgent.procesarBuffer
