@@ -109,6 +109,43 @@ class DocumentIntelligenceAgent {
     }
   }
 
+  // Single Gemini call that returns both cuentas and factura data — avoids double API call
+  async analizarImagenCompleta(imageBuffer, mimeType) {
+    const result = await this._analizarImagen(imageBuffer, mimeType);
+    if (!result) return { cuentas: [], visionResult: null };
+
+    const raw = result.cuentas_lista?.length ? result.cuentas_lista : (result.datos_bancarios ?? []);
+    const cuentas = raw
+      .map(c => {
+        const num = String(c.numero ?? '').replace(/[\s\-.]/g, '');
+        if (!/^\d{10,19}$/.test(num)) return null;
+        let tipo = 'cuenta';
+        if      (/^\d{18}$/.test(num)) tipo = 'CLABE';
+        else if (/^\d{16}$/.test(num)) tipo = 'tarjeta';
+        return { tipo, numero: num, titular: c.nombre ?? c.titular ?? null,
+                 banco: c.banco ?? null, monto: c.monto != null ? parseFloat(c.monto) : null,
+                 confianza: c.confianza ?? 'media' };
+      })
+      .filter(Boolean);
+
+    const visionResult = (result.monto_total || result.tipo === 'factura') ? {
+      tipo:            result.tipo ?? 'desconocido',
+      monto_total:     result.monto_total,
+      emisor_nombre:   result.emisor,
+      emisor_rfc:      result.emisor_rfc,
+      receptor_nombre: null,
+      concepto:        null,
+      fecha:           null,
+      folio:           null,
+      datos_bancarios: (result.datos_bancarios ?? [])
+        .map(d => { const num = String(d.numero ?? '').replace(/[\s\-.]/g, '');
+                    return /^\d{10,19}$/.test(num) ? { ...d, numero: num } : null; })
+        .filter(Boolean),
+    } : null;
+
+    return { cuentas, visionResult };
+  }
+
   // Drop-in replacement for VisionAgent.extraerCuentasBancarias
   async extraerCuentasBancarias(imageBuffer, mimeType) {
     const result = await this._analizarImagen(imageBuffer, mimeType);
