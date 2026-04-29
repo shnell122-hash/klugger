@@ -78,10 +78,12 @@ router.post('/:name', requireAuth, async (req, res) => {
   if (typeof value !== 'string') {
     return res.status(400).json({ error: 'value debe ser string' });
   }
+  // Strip newlines and null bytes — prevent injecting extra variables into the .env file
+  const sanitizedValue = value.replace(/[\r\n\0]/g, '');
 
   try {
     let content = fs.existsSync(VAULT_PATH) ? fs.readFileSync(VAULT_PATH, 'utf8') : '';
-    content = patchEnvFile(content, name, value);
+    content = patchEnvFile(content, name, sanitizedValue);
     fs.writeFileSync(VAULT_PATH, content, { mode: 0o600 });
 
     // Log the change (audit trail — never log the value)
@@ -92,7 +94,7 @@ router.post('/:name', requireAuth, async (req, res) => {
       );
     } catch (_) { /* non-critical — log table may not exist yet */ }
 
-    res.json({ ok: true, name, masked: mask(value) });
+    res.json({ ok: true, name, masked: mask(sanitizedValue) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
