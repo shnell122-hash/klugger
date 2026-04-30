@@ -1,6 +1,6 @@
 # CLAUDE.md — ai-monitor / agentic-repo
 
-> Archivo de referencia para agentes Claude Code. Actualizado 2026-04-27.
+> Archivo de referencia para agentes Claude Code. Actualizado 2026-04-30.
 
 ---
 
@@ -197,8 +197,8 @@ Visibles en dashboard → tab **Alertas**.
 ```bash
 # ── Raíz común ────────────────────────────────────────────────────────────────
 cd /var/www/html/vilarkptl.com/ai-monitor
-git fetch origin claude/financial-multiagent-system-YwtYQ
-git reset --hard origin/claude/financial-multiagent-system-YwtYQ
+git fetch origin main
+git reset --hard origin/main
 
 # ── Solo financial-bot (cambios en financial/bot/**) ─────────────────────────
 pm2 restart financial-bot
@@ -248,7 +248,7 @@ Siempre usar exactamente estos nombres (están en el servidor y en Cursor Cloud 
 
 ```js
 process.env.ANTHROPIC_API_KEY   // Claude Sonnet → TransactionOrchestrator + VisionAgent (fallback)
-process.env.GOOGLE_API_KEY      // Gemini 2.5 Flash → DocumentIntelligenceAgent
+process.env.GOOGLE_API_KEY      // gemini-1.5-flash → DocumentIntelligenceAgent
 process.env.DEEPSEEK_API_KEY    // DeepSeek → InvoiceAgent, ContextReader, ResponseGen
 ```
 
@@ -262,11 +262,11 @@ process.env.DEEPSEEK_API_KEY    // DeepSeek → InvoiceAgent, ContextReader, Res
 
 Actualizar estos archivos cada vez que se agregue o modifique un agente.
 
-### Agentes activos (2026-04-27)
+### Agentes activos (2026-04-30)
 
 | Agente | Archivo | Modelo | Env var |
 |--------|---------|--------|---------|
-| DocumentIntelligenceAgent | `agents/DocumentIntelligenceAgent.js` | `gemini-2.0-flash` | `GOOGLE_API_KEY` |
+| DocumentIntelligenceAgent | `agents/DocumentIntelligenceAgent.js` | `gemini-1.5-flash` | `GOOGLE_API_KEY` |
 | TransactionOrchestrator | `agents/TransactionOrchestrator.js` | `claude-sonnet-4-6` | `ANTHROPIC_API_KEY` |
 | VisionAgent (fallback OCR) | `agents/vision-agent.js` | `claude-haiku-4-5-20251001` | `ANTHROPIC_API_KEY` |
 | InvoiceAgent (fallback docs) | `agents/invoice-agent.js` | `deepseek-chat` | `DEEPSEEK_API_KEY` |
@@ -294,3 +294,40 @@ ps aux | grep -E 'agent worker|cursor-agent'
 - Los Secrets (`ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `DEEPSEEK_API_KEY`) se configuran en el dashboard de Cursor, no en el `.env` local del worker
 - Claude Code CLI **nunca** inicia ni detiene el worker — eso lo hace el usuario desde el servidor
 - Worker registrado como proceso PM2: `cursor-worker` (id 26) — ya configurado y persistente
+
+---
+
+## Instrucciones de compactación de contexto
+
+Cuando el contexto se compacte automáticamente, el resumen debe seguir estas reglas para minimizar tokens:
+
+### Incluir (forma compacta)
+- Archivos modificados: solo `ruta/archivo.js:línea — qué cambió` (una línea por archivo)
+- Errores resueltos: causa raíz + fix en una oración
+- PRs mergeados: número + título + sha corto
+- Estado de tareas pendientes: lista bulleted, sin contexto extra
+- Variables de entorno críticas solo si cambiaron
+
+### NO incluir en el resumen
+- Bloques de código completos (solo snippets de 1-3 líneas si son esenciales)
+- Logs literales del servidor (solo el mensaje de error, no el stack trace completo)
+- Contenido completo de archivos SQL o de configuración
+- Historial de intentos fallidos (solo el fix final)
+- Contexto de arquitectura general (ya está en CLAUDE.md)
+
+### Formato objetivo del resumen
+```
+## Estado actual
+- Rama: <nombre> | Último PR: #N mergeado a main
+- Bot: online | Dashboard: online | DB: migración vN aplicada
+
+## Archivos modificados (esta sesión)
+- ruta/archivo.js — descripción de cambio
+...
+
+## Pendiente
+- [ ] tarea pendiente 1
+...
+```
+
+**Objetivo: resumen ≤ 400 palabras. Si supera 600 palabras, está incluyendo demasiado.**

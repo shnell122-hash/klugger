@@ -1,7 +1,7 @@
 # Financial-Bot — Árbol de Agentes
 
-> **Timestamp:** 2026-04-27T00:00:00Z  
-> **Rama:** `claude/financial-multiagent-system-YwtYQ`  
+> **Timestamp:** 2026-04-30T00:00:00Z  
+> **Rama:** `main` (mergeado)  
 > **Versión:** Etapa 1 MVP
 
 ---
@@ -17,7 +17,7 @@ financial-bot.js  (GrammY · state machine)
       ├─── [DOCUMENTO / IMAGEN]
       │         │
       │         ├── DocumentIntelligenceAgent   ← GOOGLE_API_KEY presente
-      │         │         └── gemini-2.5-flash-preview-04-17  (multimodal nativo)
+      │         │         └── gemini-1.5-flash  (multimodal nativo)
       │         │               ├── procesarBuffer()           PDF · XLSX · CSV · TXT · imágenes
       │         │               ├── extraerCuentasBancarias()  tablas · fotos · capturas
       │         │               └── analizarFactura()          CFDI · comprobantes SPEI
@@ -59,7 +59,7 @@ financial-bot.js  (GrammY · state machine)
 
 | Agente | Archivo | Modelo | API Key | Estado |
 |--------|---------|--------|---------|--------|
-| DocumentIntelligenceAgent | `agents/DocumentIntelligenceAgent.js` | `gemini-2.5-flash-preview-04-17` | `GOOGLE_API_KEY` | Activo (preferido) |
+| DocumentIntelligenceAgent | `agents/DocumentIntelligenceAgent.js` | `gemini-1.5-flash` | `GOOGLE_API_KEY` | Activo (preferido) |
 | TransactionOrchestrator | `agents/TransactionOrchestrator.js` | `claude-sonnet-4-6` | `ANTHROPIC_API_KEY` | Activo (preferido) |
 | VisionAgent | `agents/vision-agent.js` | `claude-haiku-4-5-20251001` | `ANTHROPIC_API_KEY` | Fallback imágenes |
 | InvoiceAgent | `agents/invoice-agent.js` | `deepseek-chat` | `DEEPSEEK_API_KEY` | Fallback docs |

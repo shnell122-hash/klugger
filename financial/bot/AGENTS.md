@@ -1,6 +1,6 @@
 # Financial-Bot — Agent Reference
 
-> Updated: 2026-04-27
+> Updated: 2026-04-30
 
 ## Agent Map
 
@@ -11,7 +11,7 @@ Telegram message
 financial-bot.js  (GrammY bot, state machine)
       │
       ├─── DocumentIntelligenceAgent  (images, PDFs, XLSX)
-      │         └── Gemini 2.5 Flash  [GOOGLE_API_KEY]
+      │         └── gemini-1.5-flash  [GOOGLE_API_KEY]
       │         └── fallback: InvoiceAgent + VisionAgent
       │
       ├─── TransactionOrchestrator    (ambiguous text routing)
@@ -36,7 +36,7 @@ financial-bot.js  (GrammY bot, state machine)
 ## DocumentIntelligenceAgent
 
 **File:** `agents/DocumentIntelligenceAgent.js`
-**Model:** `gemini-2.0-flash`
+**Model:** `gemini-1.5-flash`
 **Activated by:** `GOOGLE_API_KEY` in `.env`
 **Replaces:** InvoiceAgent (para imágenes) + VisionAgent
 
@@ -50,6 +50,11 @@ Unified multimodal document analysis. Handles images natively (OCR + understandi
 await docAgent.procesarBuffer(buffer, mimeType, fileName)
 // → { tipo: 'factura'|'comprobante'|'otro', monto_total, tipo_operacion,
 //     confianza, datos_bancarios, emisor, emisor_rfc }
+
+// Single Gemini call that returns both cuentas and visionResult — avoids double API call
+await docAgent.analizarImagenCompleta(imageBuffer, mimeType)
+// → { cuentas: [{ tipo, numero, titular, banco, monto, confianza }],
+//     visionResult: { tipo, monto_total, emisor_nombre, emisor_rfc, datos_bancarios } | null }
 
 // Extract bank accounts from image (tables, screenshots, photos)
 await docAgent.extraerCuentasBancarias(imageBuffer, mimeType)
