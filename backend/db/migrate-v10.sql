@@ -1,6 +1,6 @@
 -- AI Monitoring — Schema migration v10
 -- Agrega tablas para monitoreo de gasto real de Claude Platform (Admin API).
--- Run on VPS: mysql -u root -pVilarRoot2026! ai_monitoring < backend/db/migrate-v10.sql
+-- Run on VPS: mysql -u root -p ai_monitoring < backend/db/migrate-v10.sql
 
 USE ai_monitoring;
 
