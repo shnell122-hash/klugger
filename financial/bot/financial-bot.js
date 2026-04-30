@@ -727,23 +727,28 @@ bot.on('message:text', async (ctx, next) => {
           .text(`✅ Confirmar $${fmt(draft.monto_bruto)}`, 'confirmar_factura');
         await ctx.reply('✅ Confirmando…', { reply_markup: kb });
       } else {
-        const { saldo_antes, saldo_despues } = await balanceManager.confirmarPago({
-          clientId:         client.id,
-          monto:            draft.monto_bruto,
-          montoNeto:        draft.monto_neto ?? draft.monto_bruto,
-          tipo:             draft.tipo ?? 'comprobante',
-          tipo_operacion:   draft.tipo_operacion ?? null,
-          telegram_file_id: draft.telegram_file_id ?? null,
-          notas:            'Comprobante confirmado por cliente (texto)',
-        });
-        await updateSession(session.id, 'completado', null);
-        await ctx.reply(
-          `✅ <b>Pago confirmado</b>\n` +
-          `Monto: $${fmt(draft.monto_bruto)}\n` +
-          `Saldo anterior: $${fmt(saldo_antes)}\n` +
-          `<b>Nuevo saldo: $${fmt(saldo_despues)}</b>`,
-          { parse_mode: 'HTML' }
-        );
+        try {
+          const { saldo_antes, saldo_despues } = await balanceManager.confirmarPago({
+            clientId:         client.id,
+            monto:            draft.monto_bruto,
+            montoNeto:        draft.monto_neto ?? draft.monto_bruto,
+            tipo:             draft.tipo ?? 'comprobante',
+            tipo_operacion:   draft.tipo_operacion ?? null,
+            telegram_file_id: draft.telegram_file_id ?? null,
+            notas:            'Comprobante confirmado por cliente (texto)',
+          });
+          await updateSession(session.id, 'completado', null);
+          await ctx.reply(
+            `✅ <b>Pago confirmado</b>\n` +
+            `Monto: $${fmt(draft.monto_bruto)}\n` +
+            `Saldo anterior: $${fmt(saldo_antes)}\n` +
+            `<b>Nuevo saldo: $${fmt(saldo_despues)}</b>`,
+            { parse_mode: 'HTML' }
+          );
+        } catch (err) {
+          console.error('[confirmarPago texto]', err.message);
+          await ctx.reply('⚠️ Error al confirmar el pago. Intenta de nuevo o usa el botón de confirmación.');
+        }
       }
       return;
     }
@@ -1329,15 +1334,22 @@ bot.on('callback_query:data', async (ctx) => {
       await ctx.reply('⚠️ No hay monto registrado. Escríbeme cuánto depositaste.');
       return;
     }
-    const { saldo_antes, saldo_despues } = await balanceManager.confirmarPago({
-      clientId:         client.id,
-      monto:            draft.monto_bruto,
-      montoNeto:        draft.monto_neto ?? draft.monto_bruto,
-      tipo:             draft.tipo ?? 'comprobante',
-      tipo_operacion:   draft.tipo_operacion ?? null,
-      telegram_file_id: draft.telegram_file_id ?? null,
-      notas:            'Comprobante confirmado por cliente',
-    });
+    let saldo_antes, saldo_despues;
+    try {
+      ({ saldo_antes, saldo_despues } = await balanceManager.confirmarPago({
+        clientId:         client.id,
+        monto:            draft.monto_bruto,
+        montoNeto:        draft.monto_neto ?? draft.monto_bruto,
+        tipo:             draft.tipo ?? 'comprobante',
+        tipo_operacion:   draft.tipo_operacion ?? null,
+        telegram_file_id: draft.telegram_file_id ?? null,
+        notas:            'Comprobante confirmado por cliente',
+      }));
+    } catch (err) {
+      console.error('[confirmar_comprobante callback]', err.message);
+      await ctx.reply(`⚠️ Error al confirmar: ${err.message}`);
+      return;
+    }
     await updateSession(session.id, 'completado', null);
 
     // Si hay una distribución pendiente (entrega a terceros), procesarla ahora
