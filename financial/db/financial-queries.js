@@ -141,6 +141,27 @@ async function getLLMCostTimeSeries(pool, days = 30) {
   return rows;
 }
 
+/** Actualizar nombre de cliente */
+async function updateClientNombre(pool, clientId, nombre) {
+  await pool.query(
+    'UPDATE fin_clients SET nombre=?, updated_at=NOW(3) WHERE id=?',
+    [nombre.trim(), clientId]
+  );
+}
+
+/** Todas las cuentas de empresa con info de empresa */
+async function getAllEmpresaCuentasWithInfo(pool) {
+  const [rows] = await pool.query(
+    `SELECT ec.*, e.nombre AS empresa_nombre, e.rfc AS empresa_rfc,
+            e.origen AS empresa_origen
+     FROM fin_empresa_cuentas ec
+     JOIN fin_empresas e ON e.id = ec.empresa_id
+     WHERE ec.is_active = 1
+     ORDER BY e.origen DESC, e.nombre, ec.banco`
+  );
+  return rows;
+}
+
 /** Obtener tipos de operación configurados */
 async function getOperationTypes(pool) {
   const [rows] = await pool.query(
@@ -522,6 +543,8 @@ async function getNuestrasCLABEs(pool) {
 
 module.exports = {
   getClientSummary,
+  updateClientNombre,
+  getAllEmpresaCuentasWithInfo,
   getOperations,
   getDashboardKPIs,
   getVolumeTimeSeries,

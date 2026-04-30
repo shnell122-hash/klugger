@@ -201,6 +201,12 @@ export type EmpresaCuenta = {
   is_active: boolean;
 };
 
+export type EmpresaCuentaFull = EmpresaCuenta & {
+  empresa_nombre: string;
+  empresa_rfc: string | null;
+  empresa_origen: 'nuestra' | 'cliente';
+};
+
 export type Comision = {
   id: number;
   comisionista_id: number;
@@ -300,6 +306,9 @@ export const api = {
   getPaymentConfirmations: (params = '')  => get<PaymentConfirmation[]>(`/payment-confirmations${params ? `?${params}` : ''}`),
   confirmarPago:           (id: number, body: { monto: number; tipo_operacion?: string; notas?: string }) =>
                                             post<{saldo_antes:number,saldo_despues:number}>(`/clients/${id}/confirmar-pago`, body),
+  updateClientNombre:     (id: number, nombre: string) => patch(`/clients/${id}`, { nombre }),
+  getEmpresaCuentasAll:   () => get<EmpresaCuentaFull[]>('/empresa-cuentas-all'),
+  getComprobantImageUrl:  (id: number) => `${BASE}/payment-confirmations/${id}/image`,
   getChats:               (limit = 200)  => get<Chat[]>(`/chats?limit=${limit}`),
   getChatMessages:        (chatId: string, limit = 50) => get<ChatMessage[]>(`/chats/${chatId}/messages?limit=${limit}`),
 

@@ -148,9 +148,10 @@ function LLMCostTimeSeries({ data }: { data: LLMCostPoint[] }) {
 function APIKeys() {
   const [show, setShow] = useState(false);
   const keys = [
-    { name: 'DeepSeek API Key',    env: 'DEEPSEEK_API_KEY',           masked: '...****' + (process.env.DEEPSEEK_API_KEY?.slice(-4) ?? '????') },
-    { name: 'Telegram Bot Token',  env: 'FIN_TELEGRAM_BOT_TOKEN',     masked: '...****' + '????' },
-    { name: 'Anthropic API Key',   env: 'ANTHROPIC_API_KEY',          masked: '...****' + '????' },
+    { name: 'DeepSeek API Key',    env: 'DEEPSEEK_API_KEY' },
+    { name: 'Telegram Bot Token',  env: 'FIN_TELEGRAM_BOT_TOKEN' },
+    { name: 'Anthropic API Key',   env: 'ANTHROPIC_API_KEY' },
+    { name: 'Google API Key',      env: 'GOOGLE_API_KEY' },
   ];
 
   return (
@@ -169,7 +170,7 @@ function APIKeys() {
           <div key={k.env} className="flex items-center gap-3 text-xs">
             <span className="text-gray-400 w-40">{k.name}</span>
             <code className="font-mono text-gray-600 bg-surface px-2 py-1 rounded flex-1">
-              {show ? `${k.env}=****` : k.masked}
+              {show ? `${k.env}=****` : `...****????`}
             </code>
           </div>
         ))}
