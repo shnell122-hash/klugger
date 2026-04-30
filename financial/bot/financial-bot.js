@@ -105,6 +105,29 @@ const transactionOrchestrator = process.env.ANTHROPIC_API_KEY
   ? new TransactionOrchestrator(process.env.ANTHROPIC_API_KEY)
   : null;
 
+// ── Transformer: log bot outgoing messages ────────────────────────────────────
+// Intercepts sendMessage/sendPhoto calls to store bot replies in fin_messages
+// so admins can see the full conversation (including bot responses) in the dashboard.
+bot.api.config.use(async (prev, method, payload, signal) => {
+  const result = await prev(method, payload, signal);
+  if (result.ok && (method === 'sendMessage' || method === 'sendPhoto' || method === 'sendDocument')) {
+    const chatId = payload?.chat_id;
+    const text   = payload?.text ?? payload?.caption ?? null;
+    const msgId  = result.result?.message_id ?? null;
+    const tipo   = method === 'sendPhoto' ? 'foto' : method === 'sendDocument' ? 'documento' : 'texto';
+    if (chatId) {
+      contextManager.logMessage({
+        chatId: String(chatId),
+        telegramMsgId: msgId,
+        tipo,
+        texto: text ? String(text).slice(0, 4000) : null,
+        esBot: true,
+      }).catch(() => {});
+    }
+  }
+  return result;
+});
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function isAllowedChat(ctx) {
@@ -1856,7 +1879,11 @@ bot.start({
 
     try {
       await bot.api.setMyCommands(comandosUsuario);
-      // Registrar comandos admin por cada admin conocido
+      // Registrar comandos admin para administradores de grupos (muestra /ajuste en grupos)
+      await bot.api.setMyCommands(comandosAdmin, {
+        scope: { type: 'all_chat_administrators' },
+      }).catch(() => {});
+      // Registrar comandos admin por cada admin conocido (chat privado)
       for (const adminId of ADMIN_USER_IDS) {
         await bot.api.setMyCommands(comandosAdmin, {
           scope: { type: 'chat', chat_id: adminId },
