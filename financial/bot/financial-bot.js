@@ -1334,15 +1334,22 @@ bot.on('callback_query:data', async (ctx) => {
       await ctx.reply('⚠️ No hay monto registrado. Escríbeme cuánto depositaste.');
       return;
     }
-    const { saldo_antes, saldo_despues } = await balanceManager.confirmarPago({
-      clientId:         client.id,
-      monto:            draft.monto_bruto,
-      montoNeto:        draft.monto_neto ?? draft.monto_bruto,
-      tipo:             draft.tipo ?? 'comprobante',
-      tipo_operacion:   draft.tipo_operacion ?? null,
-      telegram_file_id: draft.telegram_file_id ?? null,
-      notas:            'Comprobante confirmado por cliente',
-    });
+    let saldo_antes, saldo_despues;
+    try {
+      ({ saldo_antes, saldo_despues } = await balanceManager.confirmarPago({
+        clientId:         client.id,
+        monto:            draft.monto_bruto,
+        montoNeto:        draft.monto_neto ?? draft.monto_bruto,
+        tipo:             draft.tipo ?? 'comprobante',
+        tipo_operacion:   draft.tipo_operacion ?? null,
+        telegram_file_id: draft.telegram_file_id ?? null,
+        notas:            'Comprobante confirmado por cliente',
+      }));
+    } catch (err) {
+      console.error('[confirmar_comprobante callback]', err.message);
+      await ctx.reply(`⚠️ Error al confirmar: ${err.message}`);
+      return;
+    }
     await updateSession(session.id, 'completado', null);
 
     // Si hay una distribución pendiente (entrega a terceros), procesarla ahora
