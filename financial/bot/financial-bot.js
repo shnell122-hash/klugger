@@ -135,6 +135,113 @@ function isAllowedChat(ctx) {
   return ALLOWED_CHATS.includes(BigInt(ctx.chat?.id ?? 0));
 }
 
+async function getChatModo(chatId) {
+  try {
+    const [r] = await pool.query('SELECT modo FROM fin_chats WHERE chat_id=?', [chatId]);
+    return r[0]?.modo ?? 'normal';
+  } catch { return 'normal'; }
+}
+
+// Modo asistente: maneja fotos/docs silenciosamente — registra comprobantes y cuentas
+async function handleAsistenteModo(ctx, client, fileInfo) {
+  if (fileInfo.isLink) return;
+  try {
+    const buffer   = await downloadTelegramFileAsBuffer(BOT_TOKEN, fileInfo.file.file_id);
+    const mimeType = fileInfo.mimeType ?? 'image/jpeg';
+    const fileName = fileInfo.fileName ?? null;
+
+    let detected = null;
+    if (docAgent && !mimeType.startsWith('image/')) {
+      detected = await docAgent.procesarBuffer(buffer, mimeType, fileName);
+    }
+    if (!detected) {
+      detected = await invoiceAgent.procesarBuffer(buffer, mimeType, fileName);
+    }
+
+    // Para imágenes, usar visión para extraer cuentas o monto
+    if (detected?.tipo === 'imagen_sin_ocr') {
+      const imgAgent = docAgent ?? visionAgent;
+      if (imgAgent) {
+        let cuentas = [], visionResult = null;
+        if (docAgent) {
+          ({ cuentas, visionResult } = await docAgent.analizarImagenCompleta(buffer, mimeType));
+          if (!cuentas.length && !visionResult && visionAgent) {
+            ([{ cuentas }, visionResult] = await Promise.all([
+              visionAgent.extraerCuentasBancarias(buffer, mimeType),
+              visionAgent.analizarFactura(buffer, mimeType),
+            ]));
+          }
+        } else {
+          ([{ cuentas }, visionResult] = await Promise.all([
+            imgAgent.extraerCuentasBancarias(buffer, mimeType),
+            imgAgent.analizarFactura(buffer, mimeType),
+          ]));
+        }
+        if (cuentas.length && !visionResult?.monto_total) {
+          const { ajenas } = await filtrarCuentasAjenas(cuentas);
+          if (ajenas.length) {
+            await bankingManager.guardarCuentas(client.id, null, ajenas);
+            await ctx.reply(`✅ Guardado · ${ajenas.length} cuenta(s) registrada(s)`);
+            return;
+          }
+        }
+        if (visionResult?.monto_total > 0) {
+          detected = { tipo: 'comprobante', monto_total: visionResult.monto_total, tipo_operacion: null };
+        }
+      }
+    }
+
+    // Comprobante o factura → registrar automáticamente sin confirmación
+    if ((detected?.tipo === 'comprobante' || detected?.tipo === 'factura') && detected.monto_total > 0) {
+      const monto    = detected.monto_total;
+      const tipoOp   = detected.tipo_operacion ?? null;
+      const comision = tipoOp ? await getCommission(tipoOp, pool, client.id) : null;
+      const pct      = comision?.pct ?? 0;
+      const montoNeto = pct > 0 ? Math.round(monto * (1 - pct) * 100) / 100 : monto;
+
+      const saldo_bruto_antes = parseFloat(client.saldo_bruto ?? client.saldo ?? 0);
+      const saldo_neto_antes  = parseFloat(client.saldo ?? 0);
+
+      const { saldo_despues: saldo_neto_despues } = await balanceManager.confirmarPago({
+        clientId:         client.id,
+        monto,
+        montoNeto,
+        tipo:             detected.tipo ?? 'comprobante',
+        tipo_operacion:   tipoOp,
+        comision_pct:     pct,
+        telegram_file_id: fileInfo.file.file_id,
+        notas:            'Auto-registrado (modo asistente)',
+      });
+
+      const saldo_bruto_despues = Math.round((saldo_bruto_antes + monto) * 100) / 100;
+      const comisionMonto       = Math.round((monto - montoNeto) * 100) / 100;
+
+      let msg = `✅ <b>Comprobante registrado</b>  $${fmt(monto)}\n\n`;
+      msg += `Saldo bruto:  <b>$${fmt(saldo_bruto_antes)}</b> → <b>$${fmt(saldo_bruto_despues)}</b>\n`;
+      if (comisionMonto > 0) {
+        msg += `Comisión:     <b>-$${fmt(comisionMonto)}</b> (${(pct * 100).toFixed(1).replace('.0', '')}%)\n`;
+      }
+      msg += `Saldo neto:   <b>$${fmt(saldo_neto_antes)}</b> → <b>$${fmt(saldo_neto_despues)}</b>`;
+
+      await ctx.reply(msg, { parse_mode: 'HTML' });
+      return;
+    }
+
+    // Cuentas bancarias en documento/PDF → guardar silenciosamente
+    if (detected?.datos_bancarios?.length) {
+      const { ajenas } = await filtrarCuentasAjenas(detected.datos_bancarios);
+      if (ajenas.length) {
+        await bankingManager.guardarCuentas(client.id, null, ajenas);
+        await ctx.reply(`✅ Guardado · ${ajenas.length} cuenta(s) registrada(s)`);
+        return;
+      }
+    }
+    // Ningún contenido relevante detectado → silencio
+  } catch (err) {
+    console.error('[asistente-modo]', err.message);
+  }
+}
+
 function isAdmin(userId) {
   return ADMIN_USER_IDS.has(userId);
 }
@@ -496,6 +603,29 @@ bot.command('rol', async (ctx) => {
   await ctx.reply(`✅ Rol actualizado: <b>${labels[arg]}</b>`, { parse_mode: 'HTML' });
 });
 
+// /modo [normal|asistente] — configura cómo se comporta el bot en este chat
+bot.command('modo', async (ctx) => {
+  if (!isAdmin(ctx.from?.id)) { await ctx.reply('⛔ Sin permisos.'); return; }
+  const arg = (ctx.match ?? '').trim().toLowerCase();
+  if (!['normal', 'asistente'].includes(arg)) {
+    await ctx.reply(
+      'Uso: /modo <b>normal</b> | <b>asistente</b>\n\n' +
+      '<b>normal</b> → modo interactivo para clientes (confirmaciones, flujos)\n' +
+      '<b>asistente</b> → silencioso para grupos internos: solo registra comprobantes y cuentas',
+      { parse_mode: 'HTML' }
+    );
+    return;
+  }
+  await pool.query(
+    `INSERT INTO fin_chats (chat_id, modo, is_group, ultimo_msg_at)
+     VALUES (?, ?, 0, NOW(3))
+     ON DUPLICATE KEY UPDATE modo=VALUES(modo)`,
+    [ctx.chat?.id, arg]
+  );
+  const labels = { normal: '🔄 Normal (modo cliente)', asistente: '🤫 Asistente silencioso' };
+  await ctx.reply(`✅ Modo actualizado: <b>${labels[arg]}</b>`, { parse_mode: 'HTML' });
+});
+
 // Mensajes de texto — detecta operaciones implícitas o responde a flujo activo
 bot.on('message:text', async (ctx, next) => {
   const userId  = ctx.from?.id;
@@ -504,6 +634,21 @@ bot.on('message:text', async (ctx, next) => {
 
   // Ignorar comandos (pasar al siguiente handler en la cadena)
   if (text.startsWith('/')) return next();
+
+  // Modo asistente: solo procesa instrucciones de pago en texto (CLABEs/cuentas), silencio para todo lo demás
+  const _modoChat = await getChatModo(chatId);
+  if (_modoChat === 'asistente') {
+    const rawCuentas = BankingManager.parsearTexto(text);
+    if (rawCuentas.length) {
+      const clientAsist = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+      const { ajenas }  = await filtrarCuentasAjenas(rawCuentas);
+      if (ajenas.length) {
+        await bankingManager.guardarCuentas(clientAsist.id, null, ajenas);
+        await ctx.reply(`✅ Guardado · ${ajenas.length} cuenta(s) registrada(s)`);
+      }
+    }
+    return; // silencio para todo lo demás
+  }
 
   const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
   const session = await getOrCreateSession(chatId, client.id);
@@ -857,6 +1002,19 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
 
   const fileInfo = extractFileFromMessage(msg);
   if (!fileInfo) return;
+
+  // Modo asistente: bypass del flujo normal — registrar silenciosamente
+  const _modoFile = await getChatModo(chatId);
+  if (_modoFile === 'asistente') {
+    contextManager.logMessage({
+      chatId, clientId: client.id, telegramMsgId: msg.message_id,
+      fromUserId: ctx.from?.id, fromUsername: ctx.from?.username,
+      tipo: fileInfo.mimeType?.startsWith('image/') ? 'foto' : 'documento',
+      texto: msg.caption ?? fileInfo.fileName ?? null,
+      fileName: fileInfo.fileName ?? null,
+    }).catch(() => {});
+    return handleAsistenteModo(ctx, client, fileInfo);
+  }
 
   let operationId = null;
   if (session.operation_draft_json) {
@@ -1875,6 +2033,7 @@ bot.start({
       { command: 'ajuste',    description: '(Admin) Ajuste manual de saldo' },
       { command: 'testmode',  description: '(Admin) Activar/desactivar modo prueba' },
       { command: 'rol',       description: '(Admin) Cambiar rol del chat' },
+      { command: 'modo',      description: '(Admin) Cambiar modo del chat (normal/asistente)' },
     ];
 
     try {

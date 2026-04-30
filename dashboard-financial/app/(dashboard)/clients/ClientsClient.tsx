@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { api, fmt, type Client, type BankingAccount } from '@/lib/api';
+import { api, fmt, type Client, type BankingAccount, type ClientModel, type OperationType } from '@/lib/api';
 import ConfirmarPagoBtn from '@/components/clients/ConfirmarPagoBtn';
 
 function EditNombreInline({ clientId, nombre, onSaved }: { clientId: number; nombre: string; onSaved: (n: string) => void }) {
@@ -100,6 +100,111 @@ function BankingExpandRow({ clientId }: { clientId: number }) {
   );
 }
 
+function ComisionesRow({ clientId }: { clientId: number }) {
+  const [open, setOpen]                   = useState(false);
+  const [models, setModels]               = useState<ClientModel[]>([]);
+  const [globalTypes, setGlobalTypes]     = useState<OperationType[]>([]);
+  const [loading, setLoading]             = useState(false);
+  const [loaded, setLoaded]               = useState(false);
+  const [saving, setSaving]               = useState<string | null>(null);
+  const [editValues, setEditValues]       = useState<Record<string, string>>({});
+
+  const toggle = async () => {
+    if (!open && !loaded) {
+      setLoading(true);
+      try {
+        const [clientMods, types] = await Promise.all([
+          api.getClientModels(clientId),
+          api.getOperationTypes(),
+        ]);
+        setModels(clientMods);
+        setGlobalTypes(types);
+        // Seed edit values from current overrides
+        const init: Record<string, string> = {};
+        clientMods.forEach(m => { init[m.tipo_operacion] = String((m.comision_pct * 100).toFixed(2)); });
+        setEditValues(init);
+        setLoaded(true);
+      } catch { /* ignore */ }
+      finally { setLoading(false); }
+    }
+    setOpen(o => !o);
+  };
+
+  const save = async (tipo: string) => {
+    const raw = editValues[tipo];
+    const pct = parseFloat(raw) / 100;
+    if (isNaN(pct) || pct < 0 || pct > 1) return;
+    setSaving(tipo);
+    try {
+      await api.upsertClientModel(clientId, tipo, { comision_pct: pct, is_active: true });
+      const updated = await api.getClientModels(clientId);
+      setModels(updated);
+    } catch (e) { alert((e as Error).message); }
+    finally { setSaving(null); }
+  };
+
+  return (
+    <>
+      <tr>
+        <td colSpan={9} className="px-4 py-0">
+          <button onClick={toggle} className="text-[10px] text-gray-600 hover:text-accent py-1 transition-colors">
+            {open ? '▲ ocultar comisiones' : '▼ ver comisiones por tipo'}
+          </button>
+        </td>
+      </tr>
+      {open && (
+        <tr className="bg-surface/30">
+          <td colSpan={9} className="px-6 py-3">
+            {loading ? (
+              <p className="text-xs text-gray-500">Cargando…</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {globalTypes.map(gt => {
+                  const override = models.find(m => m.tipo_operacion === gt.codigo && m.is_active);
+                  const currentPct = override ? override.comision_pct : gt.comision_pct;
+                  const displayPct = (currentPct * 100).toFixed(2);
+                  const editVal    = editValues[gt.codigo] ?? displayPct;
+                  const isDirty    = editVal !== displayPct;
+                  return (
+                    <div key={gt.codigo} className="bg-surface border border-border rounded-lg px-3 py-2 text-xs flex items-center gap-2">
+                      <span className="text-accent font-medium uppercase">{gt.codigo}</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={editVal}
+                        onChange={e => setEditValues(v => ({ ...v, [gt.codigo]: e.target.value }))}
+                        onKeyDown={e => { if (e.key === 'Enter') save(gt.codigo); if (e.key === 'Escape') setEditValues(v => ({ ...v, [gt.codigo]: displayPct })); }}
+                        className="w-16 bg-transparent border-b border-border focus:border-accent outline-none text-white text-xs text-right"
+                      />
+                      <span className="text-gray-500">%</span>
+                      {override && <span className="text-[10px] text-accent">personalizado</span>}
+                      {!override && <span className="text-[10px] text-gray-700">global</span>}
+                      {isDirty && (
+                        <button
+                          onClick={() => save(gt.codigo)}
+                          disabled={saving === gt.codigo}
+                          className="text-[10px] text-accent hover:underline"
+                        >
+                          {saving === gt.codigo ? '…' : '✓ guardar'}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+                {globalTypes.length === 0 && (
+                  <p className="text-xs text-gray-600">Sin tipos de operación configurados</p>
+                )}
+              </div>
+            )}
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
 export default function ClientsClient({ initialClients }: { initialClients: Client[] }) {
   const [clients, setClients] = useState<Client[]>(initialClients);
 
@@ -184,6 +289,7 @@ export default function ClientsClient({ initialClients }: { initialClients: Clie
                     </td>
                   </tr>
                   <BankingExpandRow key={`bk-${c.id}`} clientId={c.id} />
+                  <ComisionesRow key={`cm-${c.id}`} clientId={c.id} />
                 </>
               );
             })}
