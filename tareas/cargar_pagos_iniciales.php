@@ -7,7 +7,7 @@
  * INSTRUCCIONES:
  *   1. Llenar el array $pagos abajo con los datos del Excel
  *   2. Ejecutar UNA SOLA VEZ:  php /var/www/catalogos/tareas/cargar_pagos_iniciales.php
- *   3. Verificar en Notion que los registros aparezcan en N_DB_SALDOS
+ *   3. Verificar en Notion que los registros aparezcan en N_DB_PAGOS
  *   4. Eliminar o proteger este archivo (chmod 000 o mover a /tmp)
  *
  * PROTECCIÓN: El script solo corre por CLI para evitar ejecución accidental desde web.
@@ -19,6 +19,11 @@ if (isset($_SERVER['HTTP_HOST'])) {
 }
 
 require_once __DIR__ . '/notion_helper.php';
+
+// Fallback al ID directo si N_DB_PAGOS no está en .env
+if (!getenv('N_DB_PAGOS')) {
+    putenv('N_DB_PAGOS=352224e4d4dd809eaad8f24a32c9f080');
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ► EDITAR ESTE ARRAY con los pagos del Excel de Vianey
@@ -45,13 +50,13 @@ if (empty($pagos)) {
     exit(1);
 }
 
-$db_id = getenv('N_DB_SALDOS');
+$db_id = getenv('N_DB_PAGOS');
 if (!$db_id) {
-    echo "❌ ERROR: Variable N_DB_SALDOS no configurada en el entorno.\n";
+    echo "❌ ERROR: Variable N_DB_PAGOS no configurada en el entorno.\n";
     exit(1);
 }
 
-echo "=== Cargando pagos iniciales a N_DB_SALDOS ===\n";
+echo "=== Cargando pagos iniciales a N_DB_PAGOS ===\n";
 echo "Total a cargar: " . count($pagos) . " registros\n\n";
 
 $ok    = 0;
@@ -81,7 +86,7 @@ foreach ($pagos as $i => $pago) {
     }
 
     // Verificar si ya existe para no duplicar
-    $existente = nQuery('N_DB_SALDOS', [
+    $existente = nQuery('N_DB_PAGOS', [
         'filter' => [
             'and' => [
                 ['property' => 'Concepto', 'title' => ['equals' => $concepto]],
@@ -131,7 +136,7 @@ foreach ($pagos as $i => $pago) {
 echo "\n=== Resultado ===\n";
 echo "✅ Creados: $ok\n";
 echo "❌ Errores: $error\n";
-echo "\nVerificar en Notion: https://notion.so (buscar base N_DB_SALDOS)\n";
+echo "\nVerificar en Notion: https://notion.so (buscar base N_DB_PAGOS)\n";
 echo "O en el sistema: https://tareas.ruby.lease/pagos.php\n\n";
 
 if ($ok > 0) {
