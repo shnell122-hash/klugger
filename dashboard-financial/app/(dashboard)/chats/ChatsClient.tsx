@@ -30,7 +30,18 @@ export default function ChatsClient({ initialChats }: { initialChats: Chat[] }) 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading]   = useState(false);
   const [limit, setLimit]       = useState(50);
+  const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const handleSelectChat = (chat: Chat) => {
+    setSelected(chat);
+    setLimit(50);
+    setMobileView('chat');
+  };
+
+  const handleBack = () => {
+    setMobileView('list');
+  };
 
   useEffect(() => {
     if (!selected) return;
@@ -60,11 +71,11 @@ export default function ChatsClient({ initialChats }: { initialChats: Chat[] }) 
   const privados = chats.filter(c => !c.is_group).length;
 
   return (
-    <main className="p-6 max-w-[1400px] mx-auto h-[calc(100vh-6rem)]">
+    <main className="p-4 md:p-6 max-w-[1400px] mx-auto" style={{ height: 'calc(100svh - 4rem)' }}>
       <div className="flex gap-4 h-full">
 
         {/* Panel izquierdo — lista de chats */}
-        <div className="w-80 shrink-0 flex flex-col gap-3">
+        <div className={`${mobileView === 'chat' ? 'hidden md:flex' : 'flex'} w-full md:w-80 shrink-0 flex-col gap-3`}>
           <div>
             <h1 className="text-xl font-bold text-white">Chats</h1>
             <p className="text-sm text-gray-500">{privados} privados · {grupos} grupos</p>
@@ -78,7 +89,7 @@ export default function ChatsClient({ initialChats }: { initialChats: Chat[] }) 
               return (
                 <button
                   key={chat.chat_id}
-                  onClick={() => { setSelected(chat); setLimit(50); }}
+                  onClick={() => handleSelectChat(chat)}
                   className={`w-full text-left glass rounded-xl border p-3 flex items-start gap-3 transition-colors cursor-pointer
                     ${activo   ? 'border-accent bg-accent/10'           : ''}
                     ${negativo && !activo ? 'border-red-500/30'         : ''}
@@ -109,7 +120,7 @@ export default function ChatsClient({ initialChats }: { initialChats: Chat[] }) 
         </div>
 
         {/* Panel derecho — conversación */}
-        <div className="flex-1 glass rounded-xl border border-border flex flex-col overflow-hidden">
+        <div className={`${mobileView === 'list' ? 'hidden md:flex' : 'flex'} flex-1 glass rounded-xl border border-border flex-col overflow-hidden`}>
           {!selected ? (
             <div className="flex-1 flex items-center justify-center text-gray-600">
               <div className="text-center">
@@ -121,6 +132,13 @@ export default function ChatsClient({ initialChats }: { initialChats: Chat[] }) 
             <>
               {/* Header del chat */}
               <div className="p-4 border-b border-border flex items-center gap-3">
+                <button
+                  onClick={handleBack}
+                  className="md:hidden mr-1 text-gray-400 hover:text-white"
+                  aria-label="Volver"
+                >
+                  ←
+                </button>
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold
                   ${selected.is_group ? 'bg-purple-500/20 text-purple-400' : 'bg-accent/20 text-accent'}`}>
                   {selected.is_group ? '👥' : ((selected.client_nombre ?? selected.titulo ?? '?')[0]).toUpperCase()}

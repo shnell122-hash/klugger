@@ -153,7 +153,29 @@ module.exports = function financialRoutes(pool, io, express) {
     }
   });
 
+  // PATCH /clients/:id — actualizar nombre del cliente
+  router.patch('/clients/:id', async (req, res) => {
+    try {
+      const { nombre } = req.body;
+      if (!nombre?.trim()) return res.status(400).json({ ok: false, error: 'nombre requerido' });
+      await q.updateClientNombre(pool, parseInt(req.params.id), nombre);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
   // ── Cuentas bancarias ─────────────────────────────────────────────────────
+
+  // GET /empresa-cuentas-all — todas las cuentas de empresa con info
+  router.get('/empresa-cuentas-all', async (req, res) => {
+    try {
+      const data = await q.getAllEmpresaCuentasWithInfo(pool);
+      res.json({ ok: true, data });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  });
 
   router.get('/banking-accounts', async (req, res) => {
     try {
@@ -240,6 +262,32 @@ module.exports = function financialRoutes(pool, io, express) {
       const result = await q.confirmarPagoAdmin(pool, clientId, { monto: parseFloat(monto), tipo_operacion, notas });
       io?.emit('financial:payment_confirmed', { clientId, ...result });
       res.json({ ok: true, data: result });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  // GET /payment-confirmations/:id/image — proxy imagen Telegram
+  router.get('/payment-confirmations/:id/image', async (req, res) => {
+    try {
+      const [[row]] = await pool.query(
+        'SELECT telegram_file_id FROM fin_payment_confirmations WHERE id=?',
+        [req.params.id]
+      );
+      const fileId = row?.telegram_file_id;
+      if (!fileId) return res.status(404).json({ ok: false, error: 'Sin imagen adjunta' });
+
+      const token = process.env.FIN_TELEGRAM_BOT_TOKEN;
+      if (!token) return res.status(503).json({ ok: false, error: 'FIN_TELEGRAM_BOT_TOKEN no configurado' });
+
+      const fr = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${fileId}`);
+      const fd = await fr.json();
+      if (!fd.ok) return res.status(404).json({ ok: false, error: 'Archivo no encontrado en Telegram' });
+
+      const imgRes = await fetch(`https://api.telegram.org/file/bot${token}/${fd.result.file_path}`);
+      res.set('Content-Type', imgRes.headers.get('content-type') || 'image/jpeg');
+      res.set('Cache-Control', 'public, max-age=86400');
+      imgRes.body.pipe(res);
     } catch (err) {
       res.status(500).json({ ok: false, error: err.message });
     }
