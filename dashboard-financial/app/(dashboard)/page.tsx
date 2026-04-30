@@ -8,12 +8,26 @@ import AgentFlowGraph from '@/components/graph/AgentFlowGraph';
 export const dynamic = 'force-dynamic';
 export const revalidate = 30;
 
+const EMPTY_KPIS = {
+  saldo_total_clientes: 0, volumen_hoy: 0, comisiones_hoy: 0,
+  ops_pendientes: 0, total_clientes: 0, ops_hoy: 0,
+  costo_llm_hoy: 0, costo_llm_30d: 0,
+};
+
 export default async function DashboardPage() {
-  const [kpis, volumeTS, opsByType] = await Promise.all([
+  const [kpisRes, volumeRes, opsByTypeRes] = await Promise.allSettled([
     api.getKPIs(),
     api.getVolumeTS(30),
     api.getOpsByType(30),
   ]);
+
+  const kpis      = kpisRes.status      === 'fulfilled' ? kpisRes.value      : EMPTY_KPIS;
+  const volumeTS  = volumeRes.status    === 'fulfilled' ? volumeRes.value    : [];
+  const opsByType = opsByTypeRes.status === 'fulfilled' ? opsByTypeRes.value : [];
+
+  const apiError = [kpisRes, volumeRes, opsByTypeRes].find(r => r.status === 'rejected')
+    ? (kpisRes.status === 'rejected' ? (kpisRes.reason as Error).message : 'Error de API')
+    : null;
 
   return (
     <main className="min-h-screen p-6 space-y-6 max-w-[1600px] mx-auto">
@@ -29,6 +43,13 @@ export default async function DashboardPage() {
           <span className="text-xs text-gray-500">En línea</span>
         </div>
       </div>
+
+      {/* API error banner */}
+      {apiError && (
+        <div className="rounded-lg border border-red-700 bg-red-900/30 px-4 py-3 text-sm text-red-300">
+          Backend no disponible: {apiError}. Los datos mostrados pueden estar desactualizados.
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -76,7 +97,7 @@ export default async function DashboardPage() {
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-semibold text-white">{t.tipo_operacion}</span>
               <span className="text-xs font-mono text-success">
-                {(t.comision_pct_avg * 100).toFixed(1)}%
+                {(Number(t.comision_pct_avg) * 100).toFixed(1)}%
               </span>
             </div>
             <div className="text-xl font-bold font-mono text-white">
