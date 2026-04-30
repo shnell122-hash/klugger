@@ -7,7 +7,17 @@
  *   app.use('/api/financial', financialRoutes(pool, io));
  */
 
-const q       = require('../../db/financial-queries');
+const q    = require('../../db/financial-queries');
+const path = require('path');
+
+// Lee FIN_TELEGRAM_BOT_TOKEN de financial/.env si no está en el proceso actual
+function getTelegramToken() {
+  if (process.env.FIN_TELEGRAM_BOT_TOKEN) return process.env.FIN_TELEGRAM_BOT_TOKEN;
+  try {
+    const env = require('dotenv').config({ path: path.resolve(__dirname, '../../.env') }).parsed;
+    return env?.FIN_TELEGRAM_BOT_TOKEN ?? null;
+  } catch { return null; }
+}
 
 module.exports = function financialRoutes(pool, io, express) {
   const router = express.Router();
@@ -277,7 +287,7 @@ module.exports = function financialRoutes(pool, io, express) {
       const fileId = row?.telegram_file_id;
       if (!fileId) return res.status(404).json({ ok: false, error: 'Sin imagen adjunta' });
 
-      const token = process.env.FIN_TELEGRAM_BOT_TOKEN;
+      const token = getTelegramToken();
       if (!token) return res.status(503).json({ ok: false, error: 'FIN_TELEGRAM_BOT_TOKEN no configurado' });
 
       const fr = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${fileId}`);
