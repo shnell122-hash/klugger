@@ -194,6 +194,64 @@ class DocumentIntelligenceAgent {
         .filter(Boolean),
     };
   }
+
+  // Analiza un cuadro de retorno semanal IAS (tablas NETO/%/BRUTO/CLABE, fondo oscuro iOS)
+  async analizarCuadroRetorno(imageBuffer, mimeType) {
+    const base64    = imageBuffer.toString('base64');
+    const mediaType = mimeType.startsWith('image/') ? mimeType : 'image/jpeg';
+    const prompt =
+      'Esta imagen es un cuadro de retornos semanal para dispersión IAS en México.\n' +
+      'Contiene una tabla con columnas: CLAVE, NOMBRE, NETO, % (o COMISION), BRUTO, y a veces BANCO/CLABE.\n' +
+      'Puede tener fondo oscuro (modo oscuro de iOS/WhatsApp).\n\n' +
+      'Extrae CADA FILA y responde con este JSON exacto:\n' +
+      '{"tipo":"cuadro_retorno","filas":[{"clave":1,"nombre":"GERMAN VILAR ARGUETA","neto":23000,"pct":0.055,"bruto":24338.62,"banco":"Banregio","clabe":"058597000030773833"}],' +
+      '"total_neto":0,"total_bruto":0}\n\n' +
+      'Reglas:\n' +
+      '- pct: dividir entre 100 si viene como "5.50%" → 0.055\n' +
+      '- Si no hay CLABE en la tabla, dejar clabe: null\n' +
+      '- Si el BRUTO no aparece, calcularlo: bruto = neto / (1 - pct)\n' +
+      '- total_neto y total_bruto: suma de todas las filas\n' +
+      '- Si la imagen no es un cuadro de retorno, responder {"tipo":"otro"}';
+
+    try {
+      const start = Date.now();
+      // Use a model without JSON-only constraint to allow audio/image prompts
+      const flexModel = this.genAI.getGenerativeModel({ model: MODEL, temperature: 0 });
+      const result = await flexModel.generateContent([
+        { inlineData: { mimeType: mediaType, data: base64 } },
+        { text: prompt },
+      ]);
+      const text   = result.response.text().replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(text);
+      console.log(`[DocumentIntelligenceAgent/gemini] cuadroRetorno ${Date.now() - start}ms`);
+      return parsed;
+    } catch (e) {
+      console.error('[DocumentIntelligenceAgent] analizarCuadroRetorno:', e.message);
+      return null;
+    }
+  }
+
+  // Transcribe un mensaje de audio (OGG/MP3/M4A) via Gemini 1.5 Flash nativo
+  async transcribirAudio(audioBuffer, mimeType = 'audio/ogg') {
+    const base64 = audioBuffer.toString('base64');
+    const prompt =
+      'Transcribe este mensaje de audio en español. Es una conversación de negocios financieros México.\n' +
+      'Devuelve SOLO el texto transcrito, sin explicaciones ni formato adicional.';
+    try {
+      const start      = Date.now();
+      const flexModel  = this.genAI.getGenerativeModel({ model: MODEL, temperature: 0 });
+      const result     = await flexModel.generateContent([
+        { inlineData: { data: base64, mimeType } },
+        { text: prompt },
+      ]);
+      const transcripcion = result.response.text().trim();
+      console.log(`[DocumentIntelligenceAgent/gemini] audio ${Date.now() - start}ms — ${transcripcion.length} chars`);
+      return transcripcion || null;
+    } catch (e) {
+      console.error('[DocumentIntelligenceAgent] transcribirAudio:', e.message);
+      return null;
+    }
+  }
 }
 
 module.exports = DocumentIntelligenceAgent;

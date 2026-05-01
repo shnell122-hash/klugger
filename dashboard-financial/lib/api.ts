@@ -86,6 +86,7 @@ export type Operation = {
   tipo_nombre: string;
   monto_bruto: number;
   comision_pct: number;
+  costo_pct?: number | null;
   monto_neto: number;
   es_entrada: boolean;
   solicita_neto: boolean;
@@ -237,6 +238,7 @@ export type ClientModel = {
   client_id: number;
   tipo_operacion: string;
   comision_pct: number;
+  costo_pct?: number | null;
   es_credito: boolean;
   is_active: boolean;
   notas: string | null;

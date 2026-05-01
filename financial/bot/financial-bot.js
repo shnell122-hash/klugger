@@ -142,6 +142,54 @@ async function getChatModo(chatId) {
   } catch { return 'normal'; }
 }
 
+// Registra un cuadro de retorno IAS completo: descuenta bruto del saldo, guarda CLABEs, inserta operación
+async function handleCuadroRetorno(ctx, client, cuadro) {
+  const chatId    = ctx.chat?.id;
+  const totalBruto = cuadro.total_bruto
+    || cuadro.filas.reduce((s, f) => s + (f.bruto ?? 0), 0);
+  const totalNeto  = cuadro.total_neto
+    || cuadro.filas.reduce((s, f) => s + (f.neto  ?? 0), 0);
+
+  // Descontar bruto del saldo (salida)
+  const { saldo_antes, saldo_despues } = await balanceManager.ajusteManual({
+    clientId:    client.id,
+    monto:       -totalBruto,
+    descripcion: `IAS dispersión semanal — ${cuadro.filas.length} beneficiarios`,
+    adminId:     null,
+  });
+
+  // Insertar operación IAS
+  const [opResult] = await pool.query(
+    `INSERT INTO fin_operations
+       (client_id, tipo_operacion, monto_bruto, comision_pct, costo_pct, monto_neto,
+        es_entrada, tipo_entrega, subtabla_json, estado, saldo_antes, saldo_despues, telegram_chat_id)
+     VALUES (?, 'IAS', ?, 0, NULL, ?, 0, 'efectivo', ?, 'confirmada', ?, ?, ?)`,
+    [
+      client.id, totalBruto, totalNeto,
+      JSON.stringify(cuadro.filas),
+      saldo_antes, saldo_despues, chatId,
+    ]
+  );
+
+  // Guardar CLABEs de los beneficiarios (si vienen en la tabla)
+  const cuentasDetectadas = cuadro.filas
+    .filter(f => f.clabe && /^\d{18}$/.test(f.clabe))
+    .map(f => ({ tipo: 'CLABE', numero: f.clabe, titular: f.nombre ?? null, banco: f.banco ?? null }));
+  if (cuentasDetectadas.length) {
+    await bankingManager.guardarCuentas(client.id, opResult.insertId, cuentasDetectadas)
+      .catch(e => console.error('[handleCuadroRetorno] guardarCuentas:', e.message));
+  }
+
+  const semMatch = null; // semana no siempre disponible
+  let msg = `📋 <b>Cuadro IAS registrado</b>\n`;
+  msg += `${cuadro.filas.length} beneficiarios · Neto: <b>$${fmt(totalNeto)}</b> · Bruto: <b>$${fmt(totalBruto)}</b>\n`;
+  msg += `Saldo: $${fmt(saldo_antes)} → <b>$${fmt(saldo_despues)}</b>`;
+  if (cuentasDetectadas.length) {
+    msg += `\n💳 ${cuentasDetectadas.length} CLABE(s) guardada(s)`;
+  }
+  await ctx.reply(msg, { parse_mode: 'HTML' });
+}
+
 // Modo asistente: maneja fotos/docs silenciosamente — registra comprobantes y cuentas
 // Lógica de comisiones:
 //   SPEI/EFECTIVO + saldo neto > 0  → sin comisión (crédito previo cubre la operación)
@@ -156,6 +204,16 @@ async function handleAsistenteModo(ctx, client, fileInfo) {
     const mimeType = fileInfo.mimeType ?? 'image/jpeg';
     const fileName = fileInfo.fileName ?? null;
 
+    // 0 — XLSX: detectar formato cuadro de retorno antes de cualquier otra cosa
+    const ext = (fileName ?? '').split('.').pop()?.toLowerCase();
+    if (ext === 'xlsx' || ext === 'xls' || mimeType.includes('spreadsheet') || mimeType.includes('excel')) {
+      const xlsxResult = BankingManager.parsearXlsx(buffer);
+      if (xlsxResult?.tipo === 'cuadro_retorno' && xlsxResult.filas?.length > 0) {
+        await handleCuadroRetorno(ctx, client, xlsxResult);
+        return;
+      }
+    }
+
     // 1 — Detectar tipo de documento
     let detected = null;
     if (docAgent && !mimeType.startsWith('image/')) {
@@ -163,6 +221,15 @@ async function handleAsistenteModo(ctx, client, fileInfo) {
     }
     if (!detected) {
       detected = await invoiceAgent.procesarBuffer(buffer, mimeType, fileName);
+    }
+
+    // 1b — Imagen: intentar como cuadro de retorno IAS antes de comprobante
+    if (docAgent && mimeType.startsWith('image/') && !detected?.monto_total) {
+      const cuadro = await docAgent.analizarCuadroRetorno(buffer, mimeType).catch(() => null);
+      if (cuadro?.tipo === 'cuadro_retorno' && cuadro.filas?.length > 0) {
+        await handleCuadroRetorno(ctx, client, cuadro);
+        return;
+      }
     }
 
     // Para imágenes, usar visión para extraer cuentas o monto
@@ -380,12 +447,13 @@ async function saveConfirmedOperation(draft, clientId, chatId, _attempt = 0) {
 
     const [result] = await conn.query(
       `INSERT INTO fin_operations
-         (client_id, tipo_operacion, monto_bruto, comision_pct, monto_neto,
+         (client_id, tipo_operacion, monto_bruto, comision_pct, costo_pct, monto_neto,
           es_entrada, solicita_neto, tipo_entrega, instrucciones_pago, direccion_entrega,
           subtabla_json, estado, tiene_factura, telegram_chat_id)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,'pendiente',?,?)`,
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'pendiente',?,?)`,
       [
-        clientId, draft.tipo_operacion, draft.monto_bruto, draft.comision_pct, draft.monto_neto,
+        clientId, draft.tipo_operacion, draft.monto_bruto, draft.comision_pct,
+        draft.costo_pct ?? null, draft.monto_neto,
         draft.es_entrada ? 1 : 0, draft.solicita_neto ? 1 : 0,
         draft.tipo_entrega ?? 'efectivo', draft.instrucciones_pago ?? null,
         draft.direccion_entrega ?? null, subtablaJson, draft.tiene_factura ? 1 : 0, chatId,
@@ -2072,6 +2140,53 @@ bot.command('miid', async (ctx) => {
   } catch (err) {
     console.error('[/miid]', err.message);
     await ctx.reply(`ID: <code>${ctx.from?.id}</code>`, { parse_mode: 'HTML' }).catch(() => {});
+  }
+});
+
+// ── Voice messages: transcribir vía Gemini Flash y procesar como texto ───────
+
+bot.on('message:voice', async (ctx) => {
+  if (!docAgent) return; // sin GOOGLE_API_KEY, ignorar
+  const chatId = ctx.chat?.id;
+  const from   = ctx.from;
+  if (!from?.id) return;
+
+  try {
+    const file   = await ctx.getFile();
+    const url    = `https://api.telegram.org/file/bot${BOT_TOKEN}/${file.file_path}`;
+    const resp   = await fetch(url);
+    if (!resp.ok) return;
+    const buffer = Buffer.from(await resp.arrayBuffer());
+
+    const transcripcion = await docAgent.transcribirAudio(buffer, 'audio/ogg');
+    if (!transcripcion) return;
+
+    // Actualizar el registro de fin_messages con la transcripción
+    await pool.query(
+      `UPDATE fin_messages SET texto=?
+       WHERE chat_id=? AND tipo='voz' AND es_bot=0
+       ORDER BY created_at DESC LIMIT 1`,
+      [transcripcion.slice(0, 4000), String(chatId)]
+    ).catch(() => {});
+
+    // En modo asistente: solo transcribir, no responder
+    const modoChat = await getChatModo(chatId);
+    if (modoChat === 'asistente') return;
+
+    // En modo normal: procesar la transcripción como si fuera un mensaje de texto
+    const client  = await balanceManager.getOrCreateClient(from.id, from.username);
+    const session = await getOrCreateSession(chatId, client.id);
+
+    // Inyectar en el flujo de texto reutilizando el handler
+    ctx.message.text = transcripcion;
+    await ctx.reply(`🎙 <i>"${transcripcion}"</i>`, { parse_mode: 'HTML' });
+
+    // Delegar a procesarOperacion si parece una operación
+    if (isImplicitOperacion(transcripcion) || isOperacionCommand(transcripcion)) {
+      await procesarOperacion(ctx, transcripcion, client, session);
+    }
+  } catch (e) {
+    console.error('[voice-handler]', e.message);
   }
 });
 

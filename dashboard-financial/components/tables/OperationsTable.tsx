@@ -70,6 +70,22 @@ export default function OperationsTable({ data, onMarcarRetorno }: Props) {
         <span className="text-xs text-success font-mono">{(info.getValue() * 100).toFixed(1)}%</span>
       ),
     }),
+    helper.display({
+      id: 'margen',
+      header: 'Margen',
+      cell: ({ row }) => {
+        const op = row.original;
+        if (op.costo_pct == null) return <span className="text-gray-700 text-xs">—</span>;
+        const margenPct = op.comision_pct - op.costo_pct;
+        const margenMonto = margenPct * op.monto_bruto;
+        return (
+          <div className="text-xs font-mono">
+            <span className="text-yellow-400">${fmt(margenMonto)}</span>
+            <span className="block text-gray-500">{(margenPct * 100).toFixed(1)}%</span>
+          </div>
+        );
+      },
+    }),
     helper.accessor('es_entrada', {
       header: 'Dirección',
       cell: info => (
