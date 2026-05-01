@@ -100,6 +100,90 @@ function BankingExpandRow({ clientId }: { clientId: number }) {
   );
 }
 
+function AjusteRow({ clientId, nombre, onSaldoChanged }: {
+  clientId: number;
+  nombre: string;
+  onSaldoChanged: (saldo: number) => void;
+}) {
+  const [open, setOpen]       = useState(false);
+  const [monto, setMonto]     = useState('');
+  const [desc, setDesc]       = useState('');
+  const [saving, setSaving]   = useState(false);
+  const [result, setResult]   = useState<{ antes: number; despues: number } | null>(null);
+
+  const submit = async () => {
+    const n = parseFloat(monto.replace(/,/g, ''));
+    if (isNaN(n) || n === 0) return;
+    setSaving(true);
+    setResult(null);
+    try {
+      const r = await api.ajusteManual(clientId, n, desc.trim() || 'Ajuste manual (dashboard)');
+      setResult({ antes: r.saldo_antes, despues: r.saldo_despues });
+      onSaldoChanged(r.saldo_despues);
+      setMonto('');
+      setDesc('');
+    } catch (e) { alert((e as Error).message); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <>
+      <tr>
+        <td colSpan={9} className="px-4 py-0">
+          <button onClick={() => { setOpen(o => !o); setResult(null); }}
+            className="text-[10px] text-gray-600 hover:text-accent py-1 transition-colors">
+            {open ? '▲ cerrar ajuste' : '▼ ajuste de saldo'}
+          </button>
+        </td>
+      </tr>
+      {open && (
+        <tr className="bg-surface/30">
+          <td colSpan={9} className="px-6 py-3">
+            <div className="flex items-end gap-3 flex-wrap">
+              <div>
+                <p className="text-[10px] text-gray-500 mb-1">Monto (+ suma · − resta)</p>
+                <input
+                  type="number"
+                  placeholder="ej. -5000 o 12000"
+                  value={monto}
+                  onChange={e => setMonto(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') submit(); }}
+                  className="bg-surface border border-border focus:border-accent rounded px-2 py-1 text-sm text-white w-40 outline-none"
+                />
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-500 mb-1">Descripción</p>
+                <input
+                  type="text"
+                  placeholder="motivo del ajuste"
+                  value={desc}
+                  onChange={e => setDesc(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') submit(); }}
+                  className="bg-surface border border-border focus:border-accent rounded px-2 py-1 text-sm text-white w-56 outline-none"
+                />
+              </div>
+              <button
+                onClick={submit}
+                disabled={saving || !monto}
+                className="px-3 py-1 rounded bg-accent/20 text-accent text-xs hover:bg-accent/30 transition disabled:opacity-40"
+              >
+                {saving ? '…' : 'Aplicar'}
+              </button>
+              {result && (
+                <span className="text-xs text-gray-400">
+                  ${fmt(result.antes)} → <b className={result.despues >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                    ${fmt(result.despues)}
+                  </b>
+                </span>
+              )}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
 function ComisionesRow({ clientId }: { clientId: number }) {
   const [open, setOpen]                   = useState(false);
   const [models, setModels]               = useState<ClientModel[]>([]);
@@ -212,6 +296,10 @@ export default function ClientsClient({ initialClients }: { initialClients: Clie
     setClients(cs => cs.map(c => c.id === id ? { ...c, nombre } : c));
   };
 
+  const updateSaldo = (id: number, saldo: number) => {
+    setClients(cs => cs.map(c => c.id === id ? { ...c, saldo, saldo_bruto: saldo } : c));
+  };
+
   const negativos = clients.filter(c => Number(c.saldo) < 0).length;
 
   return (
@@ -290,6 +378,7 @@ export default function ClientsClient({ initialClients }: { initialClients: Clie
                   </tr>
                   <BankingExpandRow key={`bk-${c.id}`} clientId={c.id} />
                   <ComisionesRow key={`cm-${c.id}`} clientId={c.id} />
+                  <AjusteRow key={`aj-${c.id}`} clientId={c.id} nombre={nombre} onSaldoChanged={s => updateSaldo(c.id, s)} />
                 </>
               );
             })}

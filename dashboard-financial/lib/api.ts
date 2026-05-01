@@ -342,6 +342,10 @@ export const api = {
                                            put(`/clients/${clientId}/models/${tipo}`, body),
   assignComisionista:     (clientId: number, comisionistaId: number | null) =>
                                            patch(`/clients/${clientId}/comisionista`, { comisionista_id: comisionistaId }),
+
+  // Ajuste manual de saldo (positivo o negativo)
+  ajusteManual: (clientId: number, monto: number, descripcion: string) =>
+    post<{ saldo_antes: number; saldo_despues: number }>(`/clients/${clientId}/ajuste`, { monto, descripcion }),
 };
 
 export function fmt(n: number | null | undefined, decimals = 2): string {

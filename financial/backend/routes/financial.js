@@ -277,6 +277,29 @@ module.exports = function financialRoutes(pool, io, express) {
     }
   });
 
+  // POST /clients/:id/ajuste — ajuste manual de saldo (positivo o negativo)
+  router.post('/clients/:id/ajuste', async (req, res) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      const { monto, descripcion } = req.body;
+      if (monto === undefined || monto === null || isNaN(parseFloat(monto))) {
+        return res.status(400).json({ ok: false, error: 'monto requerido (puede ser negativo)' });
+      }
+      const BalanceManager = require('../../bot/agents/balance-manager');
+      const bm = new BalanceManager(pool);
+      const result = await bm.ajusteManual({
+        clientId,
+        monto:       parseFloat(monto),
+        descripcion: descripcion || 'Ajuste manual (dashboard)',
+        adminId:     0,
+      });
+      io?.emit('financial:saldo_ajustado', { clientId, ...result });
+      res.json({ ok: true, data: result });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
   // GET /payment-confirmations/:id/image — proxy imagen Telegram
   router.get('/payment-confirmations/:id/image', async (req, res) => {
     try {
