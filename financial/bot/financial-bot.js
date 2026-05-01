@@ -24,7 +24,7 @@ const BalanceManager  = require('./agents/balance-manager');
 const { PollHandler } = require('./agents/poll-handler');
 const Verifier        = require('./agents/verifier');
 const ResponseGen     = require('./agents/response-gen');
-const { getCommission, listTypes, registrarComisionista } = require('./config/commissions');
+const { getCommission, listTypes, registrarComisionista, detectType } = require('./config/commissions');
 const q = require('../db/financial-queries');
 const { handleIncomingFile, handleIncomingLink, extractFileFromMessage, downloadTelegramFileAsBuffer } = require('./tools/file-handler');
 const BankingManager  = require('./agents/banking-manager');
@@ -133,6 +133,162 @@ bot.api.config.use(async (prev, method, payload, signal) => {
 function isAllowedChat(ctx) {
   if (ALLOWED_CHATS.length === 0) return true;
   return ALLOWED_CHATS.includes(BigInt(ctx.chat?.id ?? 0));
+}
+
+async function getChatModo(chatId) {
+  try {
+    const [r] = await pool.query('SELECT modo FROM fin_chats WHERE chat_id=?', [chatId]);
+    return r[0]?.modo ?? 'normal';
+  } catch { return 'normal'; }
+}
+
+// Modo asistente: maneja fotos/docs silenciosamente — registra comprobantes y cuentas
+// Lógica de comisiones:
+//   SPEI/EFECTIVO + saldo neto > 0  → sin comisión (crédito previo cubre la operación)
+//   SPEI/EFECTIVO + saldo neto ≤ 0  → comisión base r
+//   IAS (u op. con R > r)           → siempre aplica R total, con desglose:
+//     comisión base (r%) + ajuste adicional x% donde x = 1 - (1-R)/(1-r)
+async function handleAsistenteModo(ctx, client, fileInfo) {
+  if (fileInfo.isLink) return;
+  const chatId = ctx.chat?.id;
+  try {
+    const buffer   = await downloadTelegramFileAsBuffer(BOT_TOKEN, fileInfo.file.file_id);
+    const mimeType = fileInfo.mimeType ?? 'image/jpeg';
+    const fileName = fileInfo.fileName ?? null;
+
+    // 1 — Detectar tipo de documento
+    let detected = null;
+    if (docAgent && !mimeType.startsWith('image/')) {
+      detected = await docAgent.procesarBuffer(buffer, mimeType, fileName);
+    }
+    if (!detected) {
+      detected = await invoiceAgent.procesarBuffer(buffer, mimeType, fileName);
+    }
+
+    // Para imágenes, usar visión para extraer cuentas o monto
+    if (detected?.tipo === 'imagen_sin_ocr') {
+      const imgAgent = docAgent ?? visionAgent;
+      if (imgAgent) {
+        let cuentas = [], visionResult = null;
+        if (docAgent) {
+          ({ cuentas, visionResult } = await docAgent.analizarImagenCompleta(buffer, mimeType));
+          if (!cuentas.length && !visionResult && visionAgent) {
+            ([{ cuentas }, visionResult] = await Promise.all([
+              visionAgent.extraerCuentasBancarias(buffer, mimeType),
+              visionAgent.analizarFactura(buffer, mimeType),
+            ]));
+          }
+        } else {
+          ([{ cuentas }, visionResult] = await Promise.all([
+            imgAgent.extraerCuentasBancarias(buffer, mimeType),
+            imgAgent.analizarFactura(buffer, mimeType),
+          ]));
+        }
+        if (cuentas.length && !visionResult?.monto_total) {
+          const { ajenas } = await filtrarCuentasAjenas(cuentas);
+          if (ajenas.length) {
+            await bankingManager.guardarCuentas(client.id, null, ajenas);
+            await ctx.reply(`✅ Guardado · ${ajenas.length} cuenta(s) registrada(s)`);
+            return;
+          }
+        }
+        if (visionResult?.monto_total > 0) {
+          detected = { tipo: 'comprobante', monto_total: visionResult.monto_total, tipo_operacion: null };
+        }
+      }
+    }
+
+    // 2 — Comprobante o factura detectados
+    if ((detected?.tipo === 'comprobante' || detected?.tipo === 'factura') && detected.monto_total > 0) {
+      const monto = detected.monto_total;
+
+      // Leer mensajes recientes para inferir tipo de operación del contexto del chat
+      const mensajesRecientes = await contextManager.getRecientes(chatId, 15);
+      const textoContexto     = mensajesRecientes.filter(m => m.texto).map(m => m.texto).join(' ');
+      const tipoOp = (detected.tipo_operacion || detectType(textoContexto) || null)?.toUpperCase() ?? null;
+
+      // Tasas de comisión
+      const saldoNeto      = parseFloat(client.saldo ?? 0);
+      const BASE_TIPOS     = ['SPEI', 'EFECTIVO'];
+      const esBase         = !tipoOp || BASE_TIPOS.includes(tipoOp);
+      const tieneCredito   = saldoNeto > 0;
+
+      let pct = 0;
+      let pctBase = 0; // tasa de referencia (SPEI) para desglose IAS
+
+      if (esBase && tieneCredito) {
+        // SPEI/EFECTIVO con saldo neto positivo → sin comisión (el crédito cubre la operación)
+        pct = 0;
+      } else {
+        const comisionOp   = await getCommission(tipoOp ?? 'SPEI', pool, client.id);
+        const comisionBase = esBase ? comisionOp : await getCommission('SPEI', pool, client.id);
+        pct      = comisionOp?.pct  ?? 0.03;
+        pctBase  = comisionBase?.pct ?? 0.03;
+      }
+
+      const montoNeto           = Math.round(monto * (1 - pct) * 100) / 100;
+      const saldo_bruto_antes   = parseFloat(client.saldo_bruto ?? client.saldo ?? 0);
+
+      const { saldo_despues: saldo_neto_despues } = await balanceManager.confirmarPago({
+        clientId:         client.id,
+        monto,
+        montoNeto,
+        tipo:             detected.tipo ?? 'comprobante',
+        tipo_operacion:   tipoOp,
+        comision_pct:     pct,
+        telegram_file_id: fileInfo.file.file_id,
+        notas:            'Auto-registrado (modo asistente)',
+      });
+
+      const saldo_bruto_despues = Math.round((saldo_bruto_antes + monto) * 100) / 100;
+      const comisionTotal       = Math.round((monto - montoNeto) * 100) / 100;
+
+      // x% = 1 - (1-R)/(1-r) → ajuste adicional para operaciones tipo IAS
+      const xPct = (!esBase && pct > pctBase)
+        ? (1 - (1 - pct) / (1 - pctBase))
+        : 0;
+
+      // Construir respuesta con desglose
+      let msg = `✅ <b>Comprobante registrado`;
+      if (tipoOp) msg += ` [${tipoOp}]`;
+      msg += `</b>  $${fmt(monto)}\n\n`;
+      msg += `Saldo bruto:  <b>$${fmt(saldo_bruto_antes)}</b> → <b>$${fmt(saldo_bruto_despues)}</b>\n`;
+
+      if (comisionTotal > 0) {
+        if (xPct > 0) {
+          // Desglose: comisión base + ajuste adicional (e.g. IAS)
+          const comBaseAmt = Math.round(monto * pctBase * 100) / 100;
+          const comXAmt    = Math.round(comisionTotal - comBaseAmt) * 100 / 100;
+          const xDisplay   = (xPct * 100).toFixed(2).replace(/\.?0+$/, '');
+          msg += `Comisión:\n`;
+          msg += `  Base ${BASE_TIPOS[0]} (${(pctBase*100).toFixed(1).replace('.0','')}%): <b>-$${fmt(comBaseAmt)}</b>\n`;
+          msg += `  Ajuste ${tipoOp} (${xDisplay}% s/neto): <b>-$${fmt(comXAmt)}</b>\n`;
+          msg += `  Total (${(pct*100).toFixed(1).replace('.0','')}% s/bruto): <b>-$${fmt(comisionTotal)}</b>\n`;
+        } else {
+          msg += `Comisión:     <b>-$${fmt(comisionTotal)}</b> (${(pct*100).toFixed(1).replace('.0','')}%)\n`;
+        }
+      } else if (esBase && tieneCredito) {
+        msg += `Comisión:     <b>$0</b> (saldo previo cubre la operación)\n`;
+      }
+
+      msg += `Saldo neto:   <b>$${fmt(saldoNeto)}</b> → <b>$${fmt(saldo_neto_despues)}</b>`;
+      await ctx.reply(msg, { parse_mode: 'HTML' });
+      return;
+    }
+
+    // 3 — Cuentas bancarias en documento/PDF → guardar silenciosamente
+    if (detected?.datos_bancarios?.length) {
+      const { ajenas } = await filtrarCuentasAjenas(detected.datos_bancarios);
+      if (ajenas.length) {
+        await bankingManager.guardarCuentas(client.id, null, ajenas);
+        await ctx.reply(`✅ Guardado · ${ajenas.length} cuenta(s) registrada(s)`);
+        return;
+      }
+    }
+    // 4 — Sin contenido relevante → silencio
+  } catch (err) {
+    console.error('[asistente-modo]', err.message);
+  }
 }
 
 function isAdmin(userId) {
@@ -496,6 +652,29 @@ bot.command('rol', async (ctx) => {
   await ctx.reply(`✅ Rol actualizado: <b>${labels[arg]}</b>`, { parse_mode: 'HTML' });
 });
 
+// /modo [normal|asistente] — configura cómo se comporta el bot en este chat
+bot.command('modo', async (ctx) => {
+  if (!isAdmin(ctx.from?.id)) { await ctx.reply('⛔ Sin permisos.'); return; }
+  const arg = (ctx.match ?? '').trim().toLowerCase();
+  if (!['normal', 'asistente'].includes(arg)) {
+    await ctx.reply(
+      'Uso: /modo <b>normal</b> | <b>asistente</b>\n\n' +
+      '<b>normal</b> → modo interactivo para clientes (confirmaciones, flujos)\n' +
+      '<b>asistente</b> → silencioso para grupos internos: solo registra comprobantes y cuentas',
+      { parse_mode: 'HTML' }
+    );
+    return;
+  }
+  await pool.query(
+    `INSERT INTO fin_chats (chat_id, modo, is_group, ultimo_msg_at)
+     VALUES (?, ?, 0, NOW(3))
+     ON DUPLICATE KEY UPDATE modo=VALUES(modo)`,
+    [ctx.chat?.id, arg]
+  );
+  const labels = { normal: '🔄 Normal (modo cliente)', asistente: '🤫 Asistente silencioso' };
+  await ctx.reply(`✅ Modo actualizado: <b>${labels[arg]}</b>`, { parse_mode: 'HTML' });
+});
+
 // Mensajes de texto — detecta operaciones implícitas o responde a flujo activo
 bot.on('message:text', async (ctx, next) => {
   const userId  = ctx.from?.id;
@@ -504,6 +683,21 @@ bot.on('message:text', async (ctx, next) => {
 
   // Ignorar comandos (pasar al siguiente handler en la cadena)
   if (text.startsWith('/')) return next();
+
+  // Modo asistente: solo procesa instrucciones de pago en texto (CLABEs/cuentas), silencio para todo lo demás
+  const _modoChat = await getChatModo(chatId);
+  if (_modoChat === 'asistente') {
+    const rawCuentas = BankingManager.parsearTexto(text);
+    if (rawCuentas.length) {
+      const clientAsist = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+      const { ajenas }  = await filtrarCuentasAjenas(rawCuentas);
+      if (ajenas.length) {
+        await bankingManager.guardarCuentas(clientAsist.id, null, ajenas);
+        await ctx.reply(`✅ Guardado · ${ajenas.length} cuenta(s) registrada(s)`);
+      }
+    }
+    return; // silencio para todo lo demás
+  }
 
   const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
   const session = await getOrCreateSession(chatId, client.id);
@@ -857,6 +1051,19 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
 
   const fileInfo = extractFileFromMessage(msg);
   if (!fileInfo) return;
+
+  // Modo asistente: bypass del flujo normal — registrar silenciosamente
+  const _modoFile = await getChatModo(chatId);
+  if (_modoFile === 'asistente') {
+    contextManager.logMessage({
+      chatId, clientId: client.id, telegramMsgId: msg.message_id,
+      fromUserId: ctx.from?.id, fromUsername: ctx.from?.username,
+      tipo: fileInfo.mimeType?.startsWith('image/') ? 'foto' : 'documento',
+      texto: msg.caption ?? fileInfo.fileName ?? null,
+      fileName: fileInfo.fileName ?? null,
+    }).catch(() => {});
+    return handleAsistenteModo(ctx, client, fileInfo);
+  }
 
   let operationId = null;
   if (session.operation_draft_json) {
@@ -1875,6 +2082,7 @@ bot.start({
       { command: 'ajuste',    description: '(Admin) Ajuste manual de saldo' },
       { command: 'testmode',  description: '(Admin) Activar/desactivar modo prueba' },
       { command: 'rol',       description: '(Admin) Cambiar rol del chat' },
+      { command: 'modo',      description: '(Admin) Cambiar modo del chat (normal/asistente)' },
     ];
 
     try {

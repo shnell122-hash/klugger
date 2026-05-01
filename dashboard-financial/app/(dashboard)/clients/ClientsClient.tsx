@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { api, fmt, type Client, type BankingAccount } from '@/lib/api';
+import { api, fmt, type Client, type BankingAccount, type ClientModel, type OperationType } from '@/lib/api';
 import ConfirmarPagoBtn from '@/components/clients/ConfirmarPagoBtn';
 
 function EditNombreInline({ clientId, nombre, onSaved }: { clientId: number; nombre: string; onSaved: (n: string) => void }) {
@@ -100,11 +100,204 @@ function BankingExpandRow({ clientId }: { clientId: number }) {
   );
 }
 
+function AjusteRow({ clientId, nombre, onSaldoChanged }: {
+  clientId: number;
+  nombre: string;
+  onSaldoChanged: (saldo: number) => void;
+}) {
+  const [open, setOpen]       = useState(false);
+  const [monto, setMonto]     = useState('');
+  const [desc, setDesc]       = useState('');
+  const [saving, setSaving]   = useState(false);
+  const [result, setResult]   = useState<{ antes: number; despues: number } | null>(null);
+
+  const submit = async () => {
+    const n = parseFloat(monto.replace(/,/g, ''));
+    if (isNaN(n) || n === 0) return;
+    setSaving(true);
+    setResult(null);
+    try {
+      const r = await api.ajusteManual(clientId, n, desc.trim() || 'Ajuste manual (dashboard)');
+      setResult({ antes: r.saldo_antes, despues: r.saldo_despues });
+      onSaldoChanged(r.saldo_despues);
+      setMonto('');
+      setDesc('');
+    } catch (e) { alert((e as Error).message); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <>
+      <tr>
+        <td colSpan={9} className="px-4 py-0">
+          <button onClick={() => { setOpen(o => !o); setResult(null); }}
+            className="text-[10px] text-gray-600 hover:text-accent py-1 transition-colors">
+            {open ? '▲ cerrar ajuste' : '▼ ajuste de saldo'}
+          </button>
+        </td>
+      </tr>
+      {open && (
+        <tr className="bg-surface/30">
+          <td colSpan={9} className="px-6 py-3">
+            <div className="flex items-end gap-3 flex-wrap">
+              <div>
+                <p className="text-[10px] text-gray-500 mb-1">Monto (+ suma · − resta)</p>
+                <input
+                  type="number"
+                  placeholder="ej. -5000 o 12000"
+                  value={monto}
+                  onChange={e => setMonto(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') submit(); }}
+                  className="bg-surface border border-border focus:border-accent rounded px-2 py-1 text-sm text-white w-40 outline-none"
+                />
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-500 mb-1">Descripción</p>
+                <input
+                  type="text"
+                  placeholder="motivo del ajuste"
+                  value={desc}
+                  onChange={e => setDesc(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') submit(); }}
+                  className="bg-surface border border-border focus:border-accent rounded px-2 py-1 text-sm text-white w-56 outline-none"
+                />
+              </div>
+              <button
+                onClick={submit}
+                disabled={saving || !monto}
+                className="px-3 py-1 rounded bg-accent/20 text-accent text-xs hover:bg-accent/30 transition disabled:opacity-40"
+              >
+                {saving ? '…' : 'Aplicar'}
+              </button>
+              {result && (
+                <span className="text-xs text-gray-400">
+                  ${fmt(result.antes)} → <b className={result.despues >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                    ${fmt(result.despues)}
+                  </b>
+                </span>
+              )}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+function ComisionesRow({ clientId }: { clientId: number }) {
+  const [open, setOpen]                   = useState(false);
+  const [models, setModels]               = useState<ClientModel[]>([]);
+  const [globalTypes, setGlobalTypes]     = useState<OperationType[]>([]);
+  const [loading, setLoading]             = useState(false);
+  const [loaded, setLoaded]               = useState(false);
+  const [saving, setSaving]               = useState<string | null>(null);
+  const [editValues, setEditValues]       = useState<Record<string, string>>({});
+
+  const toggle = async () => {
+    if (!open && !loaded) {
+      setLoading(true);
+      try {
+        const [clientMods, types] = await Promise.all([
+          api.getClientModels(clientId),
+          api.getOperationTypes(),
+        ]);
+        setModels(clientMods);
+        setGlobalTypes(types);
+        // Seed edit values from current overrides
+        const init: Record<string, string> = {};
+        clientMods.forEach(m => { init[m.tipo_operacion] = String((m.comision_pct * 100).toFixed(2)); });
+        setEditValues(init);
+        setLoaded(true);
+      } catch { /* ignore */ }
+      finally { setLoading(false); }
+    }
+    setOpen(o => !o);
+  };
+
+  const save = async (tipo: string) => {
+    const raw = editValues[tipo];
+    const pct = parseFloat(raw) / 100;
+    if (isNaN(pct) || pct < 0 || pct > 1) return;
+    setSaving(tipo);
+    try {
+      await api.upsertClientModel(clientId, tipo, { comision_pct: pct, is_active: true });
+      const updated = await api.getClientModels(clientId);
+      setModels(updated);
+    } catch (e) { alert((e as Error).message); }
+    finally { setSaving(null); }
+  };
+
+  return (
+    <>
+      <tr>
+        <td colSpan={9} className="px-4 py-0">
+          <button onClick={toggle} className="text-[10px] text-gray-600 hover:text-accent py-1 transition-colors">
+            {open ? '▲ ocultar comisiones' : '▼ ver comisiones por tipo'}
+          </button>
+        </td>
+      </tr>
+      {open && (
+        <tr className="bg-surface/30">
+          <td colSpan={9} className="px-6 py-3">
+            {loading ? (
+              <p className="text-xs text-gray-500">Cargando…</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {globalTypes.map(gt => {
+                  const override = models.find(m => m.tipo_operacion === gt.codigo && m.is_active);
+                  const currentPct = override ? override.comision_pct : gt.comision_pct;
+                  const displayPct = (currentPct * 100).toFixed(2);
+                  const editVal    = editValues[gt.codigo] ?? displayPct;
+                  const isDirty    = editVal !== displayPct;
+                  return (
+                    <div key={gt.codigo} className="bg-surface border border-border rounded-lg px-3 py-2 text-xs flex items-center gap-2">
+                      <span className="text-accent font-medium uppercase">{gt.codigo}</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={editVal}
+                        onChange={e => setEditValues(v => ({ ...v, [gt.codigo]: e.target.value }))}
+                        onKeyDown={e => { if (e.key === 'Enter') save(gt.codigo); if (e.key === 'Escape') setEditValues(v => ({ ...v, [gt.codigo]: displayPct })); }}
+                        className="w-16 bg-transparent border-b border-border focus:border-accent outline-none text-white text-xs text-right"
+                      />
+                      <span className="text-gray-500">%</span>
+                      {override && <span className="text-[10px] text-accent">personalizado</span>}
+                      {!override && <span className="text-[10px] text-gray-700">global</span>}
+                      {isDirty && (
+                        <button
+                          onClick={() => save(gt.codigo)}
+                          disabled={saving === gt.codigo}
+                          className="text-[10px] text-accent hover:underline"
+                        >
+                          {saving === gt.codigo ? '…' : '✓ guardar'}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+                {globalTypes.length === 0 && (
+                  <p className="text-xs text-gray-600">Sin tipos de operación configurados</p>
+                )}
+              </div>
+            )}
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
 export default function ClientsClient({ initialClients }: { initialClients: Client[] }) {
   const [clients, setClients] = useState<Client[]>(initialClients);
 
   const updateNombre = (id: number, nombre: string) => {
     setClients(cs => cs.map(c => c.id === id ? { ...c, nombre } : c));
+  };
+
+  const updateSaldo = (id: number, saldo: number) => {
+    setClients(cs => cs.map(c => c.id === id ? { ...c, saldo, saldo_bruto: saldo } : c));
   };
 
   const negativos = clients.filter(c => Number(c.saldo) < 0).length;
@@ -184,6 +377,8 @@ export default function ClientsClient({ initialClients }: { initialClients: Clie
                     </td>
                   </tr>
                   <BankingExpandRow key={`bk-${c.id}`} clientId={c.id} />
+                  <ComisionesRow key={`cm-${c.id}`} clientId={c.id} />
+                  <AjusteRow key={`aj-${c.id}`} clientId={c.id} nombre={nombre} onSaldoChanged={s => updateSaldo(c.id, s)} />
                 </>
               );
             })}
