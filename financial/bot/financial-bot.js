@@ -537,43 +537,47 @@ bot.command('historial', async (ctx) => {
   }
 });
 
-// /ajuste [username] [nuevo_saldo] [descripcion] (solo admin)
-// El monto es el NUEVO SALDO deseado; el bot calcula la diferencia internamente.
+// /ajuste [nombre o username] nuevo_saldo [descripcion] (solo admin)
+// Busca el primer token numérico: todo lo anterior es el nombre, todo lo posterior es descripción.
+// Busca por nombre exacto (insensible a mayúsculas) o por telegram_username.
 bot.command('ajuste', async (ctx) => {
   if (!isAdmin(ctx.from?.id)) {
     await ctx.reply('⛔ Sin permisos.');
     return;
   }
-  const args = (ctx.match ?? '').trim().split(/\s+/);
+  const args = (ctx.match ?? '').trim().split(/\s+/).filter(Boolean);
   let client, nuevoSaldo, desc;
 
-  const firstIsUsername = args[0] && isNaN(parseFloat(args[0]));
-  if (firstIsUsername) {
-    // /ajuste username nuevo_saldo [descripcion]
-    const username  = args[0].replace(/^@/, '');
-    const saldoRaw  = args[1];
-    if (!saldoRaw) {
-      await ctx.reply('Uso: /ajuste username nuevo_saldo [descripcion]\n     o responde al mensaje del cliente con /ajuste nuevo_saldo [descripcion]');
-      return;
-    }
-    const [rows] = await pool.query('SELECT * FROM fin_clients WHERE telegram_username=? LIMIT 1', [username]);
+  const isNumeric = s => /^-?\d+(\.\d+)?$/.test(s);
+  const firstNumIdx = args.findIndex(isNumeric);
+
+  if (firstNumIdx > 0) {
+    // Nombre/username antes del número
+    const nameQuery = args.slice(0, firstNumIdx).join(' ').replace(/^@/, '');
+    nuevoSaldo = parseFloat(args[firstNumIdx]);
+    desc       = args.slice(firstNumIdx + 1).join(' ') || 'Ajuste manual';
+    const [rows] = await pool.query(
+      'SELECT * FROM fin_clients WHERE LOWER(nombre)=LOWER(?) OR LOWER(telegram_username)=LOWER(?) LIMIT 1',
+      [nameQuery, nameQuery]
+    );
     if (!rows.length) {
-      await ctx.reply(`❌ Cliente ${username} no encontrado.`);
+      await ctx.reply(`❌ Cliente "${nameQuery}" no encontrado.`);
       return;
     }
-    client     = rows[0];
-    nuevoSaldo = parseFloat(saldoRaw);
-    desc       = args.slice(2).join(' ') || 'Ajuste manual';
-  } else {
-    // reply mode: /ajuste nuevo_saldo [descripcion]
+    client = rows[0];
+  } else if (firstNumIdx === 0) {
+    // Solo número → reply mode
     const replyTo = ctx.message?.reply_to_message?.from?.id;
-    if (!replyTo || !args[0]) {
-      await ctx.reply('Uso: /ajuste username nuevo_saldo [descripcion]\n     o responde al mensaje del cliente con /ajuste nuevo_saldo [descripcion]');
+    if (!replyTo) {
+      await ctx.reply('Uso: /ajuste [nombre o @username] nuevo_saldo [descripcion]\n     o responde al mensaje del cliente con /ajuste nuevo_saldo [descripcion]');
       return;
     }
     client     = await balanceManager.getOrCreateClient(replyTo);
     nuevoSaldo = parseFloat(args[0]);
     desc       = args.slice(1).join(' ') || 'Ajuste manual';
+  } else {
+    await ctx.reply('Uso: /ajuste [nombre o @username] nuevo_saldo [descripcion]');
+    return;
   }
 
   try {
