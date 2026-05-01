@@ -546,17 +546,18 @@ bot.command('ajuste', async (ctx) => {
   const args = (ctx.match ?? '').trim().split(/\s+/);
   let client, monto, desc;
 
-  if (args[0]?.startsWith('@')) {
-    // /ajuste @username monto descripcion
-    const username = args[0].slice(1);
+  const firstIsUsername = args[0] && isNaN(parseFloat(args[0]));
+  if (firstIsUsername) {
+    // /ajuste username monto descripcion  (con o sin @)
+    const username = args[0].replace(/^@/, '');
     const montoRaw = args[1];
-    if (!username || !montoRaw) {
-      await ctx.reply('Uso: /ajuste @username monto [descripcion]\n     o responde al mensaje del cliente con /ajuste monto [descripcion]');
+    if (!montoRaw) {
+      await ctx.reply('Uso: /ajuste username monto [descripcion]\n     o responde al mensaje del cliente con /ajuste monto [descripcion]');
       return;
     }
     const [rows] = await pool.query('SELECT * FROM fin_clients WHERE telegram_username=? LIMIT 1', [username]);
     if (!rows.length) {
-      await ctx.reply(`❌ Cliente @${username} no encontrado.`);
+      await ctx.reply(`❌ Cliente ${username} no encontrado.`);
       return;
     }
     client = rows[0];
