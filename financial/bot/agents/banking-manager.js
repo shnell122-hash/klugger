@@ -170,23 +170,69 @@ class BankingManager {
         // Detectar fila de encabezados (primera fila no vacía)
         let headerIdx = -1;
         let colNombre = -1, colCuenta = -1, colBanco = -1, colMonto = -1;
+        let colNeto = -1, colBruto = -1, colPct = -1, colClabe = -1;
 
         for (let i = 0; i < Math.min(filas.length, 5); i++) {
           const fila = filas[i].map(c => String(c).toUpperCase().trim());
           const iNombre = fila.findIndex(c => /NOMBRE|TITULAR|BENEFICIARIO/.test(c));
           const iCuenta = fila.findIndex(c => /CUENTA|CLABE|NUMERO|NÚMERO/.test(c));
+          const iNeto   = fila.findIndex(c => /^NETO$|MONTO NETO/.test(c));
+          const iBruto  = fila.findIndex(c => /^BRUTO$|MONTO BRUTO/.test(c));
+          const iPct    = fila.findIndex(c => /^%$|COMIS|PORCENTAJE/.test(c));
           if (iNombre >= 0 || iCuenta >= 0) {
             headerIdx = i;
             colNombre = iNombre;
             colCuenta = iCuenta;
             colBanco  = fila.findIndex(c => /BANCO|INSTITUCIÓN|INSTITUCION/.test(c));
             colMonto  = fila.findIndex(c => /MONTO|IMPORTE|CANTIDAD/.test(c));
+            colNeto   = iNeto;
+            colBruto  = iBruto;
+            colPct    = iPct;
+            colClabe  = fila.findIndex(c => /CLABE/.test(c));
             break;
           }
         }
 
+        // ── Cuadro de retorno IAS: detectar por presencia de columnas NETO + BRUTO ──
+        if (headerIdx >= 0 && colNeto >= 0 && colBruto >= 0) {
+          const filas_cuadro = [];
+          for (let i = headerIdx + 1; i < filas.length; i++) {
+            const fila    = filas[i];
+            const nombre  = colNombre >= 0 ? String(fila[colNombre] ?? '').trim() : null;
+            const netoRaw = String(fila[colNeto]  ?? '').replace(/[,$\s]/g, '');
+            const brutoRaw= String(fila[colBruto] ?? '').replace(/[,$\s]/g, '');
+            const neto    = parseFloat(netoRaw)  || null;
+            const bruto   = parseFloat(brutoRaw) || null;
+            if (!neto && !bruto) continue;
+
+            const pctRaw  = colPct   >= 0 ? String(fila[colPct]   ?? '') : '';
+            const banco   = colBanco >= 0 ? String(fila[colBanco]  ?? '').trim() || null : null;
+            const clabeRaw= colClabe >= 0 ? String(fila[colClabe]  ?? '').replace(/\s/g, '') : null;
+            const clabe   = clabeRaw && /^\d{18}$/.test(clabeRaw) ? clabeRaw : null;
+
+            let pct = parseFloat(pctRaw.replace('%', '').replace(',', '.').trim()) || 0;
+            if (pct > 1) pct = pct / 100;
+
+            const brutoCalc = bruto ?? (neto && pct ? Math.round((neto / (1 - pct)) * 100) / 100 : null);
+            filas_cuadro.push({
+              clave:  i - headerIdx,
+              nombre: nombre || null,
+              neto:   neto   ?? 0,
+              pct:    pct    ?? 0,
+              bruto:  brutoCalc ?? 0,
+              banco:  banco  ?? null,
+              clabe:  clabe  ?? null,
+            });
+          }
+          if (filas_cuadro.length > 0) {
+            const total_neto  = filas_cuadro.reduce((s, f) => s + (f.neto  ?? 0), 0);
+            const total_bruto = filas_cuadro.reduce((s, f) => s + (f.bruto ?? 0), 0);
+            return { tipo: 'cuadro_retorno', filas: filas_cuadro, total_neto, total_bruto };
+          }
+        }
+
         if (headerIdx >= 0) {
-          // Parseo estructurado fila a fila
+          // Parseo estructurado fila a fila (formato normal de cuentas)
           for (let i = headerIdx + 1; i < filas.length; i++) {
             const fila = filas[i];
             const raw  = colCuenta >= 0 ? String(fila[colCuenta] ?? '').replace(/[\s\-]/g, '') : '';

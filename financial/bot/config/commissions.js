@@ -3,11 +3,11 @@
 // Formato: codigo -> { pct: decimal, nombre: string, descripcion: string }
 
 const DEFAULT_COMMISSIONS = {
-  IAS:       { pct: 0.055, nombre: 'IAS',       descripcion: 'Operación IAS' },
-  TARJETAS:  { pct: 0.055, nombre: 'Tarjetas',  descripcion: 'Pago con tarjeta' },
-  SPEI:      { pct: 0.030, nombre: 'SPEI',      descripcion: 'Transferencia SPEI' },
-  EFECTIVO:  { pct: 0.030, nombre: 'Efectivo',  descripcion: 'Entrega en efectivo' },
-  SINDICATO: { pct: 0.055, nombre: 'Sindicato', descripcion: 'Operación sindicato' },
+  IAS:       { pct: 0.055, costo_pct: 0.030, nombre: 'IAS',       descripcion: 'Operación IAS' },
+  TARJETAS:  { pct: 0.055, costo_pct: 0.030, nombre: 'Tarjetas',  descripcion: 'Pago con tarjeta' },
+  SPEI:      { pct: 0.030, costo_pct: 0.030, nombre: 'SPEI',      descripcion: 'Transferencia SPEI' },
+  EFECTIVO:  { pct: 0.030, costo_pct: 0.030, nombre: 'Efectivo',  descripcion: 'Entrega en efectivo' },
+  SINDICATO: { pct: 0.055, costo_pct: 0.030, nombre: 'Sindicato', descripcion: 'Operación sindicato' },
 };
 
 // Cache en memoria de tasas globales (se recarga desde DB cada 5 min)
@@ -18,14 +18,15 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 async function reloadFromDB(pool) {
   try {
     const [rows] = await pool.query(
-      'SELECT codigo, nombre, comision_pct, descripcion FROM fin_operation_types WHERE is_active=1'
+      'SELECT codigo, nombre, comision_pct, costo_pct, descripcion FROM fin_operation_types WHERE is_active=1'
     );
     if (rows.length > 0) {
       _cache = {};
       for (const row of rows) {
         _cache[row.codigo] = {
-          pct: parseFloat(row.comision_pct),
-          nombre: row.nombre,
+          pct:      parseFloat(row.comision_pct),
+          costo_pct: row.costo_pct != null ? parseFloat(row.costo_pct) : null,
+          nombre:   row.nombre,
           descripcion: row.descripcion,
         };
       }
@@ -73,10 +74,11 @@ async function getCommission(tipo, pool, clientId) {
       if (rows.length > 0) {
         if (!rows[0].is_active) return null; // tipo bloqueado para este cliente
         return {
-          pct:         parseFloat(rows[0].comision_pct),
-          nombre:      key,
+          pct:       parseFloat(rows[0].comision_pct),
+          costo_pct: rows[0].costo_pct != null ? parseFloat(rows[0].costo_pct) : (_cache[key]?.costo_pct ?? null),
+          nombre:    key,
           descripcion: '',
-          es_credito:  !!rows[0].es_credito,
+          es_credito: !!rows[0].es_credito,
         };
       }
     } catch (err) {
@@ -107,15 +109,16 @@ function listTypes() {
 async function getClientModels(clientId, pool) {
   try {
     const [overrides] = await pool.query(
-      `SELECT tipo_operacion, comision_pct, es_credito
+      `SELECT tipo_operacion, comision_pct, costo_pct, es_credito
        FROM fin_client_models
        WHERE client_id = ? AND is_active = 1`,
       [clientId]
     );
     if (overrides.length > 0) {
       return overrides.map(r => ({
-        codigo:     r.tipo_operacion,
-        pct:        parseFloat(r.comision_pct),
+        codigo:    r.tipo_operacion,
+        pct:       parseFloat(r.comision_pct),
+        costo_pct: r.costo_pct != null ? parseFloat(r.costo_pct) : null,
         es_credito: !!r.es_credito,
       }));
     }
