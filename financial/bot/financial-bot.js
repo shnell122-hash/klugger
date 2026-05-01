@@ -537,27 +537,49 @@ bot.command('historial', async (ctx) => {
   }
 });
 
-// /ajuste [monto] [descripcion] (solo admin)
+// /ajuste [@username | reply] [monto] [descripcion] (solo admin)
 bot.command('ajuste', async (ctx) => {
   if (!isAdmin(ctx.from?.id)) {
     await ctx.reply('⛔ Sin permisos.');
     return;
   }
-  const args = ctx.match?.split(' ') ?? [];
-  const replyTo = ctx.message?.reply_to_message?.from?.id;
-  if (!replyTo || !args[0]) {
-    await ctx.reply('Uso: responde al mensaje del cliente con /ajuste [monto] [descripcion]');
-    return;
+  const args = (ctx.match ?? '').trim().split(/\s+/);
+  let client, monto, desc;
+
+  if (args[0]?.startsWith('@')) {
+    // /ajuste @username monto descripcion
+    const username = args[0].slice(1);
+    const montoRaw = args[1];
+    if (!username || !montoRaw) {
+      await ctx.reply('Uso: /ajuste @username monto [descripcion]\n     o responde al mensaje del cliente con /ajuste monto [descripcion]');
+      return;
+    }
+    const [rows] = await pool.query('SELECT * FROM fin_clients WHERE telegram_username=? LIMIT 1', [username]);
+    if (!rows.length) {
+      await ctx.reply(`❌ Cliente @${username} no encontrado.`);
+      return;
+    }
+    client = rows[0];
+    monto  = parseFloat(montoRaw);
+    desc   = args.slice(2).join(' ') || 'Ajuste manual';
+  } else {
+    // reply mode: /ajuste monto descripcion
+    const replyTo = ctx.message?.reply_to_message?.from?.id;
+    if (!replyTo || !args[0]) {
+      await ctx.reply('Uso: /ajuste @username monto [descripcion]\n     o responde al mensaje del cliente con /ajuste monto [descripcion]');
+      return;
+    }
+    client = await balanceManager.getOrCreateClient(replyTo);
+    monto  = parseFloat(args[0]);
+    desc   = args.slice(1).join(' ') || 'Ajuste manual';
   }
+
   try {
-    const client = await balanceManager.getOrCreateClient(replyTo);
-    const monto  = parseFloat(args[0]);
-    const desc   = args.slice(1).join(' ') || 'Ajuste manual';
     const { saldo_antes, saldo_despues } = await balanceManager.ajusteManual({
       clientId: client.id, monto, descripcion: desc, adminId: ctx.from?.id,
     });
     await ctx.reply(
-      `✅ Ajuste aplicado.\nAntes: $${fmt(saldo_antes)} → Ahora: <b>$${fmt(saldo_despues)}</b>`,
+      `✅ Ajuste aplicado a <b>${client.nombre ?? client.telegram_username}</b>.\nAntes: $${fmt(saldo_antes)} → Ahora: <b>$${fmt(saldo_despues)}</b>`,
       { parse_mode: 'HTML' }
     );
   } catch (err) {
