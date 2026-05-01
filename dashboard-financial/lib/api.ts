@@ -325,6 +325,7 @@ export const api = {
   getEmpresas:            ()             => get<Empresa[]>('/empresas'),
   createEmpresa:          (body: Partial<Empresa>) => post<{id:number}>('/empresas', body),
   updateEmpresa:          (id: number, body: Partial<Empresa>) => patch(`/empresas/${id}`, body),
+  deleteEmpresa:          (id: number)   => del<void>(`/empresas/${id}`),
   getEmpresaCuentas:      (id: number)   => get<EmpresaCuenta[]>(`/empresas/${id}/cuentas`),
   createEmpresaCuenta:    (id: number, body: Partial<EmpresaCuenta>) => post<{id:number}>(`/empresas/${id}/cuentas`, body),
   updateEmpresaCuenta:    (id: number, body: Partial<EmpresaCuenta>) => patch(`/empresa-cuentas/${id}`, body),

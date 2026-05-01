@@ -13,11 +13,12 @@ function maskCard(s: string | null) {
 }
 
 function groupByClient(accounts: BankingAccount[]) {
-  const map = new Map<string, { nombre: string; username: string; cuentas: BankingAccount[] }>();
+  const map = new Map<string, { nombre: string; username: string; clientId: number | null; cuentas: BankingAccount[] }>();
   for (const a of accounts) {
-    const key = String(a.client_id);
+    const key = String(a.client_id ?? `anon-${a.id}`);
     if (!map.has(key)) {
-      map.set(key, { nombre: a.client_nombre || a.telegram_username, username: a.telegram_username, cuentas: [] });
+      const nombre = a.client_nombre || a.telegram_username || (a.client_id ? `Cliente #${a.client_id}` : 'Sin cliente');
+      map.set(key, { nombre, username: a.telegram_username, clientId: a.client_id, cuentas: [] });
     }
     map.get(key)!.cuentas.push(a);
   }
@@ -137,14 +138,17 @@ export default async function BankingPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {clientGroups.map(group => (
-              <div key={group.username} className="glass rounded-xl border border-border overflow-hidden">
+              <div key={group.username ?? String(group.clientId)} className="glass rounded-xl border border-border overflow-hidden">
                 <div className="px-4 py-3 border-b border-border flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center text-sm font-bold text-accent">
                     {(group.nombre?.[0] ?? '?').toUpperCase()}
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-white truncate">{group.nombre}</p>
-                    {group.username && <p className="text-[10px] text-gray-500">@{group.username}</p>}
+                    {group.username
+                      ? <p className="text-[10px] text-gray-500">@{group.username}</p>
+                      : group.clientId && <p className="text-[10px] text-gray-500">ID {group.clientId}</p>
+                    }
                   </div>
                   <span className="ml-auto text-xs text-gray-600 shrink-0">{group.cuentas.length} cta{group.cuentas.length !== 1 ? 's' : ''}</span>
                 </div>

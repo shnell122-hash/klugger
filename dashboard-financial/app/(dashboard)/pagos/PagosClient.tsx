@@ -77,19 +77,17 @@ export default function PagosClient({ pagos }: { pagos: PaymentConfirmation[] })
           </p>
         </div>
       ) : (
-        <div className="glass rounded-xl border border-border overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="glass rounded-xl border border-border overflow-hidden overflow-x-auto">
+          <table className="min-w-[700px] w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs text-gray-500 uppercase tracking-wide">
-                <th className="px-4 py-3">Fecha</th>
-                <th className="px-4 py-3">Cliente</th>
-                <th className="px-4 py-3">Tipo</th>
-                <th className="px-4 py-3">Op</th>
-                <th className="px-4 py-3 text-right">Bruto</th>
-                <th className="px-4 py-3 text-right">Neto</th>
-                <th className="px-4 py-3 text-right">Comisión</th>
-                <th className="px-4 py-3 text-right">Saldo → Nuevo</th>
-                <th className="px-4 py-3 text-center">Imagen</th>
+                <th className="px-4 py-3 whitespace-nowrap">Fecha</th>
+                <th className="px-4 py-3 whitespace-nowrap">Cliente</th>
+                <th className="px-4 py-3 whitespace-nowrap">Tipo</th>
+                <th className="px-4 py-3 text-right whitespace-nowrap">Bruto</th>
+                <th className="px-4 py-3 text-right whitespace-nowrap">Neto</th>
+                <th className="px-4 py-3 text-right whitespace-nowrap">Saldo → Nuevo</th>
+                <th className="px-4 py-3 text-center whitespace-nowrap">Imagen</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40">
@@ -108,24 +106,19 @@ export default function PagosClient({ pagos }: { pagos: PaymentConfirmation[] })
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-accent/10 text-accent">
+                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-accent/10 text-accent whitespace-nowrap">
                       {TIPO_ICON[p.tipo]} {TIPO_LABEL[p.tipo]}
                     </span>
                     {p.tipo_operacion && (
                       <p className="text-[10px] text-gray-500 mt-0.5">{p.tipo_operacion}</p>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-gray-600 text-xs">
-                    {p.operation_id ? `#${p.operation_id}` : '—'}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono text-white">
+                  <td className="px-4 py-3 text-right font-mono text-white whitespace-nowrap">
                     ${fmt(p.monto_bruto)}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono text-emerald-400">
+                  <td className="px-4 py-3 text-right font-mono text-emerald-400 whitespace-nowrap">
                     ${fmt(p.monto_neto)}
-                  </td>
-                  <td className="px-4 py-3 text-right text-gray-500">
-                    {p.comision_pct > 0 ? `${(p.comision_pct * 100).toFixed(1)}%` : '—'}
+                    {p.comision_pct > 0 && <span className="block text-[10px] text-gray-500">{(p.comision_pct * 100).toFixed(1)}%</span>}
                   </td>
                   <td className="px-4 py-3 text-right text-xs">
                     <span className="text-gray-500">${fmt(p.saldo_antes)}</span>
