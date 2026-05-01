@@ -123,6 +123,13 @@ export default function EmpresasClient({ initialData }: Props) {
     setLista(prev => prev.map(x => x.id === e.id ? { ...x, is_active: !x.is_active } : x));
   }
 
+  async function deleteEmpresa(e: Empresa) {
+    if (!confirm(`¿Eliminar "${e.nombre}" y todas sus cuentas bancarias? Esta acción no se puede deshacer.`)) return;
+    await api.deleteEmpresa(e.id);
+    setLista(prev => prev.filter(x => x.id !== e.id));
+    if (selected?.id === e.id) setSelected(null);
+  }
+
   const ORIGEN_BADGE: Record<string, string> = {
     nuestra: 'bg-accent/10 text-accent-light',
     cliente: 'bg-blue-500/10 text-blue-400',
@@ -157,6 +164,10 @@ export default function EmpresasClient({ initialData }: Props) {
                 <button onClick={ev => { ev.stopPropagation(); toggleEmpresa(e); }}
                   className="text-xs px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 text-gray-400">
                   {e.is_active ? 'Desact.' : 'Activar'}
+                </button>
+                <button onClick={ev => { ev.stopPropagation(); deleteEmpresa(e); }}
+                  className="text-xs px-2 py-0.5 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400">
+                  Borrar
                 </button>
               </div>
             </div>

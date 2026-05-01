@@ -393,6 +393,14 @@ module.exports = function financialRoutes(pool, io, express) {
     } catch (err) { res.status(500).json({ ok: false, error: err.message }); }
   });
 
+  router.delete('/empresas/:id', async (req, res) => {
+    try {
+      await pool.query('DELETE FROM fin_empresa_cuentas WHERE empresa_id=?', [req.params.id]);
+      await pool.query('DELETE FROM fin_empresas WHERE id=?', [req.params.id]);
+      res.json({ ok: true });
+    } catch (err) { res.status(500).json({ ok: false, error: err.message }); }
+  });
+
   router.get('/empresas/:id/cuentas', async (req, res) => {
     try { res.json({ ok: true, data: await q.getEmpresaCuentas(pool, req.params.id) }); }
     catch (err) { res.status(500).json({ ok: false, error: err.message }); }
