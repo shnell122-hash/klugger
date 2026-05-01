@@ -100,27 +100,30 @@ function BankingExpandRow({ clientId }: { clientId: number }) {
   );
 }
 
-function AjusteRow({ clientId, nombre, onSaldoChanged }: {
+function AjusteRow({ clientId, nombre, saldoActual, onSaldoChanged }: {
   clientId: number;
   nombre: string;
+  saldoActual: number;
   onSaldoChanged: (saldo: number) => void;
 }) {
-  const [open, setOpen]       = useState(false);
-  const [monto, setMonto]     = useState('');
-  const [desc, setDesc]       = useState('');
-  const [saving, setSaving]   = useState(false);
-  const [result, setResult]   = useState<{ antes: number; despues: number } | null>(null);
+  const [open, setOpen]         = useState(false);
+  const [nuevoSaldo, setNuevo]  = useState('');
+  const [desc, setDesc]         = useState('');
+  const [saving, setSaving]     = useState(false);
+  const [result, setResult]     = useState<{ antes: number; despues: number } | null>(null);
+
+  const nuevoNum = parseFloat(nuevoSaldo.replace(/,/g, ''));
+  const delta    = isNaN(nuevoNum) ? null : nuevoNum - saldoActual;
 
   const submit = async () => {
-    const n = parseFloat(monto.replace(/,/g, ''));
-    if (isNaN(n) || n === 0) return;
+    if (delta === null || delta === 0) return;
     setSaving(true);
     setResult(null);
     try {
-      const r = await api.ajusteManual(clientId, n, desc.trim() || 'Ajuste manual (dashboard)');
+      const r = await api.ajusteManual(clientId, delta, desc.trim() || 'Ajuste manual (dashboard)');
       setResult({ antes: r.saldo_antes, despues: r.saldo_despues });
       onSaldoChanged(r.saldo_despues);
-      setMonto('');
+      setNuevo('');
       setDesc('');
     } catch (e) { alert((e as Error).message); }
     finally { setSaving(false); }
@@ -141,15 +144,20 @@ function AjusteRow({ clientId, nombre, onSaldoChanged }: {
           <td colSpan={9} className="px-6 py-3">
             <div className="flex items-end gap-3 flex-wrap">
               <div>
-                <p className="text-[10px] text-gray-500 mb-1">Monto (+ suma · − resta)</p>
+                <p className="text-[10px] text-gray-500 mb-1">Nuevo saldo</p>
                 <input
                   type="number"
-                  placeholder="ej. -5000 o 12000"
-                  value={monto}
-                  onChange={e => setMonto(e.target.value)}
+                  placeholder={`actual: ${fmt(saldoActual)}`}
+                  value={nuevoSaldo}
+                  onChange={e => setNuevo(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') submit(); }}
                   className="bg-surface border border-border focus:border-accent rounded px-2 py-1 text-sm text-white w-40 outline-none"
                 />
+                {delta !== null && delta !== 0 && (
+                  <p className={`text-[10px] mt-0.5 ${delta > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {delta > 0 ? '+' : ''}{fmt(delta)}
+                  </p>
+                )}
               </div>
               <div>
                 <p className="text-[10px] text-gray-500 mb-1">Descripción</p>
@@ -164,7 +172,7 @@ function AjusteRow({ clientId, nombre, onSaldoChanged }: {
               </div>
               <button
                 onClick={submit}
-                disabled={saving || !monto}
+                disabled={saving || delta === null || delta === 0}
                 className="px-3 py-1 rounded bg-accent/20 text-accent text-xs hover:bg-accent/30 transition disabled:opacity-40"
               >
                 {saving ? '…' : 'Aplicar'}
@@ -378,7 +386,7 @@ export default function ClientsClient({ initialClients }: { initialClients: Clie
                   </tr>
                   <BankingExpandRow key={`bk-${c.id}`} clientId={c.id} />
                   <ComisionesRow key={`cm-${c.id}`} clientId={c.id} />
-                  <AjusteRow key={`aj-${c.id}`} clientId={c.id} nombre={nombre} onSaldoChanged={s => updateSaldo(c.id, s)} />
+                  <AjusteRow key={`aj-${c.id}`} clientId={c.id} nombre={nombre} saldoActual={saldo} onSaldoChanged={s => updateSaldo(c.id, s)} />
                 </>
               );
             })}
