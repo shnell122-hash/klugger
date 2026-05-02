@@ -22,6 +22,7 @@ const financialRoutes      = require('../financial/backend/routes/financial');
 const authRouter           = require('./routes/auth');
 const keysRouter           = require('./routes/keys');
 const { router: platformRouter, fetchAndCacheUsage, checkBudgets } = require('./routes/platform');
+const { router: apiAdminRouter, dailySnapshot } = require('./routes/apiAdmin');
 const tg = require('./telegram');
 const db = require('./db/mysql');
 
@@ -89,7 +90,8 @@ app.use('/api/alerts',          alertsRouter);
 app.use('/api/conversations',   conversationsRouter);
 app.use('/api/financial',       financialRoutes(require('./db/mysql'), io, express));
 app.use('/api/platform',        platformRouter);
-app.use('/api/keys',            keysRouter);  // protected by requireAuth inside the router
+app.use('/api/apiAdmin',        apiAdminRouter);
+app.use('/api/keys',            keysRouter);
 
 // Serve screenshots directory
 app.use('/screenshots', express.static(path.join(__dirname, '..', 'frontend', 'screenshots')));
