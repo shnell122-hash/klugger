@@ -1,0 +1,205 @@
+#!/usr/bin/env python3
+"""
+suite.py — Suite completa T01-T10 usando MTProto (Telethon).
+
+Los mensajes se envían como USUARIOS REALES (GV, Noela, Kevin),
+no como bots — esto bypasea el filtro bot-to-bot de Telegram.
+
+Requisitos previos:
+  1. ./setup-venv.sh
+  2. python3 setup-sessions.py   (una vez por cuenta)
+  3. Añadir a financial/.env:
+       MTPROTO_API_ID=...
+       MTPROTO_API_HASH=...
+       SIM_CHAT_ID=-5142407305
+
+Uso:
+  python3 suite.py            # corre T01-T10 completo
+  python3 suite.py T01        # solo T01
+  python3 suite.py T01 T02    # T01 y T02
+"""
+
+import asyncio
+import json
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+from client import get_client, env, chat_id
+
+ASSETS = Path(__file__).parent.parent / "assets"
+CHAT_ID = None   # se carga al inicio
+
+
+# ─── Helpers ──────────────────────────────────────────────────────────────────
+
+def db(query: str) -> str:
+    db_pass = env("DB_PASS", "") or _read_backend_env("DB_PASS")
+    result = subprocess.run(
+        ["mysql", "-u", "root", f"-p{db_pass}", "ai_monitoring", "-sN", "-e", query],
+        capture_output=True, text=True
+    )
+    return result.stdout.strip()
+
+
+def _read_backend_env(key: str) -> str:
+    candidates = [
+        Path(__file__).parent.parent.parent.parent.parent / "backend" / ".env",
+        Path("/var/www/html/vilarkptl.com/ai-monitor/backend/.env"),
+    ]
+    for p in candidates:
+        if p.exists():
+            for line in p.read_text().splitlines():
+                if line.startswith(f"{key}="):
+                    return line.split("=", 1)[1].strip()
+    return ""
+
+
+async def wait_bot_response(seconds: int = 8):
+    await asyncio.sleep(seconds)
+
+
+def result(test: str, ok: bool, msg: str):
+    icon = "✅" if ok else "❌"
+    print(f"{test}: {icon} — {msg}")
+    return ok
+
+
+# ─── Tests ────────────────────────────────────────────────────────────────────
+
+async def T01(gv):
+    """GV envía /saldo → verificar actividad reciente en DB"""
+    await gv.send_message(CHAT_ID, "/saldo")
+    await wait_bot_response(6)
+    reciente = db(f"SELECT COUNT(*) FROM fin_messages WHERE chat_id={CHAT_ID} AND created_at > NOW() - INTERVAL 30 SECOND")
+    ok = reciente.isdigit() and int(reciente) > 0
+    result("T01", ok, f"fin_messages recientes={reciente} — bot procesó /saldo" if ok
+           else f"sin actividad en DB (reciente={reciente})")
+
+
+async def T02(gv):
+    """GV inicia operación IAS neto 10000"""
+    await gv.send_message(CHAT_ID, "/operacion IAS neto 10000")
+    await wait_bot_response(6)
+    sesion = db(f"SELECT estado FROM fin_sessions WHERE chat_id={CHAT_ID} ORDER BY updated_at DESC LIMIT 1")
+    ok = bool(sesion)
+    result("T02", ok, f"sesión creada estado={sesion}" if ok else "sin sesión en DB")
+
+
+async def T03(gv):
+    """GV envía CLABE Banregio"""
+    await gv.send_message(CHAT_ID, "058597000030773833")
+    await wait_bot_response(6)
+    draft_raw = db(f"SELECT operation_draft_json FROM fin_sessions WHERE chat_id={CHAT_ID} ORDER BY updated_at DESC LIMIT 1")
+    try:
+        draft = json.loads(draft_raw) if draft_raw else {}
+        monto = draft.get("monto_bruto", "?")
+        clabe_obj = draft.get("instrucciones_pago", {})
+        clabe = clabe_obj.get("clabe", "?") if isinstance(clabe_obj, dict) else "?"
+        ok = monto != "?"
+        result("T03", ok, f"draft monto_bruto={monto} clabe={clabe}")
+    except Exception as e:
+        result("T03", False, f"error parseando draft: {e}")
+
+
+async def T04(gv):
+    """GV cancela la operación de prueba"""
+    await gv.send_message(CHAT_ID, "cancelar")
+    await wait_bot_response(5)
+    estado = db(f"SELECT estado FROM fin_sessions WHERE chat_id={CHAT_ID} ORDER BY updated_at DESC LIMIT 1")
+    ok = estado in ("cancelado", "inicial", "")
+    result("T04", ok, f"estado={estado or 'reseteado/limpio'}")
+
+
+async def T05_skip():
+    result("T05", False, "SKIP — necesita comprobante-foto.jpg en sims/assets/")
+
+
+async def T06_skip():
+    result("T06", False, "SKIP — necesita cuadro-retorno-sem14.xlsx en sims/assets/")
+
+
+async def T07_skip():
+    result("T07", False, "SKIP — necesita audio-instrucciones.ogg en sims/assets/")
+
+
+async def T08():
+    """Verificar saldo de clientes en DB"""
+    clientes = db("SELECT nombre, saldo FROM fin_clients ORDER BY updated_at DESC LIMIT 3")
+    ok = bool(clientes)
+    result("T08", ok, f"clientes={clientes[:80] if ok else 'VACÍO'}")
+
+
+async def T09():
+    """Dashboard /api/financial/kpis responde"""
+    import urllib.request
+    import urllib.error
+    try:
+        with urllib.request.urlopen("http://localhost:3020/api/financial/kpis", timeout=5) as resp:
+            data = json.loads(resp.read())
+            ops = data.get("total_operaciones", "?")
+            saldo = data.get("saldo_total", "?")
+            result("T09", True, f"operaciones={ops} saldo_total={saldo}")
+    except Exception as e:
+        # fallback port 3010
+        try:
+            with urllib.request.urlopen("http://localhost:3010/api/financial/kpis", timeout=5) as resp:
+                data = json.loads(resp.read())
+                ops = data.get("total_operaciones", "?")
+                result("T09", True, f"[port 3010] operaciones={ops}")
+        except Exception as e2:
+            result("T09", False, f"dashboard no responde: {e2}")
+
+
+async def T10():
+    """Columna costo_pct existe en fin_operations"""
+    col = db("SHOW COLUMNS FROM fin_operations LIKE 'costo_pct'")
+    ok = bool(col)
+    result("T10", ok, "columna costo_pct existe" if ok else "columna costo_pct NO existe — falta migración v14")
+
+
+# ─── Runner ───────────────────────────────────────────────────────────────────
+
+ALL_TESTS = ["T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08", "T09", "T10"]
+
+
+async def run(tests: list[str]):
+    global CHAT_ID
+    CHAT_ID = chat_id()
+    print(f"\n=== Suite MTProto | CHAT_ID={CHAT_ID} ===\n")
+
+    async with get_client("gv") as gv:
+        for t in tests:
+            print(f"── {t} ──")
+            if t == "T01": await T01(gv)
+            elif t == "T02": await T02(gv)
+            elif t == "T03": await T03(gv)
+            elif t == "T04": await T04(gv)
+            elif t == "T05": await T05_skip()
+            elif t == "T06": await T06_skip()
+            elif t == "T07": await T07_skip()
+            elif t == "T08": await T08()
+            elif t == "T09": await T09()
+            elif t == "T10": await T10()
+            else:
+                print(f"{t}: ⚠️  test desconocido")
+
+    print()
+
+
+def main():
+    selected = sys.argv[1:] if len(sys.argv) > 1 else ALL_TESTS
+    selected = [t.upper() for t in selected]
+    unknown = [t for t in selected if t not in ALL_TESTS]
+    if unknown:
+        print(f"Tests desconocidos: {unknown}")
+        print(f"Válidos: {ALL_TESTS}")
+        sys.exit(1)
+
+    asyncio.run(run(selected))
+
+
+if __name__ == "__main__":
+    main()
