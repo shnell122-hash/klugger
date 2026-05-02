@@ -19,6 +19,8 @@ const alertsRouter         = require('./routes/alerts');
 const conversationsRouter  = require('./routes/conversations');
 const { router: platformRouter, fetchAndCacheUsage, checkBudgets } = require('./routes/platform');
 const { router: apiAdminRouter, dailySnapshot } = require('./routes/apiAdmin');
+const financialRoutes = require('../financial/backend/routes/financial');
+const pool            = require('./db/mysql');
 
 const PORT = process.env.PORT || 3010;
 
@@ -50,6 +52,7 @@ app.use('/api/alerts',          alertsRouter);
 app.use('/api/conversations',   conversationsRouter);
 app.use('/api/platform',        platformRouter);
 app.use('/api/apiAdmin',        apiAdminRouter);
+app.use('/api/financial',      financialRoutes(pool, io, express));
 
 // Serve screenshots directory (already covered by express.static on /frontend,
 // but also serve under /screenshots for direct access)
