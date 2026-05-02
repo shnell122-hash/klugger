@@ -48,6 +48,30 @@
     "active": true
   },
   {
+    "id": "finbot-tester",
+    "name": "FinBot — Tester Automatizado",
+    "claude_model": "claude-sonnet-4-6",
+    "inbox":  "/var/www/html/vilarkptl.com/ai-monitor/relay/inbox-finbot-tester.md",
+    "outbox": "/var/www/html/vilarkptl.com/ai-monitor/relay/outbox-finbot-tester.md",
+    "repo":   "/var/www/html/vilarkptl.com/ai-monitor",
+    "branch": "claude/financial-multiagent-system-YwtYQ",
+    "github": "vilarkptl-lang/agentic-repo",
+    "url":    "http://ia.vilarkptl.com",
+    "active": true
+  },
+  {
+    "id": "finbot-verifier",
+    "name": "FinBot — Verificador Continuo",
+    "claude_model": "claude-haiku-4-5-20251001",
+    "inbox":  "/var/www/html/vilarkptl.com/ai-monitor/relay/inbox-finbot-verifier.md",
+    "outbox": "/var/www/html/vilarkptl.com/ai-monitor/relay/outbox-finbot-verifier.md",
+    "repo":   "/var/www/html/vilarkptl.com/ai-monitor",
+    "branch": "claude/financial-multiagent-system-YwtYQ",
+    "github": "vilarkptl-lang/agentic-repo",
+    "url":    "http://ia.vilarkptl.com",
+    "active": true
+  },
+  {
     "id": "credito",
     "name": "credito.vilarkptl.com",
     "inbox":  "",
