@@ -20,3 +20,13 @@ relay/journals/
 # OS
 .DS_Store
 Thumbs.db
+
+# Simuladores: assets de prueba (binarios con datos reales — generar localmente en servidor)
+financial/bot/sims/assets/*.png
+financial/bot/sims/assets/*.jpg
+financial/bot/sims/assets/*.jpeg
+financial/bot/sims/assets/*.pdf
+financial/bot/sims/assets/*.xlsx
+financial/bot/sims/assets/*.xls
+financial/bot/sims/assets/*.ogg
+financial/bot/sims/assets/*.xml
