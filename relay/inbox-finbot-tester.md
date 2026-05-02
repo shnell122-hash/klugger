@@ -1,7 +1,9 @@
-## Tarea: Completar financial/.env con Chat ID del grupo Testing
+## Tarea: Completar financial/.env con Chat ID del grupo Testing (re-run 2026-05-02)
 
 Solo hay UN grupo de prueba ("Testing"). Usar el mismo ID para `SIM_CHAT_ID` y `SIM_ASISTENTE_CHAT_ID`.
 Los bots HermanVAbot/Vbpp2bot/ChristianKeytBot y Flujos AI ya están en el grupo Testing.
+Se envió "Hola" en Testing a las 11:21 AM — getUpdates tiene updates frescos.
+chmod 664 ya aplicado en financial/.env.
 
 ### Paso 0 — Verificar permisos de escritura en .env
 
