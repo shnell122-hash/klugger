@@ -35,6 +35,24 @@
   --header-h:    56px;
 }
 
+/* ── Dark theme overrides ── */
+[data-theme="dark"] {
+  --bg:          #0d1117;
+  --bg-grad:     linear-gradient(135deg,#0d1117 0%,#161b22 50%,#0d1117 100%);
+  --glass:       rgba(22,27,34,0.85);
+  --glass-hover: rgba(30,37,46,0.95);
+  --glass-deep:  rgba(13,17,23,0.6);
+  --border:      rgba(48,54,61,0.8);
+  --border-hi:   rgba(255,255,255,0.08);
+  --shadow-sm:   0 2px 8px rgba(0,0,0,0.4);
+  --shadow-md:   0 8px 32px rgba(0,0,0,0.5);
+  --shadow-lg:   0 20px 60px rgba(0,0,0,0.6);
+  --text:        #e6edf3;
+  --text-muted:  #8b949e;
+  --text-light:  #6e7681;
+  --input-bg:    rgba(22,27,34,0.9);
+}
+
 *  { box-sizing: border-box; margin: 0; padding: 0; }
 *:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
@@ -77,6 +95,20 @@ header {
   scrollbar-width: none;
 }
 header::-webkit-scrollbar { display: none; }
+
+/* Theme toggle button */
+#theme-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 17px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  line-height: 1;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+#theme-toggle:hover { background: var(--glass-deep); }
 
 /* Logo */
 .logo {
