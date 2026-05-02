@@ -61,8 +61,24 @@ sudo -u german pm2 show sat-api
 curl -s http://localhost:3003/api/health  # o el endpoint que corresponda
 ```
 
+## Comunicación entre agentes — OBLIGATORIO
+
+**Antes de empezar**, lee el estado compartido:
+```bash
+cat /var/www/html/vilarkptl.com/ai-monitor/relay/AGENT-STATUS.md
+```
+
+**Al terminar**, actualiza el estado con lo que hiciste y push:
+```bash
+# Edita relay/AGENT-STATUS.md en /var/www/html/vilarkptl.com/ai-monitor/
+git -C /var/www/html/vilarkptl.com/ai-monitor add relay/AGENT-STATUS.md
+git -C /var/www/html/vilarkptl.com/ai-monitor commit -m "status: fiscalai — [resumen]"
+git -C /var/www/html/vilarkptl.com/ai-monitor push
+```
+
 ## Reglas de ejecución
-1. **Lee el código antes de modificarlo** — nunca hagas suposiciones
+1. **Lee AGENT-STATUS.md primero** — para saber qué tocó el último agente
+2. **Lee el código antes de modificarlo** — nunca hagas suposiciones
 2. **Un commit por funcionalidad** — mensajes descriptivos
 3. **Si una sub-tarea necesita frontend**, despáchala al agente frontend:
    ```bash

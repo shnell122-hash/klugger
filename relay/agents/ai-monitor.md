@@ -57,11 +57,27 @@ git pull origin claude/agent-monitoring-dashboard-4v8iq
 pm2 restart relay-master
 ```
 
+## Comunicación entre agentes — OBLIGATORIO
+
+**Antes de empezar**, lee el estado compartido para evitar pisar cambios de otros agentes:
+```bash
+cat /var/www/html/vilarkptl.com/ai-monitor/relay/AGENT-STATUS.md
+```
+
+**Al terminar**, actualiza el estado:
+```bash
+# Edita relay/AGENT-STATUS.md — sección "Último agente activo" + archivos modificados
+git add relay/AGENT-STATUS.md
+git commit -m "status: ai-monitor — [resumen]"
+git push
+```
+
 ## Reglas de ejecución
-1. **Lee el código antes de modificarlo** — nunca hagas suposiciones
-2. **Un commit por funcionalidad** — mensajes descriptivos
-3. **No hagas loops** — si algo falla 2 veces, reporta el error
-4. **Tu último mensaje SIEMPRE debe tener `## Resultados`** — relay-master lo parsea para Telegram. Sin ese bloque, el usuario no ve el resultado.
+1. **Lee AGENT-STATUS.md primero** — para saber qué tocó el último agente
+2. **Lee el código antes de modificarlo** — nunca hagas suposiciones
+3. **Un commit por funcionalidad** — mensajes descriptivos
+4. **No hagas loops** — si algo falla 2 veces, reporta el error
+5. **Tu último mensaje SIEMPRE debe tener `## Resultados`** — relay-master lo parsea para Telegram. Sin ese bloque, el usuario no ve el resultado.
 
 ## Variables de entorno disponibles
 - `RELAY_DISPATCH_URL` — API para despachar sub-tareas a otros agentes

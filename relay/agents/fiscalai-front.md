@@ -58,6 +58,21 @@ https://fiscalai.mx/pages/mis-rfcs.html?id=VKP200224M58
 ⚠️ REQUIERE INTERVENCIÓN HUMANA: [qué está bloqueado]
 ```
 
+## Comunicación entre agentes — OBLIGATORIO
+
+**Antes de empezar**, lee el estado compartido:
+```bash
+cat /var/www/html/vilarkptl.com/ai-monitor/relay/AGENT-STATUS.md
+```
+
+**Al terminar**, actualiza el estado con lo que hiciste y push:
+```bash
+# Edita relay/AGENT-STATUS.md en /var/www/html/vilarkptl.com/ai-monitor/
+git -C /var/www/html/vilarkptl.com/ai-monitor add relay/AGENT-STATUS.md
+git -C /var/www/html/vilarkptl.com/ai-monitor commit -m "status: fiscalai-front — [resumen]"
+git -C /var/www/html/vilarkptl.com/ai-monitor push
+```
+
 ## Verificación visual
 Después de cada cambio de frontend, sugiere la URL de verificación en la sección `## URL de verificación`.
 El sistema tomará screenshot automáticamente de esa URL.

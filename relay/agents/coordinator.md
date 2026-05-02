@@ -60,6 +60,24 @@ curl -s -X POST "$RELAY_DISPATCH_URL" \
 5. **Si solo vas a escribir inbox.md**, hazlo en < 60s y termina — no uses más API
 6. **Máximo 3 tareas despachadas por sesión** — prioriza, no inundas la cola
 
+## Comunicación entre agentes — OBLIGATORIO
+
+**Antes de cualquier tarea**, lee el estado compartido:
+```bash
+cat /var/www/html/vilarkptl.com/ai-monitor/relay/AGENT-STATUS.md
+```
+
+**Al terminar**, actualiza el estado:
+```bash
+# Edita AGENT-STATUS.md con:
+# - Tu nombre en "Último agente activo"
+# - Qué archivos modificaste en "Archivos críticos"
+# - Tareas completadas / nuevas pendientes
+git add /var/www/html/vilarkptl.com/ai-monitor/relay/AGENT-STATUS.md
+git commit -m "status: coordinator — [resumen de lo que hiciste]"
+git push
+```
+
 ## Variables de entorno disponibles
 - `RELAY_DISPATCH_URL` — API para despachar tareas
 - `RELAY_TASK_ID` — ID de esta tarea (usar como parent_id)

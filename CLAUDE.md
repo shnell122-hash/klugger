@@ -237,6 +237,36 @@ los cambios sean permanentes y el gitPull automático del relay no los revierta.
 
 ---
 
+## Comunicación bidireccional entre agentes
+
+Todos los agentes (Claude Code, Cursor, relay-master, fiscalai, fiscalai-front, coordinator) comparten estado a través de un archivo común en GitHub:
+
+**`relay/AGENT-STATUS.md`** — La única fuente de verdad cross-agente.
+
+### Protocolo obligatorio
+
+```
+ANTES de cualquier tarea:
+  cat /var/www/html/vilarkptl.com/ai-monitor/relay/AGENT-STATUS.md
+
+AL TERMINAR cualquier tarea:
+  1. Editar AGENT-STATUS.md (sección "Último agente activo" + archivos modificados + tareas)
+  2. git add relay/AGENT-STATUS.md
+  3. git commit -m "status: [agente] — [resumen de 1 línea]"
+  4. git push
+```
+
+### Por qué es crítico
+
+Sin este protocolo, los agentes se pisan entre sí:
+- Un agente revierte cambios de otro (gitPull sobre trabajo no mergeado)
+- Dos agentes modifican el mismo archivo sin saberlo
+- El coordinator despacha tareas ya completadas por otra sesión
+
+### Resumen del estado actual → ver `relay/AGENT-STATUS.md`
+
+---
+
 ## Reglas para agentes en este repo
 
 1. **Máximo 3 objetivos por sesión**
