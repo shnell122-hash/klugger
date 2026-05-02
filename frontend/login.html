@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VILAR — Acceso</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+       background:#0f1117;display:flex;align-items:center;
+       justify-content:center;min-height:100vh;color:#fff}
+  .card{background:#1a1d27;border:1px solid #2a2d3a;border-radius:12px;
+        padding:40px 36px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+  h1{font-size:1.4rem;font-weight:700;margin-bottom:4px}
+  .sub{color:#666;font-size:.85rem;margin-bottom:28px}
+  label{display:block;font-size:.8rem;color:#888;margin-bottom:6px}
+  input{width:100%;padding:10px 12px;background:#0f1117;border:1px solid #2a2d3a;
+        border-radius:8px;color:#fff;font-size:.95rem;outline:none}
+  input:focus{border-color:#4f6ef7}
+  button{width:100%;margin-top:16px;padding:11px;background:#4f6ef7;
+         border:none;border-radius:8px;color:#fff;font-size:.95rem;
+         font-weight:600;cursor:pointer}
+  button:hover{background:#3d5ce0}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .err{color:#e74c3c;font-size:.82rem;margin-top:12px;display:none}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>VILAR</h1>
+  <p class="sub">AI Monitor — acceso restringido</p>
+  <label>Contraseña</label>
+  <input type="password" id="pw" placeholder="••••••••" autofocus>
+  <button id="btn" onclick="login()">Entrar</button>
+  <p class="err" id="err">Contraseña incorrecta</p>
+</div>
+<script>
+document.getElementById('pw').addEventListener('keydown', function(e) { if(e.key==='Enter') login(); });
+function login(){
+  var pw = document.getElementById('pw').value;
+  var btn = document.getElementById('btn');
+  var err = document.getElementById('err');
+  if(!pw) return;
+  btn.disabled = true; btn.textContent = 'Verificando...';
+  err.style.display = 'none';
+  fetch('/api/auth/login', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({password: pw})
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if(d.ok){ window.location.href = '/'; }
+    else { err.style.display='block'; btn.disabled=false; btn.textContent='Entrar'; }
+  }).catch(function(){
+    err.textContent='Error de conexión'; err.style.display='block';
+    btn.disabled=false; btn.textContent='Entrar';
+  });
+}
+</script>
+</body>
+</html>
