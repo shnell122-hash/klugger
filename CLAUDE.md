@@ -1,6 +1,6 @@
 # CLAUDE.md — ai-monitor / agentic-repo
 
-> Archivo de referencia para agentes Claude Code. Actualizado 2026-04-20.
+> Archivo de referencia para agentes Claude Code. Actualizado 2026-05-02.
 
 ---
 
@@ -184,6 +184,59 @@ Visibles en dashboard → tab **Alertas**.
 
 ---
 
+## Estado del sistema (actualizado 2026-05-02)
+
+### Procesos PM2 activos
+
+| Proceso | Puerto | Notas |
+|---------|--------|-------|
+| `ai-monitor` | 3010 | Express + Socket.io — dashboard ia.vilarkptl.com |
+| `relay-master` | interno | Orquestador agentes |
+| `claude-chat-bot` | interno | Telegram bot directo |
+| `code-reviewer` | interno | DeepSeek V3 auto-review |
+| `cursor-worker` | interno | Cursor Cloud Agent worker |
+| `litellm` | 4000 | LLM proxy con fallback chains |
+
+### LiteLLM proxy
+
+Instalado en `/opt/litellm/`. Variables en `relay/.env`:
+```
+LITELLM_BASE_URL=http://localhost:4000
+LITELLM_MASTER_KEY=sk-litellm-11b2ccee224b47d82ba9b8e3677aa915
+```
+Chains: `kptl-chat` (Sonnet→DeepSeek→GPT4o), `kptl-chat-fast` (Haiku→GPT4o-mini→Gemini), `kptl-reasoning` (DeepSeek R1→Opus)
+
+### Auth dashboard (ia.vilarkptl.com)
+
+Login activado. Hash bcrypt en `/opt/kptl-secrets/api-keys.env`:
+```
+DASHBOARD_PASSWORD_HASH=$2a$10$D83YfbFBaxu0yCFtiOtPvuHFjcBisfep2xY9tAAMdSVLgUKdllGXu
+```
+Branch con el código de auth: `claude/onboard-ai-monitor-subproject-zXvki`
+
+Si el dashboard no carga o muestra "Cannot GET /login":
+```bash
+pm2 restart ai-monitor
+# Hard refresh en el browser (cerrar y reabrir pestaña)
+```
+
+### Swap crítico
+
+RAM: 3.8 GB total | Swap: ~96% usado. Si hay OOM:
+```bash
+# Agregar 1 GB swap temporal:
+fallocate -l 1G /swapfile2 && chmod 600 /swapfile2 && mkswap /swapfile2 && swapon /swapfile2
+```
+
+### Divergencia de branches (pendiente)
+
+Los cambios de esta sesión están en `claude/agent-monitoring-dashboard-4v8iq`.
+Los cambios de auth/LiteLLM están en `claude/onboard-ai-monitor-subproject-zXvki`.
+El servidor corre sobre `main`. **Ambas branches deben mergearse a main** para que
+los cambios sean permanentes y el gitPull automático del relay no los revierta.
+
+---
+
 ## Reglas para agentes en este repo
 
 1. **Máximo 3 objetivos por sesión**
@@ -192,3 +245,4 @@ Visibles en dashboard → tab **Alertas**.
 4. **Nunca commitear**: `node_modules/`, `.env`, `nohup.out`, `FETCH_HEAD`
 5. **Siempre terminar con bloque outbox estructurado**
 6. **Coordinator**: si solo escribe inbox.md, completar en <60s
+7. **Branch de ai-monitor en projects.json es `main`** — no cambiar a branches de desarrollo
