@@ -27,6 +27,7 @@ const path    = require('path');
 const crypto  = require('crypto');
 const { execSync, exec, spawn } = require('child_process');
 const https   = require('https');
+const http    = require('http');
 
 // ─── Config ───────────────────────────────────────────────
 const PROJECTS_FILE   = path.join(__dirname, 'projects.json');
@@ -56,7 +57,13 @@ const GITHUB_TOKEN    = process.env.GITHUB_TOKEN;
 const CLAUDE_BIN      = process.env.CLAUDE_BIN || '/usr/local/bin/claude';
 const CLAUDE_USER     = process.env.CLAUDE_USER || 'claude-agent';
 const POLL_MS         = parseInt(process.env.POLL_MS || '15000');
-const CLAUDE_TIMEOUT_MS = parseInt(process.env.CLAUDE_TIMEOUT_MS || String(25 * 60 * 1000)); // 25 min default
+const CLAUDE_TIMEOUT_MS  = parseInt(process.env.CLAUDE_TIMEOUT_MS || String(25 * 60 * 1000)); // 25 min default
+
+// Kill-switch global — pausar todo el relay cuando el gasto diario supera umbrales
+let GLOBAL_KILLED   = false;
+let GLOBAL_KILL_TS  = null;
+let GLOBAL_KILL_MSG = '';
+const PROVIDER_LAST_ALERT = {};  // proveedor → timestamp última alerta (antispam)
 
 // ─── Buzon IA (ia.vilarkptl.com → FiscalAI relay shared mailbox) ─────────────
 // When relay/buzon-ia.md in agentic-repo changes, relay-master mirrors it to
@@ -181,6 +188,8 @@ function registerBotCommands() {
     { command: 'activar',  description: 'Reactiva un agente detenido — /activar [id]' },
     { command: 'memoria',  description: 'Agrega nota a la memoria del agente — /memoria [id] [nota]' },
     { command: 'plan',     description: 'Ver plan activo del proyecto — /plan [id?]' },
+    { command: 'limite',   description: 'Cambiar límite de gasto — /limite [proveedor] [usd]' },
+    { command: 'reanudar', description: 'Reanudar relay si está pausado por kill-switch' },
     { command: 'comandos', description: 'Lista todos los comandos disponibles' },
     { command: 'ayuda',    description: 'Lista todos los comandos disponibles' },
   ];
@@ -305,6 +314,47 @@ async function handleTelegramCommand(text, imageContext) {
     if (!id) { tg('❓ Uso: /parar [project-id]'); return; }
     const j = loadJournal(id); j.state = 'stopped'; saveJournal(id, j);
     tg(`🛑 <b>${id}</b> detenido manualmente.\nUsa /activar ${id} para reanudar.`);
+    return;
+  }
+
+  // /limite [proveedor|total] [valor_usd]  — cambia umbral de kill-switch
+  if (lower.startsWith('/limite')) {
+    const parts    = raw.trim().split(/\s+/);
+    const provider = parts[1]?.toLowerCase();
+    const value    = parseFloat(parts[2]);
+    if (!provider || isNaN(value) || value < 0) {
+      tg('❓ Uso: <code>/limite [proveedor] [usd]</code>\nEjemplo: <code>/limite total 15</code> o <code>/limite anthropic 10</code>\nProveedores: total, anthropic, openai, deepseek, fal, elevenlabs');
+      return;
+    }
+    // Actualizar en DB via API del backend
+    const postData = JSON.stringify({ provider, threshold_usd: value, kill_enabled: 1 });
+    const req = http.request({
+      hostname: '127.0.0.1', port: 3010, path: '/api/apiAdmin/threshold',
+      method: 'PUT', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) },
+    }, (res) => {
+      res.resume();
+      // También limpiar kill si el nuevo límite es mayor al gasto actual
+      if (provider === 'total' || provider === 'anthropic') {
+        GLOBAL_KILLED = false; GLOBAL_KILL_TS = null; GLOBAL_KILL_MSG = '';
+        // Resetear en DB también
+        http.request({ hostname: '127.0.0.1', port: 3010, path: '/api/platform/resume', method: 'POST' }, r => r.resume()).end();
+        http.request({ hostname: '127.0.0.1', port: 3010, path: '/api/apiAdmin/resume', method: 'POST' }, r => r.resume()).end();
+      }
+      PROVIDER_LAST_ALERT[provider] = 0; // reset cooldown para este proveedor
+      tg(`✅ <b>Límite actualizado — ${provider}</b>\nNuevo umbral: <b>$${value.toFixed(2)}/día</b>${(provider === 'total' || provider === 'anthropic') ? '\nKill-switch reseteado.' : ''}`);
+    });
+    req.on('error', e => tg(`❌ Error actualizando límite: ${e.message}`));
+    req.write(postData);
+    req.end();
+    return;
+  }
+
+  // /reanudar — resume el relay si está pausado por kill-switch
+  if (lower === '/reanudar' || lower === '/resume') {
+    GLOBAL_KILLED = false; GLOBAL_KILL_TS = null; GLOBAL_KILL_MSG = '';
+    http.request({ hostname: '127.0.0.1', port: 3010, path: '/api/platform/resume', method: 'POST' }, r => r.resume()).end();
+    http.request({ hostname: '127.0.0.1', port: 3010, path: '/api/apiAdmin/resume', method: 'POST' }, r => r.resume()).end();
+    tg('✅ <b>Sistema reanudado</b> desde Telegram.\nEl relay procesará nuevas tareas normalmente.');
     return;
   }
 
@@ -661,16 +711,19 @@ function postAlert(alertType, projectId, severity, title, details, autoFixed = f
 }
 
 // ─── Anthropic API directo (Opción B — buzon bidireccional) ──────────────────
-// Llama claude-sonnet-4-6 via HTTPS nativo sin spawn Claude CLI.
+// Llama claude-haiku-4-5 via HTTPS nativo sin spawn Claude CLI.
 // Usada cuando buzon-fiscalai.md cambia para responder directamente.
+// Haiku es suficiente para ACKs/pre-responses del buzon; el trabajo real
+// lo hace el coordinator dispatch (paso 2 en responderBuzonFiscalai).
+// Prompt caching activo en system prompt para reducir costos en llamadas repetidas.
 function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512) {
   const timeoutMs = 90000;
   const apiCall = new Promise((resolve, reject) => {
     if (!ANTHROPIC_KEY) { reject(new Error('ANTHROPIC_API_KEY no configurado')); return; }
     const body = JSON.stringify({
-      model:      'claude-sonnet-4-6',
+      model:      'claude-haiku-4-5-20251001',
       max_tokens: maxTokens,
-      system:     systemPrompt,
+      system:     [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
       messages:   [{ role: 'user', content: userMessage }],
     });
     const req = https.request({
@@ -680,6 +733,7 @@ function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512) {
       headers: {
         'x-api-key':         ANTHROPIC_KEY,
         'anthropic-version': '2023-06-01',
+        'anthropic-beta':    'prompt-caching-2024-07-31',
         'content-type':      'application/json',
         'content-length':    Buffer.byteLength(body),
       },
@@ -817,10 +871,10 @@ async function responderBuzonFiscalai(buzonContent) {
     }
     if (relayContext) systemPrompt += '\n\n---\n\n## Estado actual del relay' + relayContext;
 
-    const respuesta = await callAnthropicDirect(systemPrompt, buzonContent, 4096);
+    const respuesta = await callAnthropicDirect(systemPrompt, buzonContent, 1024);
     const richContent =
       `# Buzón IA — ia.vilarkptl.com → FiscalAI\n\n` +
-      `**[${timestamp} CST] — Anthropic API (claude-sonnet-4-6)**\n\n---\n\n${respuesta}\n`;
+      `**[${timestamp} CST] — Anthropic API (claude-haiku-4-5)**\n\n---\n\n${respuesta}\n`;
     fs.writeFileSync(BUZON_SRC, richContent);
     log(null, `buzon-ia: respuesta Anthropic API escrita (${respuesta.length} chars)`);
     tg(`📨 <b>FiscalAI respondido via Anthropic API</b>\n<code>${respuesta.slice(0, 400)}</code>`);
@@ -1706,6 +1760,7 @@ function saveDispatchQueue(q) {
 }
 
 async function processDispatchQueue(projects, hashes = null) {
+  if (GLOBAL_KILLED) { log(null, 'Kill-switch activo — dispatch queue pausada'); return; }
   const queue = readDispatchQueue();
   const pending = queue.filter(d => d.status === 'pending');
   if (!pending.length) return;
@@ -1723,6 +1778,15 @@ async function processDispatchQueue(projects, hashes = null) {
 
     log(null, `Dispatch → ${target.name}: ${dispatch.task.slice(0, 80)}`);
 
+    // Inject budget_usd_max for sub-dispatches without one (coordinator → agent).
+    // Prevents a coordinator session from spawning 10 × $2 tasks uncontrolled.
+    // The coordinator can override by including budget_usd_max explicitly in the task.
+    let inboxTask = dispatch.task;
+    if (!inboxTask.match(/budget_usd_max\s*[:=]/i) &&
+        (dispatch.depth >= 1 || dispatch.requester === 'coordinator')) {
+      inboxTask = `budget_usd_max: 1.50\n\n` + inboxTask;
+    }
+
     // Write task to target inbox (append outbox template so agent always fills it)
     const OUTBOX_TEMPLATE =
       '\n\n---\n## Outbox — [Rellenar después de completar]\n' +
@@ -1733,7 +1797,7 @@ async function processDispatchQueue(projects, hashes = null) {
       '**Usuario requerido**: [Sí/No]\n' +
       '\nDetalles: [describir qué se hizo]\n';
     try {
-      fs.writeFileSync(target.inbox, dispatch.task + OUTBOX_TEMPLATE);
+      fs.writeFileSync(target.inbox, inboxTask + OUTBOX_TEMPLATE);
     } catch (err) {
       log(null, `Dispatch ${dispatch.id}: no pudo escribir inbox: ${err.message}`);
       const idx = updated.findIndex(d => d.id === dispatch.id);
@@ -1827,6 +1891,7 @@ function checkOutboxWatchdog(projects) {
 // multiple times per cycle (coordinator + fiscalai + fiscalai-front share DeCabeceraTax)
 async function processProject(project, hashes, pulledRepos = new Set()) {
   if (!project.active || !project.inbox) return;
+  if (GLOBAL_KILLED) { log(project.id, `Kill-switch activo (${GLOBAL_KILL_MSG || 'gasto diario'}) — saltando`); return; }
 
   // Git pull — deduplicated per repo path to avoid concurrent git lock conflicts
   if (project.repo && project.branch && !pulledRepos.has(project.repo)) {
@@ -2324,6 +2389,77 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
       tg(`⚠️ <b>Watchdog — ${projectId}</b>\nSesión <code>${info.jobId}</code> terminada (${elapsedSec}s > ${Math.round(WATCHDOG_MAX_MS/60)}min máx)`);
       info.forceTimeout();
     }
+  }, 60 * 1000);
+
+  // Kill-switch poller — consulta kill-check cada 60s (multi-proveedor, persiste en DB)
+  const killCheck = () => new Promise((resolve) => {
+    const req = http.get(`${MONITOR_API}/api/platform/kill-check`, (res) => {
+      let body = '';
+      res.on('data', c => body += c);
+      res.on('end', () => { try { resolve(JSON.parse(body)); } catch(_) { resolve(null); } });
+    });
+    req.setTimeout(8000, () => { req.destroy(); resolve(null); });
+    req.on('error', () => resolve(null));
+  });
+
+  // También verificar kill por proveedor individual
+  const killStatusCheck = () => new Promise((resolve) => {
+    const req = http.get(`${MONITOR_API}/api/apiAdmin/killStatus`, (res) => {
+      let body = '';
+      res.on('data', c => body += c);
+      res.on('end', () => { try { resolve(JSON.parse(body)); } catch(_) { resolve(null); } });
+    });
+    req.setTimeout(8000, () => { req.destroy(); resolve(null); });
+    req.on('error', () => resolve(null));
+  });
+
+  // Antispam: solo 1 alerta por hora por proveedor (PROVIDER_LAST_ALERT es global)
+  const ALERT_COOLDOWN_MS = 60 * 60 * 1000; // 1 hora
+
+  setInterval(async () => {
+    try {
+      // Auto-reset a medianoche
+      if (GLOBAL_KILLED && GLOBAL_KILL_TS) {
+        if (new Date().toDateString() !== GLOBAL_KILL_TS.toDateString()) {
+          GLOBAL_KILLED = false; GLOBAL_KILL_TS = null; GLOBAL_KILL_MSG = '';
+          log(null, 'Kill-switch: nuevo día — auto-reset');
+          tg('✅ <b>Kill-switch reseteado</b> — nuevo día, sistema reanudado automáticamente');
+        }
+      }
+
+      // Consultar estado global (total)
+      const status = await killCheck();
+      if (status?.killed && !GLOBAL_KILLED) {
+        GLOBAL_KILLED   = true;
+        GLOBAL_KILL_TS  = new Date();
+        GLOBAL_KILL_MSG = status.reason || `$${status.daily_cost_usd} ≥ $${status.threshold_usd}`;
+        log(null, `KILL-SWITCH TOTAL: ${GLOBAL_KILL_MSG}`);
+        tg(`🛑 <b>Sistema PAUSADO — Kill-switch total</b>\n${GLOBAL_KILL_MSG}\nNinguna tarea se ejecutará.\nUsa <code>/reanudar</code> o <code>/limite total 15</code> para ajustar.`);
+        for (const [, info] of ACTIVE_PIDS.entries()) {
+          if (info.forceTimeout) info.forceTimeout();
+        }
+      }
+      if (!status?.killed && GLOBAL_KILLED && GLOBAL_KILL_TS) {
+        GLOBAL_KILLED = false; GLOBAL_KILL_TS = null; GLOBAL_KILL_MSG = '';
+        log(null, 'Kill-switch: reanudado por dashboard');
+        tg('✅ <b>Sistema reanudado</b> desde dashboard');
+      }
+
+      // Consultar alertas por proveedor individual — con antispam (1 alerta/hora/proveedor)
+      if (!GLOBAL_KILLED) {
+        const provStatus = await killStatusCheck();
+        if (provStatus?.provider_status) {
+          const now = Date.now();
+          for (const p of provStatus.provider_status) {
+            if (!p.over || p.provider === 'total') continue;
+            const lastAlerted = PROVIDER_LAST_ALERT[p.provider] || 0;
+            if (now - lastAlerted < ALERT_COOLDOWN_MS) continue;
+            PROVIDER_LAST_ALERT[p.provider] = now;
+            tg(`⚠️ <b>Alerta de gasto — ${p.provider}</b>\n$${p.current_usd} de $${p.threshold_usd} (${p.pct}%)\nUsa <code>/limite ${p.provider} ${Math.ceil(p.current_usd * 1.5)}</code> para subir el límite.`);
+          }
+        }
+      }
+    } catch (_) { /* no interrumpir por fallos de red */ }
   }, 60 * 1000);
 
   const hashes = loadHashes();

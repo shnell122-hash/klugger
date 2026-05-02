@@ -555,7 +555,7 @@ function initTabs() {
 }
 
 function switchRightTab(tab) {
-  ['agents','screenshots','sessions','costs','providers','projects','alerts','conversations','platform'].forEach(t => {
+  ['agents','screenshots','sessions','costs','providers','projects','alerts','conversations','platform','api-admin'].forEach(t => {
     const el = document.getElementById(t + '-panel');
     if (el) el.classList.toggle('visible', t === tab);
   });
@@ -567,6 +567,7 @@ function switchRightTab(tab) {
   if (tab === 'alerts')        loadAlerts();
   if (tab === 'conversations') loadConversaciones();
   if (tab === 'platform')      loadPlatform();
+  if (tab === 'api-admin')     loadApiAdmin();
 }
 
 // ─── Screenshots panel ────────────────────────────────────
@@ -1398,11 +1399,31 @@ async function loadPlatform() {
     }
 
     document.getElementById('platform-error').style.display = 'none';
+
+    // Kill-switch banner
+    try {
+      const ks = await fetch(`${API}/api/platform/kill-check`).then(r => r.json());
+      const kb = document.getElementById('platform-kill-banner');
+      if (ks.killed) {
+        kb.style.display = '';
+        kb.innerHTML = `🛑 <b>Sistema PAUSADO</b> — ${escHtml(ks.reason || '')}
+          &nbsp;<button onclick="resumeRelay()" class="btn-sm" style="margin-left:8px">▶ Reanudar</button>`;
+      } else { kb.style.display = 'none'; }
+    } catch (_) {}
   } catch (err) {
     const errDiv = document.getElementById('platform-error');
     errDiv.style.display = '';
     errDiv.textContent = `Error: ${err.message}`;
   }
+}
+
+async function resumeRelay() {
+  await Promise.all([
+    fetch(`${API}/api/platform/resume`,   { method: 'POST' }),
+    fetch(`${API}/api/apiAdmin/resume`,   { method: 'POST' }),
+  ]);
+  loadPlatform();
+  loadApiAdmin();
 }
 
 async function refreshPlatform() {
@@ -1433,6 +1454,221 @@ async function saveBudget(period, value) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ period, threshold_usd: parseFloat(value) }),
   });
+}
+
+// ─── API Admin Dashboard ──────────────────────────────────
+function provColor(p) { return PROVIDER_COLORS[p] || PROVIDER_COLORS.default; }
+
+let apiDonutChart, apiBarChart, apiLineChart;
+
+async function loadApiAdmin() {
+  const days = document.getElementById('api-admin-range')?.value || 30;
+  try {
+    const [summary, ts, byProj, byKey, killStatus, killAlerts] = await Promise.all([
+      fetch(`${API}/api/apiAdmin/summary`).then(r => r.json()),
+      fetch(`${API}/api/apiAdmin/timeseries?days=${days}`).then(r => r.json()),
+      fetch(`${API}/api/apiAdmin/byProject?days=${days}`).then(r => r.json()),
+      fetch(`${API}/api/apiAdmin/byKey`).then(r => r.json()),
+      fetch(`${API}/api/apiAdmin/killStatus`).then(r => r.json()),
+      fetch(`${API}/api/apiAdmin/alerts`).then(r => r.json()),
+    ]);
+
+    renderApiAdminPills(summary);
+    renderApiKillBanner(killStatus);
+    renderApiDonut(summary.today?.by_provider || []);
+    renderApiBar(byProj);
+    renderApiLine(ts);
+    renderApiByKey(byKey);
+    renderApiThresholds(killStatus);
+    renderApiKillAlerts(killAlerts);
+  } catch (e) {
+    console.error('loadApiAdmin:', e);
+  }
+}
+
+function renderApiAdminPills(summary) {
+  const el = document.getElementById('api-admin-pills');
+  if (!el) return;
+  const fmt = v => `$${Number(v || 0).toFixed(4)}`;
+  el.innerHTML = `
+    <div class="platform-pill"><div class="pp-label">Hoy</div>
+      <div class="pp-value ${(summary.today?.cost||0)>5?'warn':''}">${fmt(summary.today?.cost)}</div></div>
+    <div class="platform-pill"><div class="pp-label">Semana</div>
+      <div class="pp-value">${fmt(summary.week?.cost)}</div></div>
+    <div class="platform-pill"><div class="pp-label">Mes</div>
+      <div class="pp-value">${fmt(summary.month?.cost)}</div></div>
+    <div class="platform-pill"><div class="pp-label">Real Anthropic</div>
+      <div class="pp-value" style="color:var(--accent)">${fmt(summary.anthropic_real?.cost)}</div></div>`;
+}
+
+function renderApiKillBanner(ks) {
+  const el = document.getElementById('api-kill-banner');
+  if (!el) return;
+  if (ks?.killed) {
+    el.style.display = '';
+    el.innerHTML = `🛑 <b>Sistema PAUSADO</b> — ${escHtml(ks.kill_reason || '')}
+      &nbsp;<button onclick="resumeRelay()" class="btn-sm" style="margin-left:8px">▶ Reanudar</button>`;
+  } else { el.style.display = 'none'; }
+}
+
+function renderApiDonut(byProvider) {
+  if (apiDonutChart) { apiDonutChart.destroy(); apiDonutChart = null; }
+  const ctx = document.getElementById('api-donut-chart');
+  if (!ctx || !byProvider.length) return;
+  apiDonutChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: byProvider.map(d => d.provider),
+      datasets: [{ data: byProvider.map(d => parseFloat(d.cost)),
+        backgroundColor: byProvider.map(d => provColor(d.provider)),
+        borderWidth: 0, hoverOffset: 6 }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '62%',
+      plugins: {
+        legend: { position: 'right', labels: { color: '#e6edf3', font: { size: 10 }, boxWidth: 10 } },
+        tooltip: { callbacks: { label: c => ` $${c.parsed.toFixed(4)}` } },
+      },
+    },
+  });
+}
+
+function renderApiBar(rows) {
+  if (apiBarChart) { apiBarChart.destroy(); apiBarChart = null; }
+  const ctx = document.getElementById('api-bar-chart');
+  if (!ctx || !rows.length) return;
+  const projects  = [...new Set(rows.map(r => r.project_name || '(sin proyecto)'))].slice(0, 10);
+  const providers = [...new Set(rows.map(r => r.provider))];
+  const datasets  = providers.map(p => ({
+    label: p,
+    data: projects.map(proj => {
+      const found = rows.find(r => r.project_name === proj && r.provider === p);
+      return found ? parseFloat(found.cost) : 0;
+    }),
+    backgroundColor: provColor(p) + 'cc',
+    borderColor: provColor(p),
+    borderWidth: 1,
+  }));
+  apiBarChart = new Chart(ctx, {
+    type: 'bar', data: { labels: projects, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { stacked: true, ticks: { color: '#8b949e', font: { size: 9 }, maxRotation: 30 }, grid: { color: '#21262d' } },
+        y: { stacked: true, ticks: { color: '#8b949e', font: { size: 9 }, callback: v => `$${v.toFixed(2)}` }, grid: { color: '#21262d' } },
+      },
+      plugins: { legend: { labels: { color: '#e6edf3', font: { size: 10 } } } },
+    },
+  });
+}
+
+function renderApiLine(rows) {
+  if (apiLineChart) { apiLineChart.destroy(); apiLineChart = null; }
+  const ctx = document.getElementById('api-line-chart');
+  if (!ctx || !rows.length) return;
+  const providers = [...new Set(rows.map(r => r.provider))];
+  const dates     = [...new Set(rows.map(r => {
+    const d = r.date_bucket;
+    return typeof d === 'string' ? d.slice(0, 10) : new Date(d).toISOString().slice(0, 10);
+  }))].sort();
+  const datasets = providers.map(p => ({
+    label: p,
+    data: dates.map(d => {
+      const found = rows.find(r => {
+        const rd = typeof r.date_bucket === 'string' ? r.date_bucket.slice(0,10) : new Date(r.date_bucket).toISOString().slice(0,10);
+        return rd === d && r.provider === p;
+      });
+      return found ? parseFloat(found.cost) : 0;
+    }),
+    borderColor: provColor(p), backgroundColor: provColor(p) + '22',
+    tension: 0.3, fill: false, pointRadius: 2,
+  }));
+  apiLineChart = new Chart(ctx, {
+    type: 'line', data: { labels: dates, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { ticks: { color: '#8b949e', font: { size: 9 }, maxRotation: 30 }, grid: { color: '#21262d' } },
+        y: { ticks: { color: '#8b949e', font: { size: 9 }, callback: v => `$${v.toFixed(3)}` }, grid: { color: '#21262d' } },
+      },
+      plugins: { legend: { labels: { color: '#e6edf3', font: { size: 10 } } } },
+    },
+  });
+}
+
+function renderApiByKey(rows) {
+  const el = document.getElementById('api-by-key');
+  if (!el) return;
+  if (!rows.length) { el.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:4px">Sin keys registradas</div>'; return; }
+  el.innerHTML = rows.map(r => {
+    const pct = r.monthly_limit_usd > 0 ? Math.min(100, r.cost_month / r.monthly_limit_usd * 100) : 0;
+    const fillClass = pct > 90 ? 'over' : pct > 70 ? 'warn' : '';
+    return `<div class="api-key-row">
+      <span class="provider-badge provider-${r.provider}">${r.provider}</span>
+      <span class="api-key-badge">${escHtml(r.api_key_masked || '—')}</span>
+      <span style="color:var(--text-muted);font-size:10px;flex:1;margin:0 6px">${escHtml(r.project_name || '')}</span>
+      <div style="text-align:right">
+        <div style="color:var(--yellow);font-size:11px">$${Number(r.cost_month||0).toFixed(4)}</div>
+        ${r.monthly_limit_usd > 0 ? `
+        <div class="api-limit-bar" style="width:80px;margin-left:auto">
+          <div class="api-limit-fill ${fillClass}" style="width:${pct.toFixed(0)}%"></div>
+        </div>
+        <div style="font-size:9px;color:var(--text-muted)">${pct.toFixed(0)}% de $${Number(r.monthly_limit_usd).toFixed(0)}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderApiThresholds(ks) {
+  const el = document.getElementById('api-thresholds');
+  if (!el || !ks?.provider_status) return;
+  el.innerHTML = ks.provider_status.map(p => {
+    const pct = parseFloat(p.pct);
+    const fillClass = pct >= 100 ? 'over' : pct >= 80 ? 'warn' : '';
+    return `<div class="budget-row">
+      <span class="b-period" style="width:72px">${p.provider}</span>
+      <div class="api-limit-bar" style="flex:1;height:4px;margin:0 8px">
+        <div class="api-limit-fill ${fillClass}" style="width:${Math.min(100,pct).toFixed(0)}%"></div>
+      </div>
+      <span style="font-size:10px;color:${pct>=100?'var(--red)':pct>=80?'var(--orange)':'var(--text-muted)'}">
+        $${p.current_usd}/$${p.threshold_usd}</span>
+      <input type="number" step="0.5" min="0" value="${p.threshold_usd}"
+        class="b-input" style="width:60px;margin-left:6px"
+        onchange="saveProviderThreshold('${p.provider}',this.value)">
+      <button class="b-save" onclick="saveProviderThreshold('${p.provider}',this.previousElementSibling.value)">✓</button>
+    </div>`;
+  }).join('');
+}
+
+function renderApiKillAlerts(alerts) {
+  const el = document.getElementById('api-kill-alerts');
+  if (!el) return;
+  if (!alerts?.length) { el.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:4px">Sin alertas activas</div>'; return; }
+  el.innerHTML = alerts.map(a =>
+    `<div class="platform-alert-row">
+       <span class="pa-text">⚠️ <b>${escHtml(a.provider)}</b> — $${Number(a.actual_usd).toFixed(4)} (límite $${Number(a.threshold_usd).toFixed(2)})</span>
+       <button class="pa-ack" onclick="ackKillAlert(${a.id})">OK</button>
+     </div>`
+  ).join('');
+}
+
+async function saveProviderThreshold(provider, value) {
+  await fetch(`${API}/api/apiAdmin/threshold`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider, threshold_usd: parseFloat(value), kill_enabled: 1 }),
+  });
+  loadApiAdmin();
+}
+
+async function ackKillAlert(id) {
+  await fetch(`${API}/api/apiAdmin/alerts/${id}/ack`, { method: 'POST' });
+  loadApiAdmin();
+}
+
+async function snapshotNow() {
+  await fetch(`${API}/api/apiAdmin/snapshot`, { method: 'POST' });
+  loadApiAdmin();
 }
 
 // ─── Init ─────────────────────────────────────────────────

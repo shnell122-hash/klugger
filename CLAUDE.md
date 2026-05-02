@@ -187,6 +187,52 @@ Visibles en dashboard → tab **Alertas**.
 
 ---
 
+## Estado del sistema (actualizado 2026-05-02)
+
+### Procesos PM2 activos
+
+| Proceso | Puerto | Notas |
+|---------|--------|-------|
+| `ai-monitor` | 3010 | Express + Socket.io — dashboard ia.vilarkptl.com |
+| `relay-master` | interno | Orquestador agentes |
+| `claude-chat-bot` | interno | Telegram bot directo |
+| `code-reviewer` | interno | DeepSeek V3 auto-review |
+| `cursor-worker` | interno | Cursor Cloud Agent worker |
+| `litellm` | 4000 | LLM proxy con fallback chains |
+
+### LiteLLM proxy
+
+Instalado en `/opt/litellm/`. Variables en `relay/.env`:
+```
+LITELLM_BASE_URL=http://localhost:4000
+LITELLM_MASTER_KEY=sk-litellm-11b2ccee224b47d82ba9b8e3677aa915
+```
+Chains: `kptl-chat` (Sonnet→DeepSeek→GPT4o), `kptl-chat-fast` (Haiku→GPT4o-mini→Gemini), `kptl-reasoning` (DeepSeek R1→Opus)
+
+### Auth dashboard (ia.vilarkptl.com)
+
+Login activado. Hash bcrypt en `/opt/kptl-secrets/api-keys.env`:
+```
+DASHBOARD_PASSWORD_HASH=$2a$10$D83YfbFBaxu0yCFtiOtPvuHFjcBisfep2xY9tAAMdSVLgUKdllGXu
+```
+Branch con el código de auth: `claude/onboard-ai-monitor-subproject-zXvki`
+
+Si el dashboard no carga o muestra "Cannot GET /login":
+```bash
+pm2 restart ai-monitor
+# Hard refresh en el browser (cerrar y reabrir pestaña)
+```
+
+### Swap crítico
+
+RAM: 3.8 GB total | Swap: ~96% usado. Si hay OOM:
+```bash
+# Agregar 1 GB swap temporal:
+fallocate -l 1G /swapfile2 && chmod 600 /swapfile2 && mkswap /swapfile2 && swapon /swapfile2
+```
+
+---
+
 ## Financial System — Rutas y procesos PM2
 
 | Directorio (repo) | Ruta en servidor | Proceso PM2 | Puerto |
@@ -422,3 +468,4 @@ Cuando el contexto se compacte automáticamente, el resumen debe seguir estas re
 ```
 
 **Objetivo: resumen ≤ 400 palabras. Si supera 600 palabras, está incluyendo demasiado.**
+9. **Branch de ai-monitor en projects.json es `main`** — no cambiar a branches de desarrollo

@@ -1,50 +1,60 @@
-# Procesar respuesta de FiscalAI — Implementar Opción B
+# Diagnóstico y limpieza de tarea frontend bloqueada
 
 ## Contexto
 
-FiscalAI respondió al buzón en `/var/www/html/vilarkptl.com/DeCabeceraTax/relay/buzon-fiscalai.md`.
-Lee ese archivo primero para conocer la propuesta completa.
-
-La propuesta visible en Telegram era:
-
-> "Implementar Opción B — Anthropic API bidireccional.
-> Necesitamos cerrar el loop de comunicación completamente.
-> Cuando `buzon-fiscalai.md` cambia en ryby.lease, en lugar de esperar
-> a que el usuario lo pegue manualmente en el chat, relay-master debe
-> llamar la Anthropic API directamente y escribir la respuesta."
+El usuario reporta que hay una tarea sin terminar en ia.vilarkptl.com que
+intenta modificar el frontend. Puede ser `fiscalai-front` o `ai-monitor`.
 
 ## Plan
 
-1. Lee `/var/www/html/vilarkptl.com/DeCabeceraTax/relay/buzon-fiscalai.md` completo
-2. Analiza la propuesta de FiscalAI (Opción B)
-3. Evalúa si es viable implementar llamadas directas a Anthropic API desde relay-master (Node.js HTTPS nativo, ya disponible)
-4. Si es viable: implementa la función `callAnthropicDirect(prompt)` en `relay/master.js` y úsala en `syncBuzonIA` cuando se detecta un cambio en buzon-fiscalai.md
-5. Si no es viable por alguna razón: escribe una respuesta en `relay/buzon-ia.md` explicando el motivo y proponiendo alternativa
-6. Haz push de los cambios si implementas algo
+1. Lee el inbox de fiscalai-front:
+   ```bash
+   cat /var/www/html/vilarkptl.com/DeCabeceraTax/relay/inbox-front.md
+   ```
 
-## Criterios de verificación
+2. Lee el outbox de fiscalai-front para ver si hay resultado parcial:
+   ```bash
+   cat /var/www/html/vilarkptl.com/DeCabeceraTax/relay/outbox-front.md
+   ```
 
-- [ ] buzon-fiscalai.md leído y propuesta entendida
-- [ ] Decisión implementar/rechazar documentada con razón
-- [ ] Si implementado: función callAnthropicDirect en master.js usa https nativo (ya importado)
-- [ ] Si implementado: integrado en syncBuzonIA, sin loops infinitos
-- [ ] Push a rama `claude/agent-monitoring-dashboard-4v8iq`
+3. Revisa los logs de pm2 para ver si hay errores activos:
+   ```bash
+   pm2 logs relay-master --lines 80 --nostream 2>&1 | grep -i "fiscalai-front\|frontend\|TIMEOUT\|WATCHDOG\|error\|killed" | tail -30
+   ```
 
-## Notas técnicas
+4. Revisa el journal del relay para el proyecto frontend:
+   ```bash
+   ls -la /var/www/html/vilarkptl.com/ai-monitor/relay/journals/ 2>/dev/null
+   cat /var/www/html/vilarkptl.com/ai-monitor/relay/journals/fiscalai-front.json 2>/dev/null || echo "Sin journal"
+   ```
 
-- El repo está en `/var/www/html/vilarkptl.com/ai-monitor`
-- La rama activa es `claude/agent-monitoring-dashboard-4v8iq`
-- `relay/master.js` ya tiene `const https = require('https')` disponible
-- Evita loops: si callAnthropicDirect escribe en buzon-ia.md, debe marcar que ya respondió
+5. Basado en el diagnóstico, actúa:
 
-## Resultados
+   **Si hay una tarea real pendiente y válida en inbox-front:**
+   - Intenta completarla tú mismo si es un cambio de frontend menor
+   - O documenta exactamente qué hace y por qué falló
 
-Al terminar escribe:
+   **Si la tarea está en loop / ya fue completada / es stale:**
+   - Limpia el inbox dejando solo:
+     ```
+     # Inbox vacío — fiscalai-front
+     _Tarea anterior completada o cancelada — ver outbox_
+     ```
+   - Haz commit + push para que relay-master detecte el reset
 
-```
-## Resultados
-✅/❌ buzon-fiscalai.md leído: [resumen de la propuesta]
-✅/❌ Decisión: [implementado/rechazado + razón]
-✅/❌ Código: [qué se implementó o no]
-✅/❌ Push: [OK o pendiente]
-```
+6. Reporta:
+   - Qué había en el inbox (título, qué intentaba hacer)
+   - Por qué no terminó (timeout, error, loop, o ya estaba hecho)
+   - Qué hiciste para resolverlo
+
+## Criterios de aceptación
+- [ ] Inbox de fiscalai-front leído y situación entendida
+- [ ] Tarea completada O inbox limpiado con commit+push
+- [ ] Outbox de fiscalai-front actualizado con el resultado
+- [ ] Sin tareas "fantasma" activas en ia.vilarkptl.com
+
+## Notas
+- El repo de fiscalai-front es `/var/www/html/vilarkptl.com/DeCabeceraTax`
+- Rama activa: `claude/ml-backend-69bis-module-5iap0`
+- Si la tarea necesita Sonnet para completarse, dispáchala al agente
+  fiscalai-front via: `curl -s -X POST "$RELAY_DISPATCH_URL" ...`
