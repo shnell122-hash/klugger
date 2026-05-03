@@ -60,11 +60,17 @@ def read_backend_env(key: str) -> str:
 def get_client(account: str) -> TelegramClient:
     """
     account: 'gv' | 'noela' | 'kevin'
+    Configuración: timeout aumentado para evitar saldo_gv_timeout
     """
     api_id = int(env("MTPROTO_API_ID"))
     api_hash = env("MTPROTO_API_HASH")
     session_file = str(SESSIONS_DIR / account)
-    return TelegramClient(session_file, api_id, api_hash)
+    # timeout=20: aumentado de ~10s (default)
+    # request_retries=3: reintentos para conexiones inestables
+    return TelegramClient(
+        session_file, api_id, api_hash,
+        timeout=20, request_retries=3
+    )
 
 
 def chat_id() -> int:

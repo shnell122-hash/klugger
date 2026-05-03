@@ -52,11 +52,37 @@ async def wait_bot_response(seconds: int = 8):
     await asyncio.sleep(seconds)
 
 
+
+async def send_message_with_retry(client, chat_id: int, message: str, max_retries: int = 3):
+    """
+    Envía mensaje con reintentos y reconexión automática.
+    Resuelve: saldo_gv_send_message_failed__cannot_send_request
+    """
+    for attempt in range(1, max_retries + 1):
+        try:
+            if not client.is_connected():
+                print(f"  [reconnect] attempt {attempt}")
+                await client.connect()
+            await client.send_message(chat_id, message)
+            return  # éxito
+        except Exception as e:
+            if attempt == max_retries:
+                raise
+            print(f"  [retry {attempt}/{max_retries}] send_message failed: {str(e)[:60]}")
+            if "disconnected" in str(e).lower() or "rpc" in str(e).lower():
+                await asyncio.sleep(2)  # espera antes de reconectar
+                try:
+                    await client.disconnect()
+                except:
+                    pass
+            await asyncio.sleep(1)
+
+
 # ─── Tests ────────────────────────────────────────────────────────────────────
 
 async def T01(gv):
     """GV envía /saldo → verificar que el bot tiene clientes y está accesible"""
-    await gv.send_message(CHAT_ID, "/saldo")
+    await send_message_with_retry(gv, CHAT_ID, "/saldo")
     await wait_bot_response(8)
     # Verificación 1: ¿hay clientes en la DB? (indica que el bot está configurado)
     total_clientes = db("SELECT COUNT(*) FROM fin_clients")
@@ -75,7 +101,7 @@ async def T01(gv):
 
 async def T02(gv):
     """GV inicia operación IAS neto 10000"""
-    await gv.send_message(CHAT_ID, "/operacion IAS neto 10000")
+    await send_message_with_retry(gv, CHAT_ID, "/operacion IAS neto 10000")
     await wait_bot_response(6)
     sesion = db(f"SELECT estado FROM fin_sessions WHERE chat_id={CHAT_ID} ORDER BY updated_at DESC LIMIT 1")
     ok = bool(sesion)
@@ -84,7 +110,7 @@ async def T02(gv):
 
 async def T03(gv):
     """GV envía CLABE Banregio → bot guarda en draft o en cuentas bancarias"""
-    await gv.send_message(CHAT_ID, "058597000030773833")
+    await send_message_with_retry(gv, CHAT_ID, "058597000030773833")
     await wait_bot_response(8)
     # Verificar draft en sesión
     draft_raw = db(f"SELECT operation_draft_json FROM fin_sessions WHERE chat_id={CHAT_ID} ORDER BY updated_at DESC LIMIT 1")
@@ -111,7 +137,7 @@ async def T03(gv):
 
 async def T04(gv):
     """GV cancela la operación de prueba"""
-    await gv.send_message(CHAT_ID, "cancelar")
+    await send_message_with_retry(gv, CHAT_ID, "cancelar")
     await wait_bot_response(6)
     estado = db(f"SELECT estado FROM fin_sessions WHERE chat_id={CHAT_ID} ORDER BY updated_at DESC LIMIT 1")
     # 'idle' también es válido — el bot puede resetear a idle en vez de 'cancelado'
