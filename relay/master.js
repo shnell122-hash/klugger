@@ -2376,6 +2376,25 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
   const HEARTBEAT_MS = parseInt(process.env.HEARTBEAT_MS || String(6 * 3600 * 1000)); // default 6h
   const _startTime   = Date.now();
 
+  function getEngineStatus() {
+    try {
+      const envFile = '/var/www/html/vilarkptl.com/ai-monitor/financial/.env';
+      const envContent = fs.readFileSync(envFile, 'utf8');
+      const dbPass = (envContent.match(/^DB_PASS=(.+)$/m) || [])[1] || '';
+      const row = execSync(
+        `mysql -u root -p"${dbPass}" ai_monitoring -sN --default-character-set=utf8mb4 -e ` +
+        `"SELECT episode_num, complexity_tier, score_pct, passed_tests, total_tests FROM learning_episodes WHERE completed_at IS NOT NULL ORDER BY id DESC LIMIT 1"`,
+        { timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] }
+      ).toString().trim();
+      if (!row) return null;
+      const [ep, tier, score, passed, total] = row.split('\t');
+      const label = { 1: 'Básico', 2: 'Intermedio', 3: 'Avanzado', 4: 'Edge Cases' }[tier] || `T${tier}`;
+      return `🤖 conversation-engine: Ep.#${ep} | Tier ${tier} ${label} | Score: ${parseFloat(score).toFixed(1)}% (${passed}/${total})`;
+    } catch (_) {
+      return null;
+    }
+  }
+
   function sendHeartbeat() {
     const uptimeSec = Math.floor((Date.now() - _startTime) / 1000);
     const hours     = Math.floor(uptimeSec / 3600);
@@ -2390,10 +2409,11 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
       const model = (p.claude_model || 'sonnet').replace('claude-', '').replace(/-\d{8}$/, '');
       return `  • ${p.name} <i>(${model})</i>`;
     }).join('\n');
+    const engineLine = getEngineStatus();
     tg(`💓 <b>relay-master activo</b>
 ⏱ Uptime: ${hours}h ${mins}m
 ${taskLine}
-
+${engineLine ? `\n${engineLine}` : ''}
 <b>Agentes:</b>
 ${agentLine}
 🌐 <a href="http://ia.vilarkptl.com">Dashboard</a>`);
