@@ -23,3 +23,10 @@
 ## [3/5/2026, 01:32:52 CST] Inbox — FinBot Verifier
 
 ## [3/5/2026, 01:51:07 CST] Fix automático — Episodio #129
+
+## [3/5/2026, 01:52:30 CST] Inbox — FinBot Verifier
+- Logs del bot — sin errores críticos  
+- DB integridad operaciones — 0 transacciones incompletas  
+- ️ **Sesiones colgadas** — 9 sesiones (máximo 8 días sin actualización)  
+- ️ **Saldos negativos críticos** — VILAR KPTL: -3,641,180.73  
+- ️ **Dashboard /operations** — endpoint retorna 0 operaciones
