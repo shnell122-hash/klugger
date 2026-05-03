@@ -360,7 +360,8 @@ def gen_scenarios(tier: int) -> list[dict]:
                 "type": "bot", "tier": tier,
                 "id": f"operacion_{acct}", "account": acct,
                 "messages": [frase, pick(CLABES)],
-                "expected": ["resumen", "monto", "comision"],
+                # Bot responde "✅ Datos encontrados: [CLABE] ¿Es correcto?" al recibir la CLABE
+                "expected": ["encontrados", "correcto"],
             })
 
     if tier >= 3:
