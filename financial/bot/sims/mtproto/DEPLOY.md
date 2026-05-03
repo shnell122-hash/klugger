@@ -12,44 +12,26 @@ claude/financial-multiagent-system-YwtYQ
 
 ---
 
-## Latest commit: `4404af7` - PeerChannel fix for megagroup
+## Latest commit: `725badd` - natural chat + crash-proof engine
 
 **What changed:**
-- `resolve_group_entity` now uses `PeerChannel(abs(chat_id))` which forces Telethon
-  to use `GetChannelsRequest` instead of `GetChatsRequest`. The Testing group is a
-  megagroup = Channel internally. This fixes `PeerIdInvalidError` for Noela and Kevin.
+- `conversation_engine.py`: 14 ambient conversations between German/Vianey/Christian
+- Natural Spanish phrases replace bare commands (no more caveman `/operacion` only)
+- `type='chat'` scenarios send multi-turn cross-talk; `type='bot'` sends to the bot
+- Engine no longer crashes when Noela/Kevin are not in the group:
+  - `resolve_group_entity`: logs actual PeerChannel error instead of silent pass
+  - `run_chat_scenario`: skips turns for accounts without group access
+  - `run_scenario`: try/except around every send_message/send_file call
+  - `run_engine`: detects fallback accounts, filters scenarios, prints actionable warning
 
-**Two known bot issues also need fixing (see SQL steps below):**
-- `Unknown column 'costo_pct' in 'field list'` - missing column in `fin_commissions`
-- Duplicate `FIN_ALLOWED_CHAT_IDS` lines in `.env` may cause issues
-
----
-
-## Step 1 - Fix duplicate env var (run once)
-
-```bash
-grep -c FIN_ALLOWED /var/www/html/vilarkptl.com/ai-monitor/financial/.env
-```
-
-If output is greater than 1, remove duplicates:
-
-```bash
-DB_FILE=/var/www/html/vilarkptl.com/ai-monitor/financial/.env
-grep -v FIN_ALLOWED "$DB_FILE" > /tmp/env_clean && echo "FIN_ALLOWED_CHAT_IDS=-5142407305" >> /tmp/env_clean && cp /tmp/env_clean "$DB_FILE"
-```
+**Required manual action:** Add Noela and Kevin (Christian) to the Testing group in Telegram.
+Once added, all three accounts will participate in conversations automatically.
 
 ---
 
-## Step 2 - Fix missing costo_pct column in fin_commissions
+## Server commands
 
-```bash
-DB_PASS=$(grep -oP 'DB_PASS=\K[^ ]+' /var/www/html/vilarkptl.com/ai-monitor/financial/.env)
-mysql -u root -p"$DB_PASS" ai_monitoring -e "ALTER TABLE fin_commissions ADD COLUMN IF NOT EXISTS costo_pct DECIMAL(5,2) DEFAULT 0.00 AFTER pct;"
-```
-
----
-
-## Step 3 - Pull and restart
+Pull and restart:
 
 ```bash
 cd /var/www/html/vilarkptl.com/ai-monitor
@@ -59,25 +41,47 @@ git reset --hard origin/claude/financial-multiagent-system-YwtYQ
 
 ```bash
 pm2 restart --update-env financial-bot
+pm2 logs financial-bot --nostream --lines 10
 ```
 
-Verify bot started cleanly (no costo_pct error):
+Run the engine:
 
 ```bash
-pm2 logs financial-bot --nostream --lines 10
+cd /var/www/html/vilarkptl.com/ai-monitor/financial/bot/sims/mtproto
+nohup ./venv/bin/python -u conversation_engine.py > /tmp/engine.log 2>&1 &
+tail -f /tmp/engine.log
+```
+
+Press `Ctrl+C` to stop tailing (engine keeps running). To stop the engine:
+
+```bash
+pkill -f conversation_engine.py
 ```
 
 ---
 
-## Step 4 - Run the engine
+## What the group will look like after this deploy
 
-```bash
-cd /var/www/html/vilarkptl.com/ai-monitor/financial/bot/sims/mtproto
-screen -S engine
-./venv/bin/python conversation_engine.py
+With only GV in the group (Noela/Kevin not yet added):
+
+```
+[GV] Buenos dias
+[GV] cuadro_png sent  <-- bot processes, replies with saldo/comision
+[GV] cuanto tengo?    <-- bot replies
 ```
 
-Press `Ctrl+A D` to detach and leave running.
+After adding Noela (Vianey) and Kevin (Christian) to the group:
+
+```
+[GV]     Buenos dias
+[NOELA]  Buenos dias German!
+[KEVIN]  Que tal, buenos dias
+[NOELA]  Voy a mandar el cuadro de esta semana
+[GV]     Ok Vianey, ya lo espero
+[NOELA]  <cuadro_png>   <-- bot processes silently in asistente mode
+[GV]     Listo. Ya esta registrado en el sistema
+[KEVIN]  Perfecto, gracias German
+```
 
 ---
 
@@ -97,15 +101,21 @@ DB_PASS=$(grep -oP 'DB_PASS=\K[^ ]+' /var/www/html/vilarkptl.com/ai-monitor/fina
 mysql -u root -p"$DB_PASS" ai_monitoring -e "SELECT id, episode_num, score_pct, complexity_tier FROM learning_episodes ORDER BY id DESC LIMIT 5;"
 ```
 
+Engine log tail:
+
+```bash
+tail -50 /tmp/engine.log
+```
+
 ---
 
 ## Deploy history
 
 | Commit | Description | Action |
 |--------|-------------|--------|
-| `4404af7` | PeerChannel fix - Noela/Kevin can now send to megagroup | Steps 1-4 above |
-| `dafb58f` | DEPLOY.md ASCII-only bash blocks | none |
-| `c317ed3` | Progressive assets + learning DB + continuous engine | `pm2 restart financial-bot` |
+| `725badd` | Natural multi-user chat + crash-proof engine | Pull + pm2 restart + run engine |
+| `4404af7` | PeerChannel fix for megagroup | Pull + pm2 restart |
+| `c317ed3` | Progressive assets + learning DB + continuous engine | pm2 restart financial-bot |
 | `a3e84f9` | Migration v16 (learning tables) | Run migrate-financial-v16.sql |
 
 ---
