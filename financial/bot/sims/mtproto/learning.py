@@ -92,8 +92,9 @@ def start_episode(triggered_by: str = "manual") -> int:
         "VALUES (%s, NOW(3), %s, %s, %s)",
         (num, tier, sha, triggered_by)
     )
-    episode_id = db_one("SELECT LAST_INSERT_ID()")
-    return int(episode_id) if episode_id.isdigit() else 1
+    # LAST_INSERT_ID() no funciona entre subprocesos — usar MAX(id) con episode_num
+    episode_id = db_one(f"SELECT id FROM learning_episodes WHERE episode_num={num} ORDER BY id DESC LIMIT 1")
+    return int(episode_id) if episode_id.isdigit() else num
 
 
 def record_test_result(episode_id: int, test_id: str, passed: bool,

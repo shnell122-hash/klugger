@@ -22,9 +22,15 @@ const financialRoutes      = require('../financial/backend/routes/financial');
 const authRouter           = require('./routes/auth');
 const keysRouter           = require('./routes/keys');
 const { router: platformRouter, fetchAndCacheUsage, checkBudgets } = require('./routes/platform');
-const { router: apiAdminRouter, dailySnapshot } = require('./routes/apiAdmin');
 const tg = require('./telegram');
 const db = require('./db/mysql');
+
+// apiAdmin es opcional — sólo existe en main, no en todas las ramas
+let apiAdminRouter = null;
+let dailySnapshot  = null;
+try {
+  ({ router: apiAdminRouter, dailySnapshot } = require('./routes/apiAdmin'));
+} catch (_) { /* no disponible en este branch */ }
 
 const PORT = process.env.PORT || 3010;
 
@@ -90,7 +96,7 @@ app.use('/api/alerts',          alertsRouter);
 app.use('/api/conversations',   conversationsRouter);
 app.use('/api/financial',       financialRoutes(require('./db/mysql'), io, express));
 app.use('/api/platform',        platformRouter);
-app.use('/api/apiAdmin',        apiAdminRouter);
+if (apiAdminRouter) app.use('/api/apiAdmin', apiAdminRouter);
 app.use('/api/keys',            keysRouter);
 
 // Serve screenshots directory

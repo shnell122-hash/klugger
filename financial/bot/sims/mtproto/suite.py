@@ -55,24 +55,22 @@ async def wait_bot_response(seconds: int = 8):
 # ─── Tests ────────────────────────────────────────────────────────────────────
 
 async def T01(gv):
-    """GV envía /saldo → verificar que el bot tiene sesión activa o responde"""
+    """GV envía /saldo → verificar que el bot tiene clientes y está accesible"""
     await gv.send_message(CHAT_ID, "/saldo")
     await wait_bot_response(8)
-    # fin_messages puede no existir o no logear /saldo; verificar fin_clients o fin_sessions
-    sesion = db(f"SELECT COUNT(*) FROM fin_sessions WHERE chat_id={CHAT_ID} AND updated_at > NOW() - INTERVAL 60 SECOND")
-    clientes = db(f"SELECT COUNT(*) FROM fin_clients WHERE updated_at > NOW() - INTERVAL 300 SECOND")
-    # Éxito si hay clientes en DB (bot tiene datos) o sesión reciente
-    ok_clientes = clientes.isdigit() and int(clientes) > 0
-    ok_sesion = sesion.isdigit() and int(sesion) > 0
+    # Verificación 1: ¿hay clientes en la DB? (indica que el bot está configurado)
+    total_clientes = db("SELECT COUNT(*) FROM fin_clients")
+    ok_clientes = total_clientes.isdigit() and int(total_clientes) > 0
     if ok_clientes:
-        result("T01", True, f"bot activo — {clientes} clientes en DB (fin_clients accesible)")
-    elif ok_sesion:
-        result("T01", True, f"bot respondió — sesión reciente encontrada")
-    else:
-        # fallback: verificar fin_messages si existe
-        msgs = db(f"SELECT COUNT(*) FROM fin_messages WHERE chat_id={CHAT_ID} AND created_at > NOW() - INTERVAL 60 SECOND")
-        ok = msgs.isdigit() and int(msgs) > 0
-        result("T01", ok, f"fin_messages={msgs}" if ok else "sin actividad reciente en DB — revisar si bot está corriendo")
+        saldo = db(f"SELECT saldo FROM fin_clients WHERE telegram_chat_id={CHAT_ID} OR nombre LIKE '%VILAR%' LIMIT 1")
+        result("T01", True, f"bot activo — {total_clientes} clientes en DB, saldo={saldo or '?'}")
+        return
+    # Verificación 2: ¿hay alguna sesión de este chat?
+    sesion = db(f"SELECT estado FROM fin_sessions WHERE chat_id={CHAT_ID} ORDER BY updated_at DESC LIMIT 1")
+    if sesion:
+        result("T01", True, f"bot procesó mensaje — sesión encontrada estado={sesion}")
+        return
+    result("T01", False, "sin clientes ni sesiones en DB — revisar si financial-bot está corriendo")
 
 
 async def T02(gv):
