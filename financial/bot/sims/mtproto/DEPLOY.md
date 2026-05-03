@@ -12,14 +12,44 @@ claude/financial-multiagent-system-YwtYQ
 
 ---
 
-## Latest commit: `29b1c0b` - fix megagroup + KeyError
+## Latest commit: `4404af7` - PeerChannel fix for megagroup
 
 **What changed:**
-- `conversation_engine.py`: fixes `PeerIdInvalidError` for megagroups (Testing group)
-- `conversation_engine.py`: fixes `KeyError: 'messages'` in asset-only scenarios
-- All Telethon calls now use the resolved entity instead of the raw integer
+- `resolve_group_entity` now uses `PeerChannel(abs(chat_id))` which forces Telethon
+  to use `GetChannelsRequest` instead of `GetChatsRequest`. The Testing group is a
+  megagroup = Channel internally. This fixes `PeerIdInvalidError` for Noela and Kevin.
 
-### Server commands
+**Two known bot issues also need fixing (see SQL steps below):**
+- `Unknown column 'costo_pct' in 'field list'` - missing column in `fin_commissions`
+- Duplicate `FIN_ALLOWED_CHAT_IDS` lines in `.env` may cause issues
+
+---
+
+## Step 1 - Fix duplicate env var (run once)
+
+```bash
+grep -c FIN_ALLOWED /var/www/html/vilarkptl.com/ai-monitor/financial/.env
+```
+
+If output is greater than 1, remove duplicates:
+
+```bash
+DB_FILE=/var/www/html/vilarkptl.com/ai-monitor/financial/.env
+grep -v FIN_ALLOWED "$DB_FILE" > /tmp/env_clean && echo "FIN_ALLOWED_CHAT_IDS=-5142407305" >> /tmp/env_clean && cp /tmp/env_clean "$DB_FILE"
+```
+
+---
+
+## Step 2 - Fix missing costo_pct column in fin_commissions
+
+```bash
+DB_PASS=$(grep -oP 'DB_PASS=\K[^ ]+' /var/www/html/vilarkptl.com/ai-monitor/financial/.env)
+mysql -u root -p"$DB_PASS" ai_monitoring -e "ALTER TABLE fin_commissions ADD COLUMN IF NOT EXISTS costo_pct DECIMAL(5,2) DEFAULT 0.00 AFTER pct;"
+```
+
+---
+
+## Step 3 - Pull and restart
 
 ```bash
 cd /var/www/html/vilarkptl.com/ai-monitor
@@ -29,8 +59,17 @@ git reset --hard origin/claude/financial-multiagent-system-YwtYQ
 
 ```bash
 pm2 restart --update-env financial-bot
-pm2 logs financial-bot --nostream --lines 20
 ```
+
+Verify bot started cleanly (no costo_pct error):
+
+```bash
+pm2 logs financial-bot --nostream --lines 10
+```
+
+---
+
+## Step 4 - Run the engine
 
 ```bash
 cd /var/www/html/vilarkptl.com/ai-monitor/financial/bot/sims/mtproto
@@ -38,18 +77,20 @@ screen -S engine
 ./venv/bin/python conversation_engine.py
 ```
 
-> Press `Ctrl+A D` to detach screen and leave it running.
+Press `Ctrl+A D` to detach and leave running.
 
-### Quick checks
+---
 
-```bash
-grep FIN_ALLOWED /var/www/html/vilarkptl.com/ai-monitor/financial/.env
-```
+## Quick checks
+
+Asistente mode active:
 
 ```bash
 DB_PASS=$(grep -oP 'DB_PASS=\K[^ ]+' /var/www/html/vilarkptl.com/ai-monitor/financial/.env)
 mysql -u root -p"$DB_PASS" ai_monitoring -e "SELECT chat_id, modo FROM fin_chats WHERE chat_id=-5142407305;"
 ```
+
+Learning episodes:
 
 ```bash
 DB_PASS=$(grep -oP 'DB_PASS=\K[^ ]+' /var/www/html/vilarkptl.com/ai-monitor/financial/.env)
@@ -60,9 +101,10 @@ mysql -u root -p"$DB_PASS" ai_monitoring -e "SELECT id, episode_num, score_pct, 
 
 ## Deploy history
 
-| Commit | Description | Action required |
-|--------|-------------|-----------------|
-| `29b1c0b` | Fix megagroup entity + KeyError messages | `pm2 restart --update-env financial-bot` |
+| Commit | Description | Action |
+|--------|-------------|--------|
+| `4404af7` | PeerChannel fix - Noela/Kevin can now send to megagroup | Steps 1-4 above |
+| `dafb58f` | DEPLOY.md ASCII-only bash blocks | none |
 | `c317ed3` | Progressive assets + learning DB + continuous engine | `pm2 restart financial-bot` |
 | `a3e84f9` | Migration v16 (learning tables) | Run migrate-financial-v16.sql |
 
