@@ -2316,6 +2316,16 @@ bot.start({
       console.error('[setMyCommands]', err.message);
     }
   },
+}).catch(err => {
+  const msg = err?.message ?? '';
+  if (msg.includes('409') || msg.includes('Conflict') || msg.includes('terminated by other')) {
+    // Otra instancia activa — esperar 45s para darle estabilidad antes de que PM2 reinicie
+    console.error('[financial-bot] 409 Conflict: otra instancia activa. Saliendo en 45s...');
+    setTimeout(() => process.exit(1), 45000);
+  } else {
+    console.error('[financial-bot] Error fatal en bot.start():', msg);
+    process.exit(1);
+  }
 });
 
 module.exports = { bot, pool };

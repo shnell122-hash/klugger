@@ -54,7 +54,7 @@ class BankingManager {
         ids.push(existing[0].id);
         if (operationId) {
           await this.pool.query(
-            `UPDATE fin_banking_accounts SET operation_id=?, updated_at=NOW(3) WHERE id=?`,
+            `UPDATE fin_banking_accounts SET operation_id=? WHERE id=?`,
             [operationId, existing[0].id]
           );
         }
