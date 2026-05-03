@@ -270,12 +270,12 @@ def build_report(episode_id: int, results: list[dict], stats: dict) -> str:
 
 
 def post_to_telegram(text: str, chat_id: str = None):
-    """Publica reporte en Telegram vía relay bot."""
+    """Publica reporte en Telegram vía bot financiero."""
     import urllib.request, urllib.parse
-    token = env("RELAY_BOT_TOKEN") or env("TELEGRAM_BOT_TOKEN")
-    target = chat_id or env("SIM_CHAT_ID") or env("FINBOT_TEST_REPORT_CHAT_ID")
+    token = env("RELAY_BOT_TOKEN") or env("TELEGRAM_BOT_TOKEN") or env("FIN_TELEGRAM_BOT_TOKEN")
+    target = chat_id or env("FINBOT_TEST_REPORT_CHAT_ID") or env("SIM_CHAT_ID")
     if not token or not target:
-        print("[learning] No RELAY_BOT_TOKEN o CHAT_ID — reporte solo en consola")
+        print("[learning] No token o CHAT_ID — reporte solo en consola")
         return
     body = urllib.parse.urlencode({
         "chat_id": target,
