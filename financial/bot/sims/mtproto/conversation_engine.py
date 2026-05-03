@@ -717,11 +717,18 @@ def gen_scenarios(tier: int, active_accounts: set = None) -> list[dict]:
 
 # ─── Conexión robusta ────────────────────────────────────────────────────────
 
-async def ensure_connected(client, account: str) -> bool:
-    """Reconnect Telethon client if it dropped the TCP connection between rounds."""
-    if client.is_connected():
+async def ensure_connected(client, account: str, force: bool = False) -> bool:
+    """Reconnect Telethon client. force=True disconnects first even if appears connected."""
+    if not force and client.is_connected():
         return True
-    print(f"  [{account.upper()}] disconnected — reconnecting...")
+    if force and client.is_connected():
+        try:
+            await client.disconnect()
+            await asyncio.sleep(0.3)
+        except Exception:
+            pass
+    label = "force-reconnecting" if force else "disconnected — reconnecting"
+    print(f"  [{account.upper()}] {label}...")
     try:
         await client.connect()
         await asyncio.sleep(0.5)
@@ -939,11 +946,26 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
                     await ensure_connected(client, account)
                     await client.send_message(target, messages[0])
                 except Exception as send_err:
-                    print(f"  WARNING: send_message failed ({account}): {send_err!r}")
-                    if isinstance(target, int):
-                        print(f"  WARNING: {account.upper()} not in group — add manually in Telegram")
-                    return {"test_id": test_id, "passed": False,
-                            "detail": f"send_message failed: {send_err}", "bot_response": None}
+                    err_str = str(send_err).lower()
+                    if 'cannot send request' in err_str or 'not connected' in err_str:
+                        # Sesión Telethon stale — force reconnect + retry una vez
+                        print(f"  [{account.upper()}] stale connection — force reconnect + retry")
+                        reconnected = await ensure_connected(client, account, force=True)
+                        if reconnected:
+                            try:
+                                await client.send_message(target, messages[0])
+                            except Exception as retry_err:
+                                return {"test_id": test_id, "passed": False,
+                                        "detail": f"retry failed: {retry_err}", "bot_response": None}
+                        else:
+                            return {"test_id": test_id, "passed": False,
+                                    "detail": "force reconnect failed", "bot_response": None}
+                    else:
+                        print(f"  WARNING: send_message failed ({account}): {send_err!r}")
+                        if isinstance(target, int):
+                            print(f"  WARNING: {account.upper()} not in group — add manually in Telegram")
+                        return {"test_id": test_id, "passed": False,
+                                "detail": f"send_message failed: {send_err}", "bot_response": None}
                 bot_response = await col.wait(BOT_RESPONSE_TIMEOUT)
                 for i, msg in enumerate(messages[1:], 1):
                     await asyncio.sleep(DELAY_BETWEEN_MESSAGES)
@@ -1069,6 +1091,56 @@ async def resolve_group_entity(client, chat_id: int):
     return chat_id
 
 
+# ─── Relay: push de episodios para lectura en tiempo real ─────────────────────
+
+def _push_episode_to_relay(episode_id: int, results: list, stats: dict, round_num: int):
+    """
+    Append episode result to relay/episode-results.jsonl and push to GitHub.
+    Only runs every ROUNDS_PER_REPORT rounds to reduce git contention.
+    Non-blocking: any failure is silently ignored.
+    """
+    import subprocess
+    if round_num % ROUNDS_PER_REPORT != 0:
+        return
+
+    REPO_ROOT = Path(__file__).resolve().parents[4]
+    results_file = REPO_ROOT / 'relay' / 'episode-results.jsonl'
+
+    entry = {
+        "episode_id": episode_id,
+        "round_num": round_num,
+        "ts": datetime.utcnow().isoformat() + 'Z',
+        "score": round(stats.get('score', 0), 1),
+        "passed": stats.get('passed', 0),
+        "total": stats.get('total', 0),
+        "results": [
+            {
+                "id": r.get("test_id", "?"),
+                "passed": r.get("passed", False),
+                "detail": (r.get("detail") or "")[:120],
+            }
+            for r in results
+        ],
+    }
+
+    try:
+        results_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(results_file, 'a') as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + '\n')
+
+        branch = 'claude/financial-multiagent-system-YwtYQ'
+        subprocess.run(['git', 'add', 'relay/episode-results.jsonl'],
+                       cwd=REPO_ROOT, capture_output=True, timeout=10)
+        subprocess.run(['git', 'commit', '--no-gpg-sign', '-m',
+                        f'ep#{episode_id} r{round_num} {stats.get("score",0):.1f}%'],
+                       cwd=REPO_ROOT, capture_output=True, timeout=15)
+        subprocess.run(['git', 'push', 'origin', branch],
+                       cwd=REPO_ROOT, capture_output=True, timeout=30)
+        print(f"  [relay] ep#{episode_id} → episode-results.jsonl pushed")
+    except Exception as e:
+        print(f"  [relay] push skipped: {e}")
+
+
 async def run_engine(rounds: int = 0, force_tier: int = 0, dry_run: bool = False):
     """
     Motor principal. rounds=0 -> infinito.
@@ -1180,6 +1252,7 @@ async def run_engine(rounds: int = 0, force_tier: int = 0, dry_run: bool = False
                     post_to_telegram(report)
 
                 dispatch_fix_if_needed(episode_id, round_results, stats)
+                _push_episode_to_relay(episode_id, round_results, stats, round_num)
             except Exception as e:
                 print(f"[learning] Error completando episodio: {e}")
 
