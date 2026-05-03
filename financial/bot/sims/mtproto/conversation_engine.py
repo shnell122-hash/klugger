@@ -47,72 +47,129 @@ ROUNDS_PER_REPORT       = 10   # cuántos rounds antes de publicar resumen en Te
 # ID de Flujos AI (financial-bot) — se auto-descubre al iniciar
 BOT_USER_ID: Optional[int] = None
 
-# ─── Biblioteca de escenarios ────────────────────────────────────────────────
-# Dos tipos de escenario:
-#   "bot"  — un usuario interactua con el bot (espera respuesta)
-#   "chat" — conversacion natural entre los tres (sin esperar respuesta del bot)
-#
-# "chat" tiene una lista "turns":
-#   [{"account": "gv", "message": "..."}, {"account": "noela", "delay": 4, "message": "..."}]
-#
-# Cuentas: gv=German, noela=Vianey, kevin=Christian
+# ─── CLABEs y montos de prueba ────────────────────────────────────────────────
 
-CLABES = [
-    "058597000030773833",  # GV Banregio
-    "058597000068994820",  # Noela Banregio
-    "140180900000120017",  # BBVA
-    "012914002436956798",  # Banamex
+CLABES_POOL = [
+    ("058597000030773833", "BANREGIO"),
+    ("058597000068994820", "BANREGIO"),
+    ("140180900000120017", "BBVA"),
+    ("012914002436956798", "BANAMEX"),
+    ("032180000118359719", "IXE"),
 ]
 
-AMOUNTS_T1 = [5000, 8000, 10000, 15000, 20000]
-AMOUNTS_T2 = [50000, 75000, 100000, 150000, 200000]
+CLABES = [c for c, _ in CLABES_POOL]
+
+AMOUNTS_T1 = [5_000, 8_000, 10_000, 15_000, 20_000]
+AMOUNTS_T2 = [50_000, 75_000, 100_000, 150_000, 200_000]
+AMOUNTS_T3 = [300_000, 500_000, 800_000, 1_200_000]
 AMOUNTS_ERR = [0, -1000, 0.01]
 
-TIPOS = ["IAS", "SPEI", "VILAR", "NOELA"]
+# ─── Frases por tipo de operación ─────────────────────────────────────────────
+# Lenguaje natural real, no plantillas genéricas.
 
-# Frases naturales para operaciones (bot mode)
-FRASES_OPERACION = [
-    "quiero hacer un {tipo} de {amount} neto",
-    "necesito {amount} para {tipo} neto por favor",
-    "haz un {tipo} por {amount} neto",
-    "manda {amount} neto a {tipo}",
-    "operacion {tipo} {amount} neto",
+FRASES_IAS = [
+    ("Oye, necesito procesar un IAS de {amount} neto esta semana, ya tengo las cuentas",
+     "encontrados", "correcto"),
+    ("GV, ¿puedes hacer un IAS por {amount} neto? Te mando la CLABE ahorita",
+     "encontrados", "correcto"),
+    ("Quiero hacer una dispersión IAS de {amount} neto, ¿puedes?",
+     "encontrados", "correcto"),
+    ("Manda {amount} neto de IAS, acá la cuenta:",
+     "encontrados", "correcto"),
+    ("{amount} IAS neto por favor, es para esta semana",
+     "encontrados", "correcto"),
 ]
 
-FRASES_CONFIRMAR = ["confirmar", "si confirmo", "ok", "si", "dale"]
-FRASES_CANCELAR  = ["cancelar", "no, dejalo", "mejor no", "cancela"]
-FRASES_SALDO     = ["cuanto tengo?", "dime mi saldo", "saldo actual", "cuanto hay?"]
+FRASES_SPEI = [
+    ("Necesito un SPEI de {amount} neto a la cuenta de Ricardo",
+     "encontrados", "correcto"),
+    ("¿Me puedes mandar {amount} neto por SPEI? Es para el proveedor",
+     "encontrados", "correcto"),
+    ("SPEI {amount} neto para hoy si puedes, es urgente",
+     "encontrados", "correcto"),
+    ("Oye GV manda {amount} por SPEI neto, acá la CLABE:",
+     "encontrados", "correcto"),
+    ("Hay que hacer un SPEI de {amount} neto, te paso los datos",
+     "encontrados", "correcto"),
+]
 
-# Conversaciones ambientales — charla natural entre German, Vianey y Christian
-# Se mezclan entre los escenarios de bot para que el grupo se vea activo y real.
+FRASES_SINDICATO = [
+    ("Te mando un sindicato de {amount} bruto, acá los datos",
+     "encontrados", "correcto"),
+    ("Sindicato de {amount} bruto esta semana",
+     "encontrados", "correcto"),
+    ("Voy a hacer el sindicato de {amount}, ¿me confirmas?",
+     "encontrados", "correcto"),
+    ("El sindicato de {amount} bruto que quedamos, ¿lo puedo registrar ya?",
+     "encontrados", "correcto"),
+]
+
+FRASES_EFECTIVO = [
+    ("Necesito {amount} en efectivo para mañana, es para el pago de proveedores",
+     "efectivo", "entrega"),
+    ("¿Puedes mandar {amount} en efectivo? Lo necesito hoy",
+     "efectivo", "entrega"),
+    ("Voy a necesitar {amount} en efectivo para esta tarde",
+     "efectivo", "entrega"),
+    ("Mándame {amount} pesos en efectivo, es para cerrar el pago",
+     "efectivo", "entrega"),
+]
+
+FRASES_TARJETAS = [
+    ("Mándame tarjetas por {amount} para el viernes",
+     "encontrados", "correcto"),
+    ("Necesito {amount} en tarjetas prepago esta semana",
+     "encontrados", "correcto"),
+    ("¿Me puedes surtir {amount} en tarjetas?",
+     "encontrados", "correcto"),
+    ("TARJETAS {amount} neto para el cliente, te paso la CLABE",
+     "encontrados", "correcto"),
+]
+
+FRASES_SALDO = [
+    "cuánto tengo?",
+    "dime mi saldo",
+    "saldo actual",
+    "cuánto hay?",
+    "¿cuánto tengo disponible?",
+    "¿cuánto queda en el saldo?",
+    "¿cómo vamos con el saldo?",
+    "a cuánto estamos?",
+]
+
+FRASES_CONFIRMAR = ["confirmar", "sí confirmo", "ok dale", "sí", "confirmo", "va"]
+FRASES_CANCELAR  = ["cancelar", "no, mejor no", "cancela", "no lo hagas"]
+
+# ─── Conversaciones ambientales ────────────────────────────────────────────────
+
 AMBIENT_CHATS = [
     # Inicio de semana
     {
         "id": "buenos_dias",
         "turns": [
-            {"account": "gv",    "message": "Buenos dias"},
-            {"account": "noela", "delay": 6,  "message": "Buenos dias German!"},
-            {"account": "kevin", "delay": 4,  "message": "Que tal, buenos dias"},
+            {"account": "gv",    "message": "Buenos días"},
+            {"account": "noela", "delay": 6,  "message": "Buenos días German!"},
+            {"account": "kevin", "delay": 4,  "message": "Que tal, buenos días"},
         ]
     },
-    # Coordinacion de pagos
+    # Coordinación de pagos
     {
         "id": "coordinacion_pagos",
         "turns": [
-            {"account": "gv",    "message": "Vianey, ya esta listo el cuadro de esta semana?"},
-            {"account": "noela", "delay": 8,  "message": "Si, ya casi lo termino, ahorita lo subo"},
-            {"account": "kevin", "delay": 5,  "message": "Yo tambien estoy esperando el mio"},
-            {"account": "noela", "delay": 12, "message": "Listo, ya lo mande"},
+            {"account": "gv",    "message": "Vianey, ¿ya está listo el cuadro de esta semana?"},
+            {"account": "noela", "delay": 8,  "message": "Sí, ya casi lo termino, ahorita lo subo"},
+            {"account": "kevin", "delay": 5,  "message": "Yo también estoy esperando el mío"},
+            {"account": "noela", "delay": 12, "message": "Listo, ya lo mandé"},
             {"account": "gv",    "delay": 4,  "message": "Perfecto, gracias Vianey"},
         ]
     },
-    # Confirmacion de deposito
+    # Confirmación de depósito
     {
         "id": "deposito_confirmado",
         "turns": [
-            {"account": "noela", "message": "Ya cayo el deposito en mi cuenta"},
-            {"account": "gv",    "delay": 5,  "message": "Bien, yo tambien lo veo reflejado"},
-            {"account": "kevin", "delay": 7,  "message": "El mio tambien. Gracias German"},
+            {"account": "noela", "message": "Ya cayó el depósito en mi cuenta"},
+            {"account": "gv",    "delay": 5,  "message": "Bien, yo también lo veo reflejado"},
+            {"account": "kevin", "delay": 7,  "message": "El mío también. Gracias German"},
             {"account": "gv",    "delay": 3,  "message": "Con gusto"},
         ]
     },
@@ -120,12 +177,12 @@ AMBIENT_CHATS = [
     {
         "id": "solicitud_clabe",
         "turns": [
-            {"account": "gv",    "message": "Christian, mandame tu CLABE actualizada por favor"},
+            {"account": "gv",    "message": "Christian, mándame tu CLABE actualizada por favor"},
             {"account": "kevin", "delay": 12, "message": "Claro, es 058597000030773833 Banregio"},
             {"account": "gv",    "delay": 4,  "message": "Anotado, gracias"},
         ]
     },
-    # Recordatorio de corte
+    # Recordatorio de corte semanal
     {
         "id": "recordatorio_corte",
         "turns": [
@@ -138,27 +195,27 @@ AMBIENT_CHATS = [
     {
         "id": "comprobante_confirmado",
         "turns": [
-            {"account": "noela", "message": "Ya subi el comprobante del pago"},
+            {"account": "noela", "message": "Ya subí el comprobante del pago"},
             {"account": "gv",    "delay": 5,  "message": "Lo vi, gracias Vianey"},
             {"account": "kevin", "delay": 3,  "message": "Ok visto"},
         ]
     },
-    # Pregunta sobre operacion pendiente
+    # Revisión de operación pendiente
     {
         "id": "op_pendiente",
         "turns": [
-            {"account": "kevin", "message": "German, hay algo pendiente de mi parte?"},
-            {"account": "gv",    "delay": 7,  "message": "No, todo en orden. El saldo esta cuadrado"},
+            {"account": "kevin", "message": "German, ¿hay algo pendiente de mi parte?"},
+            {"account": "gv",    "delay": 7,  "message": "No, todo en orden. El saldo está cuadrado"},
             {"account": "kevin", "delay": 3,  "message": "Perfecto, gracias"},
         ]
     },
-    # Revision de saldo
+    # Revisión de saldo
     {
         "id": "revision_saldo",
         "turns": [
-            {"account": "noela", "message": "German, cuanto queda despues del ultimo pago?"},
+            {"account": "noela", "message": "German, ¿cuánto queda después del último pago?"},
             {"account": "gv",    "delay": 5,  "message": "Ahorita lo reviso"},
-            {"account": "gv",    "delay": 8,  "message": "Ya lo cheque, todo correcto"},
+            {"account": "gv",    "delay": 8,  "message": "Ya lo cheqé, todo correcto"},
             {"account": "noela", "delay": 3,  "message": "Gracias"},
         ]
     },
@@ -171,21 +228,21 @@ AMBIENT_CHATS = [
             {"account": "kevin", "delay": 7,  "message": "Buen finde"},
         ]
     },
-    # Dispersion completada
+    # Dispersión completada
     {
         "id": "dispersion_ok",
         "turns": [
-            {"account": "gv",    "message": "Ya hice la dispersion de esta semana"},
+            {"account": "gv",    "message": "Ya hice la dispersión de esta semana"},
             {"account": "noela", "delay": 6,  "message": "Lo vi en el bot, gracias German"},
             {"account": "kevin", "delay": 4,  "message": "Recibido, muchas gracias"},
         ]
     },
-    # Pregunta rapida
+    # Pregunta rápida sobre pagos
     {
         "id": "pregunta_rapida",
         "turns": [
-            {"account": "kevin", "message": "Todo bien con los pagos de esta semana?"},
-            {"account": "gv",    "delay": 6,  "message": "Si, todo en orden. Mande los comprobantes ayer"},
+            {"account": "kevin", "message": "¿Todo bien con los pagos de esta semana?"},
+            {"account": "gv",    "delay": 6,  "message": "Sí, todo en orden. Mandé los comprobantes ayer"},
             {"account": "noela", "delay": 4,  "message": "Correcto, ya los vi"},
         ]
     },
@@ -194,7 +251,7 @@ AMBIENT_CHATS = [
         "id": "post_bot_comentario",
         "turns": [
             {"account": "noela", "message": "Vieron la respuesta del bot? Todo correcto"},
-            {"account": "gv",    "delay": 5,  "message": "Si, ya lo vi. Perfecto"},
+            {"account": "gv",    "delay": 5,  "message": "Sí, ya lo vi. Perfecto"},
             {"account": "kevin", "delay": 3,  "message": "Ok entendido"},
         ]
     },
@@ -207,46 +264,127 @@ AMBIENT_CHATS = [
             {"account": "gv",    "delay": 4,  "message": "Bien, queda registrado"},
         ]
     },
-    # Actualizacion de cuenta
+    # Actualización de cuenta bancaria
     {
         "id": "update_cuenta",
         "turns": [
-            {"account": "noela", "message": "Cambie mi cuenta, ya no es BBVA sino Banregio"},
-            {"account": "gv",    "delay": 5,  "message": "Ok Vianey, mandame la CLABE nueva"},
+            {"account": "noela", "message": "Cambié mi cuenta, ya no es BBVA sino Banregio"},
+            {"account": "gv",    "delay": 5,  "message": "Ok Vianey, mándame la CLABE nueva"},
             {"account": "noela", "delay": 6,  "message": "058597000068994820"},
-            {"account": "gv",    "delay": 3,  "message": "Listo, ya la actualice"},
+            {"account": "gv",    "delay": 3,  "message": "Listo, ya la actualicé"},
+        ]
+    },
+    # Negociación de rate
+    {
+        "id": "negociacion_rate",
+        "turns": [
+            {"account": "kevin", "message": "German, ¿el rate sigue siendo 5.5%?"},
+            {"account": "gv",    "delay": 7,  "message": "Sí, por ahora sí"},
+            {"account": "kevin", "delay": 4,  "message": "Perfecto, ok"},
+            {"account": "noela", "delay": 6,  "message": "El mío también es 5.5?"},
+            {"account": "gv",    "delay": 4,  "message": "Sí Vianey, igual para todos"},
+        ]
+    },
+    # Coordinación de SPEI urgente
+    {
+        "id": "spei_urgente",
+        "turns": [
+            {"account": "kevin", "message": "German, necesito un SPEI urgente, ¿puedes?"},
+            {"account": "gv",    "delay": 5,  "message": "Sí claro, dime monto y cuenta"},
+            {"account": "kevin", "delay": 4,  "message": "Son 45 mil neto a la cuenta de siempre"},
+            {"account": "gv",    "delay": 6,  "message": "Va, ahorita lo proceso en el sistema"},
+        ]
+    },
+    # Discusión sobre cierre de mes
+    {
+        "id": "cierre_mes_chat",
+        "turns": [
+            {"account": "kevin", "message": "Ya estamos al final del mes, ¿cómo vamos?"},
+            {"account": "gv",    "delay": 6,  "message": "Ya casi terminamos, faltan dos días para el cierre"},
+            {"account": "noela", "delay": 5,  "message": "¿Ya mandaron las facturas del grupo?"},
+            {"account": "gv",    "delay": 8,  "message": "Esta semana las mando, saldo se reintegra con eso"},
+            {"account": "kevin", "delay": 4,  "message": "Ah ok, entendido"},
+        ]
+    },
+    # Kevin propone financiar operaciones
+    {
+        "id": "kevin_financia",
+        "turns": [
+            {"account": "kevin", "message": "German, el saldo está bajo. ¿Quieres que anticipe yo las últimas operaciones?"},
+            {"account": "gv",    "delay": 8,  "message": "Sí Christian, son dos días para el cierre. Adelanta las últimas dos y ya"},
+            {"account": "kevin", "delay": 5,  "message": "Perfecto, sin problema. Ya los proceso"},
+            {"account": "noela", "delay": 4,  "message": "Yo también puedo apoyar si necesitan"},
+            {"account": "gv",    "delay": 3,  "message": "Por ahora con Christian está bien, gracias Vianey"},
+        ]
+    },
+    # Reintegro de saldo por facturas
+    {
+        "id": "reintegro_facturas",
+        "turns": [
+            {"account": "gv",    "message": "Ya mandé las facturas del grupo, van a reintegrar el saldo"},
+            {"account": "kevin", "delay": 7,  "message": "¿Cuánto cae?"},
+            {"account": "gv",    "delay": 5,  "message": "Como 800 mil entre todas las facturas RE"},
+            {"account": "noela", "delay": 4,  "message": "Perfecto, ya podemos seguir con los SPEI"},
+            {"account": "kevin", "delay": 3,  "message": "Excelente"},
+        ]
+    },
+    # Post dispersión de efectivo
+    {
+        "id": "post_efectivo",
+        "turns": [
+            {"account": "noela", "message": "Christian, ya está listo el efectivo para hoy"},
+            {"account": "kevin", "delay": 6,  "message": "Perfecto, paso por él en la tarde"},
+            {"account": "gv",    "delay": 4,  "message": "Queda registrado en el sistema"},
+        ]
+    },
+    # Tarjetas de nómina
+    {
+        "id": "tarjetas_nomina",
+        "turns": [
+            {"account": "kevin", "message": "German, ya llegaron las tarjetas del proveedor"},
+            {"account": "gv",    "delay": 5,  "message": "Perfecto, ¿cuánto cargaron en total?"},
+            {"account": "kevin", "delay": 4,  "message": "350 mil entre todas"},
+            {"account": "gv",    "delay": 6,  "message": "Ok lo verifico con el resumen"},
         ]
     },
 ]
 
-# Plantillas de conversacion que preceden o siguen una operacion con el bot
+# Plantillas de contexto pre/post operación
 CHAT_PRE_OP = [
     [
-        {"account": "gv",    "message": "Vianey, voy a hacer una operacion ahorita"},
+        {"account": "gv",    "message": "Vianey, voy a hacer una operación ahorita"},
         {"account": "noela", "delay": 5, "message": "Ok, yo la veo"},
     ],
     [
-        {"account": "kevin", "message": "German, ya puedo hacer el pago?"},
-        {"account": "gv",    "delay": 4, "message": "Si, adelante Christian"},
+        {"account": "kevin", "message": "German, ¿ya puedo hacer el pago?"},
+        {"account": "gv",    "delay": 4, "message": "Sí, adelante Christian"},
     ],
     [
         {"account": "noela", "message": "Voy a mandar el cuadro de esta semana"},
         {"account": "gv",    "delay": 5, "message": "Ok Vianey, ya lo espero"},
     ],
+    [
+        {"account": "kevin", "message": "¿Puedo procesar el SPEI de hoy?"},
+        {"account": "gv",    "delay": 4, "message": "Sí dale, ya está habilitado"},
+    ],
 ]
 
 CHAT_POST_OP = [
     [
-        {"account": "noela", "delay": 4, "message": "Listo, ya quedo registrado"},
+        {"account": "noela", "delay": 4, "message": "Listo, ya quedó registrado"},
         {"account": "kevin", "delay": 3, "message": "Gracias"},
     ],
     [
-        {"account": "gv",    "delay": 5, "message": "Listo. Ya esta registrado en el sistema"},
+        {"account": "gv",    "delay": 5, "message": "Listo. Ya está registrado en el sistema"},
         {"account": "kevin", "delay": 3, "message": "Perfecto, gracias German"},
     ],
     [
         {"account": "noela", "delay": 4, "message": "Ok ya lo veo en el bot"},
         {"account": "gv",    "delay": 3, "message": "Correcto"},
+    ],
+    [
+        {"account": "kevin", "delay": 5, "message": "Confirmado de mi parte"},
+        {"account": "noela", "delay": 3, "message": "Visto"},
     ],
 ]
 
@@ -255,42 +393,180 @@ def pick(lst):
     return random.choice(lst)
 
 
-def gen_scenarios(tier: int) -> list[dict]:
+def gen_op_scenario(acct: str, tipo: str, amount: int, tier: int) -> dict:
+    """
+    Genera un escenario completo de operación para el tipo dado.
+    Retorna un escenario type='bot' listo para ejecutar.
+    """
+    clabe = pick(CLABES)
+
+    if tipo == "IAS":
+        frase_tmpl, kw1, kw2 = pick(FRASES_IAS)
+        frase = frase_tmpl.format(amount=f"{amount:,}")
+        messages = [frase, clabe]
+        expected = [kw1, kw2]
+
+    elif tipo == "SPEI":
+        frase_tmpl, kw1, kw2 = pick(FRASES_SPEI)
+        frase = frase_tmpl.format(amount=f"{amount:,}")
+        messages = [frase, clabe]
+        expected = [kw1, kw2]
+
+    elif tipo == "SINDICATO":
+        frase_tmpl, kw1, kw2 = pick(FRASES_SINDICATO)
+        frase = frase_tmpl.format(amount=f"{amount:,}")
+        messages = [frase, clabe]
+        expected = [kw1, kw2]
+
+    elif tipo == "EFECTIVO":
+        frase_tmpl, kw1, kw2 = pick(FRASES_EFECTIVO)
+        frase = frase_tmpl.format(amount=f"{amount:,}")
+        messages = [frase]
+        expected = [kw1, kw2]
+
+    elif tipo == "TARJETAS":
+        frase_tmpl, kw1, kw2 = pick(FRASES_TARJETAS)
+        frase = frase_tmpl.format(amount=f"{amount:,}")
+        messages = [frase, clabe]
+        expected = [kw1, kw2]
+
+    else:
+        frase = f"operacion {tipo} {amount:,} neto"
+        messages = [frase, clabe]
+        expected = ["encontrados", "correcto"]
+
+    return {
+        "type":     "bot",
+        "tier":     tier,
+        "id":       f"{tipo.lower()}_{acct}_{amount}",
+        "account":  acct,
+        "messages": messages,
+        "expected": expected,
+    }
+
+
+def gen_scenarios_fin_mes(tier: int, active_accounts: set) -> list[dict]:
+    """
+    Genera el ciclo de fin de mes:
+    1. Varias operaciones SPEI/IAS que consumen saldo
+    2. Saldo bajo → Christian propone financiar
+    3. GV acepta: "faltan 2 días para el cierre"
+    4. 2 operaciones más
+    5. Facturas / comprobante reintegran saldo
+    6. IAS mensual único + SPEIs post-cierre
+    """
+    scenarios = []
+    amounts_drain  = [random.choice([50_000, 75_000, 100_000]) for _ in range(3)]
+    amounts_post   = [random.choice([80_000, 120_000, 150_000]) for _ in range(2)]
+
+    # Fase 1: operaciones que drenan el saldo
+    for amount in amounts_drain:
+        acct = pick(sorted(active_accounts))
+        tipo = pick(["SPEI", "IAS"])
+        scenarios.append(gen_op_scenario(acct, tipo, amount, tier))
+        scenarios.append({
+            "type": "chat", "tier": tier,
+            "id": f"post_drain_{amount}",
+            "turns": pick(CHAT_POST_OP),
+        })
+
+    # Saldo query mostrando bajo
+    scenarios.append({
+        "type": "bot", "tier": tier,
+        "id": "saldo_bajo_query",
+        "account": pick(sorted(active_accounts)),
+        "messages": [pick(["¿Cómo vamos con el saldo?", "¿Cuánto queda?", "a cuánto estamos?"])],
+        "expected": ["saldo", "$"],
+    })
+
+    # Fase 2: Christian propone financiar
+    scenarios.append({
+        "type": "chat", "tier": tier,
+        "id": "kevin_propone_financiar",
+        "turns": [
+            {"account": "kevin", "message": "German, el saldo está muy bajo. ¿Quieres que anticipe yo las últimas?"},
+            {"account": "gv",    "delay": 7,
+             "message": "Sí Christian, son dos días para el cierre del mes. Adelanta las dos últimas y ya"},
+            {"account": "kevin", "delay": 4, "message": "Perfecto, sin problema. Ya las proceso"},
+        ],
+    })
+
+    # Fase 3: 2 operaciones más financiadas por Kevin
+    for amount in amounts_post:
+        acct = "kevin" if "kevin" in active_accounts else pick(sorted(active_accounts))
+        tipo = pick(["SPEI", "IAS"])
+        scenarios.append(gen_op_scenario(acct, tipo, amount, tier))
+
+    # Fase 4: cierre de mes — facturas reintegran saldo (comprobante)
+    scenarios.append({
+        "type": "chat", "tier": tier,
+        "id": "cierre_mes_aviso",
+        "turns": [
+            {"account": "gv", "message": "Ya es cierre de mes, esta semana van las facturas del grupo"},
+            {"account": "kevin", "delay": 5, "message": "¿Cuánto reintegran?"},
+            {"account": "gv",    "delay": 4, "message": "Como 800 mil entre todas las facturas RE"},
+            {"account": "noela", "delay": 6, "message": "Perfecto, ya podemos seguir trabajando"},
+        ],
+    })
+
+    # Comprobante / factura (asset) que reintegra saldo
+    reintegro_sender = "gv" if "gv" in active_accounts else pick(sorted(active_accounts))
+    scenarios.append({
+        "type": "bot", "tier": tier,
+        "id": "reintegro_factura",
+        "account": reintegro_sender,
+        "asset": ("comprobante", tier),
+        "mode": "asistente",
+        "expected": ["Saldo", "$"],
+    })
+
+    # Fase 5: IAS mensual único
+    ias_amount = random.choice([400_000, 600_000, 800_000])
+    acct = pick(sorted(active_accounts))
+    scenarios.append(gen_op_scenario(acct, "IAS", ias_amount, tier))
+
+    # SPEIs post-cierre normales
+    for amount in [random.choice([50_000, 75_000]) for _ in range(2)]:
+        acct = pick(sorted(active_accounts))
+        scenarios.append(gen_op_scenario(acct, "SPEI", amount, tier))
+        scenarios.append({
+            "type": "chat", "tier": tier,
+            "id": f"post_cierre_{amount}",
+            "turns": pick(CHAT_POST_OP),
+        })
+
+    return scenarios
+
+
+def gen_scenarios(tier: int, active_accounts: set = None) -> list[dict]:
     """
     Genera escenarios para el tier dado.
     Mezcla conversaciones ambientales (type='chat') con interacciones al bot (type='bot').
-    Ratio aprox 60% chat / 40% bot para que el grupo se vea natural.
+    Ratio aprox 55% chat / 45% bot para que el grupo se vea natural.
     """
+    if active_accounts is None:
+        active_accounts = {"gv", "noela", "kevin"}
+
     scenarios = []
 
-    CLABES_POOL = [
-        ("058597000030773833", "BANREGIO"),
-        ("058597000068994820", "BANREGIO"),
-        ("140180900000120017", "BBVA"),
-        ("012914002436956798", "BANAMEX"),
-    ]
-
-    # ── Conversaciones ambientales ────────────────────────────────────────────
-    # Elegir 3-5 conversaciones aleatorias para esta ronda
+    # ── Conversaciones ambientales ─────────────────────────────────────────────
     n_ambient = random.randint(3, min(5, len(AMBIENT_CHATS)))
     for chat in random.sample(AMBIENT_CHATS, n_ambient):
-        scenarios.append({
-            "type": "chat",
-            "tier": 1,
-            "id": f"ambient_{chat['id']}",
-            "turns": chat["turns"],
-        })
+        # Solo incluir si al menos un turn es de cuenta activa
+        if any(t.get("account") in active_accounts for t in chat["turns"]):
+            scenarios.append({
+                "type": "chat",
+                "tier": 1,
+                "id": f"ambient_{chat['id']}",
+                "turns": chat["turns"],
+            })
 
-    # ── Escenarios con el bot (modo asistente) ────────────────────────────────
-    # Cuadro PNG — bot responde con resumen financiero
-    sender = pick(["gv", "noela", "kevin"])
+    # ── Cuadro retorno PNG ────────────────────────────────────────────────────
+    sender = pick(sorted(active_accounts))
     pre    = pick(CHAT_PRE_OP) if random.random() > 0.4 else []
     post   = pick(CHAT_POST_OP) if random.random() > 0.4 else []
     if pre:
-        scenarios.append({
-            "type": "chat", "tier": tier,
-            "id": "pre_cuadro_png", "turns": pre,
-        })
+        scenarios.append({"type": "chat", "tier": tier, "id": "pre_cuadro_png", "turns": pre})
     scenarios.append({
         "type": "bot", "tier": tier,
         "id": f"cuadro_png_{sender}", "account": sender,
@@ -300,14 +576,11 @@ def gen_scenarios(tier: int) -> list[dict]:
         "expected": ["Saldo", "comision", "$"],
     })
     if post:
-        scenarios.append({
-            "type": "chat", "tier": tier,
-            "id": "post_cuadro_png", "turns": post,
-        })
+        scenarios.append({"type": "chat", "tier": tier, "id": "post_cuadro_png", "turns": post})
 
-    # CLABE como texto plano → bot extrae y guarda cuenta
+    # ── CLABE como texto plano ─────────────────────────────────────────────────
     clabe, banco = pick(CLABES_POOL)
-    clabe_sender = pick(["gv", "noela", "kevin"])
+    clabe_sender = pick(sorted(active_accounts))
     scenarios.append({
         "type": "bot", "tier": tier,
         "id": f"clabe_{clabe_sender}", "account": clabe_sender,
@@ -317,8 +590,8 @@ def gen_scenarios(tier: int) -> list[dict]:
         "expected": ["guardad", "cuenta", "CLABE"],
     })
 
-    # Comprobante JPG
-    comp_sender = pick(["noela", "kevin"])
+    # ── Comprobante JPG ────────────────────────────────────────────────────────
+    comp_sender = pick([a for a in ("noela", "kevin", "gv") if a in active_accounts])
     scenarios.append({
         "type": "bot", "tier": tier,
         "id": f"comprobante_{comp_sender}", "account": comp_sender,
@@ -327,12 +600,9 @@ def gen_scenarios(tier: int) -> list[dict]:
         "expected": ["Saldo", "$"],
     })
 
-    # Consulta de saldo — lenguaje natural
-    for acct, frase in [
-        ("gv",    pick(FRASES_SALDO)),
-        ("noela", pick(FRASES_SALDO)),
-        ("kevin", "cuanto tengo disponible?"),
-    ]:
+    # ── Consultas de saldo ─────────────────────────────────────────────────────
+    for acct in sorted(active_accounts):
+        frase = pick(FRASES_SALDO)
         scenarios.append({
             "type": "bot", "tier": tier,
             "id": f"saldo_{acct}", "account": acct,
@@ -340,9 +610,15 @@ def gen_scenarios(tier: int) -> list[dict]:
             "expected": ["saldo", "$"],
         })
 
+    # ── Tier 1: IAS básicos ────────────────────────────────────────────────────
+    for acct in sorted(active_accounts):
+        amount = pick(AMOUNTS_T1)
+        scenarios.append(gen_op_scenario(acct, "IAS", amount, tier))
+
+    # ── Tier 2+: Variedad de tipos + montos más grandes + XLSX ─────────────────
     if tier >= 2:
         # Cuadro XLSX
-        xlsx_sender = pick(["gv", "kevin"])
+        xlsx_sender = pick([a for a in ("gv", "kevin") if a in active_accounts])
         scenarios.append({
             "type": "bot", "tier": tier,
             "id": f"cuadro_xlsx_{xlsx_sender}", "account": xlsx_sender,
@@ -351,35 +627,72 @@ def gen_scenarios(tier: int) -> list[dict]:
             "verify_db": "SELECT COUNT(*) FROM fin_operations WHERE created_at > NOW() - INTERVAL 180 SECOND",
             "expected": ["Saldo", "$"],
         })
-        # Operacion con lenguaje natural (no comando, frase real)
-        for acct in ("gv", "noela", "kevin"):
+
+        # SPEI: salida a cuenta de tercero
+        for acct in sorted(active_accounts):
             amount = pick(AMOUNTS_T2)
-            tipo   = pick(TIPOS)
-            frase  = pick(FRASES_OPERACION).format(tipo=tipo, amount=amount)
+            pre = pick(CHAT_PRE_OP) if random.random() > 0.5 else []
+            if pre:
+                scenarios.append({"type": "chat", "tier": tier, "id": f"pre_spei_{acct}", "turns": pre})
+            scenarios.append(gen_op_scenario(acct, "SPEI", amount, tier))
+
+        # SINDICATO (entrada): el cliente paga
+        sindicato_sender = pick(sorted(active_accounts))
+        amount = pick(AMOUNTS_T2)
+        scenarios.append(gen_op_scenario(sindicato_sender, "SINDICATO", amount, tier))
+
+        # Ambient de contexto entre operaciones
+        scenarios.append({
+            "type": "chat", "tier": tier,
+            "id": "ambient_t2_mid",
+            "turns": pick(AMBIENT_CHATS)["turns"],
+        })
+
+    # ── Tier 3+: EFECTIVO, TARJETAS, edge cases ────────────────────────────────
+    if tier >= 3:
+        # EFECTIVO: salida física, no requiere CLABE
+        efectivo_sender = pick([a for a in ("gv", "kevin") if a in active_accounts])
+        amount = pick([15_000, 20_000, 30_000, 50_000])
+        scenarios.append(gen_op_scenario(efectivo_sender, "EFECTIVO", amount, tier))
+
+        # TARJETAS prepago
+        tarjetas_sender = pick(sorted(active_accounts))
+        amount = pick([25_000, 40_000, 60_000, 80_000])
+        scenarios.append(gen_op_scenario(tarjetas_sender, "TARJETAS", amount, tier))
+
+        # Edge cases de monto
+        for err_amount in random.sample(AMOUNTS_ERR, 2):
             scenarios.append({
                 "type": "bot", "tier": tier,
-                "id": f"operacion_{acct}", "account": acct,
-                "messages": [frase, pick(CLABES)],
-                # Bot responde "✅ Datos encontrados: [CLABE] ¿Es correcto?" al recibir la CLABE
-                "expected": ["encontrados", "correcto"],
+                "id": f"monto_invalido_{err_amount}", "account": "gv" if "gv" in active_accounts else pick(sorted(active_accounts)),
+                "messages": [f"manda {err_amount} a IAS neto"],
+                "expected": ["error", "inválido", "incorrecto", "monto"],
             })
 
-    if tier >= 3:
-        # Edge cases de monto
-        for err_amount in AMOUNTS_ERR:
+        # CLABE inválida
+        if "gv" in active_accounts or "kevin" in active_accounts:
+            acct = "gv" if "gv" in active_accounts else "kevin"
             scenarios.append({
                 "type": "bot", "tier": tier,
-                "id": f"monto_invalido_{err_amount}", "account": "gv",
-                "messages": [f"manda {err_amount} a IAS neto"],
-                "expected": ["error", "invalido", "incorrecto"],
+                "id": "clabe_invalida", "account": acct,
+                "messages": ["necesito 10000 para IAS neto", "123456789012345678"],
+                "expected": ["inválida", "incorrecta", "error", "CLABE"],
             })
-        # CLABE invalida
+
+        # Conversación sobre tarjetas después de la operación
         scenarios.append({
-            "type": "bot", "tier": tier,
-            "id": "clabe_invalida", "account": "gv",
-            "messages": ["necesito 10000 para IAS neto", "123456789012345678"],
-            "expected": ["invalida", "incorrecta", "error"],
+            "type": "chat", "tier": tier,
+            "id": "post_tarjetas",
+            "turns": [
+                {"account": "kevin", "message": "Ya llegaron las tarjetas, ¿están registradas en el sistema?"},
+                {"account": "gv",    "delay": 5, "message": "Sí, ya aparecen. Solo falta la entrega física"},
+                {"account": "kevin", "delay": 4, "message": "Perfecto, las entrego mañana"},
+            ],
         })
+
+    # ── Tier 4+: Ciclo de fin de mes ────────────────────────────────────────────
+    if tier >= 4:
+        scenarios.extend(gen_scenarios_fin_mes(tier, active_accounts))
 
     random.shuffle(scenarios)
     return scenarios
@@ -435,7 +748,6 @@ async def discover_bot_user_id(client, chat_id: int) -> Optional[int]:
     try:
         async for member in client.iter_participants(chat_id):
             if getattr(member, 'bot', False):
-                # El financial-bot es el único bot relevante
                 name = getattr(member, 'first_name', '') or ''
                 if any(k in name.lower() for k in ('flujos', 'financi', 'vilar')):
                     BOT_USER_ID = member.id
@@ -458,7 +770,6 @@ async def run_chat_scenario(clients: dict, chat_entities: dict, scenario: dict,
                              chat_id: int, dry_run: bool = False) -> dict:
     """
     Ejecuta una conversacion ambiental multi-usuario (type='chat').
-    Cada turn tiene: account, message, delay (opcional).
     No espera respuesta del bot — es charla natural entre los tres.
     """
     test_id = scenario["id"]
@@ -476,7 +787,6 @@ async def run_chat_scenario(clients: dict, chat_entities: dict, scenario: dict,
             if not client:
                 continue
             if isinstance(target, int):
-                # Cuenta sin acceso al grupo — silencio, no crash
                 continue
 
             await asyncio.sleep(delay)
@@ -499,7 +809,6 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
     Ejecuta un escenario con el account indicado.
     Retorna {"test_id", "passed", "detail", "bot_response"}.
     """
-    # Dispatch a chat ambiental si es type='chat'
     if scenario.get("type") == "chat":
         return await run_chat_scenario(clients, chat_entities, scenario, chat_id, dry_run)
 
@@ -508,15 +817,13 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
     expected = scenario.get("expected", [])
     test_id  = scenario["id"]
     client   = clients.get(account)
-    # Usar entidad resuelta para evitar PeerIdInvalidError
     target   = chat_entities.get(account, chat_id)
 
     is_asistente = scenario.get("mode") == "asistente"
     verify_db    = scenario.get("verify_db")
-    asset_spec   = scenario.get("asset")        # (asset_type, tier) tuple
+    asset_spec   = scenario.get("asset")
     caption      = scenario.get("caption", "")
     filename     = scenario.get("filename", "archivo.xlsx")
-    # Legacy compat
     photo_type   = scenario.get("photo")
     doc_type     = scenario.get("document")
 
@@ -538,7 +845,7 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
                 if asset_spec:
                     a_type, a_tier = asset_spec
                     data, meta = gen_for_tier(a_type, a_tier)
-                    cap  = meta.get("caption", caption)
+                    cap   = meta.get("caption", caption)
                     fname = meta.get("filename", "asset.bin")
                     is_doc = a_type == "cuadro_xlsx"
                     label = (f"[xlsx {fname}]"      if is_doc else
@@ -548,7 +855,6 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
                              + "]"                  if "cuadro" in a_type else
                              f"[comprobante ${meta.get('monto', 0):,.0f}]")
                 else:
-                    # legacy
                     from assets import gen_cuadro_png, gen_comprobante_png
                     if photo_type == "cuadro_retorno":
                         data = gen_cuadro_png(1)
@@ -565,7 +871,7 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
                 try:
                     await ensure_connected(client, account)
                     buf = io.BytesIO(data)
-                    buf.name = fname  # tells Telethon the MIME type (png/jpg/xlsx)
+                    buf.name = fname
                     await client.send_file(
                         target, buf,
                         caption=cap,
@@ -583,7 +889,6 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
                 return {"test_id": test_id, "passed": False,
                         "detail": f"asset error: {e}", "bot_response": None}
 
-            # En asistente el bot SI responde con comisiones/saldo — esperar respuesta
             bot_response = await wait_for_bot_response(client, target, BOT_RESPONSE_TIMEOUT + 5)
 
         elif messages:
@@ -618,8 +923,6 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
 
     # ── Evaluar resultado ─────────────────────────────────────────────────────
     if is_asistente or asset_spec or photo_type or doc_type:
-        # En asistente: el bot RESPONDE con comisiones/saldo + actualiza DB
-        # Evaluacion combinada: respuesta del bot + estado de DB
         resp_ok = False
         db_ok   = False
 
@@ -638,7 +941,7 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
             detail = f"bot respondio con comision/saldo: {bot_response[:120]}"
         elif db_ok:
             passed = True
-            detail = f"DB actualizada (bot proceso en silencio): {bot_response[:60] if bot_response else 'sin resp'}"
+            detail = f"DB actualizada: {bot_response[:60] if bot_response else 'sin resp'}"
         elif bot_response and not expected:
             passed = True
             detail = f"bot respondio: {bot_response[:100]}"
@@ -663,7 +966,6 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
 
     print(f"  {'OK' if passed else 'FAIL'} {detail[:100]}")
 
-    # Registro en learning DB
     if episode_id:
         try:
             record_test_result(episode_id, test_id[:10], passed, detail, duration_ms,
@@ -688,20 +990,15 @@ def set_asistente_mode(chat_id: int):
         print(f"[engine] Modo asistente activado en fin_chats para chat_id={chat_id}")
     except Exception as e:
         print(f"[engine] WARNING: no se pudo setear modo asistente via SQL: {e}")
-        print(f"[engine]    Enviar /modo asistente manualmente en el grupo")
 
 
 async def resolve_group_entity(client, chat_id: int):
     """
     Resuelve la entidad del grupo para Telethon.
     Megagrupos son Channels internamente — get_entity(neg_int) falla con PeerIdInvalidError.
-    Estrategia 1: PeerChannel fuerza GetChannelsRequest (correcto para megagrupos).
-    Estrategia 2: iter_dialogs pagina todos los grupos (requiere que el usuario este en el grupo).
-    Estrategia 3: get_input_entity con PeerChannel explicito.
     """
     target_id = abs(chat_id)
 
-    # Estrategia 1: PeerChannel fuerza GetChannelsRequest
     try:
         entity = await client.get_entity(PeerChannel(target_id))
         title = getattr(entity, 'title', '?')
@@ -710,7 +1007,6 @@ async def resolve_group_entity(client, chat_id: int):
     except Exception as e:
         print(f"[engine] PeerChannel fallo: {e!r}")
 
-    # Estrategia 2: iter_dialogs pagina todos los dialogos (funciona si el usuario esta en el grupo)
     try:
         async for dialog in client.iter_dialogs():
             eid = getattr(dialog.entity, 'id', None)
@@ -721,15 +1017,13 @@ async def resolve_group_entity(client, chat_id: int):
     except Exception as e:
         print(f"[engine] iter_dialogs error: {e!r}")
 
-    # Estrategia 3: get_input_entity con PeerChannel explicito
     try:
         return await client.get_input_entity(PeerChannel(target_id))
     except Exception as e:
         print(f"[engine] get_input_entity PeerChannel fallo: {e!r}")
 
-    print(f"[engine] WARNING: no se pudo resolver entidad {chat_id} — cuenta NO esta en el grupo Testing")
-    print(f"[engine] ACCION REQUERIDA: agregar esta cuenta al grupo Testing en Telegram")
-    return chat_id  # fallback al integer
+    print(f"[engine] WARNING: no se pudo resolver entidad {chat_id} — cuenta NO esta en el grupo")
+    return chat_id
 
 
 async def run_engine(rounds: int = 0, force_tier: int = 0, dry_run: bool = False):
@@ -742,9 +1036,8 @@ async def run_engine(rounds: int = 0, force_tier: int = 0, dry_run: bool = False
     print(f" Rounds: {'inf' if rounds == 0 else rounds} | Dry-run: {dry_run}")
     print(f"{'='*60}\n")
 
-    # Conectar los 3 clientes MTProto
     clients = {}
-    chat_entities = {}  # entidad resuelta por cliente
+    chat_entities = {}
 
     for account in ("gv", "noela", "kevin"):
         try:
@@ -754,7 +1047,6 @@ async def run_engine(rounds: int = 0, force_tier: int = 0, dry_run: bool = False
                 clients[account] = c
                 me = await c.get_me()
                 print(f"[engine] {account.upper()} conectado como @{me.username or me.phone}")
-                # Resolver la entidad del grupo para este cliente
                 entity = await resolve_group_entity(c, chat_id)
                 chat_entities[account] = entity
             else:
@@ -766,7 +1058,6 @@ async def run_engine(rounds: int = 0, force_tier: int = 0, dry_run: bool = False
         print("[engine] Sin cuentas disponibles -- abortar")
         return
 
-    # Identificar cuentas que no pudieron resolver la entidad del grupo
     fallback_accounts = {acct for acct, ent in chat_entities.items() if isinstance(ent, int)}
     active_accounts   = set(clients.keys()) - fallback_accounts
     if fallback_accounts:
@@ -780,36 +1071,29 @@ async def run_engine(rounds: int = 0, force_tier: int = 0, dry_run: bool = False
             except Exception:
                 pass
             print(f"[engine]   - {acct.upper()}{me_info}")
-        print(f"[engine] ACCION REQUERIDA: agregar esas cuentas al grupo Testing en Telegram.")
-        print(f"[engine] Solo se usaran las cuentas activas: {sorted(active_accounts)}")
-        print()
+        print(f"[engine] Solo se usaran: {sorted(active_accounts)}\n")
 
     if not active_accounts:
         print("[engine] Ninguna cuenta tiene acceso al grupo -- abortar")
         return
 
-    # Activar modo asistente en la DB antes de empezar
     if not dry_run:
         set_asistente_mode(chat_id)
 
-    # Descubrir bot con cualquier cliente activo (usar entidad resuelta)
     main_account = next(acct for acct in ("gv", "noela", "kevin") if acct in active_accounts)
     main_client  = clients[main_account]
     main_entity  = chat_entities.get(main_account, chat_id)
     await discover_bot_user_id(main_client, main_entity)
     if not BOT_USER_ID:
         print("[engine] WARNING: financial-bot no detectado en el grupo.")
-        print("[engine]    Verifica que FIN_ALLOWED_CHAT_IDS incluya este chat_id")
-        print("[engine]    y que el bot este en el grupo Testing.")
+        print("[engine]    Verifica FIN_ALLOWED_CHAT_IDS y que el bot esté en el grupo.")
 
-    # Loop principal
-    round_num  = 0
+    round_num   = 0
     all_results = []
 
     while rounds == 0 or round_num < rounds:
         round_num += 1
 
-        # Reconectar clientes que hayan perdido conexión entre rondas
         for acct in list(active_accounts):
             await ensure_connected(clients[acct], acct)
 
@@ -818,23 +1102,18 @@ async def run_engine(rounds: int = 0, force_tier: int = 0, dry_run: bool = False
         print(f" Ronda #{round_num} | Tier {tier} | {datetime.now().strftime('%H:%M:%S')}")
         print(f"{'─'*50}")
 
-        # Iniciar episodio en learning DB
         episode_id = None
         try:
             episode_id = start_episode(triggered_by="conversation_engine")
         except Exception as e:
             print(f"[learning] No se pudo iniciar episodio: {e}")
 
-        # Generar y ejecutar escenarios del tier actual
-        # Filtrar bot-scenarios a solo cuentas activas; chat-scenarios siempre pasan
-        # (run_chat_scenario omite turns de cuentas sin acceso al grupo)
         def scenario_ok(s):
             if s.get("type") == "chat":
-                # Incluir solo si al menos un turn es de una cuenta activa
                 return any(t.get("account") in active_accounts for t in s.get("turns", []))
             return s.get("account", "gv") in active_accounts
 
-        scenarios = [s for s in gen_scenarios(tier) if scenario_ok(s)]
+        scenarios = [s for s in gen_scenarios(tier, active_accounts) if scenario_ok(s)]
         if not scenarios:
             print(f"[engine] No hay escenarios para cuentas activas {sorted(active_accounts)}")
             await asyncio.sleep(10)
@@ -847,35 +1126,29 @@ async def run_engine(rounds: int = 0, force_tier: int = 0, dry_run: bool = False
             all_results.append(result)
             await asyncio.sleep(DELAY_BETWEEN_SCENARIOS)
 
-        # Completar episodio
         if episode_id and round_results:
             try:
                 stats = complete_episode(episode_id, round_results)
                 print(f"\n Score ronda #{round_num}: {stats['score']:.1f}% "
                       f"({stats['passed']}/{stats['total']})")
 
-                # Publicar resumen en Telegram cada N rondas
                 if round_num % ROUNDS_PER_REPORT == 0:
                     report = build_report(episode_id, round_results, stats)
                     post_to_telegram(report)
 
-                # Dispatch fix si hay fallas recurrentes
                 dispatch_fix_if_needed(episode_id, round_results, stats)
             except Exception as e:
                 print(f"[learning] Error completando episodio: {e}")
 
-        # Pausa entre rondas (variable para parecer natural)
         pause = random.uniform(5, 15)
         print(f"\n[engine] Pausa {pause:.0f}s antes de ronda #{round_num + 1}...")
         await asyncio.sleep(pause)
 
-    # Desconectar
     for c in clients.values():
         await c.disconnect()
 
-    # Reporte final
-    total   = len(all_results)
-    passed  = sum(1 for r in all_results if r["passed"])
+    total  = len(all_results)
+    passed = sum(1 for r in all_results if r["passed"])
     print(f"\n{'='*60}")
     print(f" Engine completado: {round_num} rondas")
     print(f" Score global: {passed}/{total} ({passed/total*100:.1f}%)")
