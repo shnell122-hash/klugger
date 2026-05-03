@@ -746,15 +746,25 @@ async def ensure_connected(client, account: str, force: bool = False) -> bool:
 class BotResponseCollector:
     """
     Registra el handler ANTES del send para no perder respuestas rápidas.
+
+    Usa un cursor interno para saber qué mensajes ya fueron "consumidos",
+    de modo que cada llamada a wait() espera por un mensaje NUEVO (posterior
+    al send más reciente) en lugar de devolver respuestas cacheadas de rondas
+    anteriores del mismo escenario.
+
     Uso:
-        async with BotResponseCollector(client, target) as collector:
-            await client.send_message(target, msg)
-        response = await collector.wait(timeout)
+        async with BotResponseCollector(client, target) as col:
+            await client.send_message(target, msg1)
+            r1 = await col.wait(18)           # espera respuesta a msg1
+            col.mark_consumed()               # avanzar cursor antes del siguiente send
+            await client.send_message(target, msg2)
+            r2 = await col.wait(18, drain=2)  # espera respuesta a msg2 + drain 2s
     """
     def __init__(self, client, chat_entity):
         self._client   = client
         self._chat     = chat_entity
         self._received: list[str] = []
+        self._cursor: int = 0  # índice del primer mensaje NO consumido
 
     async def __aenter__(self):
         async def _handler(event):
@@ -768,10 +778,26 @@ class BotResponseCollector:
     async def __aexit__(self, *_):
         self._client.remove_event_handler(self._handler_fn)
 
-    async def wait(self, timeout: int) -> Optional[str]:
+    def mark_consumed(self):
+        """Avanzar cursor: los mensajes hasta aquí ya fueron procesados."""
+        self._cursor = len(self._received)
+
+    async def wait(self, timeout: int, drain: float = 0.0) -> Optional[str]:
+        """
+        Espera el próximo mensaje NUEVO (después del cursor actual).
+        drain: segundos extra de espera después del primer mensaje,
+               para capturar mensajes rápidos adicionales del bot (e.g. resumen + teclado).
+        """
+        cursor = self._cursor
         deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline and not self._received:
+        while time.monotonic() < deadline and len(self._received) <= cursor:
             await asyncio.sleep(0.4)
+        if len(self._received) <= cursor:
+            self._cursor = len(self._received)
+            return None
+        if drain > 0:
+            await asyncio.sleep(drain)
+        self._cursor = len(self._received)
         return self._received[-1] if self._received else None
 
     def latest(self) -> Optional[str]:
@@ -781,10 +807,7 @@ class BotResponseCollector:
 async def wait_for_bot_response(client, chat_entity, timeout: int) -> Optional[str]:
     """Compat wrapper — registra handler, espera, retorna respuesta o None."""
     async with BotResponseCollector(client, chat_entity) as col:
-        deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline and not col._received:
-            await asyncio.sleep(0.4)
-    return col.latest()
+        return await col.wait(timeout)
 
 
 async def discover_bot_user_id(client, chat_id: int) -> Optional[int]:
@@ -938,7 +961,8 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
                     return {"test_id": test_id, "passed": False,
                             "detail": f"asset error: {e}", "bot_response": None}
 
-                bot_response = await col.wait(BOT_RESPONSE_TIMEOUT + 5)
+                # drain=1s para assets — el bot puede mandar mensaje + teclado rápido
+                bot_response = await col.wait(BOT_RESPONSE_TIMEOUT + 5, drain=1.0)
 
             elif messages:
                 # ── Enviar mensajes de texto ─────────────────────────────────
@@ -966,10 +990,13 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
                             print(f"  WARNING: {account.upper()} not in group — add manually in Telegram")
                         return {"test_id": test_id, "passed": False,
                                 "detail": f"send_message failed: {send_err}", "bot_response": None}
+                # Primer mensaje: wait() estándar — avanzar cursor antes del siguiente send
                 bot_response = await col.wait(BOT_RESPONSE_TIMEOUT)
                 for i, msg in enumerate(messages[1:], 1):
                     await asyncio.sleep(DELAY_BETWEEN_MESSAGES)
                     print(f"  [{account.upper()}] -> {msg[:60]}")
+                    # Avanzar cursor: las respuestas al mensaje anterior ya fueron procesadas
+                    col.mark_consumed()
                     try:
                         await ensure_connected(client, account)
                         await client.send_message(target, msg)
@@ -977,7 +1004,9 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
                         print(f"  WARNING: send_message[{i}] failed ({account}): {send_err!r}")
                         break
                     if i == len(messages) - 1:
-                        r2 = await col.wait(BOT_RESPONSE_TIMEOUT)
+                        # Último mensaje: drain=2s para capturar secuencias rápidas del bot
+                        # (e.g. "✅ Guardado" seguido de "📋 Resumen operación...")
+                        r2 = await col.wait(BOT_RESPONSE_TIMEOUT, drain=2.0)
                         if r2:
                             bot_response = r2
     else:
