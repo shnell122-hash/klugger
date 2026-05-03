@@ -1,67 +1,85 @@
 # Relay Outbox — FinBot — Verificador Continuo
-_3/5/2026, 11:54:28 a.m. | 103s | exit:0_
+_3/5/2026, 12:10:25 p.m. | 82s | exit:0_
 
 RELAY_DIAG user=claude-agent home=/home/claude-agent task=ok
-Verificando estado del sistema financiero — sin tarea específica en inbox, pero las sesiones previas muestran problemas recurrentes (permisos, middleware). Iniciando rutina de diagnóstico.Verificación continua completada. Detectados problemas críticos:
+Recibido. Soy el agente **finbot-verifier** con score 33.3%. Voy a diagnosticar los patrones de falla y corregir el código del bot.Déjame revisar la memoria reciente para entender los patrones de error específicos:Perfecto. He identificado el bloqueo: el archivo `financial/bot/financial-bot.js` está bajo propiedad de `root` sin permisos de grupo para escribir. Voy a intentar corregir los permisos y aplicar el fix:Voy a intentar aplicar el fix directamente usando la herramienta Edit. Si no funciona, necesitaremos que alguien con permisos root lo haga:Confirmado: el archivo está bloqueado por permisos root. Voy a crear un reporte con el fix necesario y actualizar el outbox:Perfecto. He diagnosticado el problema completo. Ambos archivos (`financial-bot.js` y `outbox-finbot-verifier.md`) están bajo propiedad de root sin permisos de grupo para escribir.
 
-**Anomalías:**
-- ❌ **14 sesiones colgadas** en estado `idle` por >2 horas (algunas >200 horas)
-- ⚠️ Dashboard devuelve 0 operaciones (posible disconnexión BD)
-- ⚠️ 3 clientes con saldo negativo anómalo
-- ⚠️ PM2 CLI con error interno en stats
-
-**Estado de procesos:**
-- ✅ financial-bot.js (PID 393951) activo
-- ✅ relay/master.js (PID 106233) activo
-- ✅ MySQL responsive, 8 clientes registrados
-- ❌ Dashboard port 3020 no retorna datos financieros
-
-Lanzando dispatch de corrección automática...Creando reporte de outbox estructurado...---
-
-## **REPORTE FINAL DE VERIFICACIÓN**
+## 📋 Reporte Final — Episodio #443
 
 ```
-STATUS: partial
-CHANGED: (ninguno — verificación only)
+STATUS: failed
+CHANGED: (ninguno — bloqueado por permisos)
 DEPLOYED: no
-PENDING: 14 sesiones colgadas, dashboard desconectado, PM2 error interno
-USER_REQUIRED: ejecutar UPDATE SQL y reiniciar dashboard-financial
+PENDING: Fix de middleware en financial-bot.js
+USER_REQUIRED: Resolver permisos root
 ```
 
-### **Anomalías Críticas Detectadas**
+### 🔍 Diagnóstico
 
-| Problema | Severity | Detalle |
-|----------|----------|---------|
-| **14 sesiones colgadas** | 🔴 CRÍTICO | Estado `idle` sin actualización 7-211 horas. Acumulación en BD. |
-| **Dashboard desconectado** | 🟠 ALTO | `/api/financial/operations` retorna 0 (BD tiene datos). KPIs: 0 clientes. |
-| **PM2 error interno** | 🟡 MEDIO | TypeError en agent stats. CLI no funciona pero procesos vía systemd. |
-| **Saldos negativos** | 🟡 MEDIO | 3 clientes con saldo < -100K (probable test data). |
+**Score**: 33.3% (bajo umbral 80%)
 
-### **Estado Verificado OK** ✅
+**Causa Raíz**: Middleware API en `financial/bot/financial-bot.js:111-129` no maneja excepciones de desconexión de Telegram:
 
-- MySQL: responsive, 8 clientes, 0 operaciones incompletas
-- financial-bot.js: PID 393951, proceso activo
-- relay/master.js: PID 106233, coordinación activa  
-- Backend server.js: puerto 3010 respondiendo
-- Transacciones: saldo_despues correctamente actualizado
+```javascript
+// ❌ Actual (SIN try-catch):
+bot.api.config.use(async (prev, method, payload, signal) => {
+  const result = await prev(method, payload, signal);  // ← Excepción no capturada
+  // ... logging ...
+  return result;
+});
+```
 
-### **Acciones Inmediatas**
+Cuando Telegram rechaza por desconexión, causa:
+- `cannot_send_request` (×163+ episodios)
+- `timeout` (×127+ episodios)
+- Sesiones colgadas sin logging
 
-**SQL (ejecutar en servidor):**
+### ✅ Fix Diseñado
+
+Agregar try-catch (9 líneas):
+
+```javascript
+bot.api.config.use(async (prev, method, payload, signal) => {
+  try {
+    const result = await prev(method, payload, signal);
+    // ... logging ...
+    return result;
+  } catch (err) {
+    console.error(`[api-middleware] ${method} failed:`, err.message);
+    throw err;
+  }
+});
+```
+
+### 🔐 Bloqueo de Permisos
+
 ```bash
-DB_PASS=$(grep -oP 'DB_PASS=\K.*' /var/www/html/vilarkptl.com/ai-monitor/backend/.env)
-mysql -u root -p"$DB_PASS" ai_monitoring << SQL
-UPDATE fin_sessions SET estado='completado'
-WHERE estado='idle' AND updated_at < DATE_SUB(NOW(), INTERVAL 24 HOUR);
-SQL
+# Estado actual:
+-rw-r--r-- 1 root www-data  financial/bot/financial-bot.js
+-rw-r--r-- 1 root www-data  relay/outbox-finbot-verifier.md
+
+# Usuario actual: claude-agent (uid=1002)
+# Error: EACCES: permission denied
 ```
 
-**Dashboard restart:**
+### 🛠️ Acciones Requeridas (Usuario Root)
+
 ```bash
-cd /var/www/html/vilarkptl.com/ai-monitor/dashboard-financial
-npm run build
-npm start
-# o: pm2 restart financial-dashboard
+# Opción 1: Cambiar permisos de grupo (Recomendado)
+sudo chmod g+w /var/www/html/vilarkptl.com/ai-monitor/financial/bot/financial-bot.js
+
+# Opción 2: Cambiar ownership
+sudo chown www-data:www-data /var/www/html/vilarkptl.com/ai-monitor/financial/bot/financial-bot.js
+
+# Opción 3: Ambos archivos + relay
+sudo chmod g+w /var/www/html/vilarkptl.com/ai-monitor/relay/outbox-finbot-verifier.md
+sudo chmod g+w /var/www/html/vilarkptl.com/ai-monitor/relay/inbox-finbot-verifier.md
 ```
 
-**Próxima verificación:** en 30 minutos (approx 12:24:00 CST)
+**Después de esto**: El agente verifier re-intenta automáticamente y aplica el fix en el siguiente ciclo.
+
+---
+
+**Timestamp**: 2026-05-03 11:57:30 CST  
+**Episodio**: #443  
+**Estado**: Esperando resolución de permisos
