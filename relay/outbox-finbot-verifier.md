@@ -1,14 +1,88 @@
-# Relay Outbox — FinBot — Verificador Continuo
-_3/5/2026, 12:38:37 a.m. | 17s | exit:0_
+# Outbox — FinBot Verifier — Episodio #119 — Fix Desconexiones Telegram
+_3/5/2026, 01:45:00 UTC | Fix aplicado | status: done_
 
-RELAY_DIAG user=claude-agent home=/home/claude-agent task=ok
-Veo que has cargado el rol de **FinBot Verifier** — agente de verificación continua para `financial-bot`. Sin embargo, la sección de tareas está vacía.
+## Resultado Final
 
-Déjame revisar el inbox para ver si hay una tarea pendiente:Veo una inconsistencia: cargaste el rol de **FinBot Verifier**, pero el inbox contiene una tarea de **FiscalAI** (fix de omisiones.js).
+**STATUS:** done  
+**CHANGED:** financial/bot/financial-bot.js  
+**DEPLOYED:** no (awaiting relay auto-pull)  
+**PENDING:** —  
+**USER_REQUIRED:** no  
 
-¿Cuál es la tarea que necesitas ejecutar?
+---
 
-1. **FiscalAI — Fix cruce ESTIMADO/CONFIRMADO + Obligación** (la que está en el inbox de fiscalai)
-2. **FinBot Verifier** (verificación de logs, DB y dashboard del financial-bot)
+## Problema Identificado
 
-Clarifica y ejecuto la tarea correspondiente.a tarea de **FiscalAI** (fix de omisiones.js).\n\n¿Cuál es la tarea que necesitas ejecutar?\n\n1. **FiscalAI — Fix cruce ESTIMADO/CONFIRMADO + Obligación** (la que está en el inbox de fiscalai)\n2. **FinBot Verifier** (verificación de logs, DB y dashboard del financial-bot)\n\nClarifica y ejecuto la tarea correspondiente.","stop_reason":"end_turn","session_id":"3fa06292-8399-46b4-ade5-aea371086511","total_cost_usd":0.03133925,"usage":{"input_tokens":16,"cache_creation_input_tokens":13621,"cache_read_input_tokens":57650,"output_tokens":1270,"server_tool_use":{"web_search_requests":0,"web_fetch_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":0,"ephemeral_5m_input_tokens":13621},"inference_geo":"","iterations":[{"input_tokens":7,"output_tokens":729,"cache_read_input_tokens":34360,"cache_creation_input_tokens":2551,"cache_creation":{"ephemeral_5m_input_tokens":2551,"ephemeral_1h_input_tokens":0},"type":"message"}],"speed":"standard"},"modelUsage":{"claude-haiku-4-5-20251001":{"inputTokens":2118,"outputTokens":1286,"cacheReadInputTokens":57650,"cacheCreationInputTokens":13621,"webSearchRequests":0,"costUSD":0.03133925,"contextWindow":200000,"maxOutputTokens":32000}},"permission_denials":[],"terminal_reason":"completed","fast_mode_state":"off","uuid":"f99b7274-bb91-4470-9ba0-7f1dd0f70758"}
+| Métrica | Valor |
+|---------|-------|
+| Score actual | 23.1% (umbral: 80%) |
+| Falla #1 | `saldo_gv_send_message_failed__cannot_send_request` (×55 episodios) |
+| Falla #2 | `saldo_gv_timeout` (×54 episodios) |
+| Causa raíz | Bot intenta sendMessage() sin verificar si está conectado a Telegram API |
+
+### Error exacto
+```
+Error: Cannot send requests while disconnected
+```
+- Health check detecta desconexión cada 30s
+- Pero hay gap de ~30s donde los handlers siguen intentando enviar
+- Cada intento fallido dispara timeout en Telegram
+
+---
+
+## Fix Implementado
+
+### 1️⃣ Middleware global (nuevas líneas 2211-2218)
+```javascript
+bot.use(async (ctx, next) => {
+  if (!botStarted) {
+    console.warn(`[bot-middleware] Update rechazado: bot no started`);
+    return;  // ← Bloquea handlers si desconectado
+  }
+  await next();
+});
+```
+**Impacto:** Evita que 50+ ctx.reply() fallen mientras reconectando
+
+### 2️⃣ Detección de desconexión mejorada (nuevas líneas 2225-2230)
+```javascript
+if (errMsg?.includes('Cannot send requests while disconnected') ||
+    errMsg?.includes('Failed to fetch') ||
+    errMsg?.includes('ECONNREFUSED')) {
+  botStarted = false;  // ← Triggerear middleware
+}
+```
+**Impacto:** Reconexión inmediata, no esperar 30s del health check
+
+### 3️⃣ Parámetros de reconexión más agresivos
+
+| Constante | Antes → Después | Razón |
+|-----------|-----------------|-------|
+| HEALTH_CHECK_INTERVAL | 30s → 5s | Detectar desconexión en <5 segundos |
+| HEALTH_CHECK_TIMEOUT | 10s → 5s | No esperar tanto para marcar offline |
+| MAX_START_ATTEMPTS | 5 → 10 | Dar más oportunidades de reconectar |
+| START_RETRY_DELAY | 5s → 3s | Reintentar más frecuentemente |
+
+**Impacto:** Reducir gap de desconexión de ~30s a ~5s
+
+---
+
+## Validación Técnica
+
+✅ Commit: `94bfa9b` → rama `claude/financial-multiagent-system-YwtYQ`  
+✅ Diff: 24 líneas insertadas, 5 modificadas  
+✅ Sintaxis JS: válida (middleware + error handler + constantes)  
+✅ Lógica: botStarted marca estado, middleware la verifica, health check la actualiza  
+
+---
+
+## Próximos pasos
+
+1. ✅ Código pusheado a origin
+2. ⏳ Relay-master detectará cambio (~15s)
+3. ⏳ Auto-pull + `pm2 restart financial-bot`
+4. 🔄 Score esperado: **80%+** en próximos episodios
+
+---
+
+**Agente:** FinBot Verifier | **Timestamp:** 2026-05-03 01:45:00 UTC
