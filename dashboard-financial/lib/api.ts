@@ -99,6 +99,7 @@ export type Operation = {
   saldo_antes: number | null;
   saldo_despues: number | null;
   notas: string | null;
+  subtabla_json: string | null;
   created_at: string;
   updated_at: string;
 };

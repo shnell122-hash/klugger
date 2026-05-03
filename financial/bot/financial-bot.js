@@ -572,9 +572,7 @@ bot.command('start', async (ctx) => {
 // /saldo (para clientes y admin)
 bot.command('saldo', async (ctx) => {
   try {
-    const client = await balanceManager.getOrCreateClient(
-      ctx.from?.id, ctx.from?.username
-    );
+    const client = await balanceManager.getOrCreateClient(ctx.from?.id, ctx.from?.username, ctx.chat?.id);
     await safeReply(ctx,
       `💰 Saldo actual: <b>$${fmt(client.saldo)}</b>`,
       { parse_mode: 'HTML' }
@@ -587,7 +585,7 @@ bot.command('saldo', async (ctx) => {
 // /historial (últimas 10 ops)
 bot.command('historial', async (ctx) => {
   try {
-    const client = await balanceManager.getOrCreateClient(ctx.from?.id, ctx.from?.username);
+    const client = await balanceManager.getOrCreateClient(ctx.from?.id, ctx.from?.username, ctx.chat?.id);
     const hist   = await balanceManager.getHistorial(client.id, 10, 0);
     if (!hist.length) {
       await safeReply(ctx, 'Sin movimientos registrados.');
@@ -640,7 +638,7 @@ bot.command('ajuste', async (ctx) => {
       await safeReply(ctx, 'Uso: /ajuste [nombre o @username] nuevo_saldo [descripcion]\n     o responde al mensaje del cliente con /ajuste nuevo_saldo [descripcion]').catch(() => {});
       return;
     }
-    client     = await balanceManager.getOrCreateClient(replyTo);
+    client     = await balanceManager.getOrCreateClient(replyTo, null, ctx.chat?.id);
     nuevoSaldo = parseFloat(args[0]);
     desc       = args.slice(1).join(' ') || 'Ajuste manual';
   } else {
@@ -672,7 +670,7 @@ bot.command('reset', async (ctx) => {
   try {
     const userId  = ctx.from?.id;
     const chatId  = ctx.chat?.id;
-    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
     const session = await getOrCreateSession(chatId, client.id);
     await updateSession(session.id, 'completado', null);
     await safeReply(ctx, '🔄 Sesión reiniciada. Puedes empezar de nuevo.').catch(() => {});
@@ -708,7 +706,7 @@ bot.command('operacion', async (ctx) => {
   const chatId  = ctx.chat?.id;
   const cmdArgs = ctx.match ?? '';
 
-  const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+  const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
   const session = await getOrCreateSession(chatId, client.id);
 
   // Sin argumentos → modo asistido
@@ -790,12 +788,12 @@ bot.on('message:text', async (ctx, next) => {
   if (_modoChat === 'asistente') {
     // 1. Consulta de saldo — responder aunque sea modo asistente
     if (/\b(saldo|cu[aá]nto (tengo|hay|queda)|mi saldo|saldo actual)\b/i.test(text)) {
-      const clientS = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+      const clientS = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
       await safeReply(ctx, `💰 Saldo actual: <b>$${fmt(clientS.saldo)}</b>`, { parse_mode: 'HTML' }).catch(() => {});
       return;
     }
     // 2. Operación o sesión activa esperando datos — caer al flujo normal
-    const clientAsist    = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const clientAsist    = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
     const _sessionAsist  = await getOrCreateSession(chatId, clientAsist.id);
     const _hasActiveSession = _sessionAsist.estado && _sessionAsist.estado !== 'idle';
     // Solo el dueño de la sesión puede continuar una operación activa.
@@ -823,7 +821,7 @@ bot.on('message:text', async (ctx, next) => {
     }
   }
 
-  const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+  const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
   const session = await getOrCreateSession(chatId, client.id);
 
   // Si hay edición pendiente (el usuario está enviando el nuevo valor)
@@ -1170,7 +1168,7 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
   const chatId = ctx.chat?.id;
   const msg    = ctx.message;
 
-  const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+  const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
   const session = await getOrCreateSession(chatId, client.id);
 
   const fileInfo = extractFileFromMessage(msg);
@@ -1630,7 +1628,7 @@ bot.on('callback_query:data', async (ctx) => {
   // ── Confirmar factura ─────────────────────────────────────────────────────
   if (data === 'confirmar_factura') {
     await ctx.answerCallbackQuery();
-    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
     const session = await getOrCreateSession(chatId, client.id);
     const draft   = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
@@ -1668,7 +1666,7 @@ bot.on('callback_query:data', async (ctx) => {
 
   if (data === 'cancelar_factura') {
     await ctx.answerCallbackQuery();
-    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
     const session = await getOrCreateSession(chatId, client.id);
     await updateSession(session.id, 'completado', null);
     try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
@@ -1679,7 +1677,7 @@ bot.on('callback_query:data', async (ctx) => {
   // ── Confirmar comprobante de pago ─────────────────────────────────────────
   if (data === 'confirmar_comprobante') {
     await ctx.answerCallbackQuery();
-    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
     const session = await getOrCreateSession(chatId, client.id);
     const draft   = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
@@ -1754,7 +1752,7 @@ bot.on('callback_query:data', async (ctx) => {
 
   if (data === 'cancelar_comprobante') {
     await ctx.answerCallbackQuery();
-    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
     const session = await getOrCreateSession(chatId, client.id);
     await updateSession(session.id, 'completado', null);
     try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
@@ -1766,7 +1764,7 @@ bot.on('callback_query:data', async (ctx) => {
   if (data.startsWith('usar_cuenta_')) {
     await ctx.answerCallbackQuery();
     const cuentaId = parseInt(data.replace('usar_cuenta_', ''));
-    const client   = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const client   = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
     const session  = await getOrCreateSession(chatId, client.id);
     const draft    = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     const cuenta   = (draft.cuentas_disponibles ?? []).find(c => c.id === cuentaId);
@@ -1780,7 +1778,7 @@ bot.on('callback_query:data', async (ctx) => {
   // ── Datos bancarios: ingresar nuevos ──────────────────────────────────────
   if (data === 'nueva_cuenta') {
     await ctx.answerCallbackQuery();
-    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
     const session = await getOrCreateSession(chatId, client.id);
     const draft   = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     delete draft.cuentas_bancarias;
@@ -1796,7 +1794,7 @@ bot.on('callback_query:data', async (ctx) => {
   // ── Datos bancarios: confirmar ────────────────────────────────────────────
   if (data === 'confirmar_cuentas') {
     await ctx.answerCallbackQuery();
-    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
     const session = await getOrCreateSession(chatId, client.id);
     const draft   = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
@@ -2197,7 +2195,7 @@ bot.on('message:voice', async (ctx) => {
     if (modoChat === 'asistente') return;
 
     // En modo normal: procesar la transcripción como si fuera un mensaje de texto
-    const client  = await balanceManager.getOrCreateClient(from.id, from.username);
+    const client  = await balanceManager.getOrCreateClient(from.id, from.username, chatId);
     const session = await getOrCreateSession(chatId, client.id);
 
     // Inyectar en el flujo de texto reutilizando el handler
