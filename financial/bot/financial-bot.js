@@ -2218,53 +2218,122 @@ bot.catch((err) => {
   }
 });
 
-// ── Start ─────────────────────────────────────────────────────────────────────
+// ── Start con reconexión automática ──────────────────────────────────────────
 
 // Cargar admins desde DB al arrancar (merge con los del .env)
 q.getAdminUserIds(pool)
   .then(ids => ids.forEach(id => ADMIN_USER_IDS.add(id)))
   .catch(err => console.error('[admin-load]', err.message));
 
-bot.start({
-  onStart: async (info) => {
-    console.log(`[financial-bot] Bot @${info.username} iniciado`);
+let botStarted = false;
+let botHealthCheckInterval = null;
+let botStartAttempts = 0;
+const MAX_START_ATTEMPTS = 5;
+const START_RETRY_DELAY = 5000; // 5s
+const HEALTH_CHECK_INTERVAL = 30000; // 30s
+const HEALTH_CHECK_TIMEOUT = 10000; // 10s timeout para getMe()
 
-    // Comandos visibles para todos los usuarios
-    const comandosUsuario = [
-      { command: 'start',     description: 'Bienvenida / comenzar' },
-      { command: 'saldo',     description: 'Ver tu saldo actual' },
-      { command: 'historial', description: 'Ver historial de operaciones' },
-      { command: 'operacion', description: 'Iniciar una nueva operación' },
-      { command: 'reset',     description: 'Reiniciar sesión actual' },
-      { command: 'miid',      description: 'Ver tu Telegram ID' },
-    ];
+async function startBotWithRetry() {
+  botStartAttempts++;
+  try {
+    console.log(`[financial-bot] Intentando iniciar bot (intento ${botStartAttempts}/${MAX_START_ATTEMPTS})...`);
 
-    // Comandos adicionales de administrador
-    const comandosAdmin = [
-      ...comandosUsuario,
-      { command: 'ajuste',    description: '(Admin) Ajuste manual de saldo' },
-      { command: 'testmode',  description: '(Admin) Activar/desactivar modo prueba' },
-      { command: 'rol',       description: '(Admin) Cambiar rol del chat' },
-      { command: 'modo',      description: '(Admin) Cambiar modo del chat (normal/asistente)' },
-    ];
+    bot.start({
+      onStart: async (info) => {
+        console.log(`[financial-bot] Bot @${info.username} iniciado correctamente`);
+        botStarted = true;
+        botStartAttempts = 0;
 
-    try {
-      await bot.api.setMyCommands(comandosUsuario);
-      // Registrar comandos admin para administradores de grupos (muestra /ajuste en grupos)
-      await bot.api.setMyCommands(comandosAdmin, {
-        scope: { type: 'all_chat_administrators' },
-      }).catch(() => {});
-      // Registrar comandos admin por cada admin conocido (chat privado)
-      for (const adminId of ADMIN_USER_IDS) {
-        await bot.api.setMyCommands(comandosAdmin, {
-          scope: { type: 'chat', chat_id: adminId },
-        }).catch(() => {});
+        // Comandos visibles para todos los usuarios
+        const comandosUsuario = [
+          { command: 'start',     description: 'Bienvenida / comenzar' },
+          { command: 'saldo',     description: 'Ver tu saldo actual' },
+          { command: 'historial', description: 'Ver historial de operaciones' },
+          { command: 'operacion', description: 'Iniciar una nueva operación' },
+          { command: 'reset',     description: 'Reiniciar sesión actual' },
+          { command: 'miid',      description: 'Ver tu Telegram ID' },
+        ];
+
+        // Comandos adicionales de administrador
+        const comandosAdmin = [
+          ...comandosUsuario,
+          { command: 'ajuste',    description: '(Admin) Ajuste manual de saldo' },
+          { command: 'testmode',  description: '(Admin) Activar/desactivar modo prueba' },
+          { command: 'rol',       description: '(Admin) Cambiar rol del chat' },
+          { command: 'modo',      description: '(Admin) Cambiar modo del chat (normal/asistente)' },
+        ];
+
+        try {
+          await bot.api.setMyCommands(comandosUsuario);
+          // Registrar comandos admin para administradores de grupos (muestra /ajuste en grupos)
+          await bot.api.setMyCommands(comandosAdmin, {
+            scope: { type: 'all_chat_administrators' },
+          }).catch(() => {});
+          // Registrar comandos admin por cada admin conocido (chat privado)
+          for (const adminId of ADMIN_USER_IDS) {
+            await bot.api.setMyCommands(comandosAdmin, {
+              scope: { type: 'chat', chat_id: adminId },
+            }).catch(() => {});
+          }
+          console.log('[financial-bot] Menú de comandos registrado');
+        } catch (err) {
+          console.error('[setMyCommands]', err.message);
+        }
+
+        // Inicia health check para detectar desconexiones
+        startHealthCheck();
+      },
+    }).catch(err => {
+      console.error(`[financial-bot] Error en bot.start():`, err.message);
+      botStarted = false;
+      if (botStartAttempts < MAX_START_ATTEMPTS) {
+        setTimeout(() => startBotWithRetry(), START_RETRY_DELAY);
+      } else {
+        console.error('[financial-bot] ❌ No se pudo iniciar el bot después de', MAX_START_ATTEMPTS, 'intentos');
+        process.exit(1);
       }
-      console.log('[financial-bot] Menú de comandos registrado');
-    } catch (err) {
-      console.error('[setMyCommands]', err.message);
+    });
+  } catch (err) {
+    console.error(`[financial-bot] Error al iniciar bot (intento ${botStartAttempts}):`, err.message);
+    if (botStartAttempts < MAX_START_ATTEMPTS) {
+      setTimeout(() => startBotWithRetry(), START_RETRY_DELAY);
+    } else {
+      console.error('[financial-bot] ❌ No se pudo iniciar el bot después de', MAX_START_ATTEMPTS, 'intentos');
+      process.exit(1);
     }
-  },
-});
+  }
+}
+
+function startHealthCheck() {
+  if (botHealthCheckInterval) clearInterval(botHealthCheckInterval);
+
+  // Health check cada 30s: verifica si el bot puede hacer una llamada a la API
+  botHealthCheckInterval = setInterval(async () => {
+    try {
+      // Timeout de 10s para detectar desconexiones
+      const mePromise = bot.api.getMe();
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Health check timeout')), HEALTH_CHECK_TIMEOUT)
+      );
+      
+      const me = await Promise.race([mePromise, timeoutPromise]);
+      if (!me) throw new Error('getMe retornó undefined');
+      // console.log('[health-check] ✅ Bot respondiendo');
+    } catch (err) {
+      console.error('[health-check] ❌ Bot no responde:', err.message);
+      botStarted = false;
+      if (botHealthCheckInterval) clearInterval(botHealthCheckInterval);
+      // Reintentar iniciar el bot después de 2s
+      setTimeout(() => {
+        console.log('[health-check] Reiniciando bot después de detección de desconexión...');
+        botStartAttempts = 0;
+        startBotWithRetry();
+      }, 2000);
+    }
+  }, HEALTH_CHECK_INTERVAL);
+}
+
+// Inicia el bot con reintentos
+startBotWithRetry();
 
 module.exports = { bot, pool };
