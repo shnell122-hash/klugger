@@ -386,6 +386,7 @@ def gen_for_tier(asset_type: str, tier: int) -> tuple[bytes, dict]:
             "semana": semana, "clientes": n, "tier": tier,
             "total_neto": sum(c.neto for c in clientes),
             "negativos": negativos,
+            "filename": f"cuadro_sem{semana}.png",
             "caption": f"CUADRO RETORNO SEM{semana} — {n} clientes"
                        + (f" ⚠️{negativos} negativos" if negativos else ""),
         }
@@ -406,4 +407,4 @@ def gen_for_tier(asset_type: str, tier: int) -> tuple[bytes, dict]:
         monto = _rnd.choice(montos)
         receptor = _rnd.choice([n.split()[0] + " " + n.split()[-1] for n in NOMBRES])
         data = gen_comprobante_png(monto, tier, receptor)
-        return data, {"monto": monto, "tier": tier, "caption": "Comprobante ingreso"}
+        return data, {"monto": monto, "tier": tier, "filename": "comprobante.jpg", "caption": "Comprobante ingreso"}
