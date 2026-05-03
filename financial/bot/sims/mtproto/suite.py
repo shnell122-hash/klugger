@@ -27,7 +27,7 @@ import sys
 import time
 from pathlib import Path
 
-from client import get_client, env, chat_id
+from client import get_client, env, chat_id, read_backend_env
 from learning import (
     start_episode, record_test_result, complete_episode,
     build_report, post_to_telegram, dispatch_fix_if_needed
@@ -40,25 +40,12 @@ CHAT_ID = None   # se carga al inicio
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def db(query: str) -> str:
-    db_pass = env("DB_PASS", "") or _read_backend_env("DB_PASS")
+    db_pass = env("DB_PASS", "") or read_backend_env("DB_PASS")
     result = subprocess.run(
         ["mysql", "-u", "root", f"-p{db_pass}", "ai_monitoring", "-sN", "-e", query],
         capture_output=True, text=True
     )
     return result.stdout.strip()
-
-
-def _read_backend_env(key: str) -> str:
-    candidates = [
-        Path(__file__).parent.parent.parent.parent.parent / "backend" / ".env",
-        Path("/var/www/html/vilarkptl.com/ai-monitor/backend/.env"),
-    ]
-    for p in candidates:
-        if p.exists():
-            for line in p.read_text().splitlines():
-                if line.startswith(f"{key}="):
-                    return line.split("=", 1)[1].strip()
-    return ""
 
 
 async def wait_bot_response(seconds: int = 8):

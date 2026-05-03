@@ -17,7 +17,7 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
-from client import env, _read_backend_env
+from client import env, read_backend_env
 
 # ── DB helper ────────────────────────────────────────────────────────────────
 
@@ -25,7 +25,7 @@ def _db_pass() -> str:
     p = env("DB_PASS", "")
     if p:
         return p
-    return _read_backend_env("DB_PASS")
+    return read_backend_env("DB_PASS")
 
 
 def db_query(query: str, values: tuple = ()) -> list[dict]:

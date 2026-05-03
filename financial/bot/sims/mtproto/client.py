@@ -43,6 +43,20 @@ def env(key: str, default: str = "") -> str:
     return _load_env().get(key, default)
 
 
+def read_backend_env(key: str) -> str:
+    """Lee una variable del backend/.env (separado del financial/.env)."""
+    candidates = [
+        Path(__file__).parent.parent.parent.parent.parent / "backend" / ".env",
+        Path("/var/www/html/vilarkptl.com/ai-monitor/backend/.env"),
+    ]
+    for p in candidates:
+        if p.exists():
+            for line in p.read_text().splitlines():
+                if line.startswith(f"{key}="):
+                    return line.split("=", 1)[1].strip()
+    return ""
+
+
 def get_client(account: str) -> TelegramClient:
     """
     account: 'gv' | 'noela' | 'kevin'
