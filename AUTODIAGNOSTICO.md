@@ -158,11 +158,15 @@ Procesos auxiliares (no manejados por relay-master):
 | leasingagata@gmail.com | `ANTHROPIC_ADMIN_KEY_LEASINGAGATA` | ❌ Pendiente |
 
 ### Incidentes de costo documentados
-| Fecha | Cuenta | Gasto | Causa | Estado |
-|-------|--------|-------|-------|--------|
-| 2026-04-21/22 | vilarkptl | ~$70 | FiscalAI en loop 26+ iteraciones | Resuelto — watchdog 25 min |
-| 2026-05-01-03 | vilarkptl | ~$250 | finbot-verifier loop, créditos agotados | Resuelto — kill-switch $7/día |
-| Total conocido | — | **~$320+** | Loops sin límite diario | Kill-switch activo |
+| Fecha | Cuenta | Gasto visible | Causa | Estado |
+|-------|--------|--------------|-------|--------|
+| 2026-05-01 | vilarkptl | ~$4 | Actividad normal agentes | Normal |
+| 2026-05-02 | vilarkptl | ~$5 | Actividad normal agentes | Normal |
+| 2026-05-03 | vilarkptl | **~$28-30** | Finbot-verifier loop + agentes simultáneos | Kill-switch activo |
+| **Total Mayo** | vilarkptl | **$34.15** | Ver platform.claude.com → Cost | Créditos: $98.04 |
+
+> Nota: El usuario recargó $250 y luego $100 en créditos. El gasto real visible en la consola
+> es $34.15. El spike del 3 de mayo (~$28) es el que motivó el kill-switch de $7/día.
 
 ### Límites configurados (desde hoy, migrate-v12)
 | Nivel | Límite | Acción |
@@ -192,10 +196,11 @@ Estos no aparecen en ningún dashboard pero son reales:
 - Costo si se valoriza a $50/h: **~$400 en tiempo**
 - Causa raíz: arquitectura de directorio compartido + branches sin merge
 
-### 2. Créditos quemados en loops sin resultado
-- finbot-verifier ejecutó 40-44 iteraciones TODAS fallando por "Credit balance too low"
-- Cada iteración consumió tokens ANTES de fallar
-- Los tokens gastados en errores no producen valor = **desperdicio puro**
+### 2. Tokens quemados en loops sin resultado
+- finbot-verifier ejecutó 40-44 iteraciones el 3 de mayo
+- Las últimas iteraciones fallaron por "Credit balance too low" — pero las anteriores sí consumieron tokens
+- El spike de ~$28 en un solo día (vs ~$4-5 días normales) indica un ciclo de trabajo ineficiente
+- Los tokens gastados en iteraciones fallidas no producen valor = **desperdicio puro**
 
 ### 3. Swap como "RAM prestada"
 - 70-73% de swap = el sistema está pidiendo prestada RAM al disco
