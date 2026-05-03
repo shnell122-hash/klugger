@@ -1,51 +1,14 @@
 # Relay Outbox — FinBot — Verificador Continuo
-_3/5/2026, 12:38:16 a.m. | 162s | exit:0_
+_3/5/2026, 12:38:37 a.m. | 17s | exit:0_
 
 RELAY_DIAG user=claude-agent home=/home/claude-agent task=ok
-Entendido. Soy **FinBot Verifier** — voy a diagnosticar los patrones de falla recurrentes (timeout y desconexión) y corregir el código del bot. Voy a comenzar verificando logs y estado actual.Encontré el problema. El pool de conexiones MySQL está limitado a solo **5 conexiones** (línea 68), y cuando hay múltiples solicitudes simultáneas de `/saldo`, el pool se agota. Las nuevas solicitudes se quedan esperando una conexión disponible durante más de 12 segundos, lo que causa un timeout de Telegram.
+Veo que has cargado el rol de **FinBot Verifier** — agente de verificación continua para `financial-bot`. Sin embargo, la sección de tareas está vacía.
 
-Voy a corregir esto aumentando el límite de conexiones:Encontré un problema: **no tengo permisos de escritura** en el directorio `/var/www/html/vilarkptl.com/ai-monitor` (el propietario es root y solo www-data tiene acceso a través del grupo setgid). Sin embargo, identifiqué el **problema exacto** y la **solución**:
+Déjame revisar el inbox para ver si hay una tarea pendiente:Veo una inconsistencia: cargaste el rol de **FinBot Verifier**, pero el inbox contiene una tarea de **FiscalAI** (fix de omisiones.js).
 
-## Problema Identificado
+¿Cuál es la tarea que necesitas ejecutar?
 
-El pool de conexiones MySQL está limitado a **5 conexiones** (línea 68), y cuando hay múltiples solicitudes simultáneas de `/saldo`, se agota. Las nuevas solicitudes se quedan esperando más de 12 segundos → timeout de Telegram → error "Cannot send requests while disconnected".
+1. **FiscalAI — Fix cruce ESTIMADO/CONFIRMADO + Obligación** (la que está en el inbox de fiscalai)
+2. **FinBot Verifier** (verificación de logs, DB y dashboard del financial-bot)
 
-## Solución Requerida
-
-Aumentar el `connectionLimit` de 5 a 15 y añadir parámetros de optimización. He creado el archivo correcto en `/tmp/financial-bot-fixed.js`.
-
-Necesito que ejecutes este comando en el servidor para aplicar el cambio:
-
-```bash
-sudo cp /tmp/financial-bot-fixed.js /var/www/html/vilarkptl.com/ai-monitor/financial/bot/financial-bot.js && pm2 restart financial-bot
-```
-
-O si prefieres hacerlo manualmente, edita `/var/www/html/vilarkptl.com/ai-monitor/financial/bot/financial-bot.js` línea 68 y cambia:
-
-```javascript
-// ❌ ANTES:
-const pool = mysql.createPool({
-  // ...
-  connectionLimit: 5,
-  timezone: '+00:00',
-});
-
-// ✅ DESPUÉS:
-const pool = mysql.createPool({
-  // ...
-  connectionLimit: 15,
-  queueLimit: 5,
-  enableKeepAlive: true,
-  keepAliveInitialDelayMs: 0,
-  timezone: '+00:00',
-});
-```
-
-Luego:
-```bash
-pm2 restart financial-bot
-```
-
-El archivo modificado está listo en: `/tmp/financial-bot-fixed.js`
-
-**¿Puedes ejecutar ese comando o hacer el cambio manualmente?** Una vez aplicado, el score debería subir por encima del 80% en los próximos ciclos.
+Clarifica y ejecuto la tarea correspondiente.a tarea de **FiscalAI** (fix de omisiones.js).\n\n¿Cuál es la tarea que necesitas ejecutar?\n\n1. **FiscalAI — Fix cruce ESTIMADO/CONFIRMADO + Obligación** (la que está en el inbox de fiscalai)\n2. **FinBot Verifier** (verificación de logs, DB y dashboard del financial-bot)\n\nClarifica y ejecuto la tarea correspondiente.","stop_reason":"end_turn","session_id":"3fa06292-8399-46b4-ade5-aea371086511","total_cost_usd":0.03133925,"usage":{"input_tokens":16,"cache_creation_input_tokens":13621,"cache_read_input_tokens":57650,"output_tokens":1270,"server_tool_use":{"web_search_requests":0,"web_fetch_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":0,"ephemeral_5m_input_tokens":13621},"inference_geo":"","iterations":[{"input_tokens":7,"output_tokens":729,"cache_read_input_tokens":34360,"cache_creation_input_tokens":2551,"cache_creation":{"ephemeral_5m_input_tokens":2551,"ephemeral_1h_input_tokens":0},"type":"message"}],"speed":"standard"},"modelUsage":{"claude-haiku-4-5-20251001":{"inputTokens":2118,"outputTokens":1286,"cacheReadInputTokens":57650,"cacheCreationInputTokens":13621,"webSearchRequests":0,"costUSD":0.03133925,"contextWindow":200000,"maxOutputTokens":32000}},"permission_denials":[],"terminal_reason":"completed","fast_mode_state":"off","uuid":"f99b7274-bb91-4470-9ba0-7f1dd0f70758"}
