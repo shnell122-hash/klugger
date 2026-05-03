@@ -98,4 +98,58 @@ server.listen(PORT, '0.0.0.0', () => {
       dailySnapshot().catch(e => console.error('[apiAdmin] snapshot error:', e.message));
     }
   }, 60 * 1000);
+
+  // Project budget enforcer — check per-project monthly limits every 5 min
+  const db = require('./db/mysql');
+  setInterval(async () => {
+    try {
+      const [budgets] = await db.query(
+        'SELECT * FROM project_monthly_budget WHERE kill_enabled = 1'
+      ).catch(() => [[]]);
+      if (!budgets.length) return;
+
+      const billingStart = new Date();
+      billingStart.setDate(1); billingStart.setHours(0, 0, 0, 0);
+
+      const [spends] = await db.query(
+        `SELECT project_name, ROUND(SUM(estimated_cost_usd),4) AS cost
+         FROM agent_events
+         WHERE timestamp >= ? AND project_name IS NOT NULL
+         GROUP BY project_name`,
+        [billingStart.toISOString().slice(0, 10)]
+      ).catch(() => [[]]);
+
+      const spendMap = {};
+      spends.forEach(r => { spendMap[r.project_name] = parseFloat(r.cost || 0); });
+
+      for (const b of budgets) {
+        const spent = spendMap[b.project_name] || 0;
+        if (spent < parseFloat(b.budget_usd)) continue;
+
+        const killKey = `project_killed_${b.project_name}`;
+        const [[cur]] = await db.query(
+          "SELECT `value` FROM system_state WHERE `key`=?", [killKey]
+        ).catch(() => [[null]]);
+        if (cur?.value === '1') continue; // already killed
+
+        await db.query(
+          "INSERT INTO system_state(`key`,`value`) VALUES(?,1) ON DUPLICATE KEY UPDATE `value`='1', updated_at=NOW(3)",
+          [killKey]
+        );
+        await db.query(
+          'INSERT INTO project_budget_alerts (project_name, budget_usd, actual_usd) VALUES (?,?,?)',
+          [b.project_name, b.budget_usd, spent]
+        ).catch(() => {});
+        io.emit('project_budget_exceeded', {
+          project: b.project_name,
+          budget:  b.budget_usd,
+          spent,
+          msg:     `🛑 ${b.project_name} superó $${b.budget_usd}/mes (gastado: $${spent.toFixed(2)})`,
+        });
+        console.warn(`[budget] ${b.project_name} KILLED — spent $${spent} / budget $${b.budget_usd}`);
+      }
+    } catch (e) {
+      console.error('[budget] project enforcer error:', e.message);
+    }
+  }, 5 * 60 * 1000);
 });

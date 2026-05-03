@@ -1293,9 +1293,10 @@ let platformHourlyChart = null;
 
 async function loadPlatform() {
   try {
-    const [summary, hourly] = await Promise.all([
+    const [summary, hourly, accounts] = await Promise.all([
       fetch(`${API}/api/platform/summary`).then(r => r.json()),
       fetch(`${API}/api/platform/hourly`).then(r => r.json()),
+      fetch(`${API}/api/platform/accounts`).then(r => r.json()).catch(() => null),
     ]);
 
     if (summary.error) throw new Error(summary.error);
@@ -1398,6 +1399,9 @@ async function loadPlatform() {
       ).join('');
     }
 
+    // Multi-account summary
+    renderPlatformAccounts(accounts);
+
     document.getElementById('platform-error').style.display = 'none';
 
     // Kill-switch banner
@@ -1464,13 +1468,15 @@ let apiDonutChart, apiBarChart, apiLineChart;
 async function loadApiAdmin() {
   const days = document.getElementById('api-admin-range')?.value || 30;
   try {
-    const [summary, ts, byProj, byKey, killStatus, killAlerts] = await Promise.all([
+    const [summary, ts, byProj, byKey, killStatus, killAlerts, projBudgets, historical] = await Promise.all([
       fetch(`${API}/api/apiAdmin/summary`).then(r => r.json()),
       fetch(`${API}/api/apiAdmin/timeseries?days=${days}`).then(r => r.json()),
       fetch(`${API}/api/apiAdmin/byProject?days=${days}`).then(r => r.json()),
       fetch(`${API}/api/apiAdmin/byKey`).then(r => r.json()),
       fetch(`${API}/api/apiAdmin/killStatus`).then(r => r.json()),
       fetch(`${API}/api/apiAdmin/alerts`).then(r => r.json()),
+      fetch(`${API}/api/apiAdmin/projectBudgets`).then(r => r.json()).catch(() => null),
+      fetch(`${API}/api/apiAdmin/historical`).then(r => r.json()).catch(() => null),
     ]);
 
     renderApiAdminPills(summary);
@@ -1479,6 +1485,8 @@ async function loadApiAdmin() {
     renderApiBar(byProj);
     renderApiLine(ts);
     renderApiByKey(byKey);
+    renderApiProjectBudgets(projBudgets);
+    renderApiHistorical(historical);
     renderApiThresholds(killStatus);
     renderApiKillAlerts(killAlerts);
   } catch (e) {
@@ -1669,6 +1677,132 @@ async function ackKillAlert(id) {
 async function snapshotNow() {
   await fetch(`${API}/api/apiAdmin/snapshot`, { method: 'POST' });
   loadApiAdmin();
+}
+
+// ─── Platform accounts ────────────────────────────────────
+function renderPlatformAccounts(data) {
+  const el = document.getElementById('platform-accounts');
+  if (!el) return;
+  if (!data?.accounts?.length) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:4px">Configure las Admin API keys en relay/.env para ver el desglose por cuenta</div>';
+    return;
+  }
+  const grandTotal = data.grand_total_real || 0;
+  el.innerHTML = data.accounts.map(acc => {
+    const pct = grandTotal > 0 ? Math.min(100, acc.cost_month / Math.max(grandTotal, 1) * 100) : 0;
+    const hasKey = acc.has_key;
+    const statusDot = hasKey
+      ? '<span style="color:var(--green);font-size:9px">●</span>'
+      : '<span style="color:var(--red);font-size:9px" title="Key no configurada">●</span>';
+    return `<div class="cost-row" style="flex-direction:column;align-items:stretch;gap:3px;padding:6px 14px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="display:flex;align-items:center;gap:5px">
+          ${statusDot}
+          <span style="font-size:11px;color:var(--text)">${escHtml(acc.email)}</span>
+          ${acc.notes ? `<span style="font-size:9px;color:var(--text-muted)">(${escHtml(acc.notes)})</span>` : ''}
+        </div>
+        <div style="text-align:right">
+          <span style="font-size:12px;font-weight:600;color:${acc.cost_month>50?'var(--red)':acc.cost_month>20?'var(--orange)':'var(--green)'}">$${acc.cost_month.toFixed(2)}</span>
+          <span style="font-size:9px;color:var(--text-muted)"> este mes</span>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted)">
+        <span>Total histórico: <b style="color:var(--text)">$${(acc.cost_total||0).toFixed(2)}</b></span>
+        <span>Corte: día ${acc.billing_day} | ${escHtml(acc.billing_start)}</span>
+      </div>
+    </div>`;
+  }).join('') + `<div style="padding:6px 14px;font-size:11px;border-top:1px solid var(--border);display:flex;justify-content:space-between">
+    <span style="color:var(--text-muted)">Total real histórico (todas las cuentas)</span>
+    <span style="font-weight:700;color:var(--accent)">$${grandTotal.toFixed(2)}</span>
+  </div>`;
+}
+
+// ─── API Admin — project budgets ──────────────────────────
+function renderApiProjectBudgets(data) {
+  const el = document.getElementById('api-project-budgets');
+  if (!el) return;
+  if (!data?.projects?.length) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:4px">Sin datos de proyectos este mes</div>';
+    return;
+  }
+  el.innerHTML = data.projects.map(p => {
+    const pct = p.pct;
+    const fillClass = pct >= 100 ? 'over' : pct >= 75 ? 'warn' : '';
+    const killBadge = p.killed
+      ? '<span style="font-size:9px;color:var(--red);margin-left:4px">PAUSADO</span>'
+      : (p.over_budget ? '<span style="font-size:9px;color:var(--orange);margin-left:4px">LÍMITE</span>' : '');
+    return `<div style="padding:6px 14px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+        <div style="display:flex;align-items:center;gap:4px">
+          <span style="font-size:11px;color:var(--text)">${escHtml(p.project_name)}</span>
+          ${killBadge}
+          ${p.unconfigured ? '<span style="font-size:9px;color:var(--text-muted)">(sin config)</span>' : ''}
+        </div>
+        <div style="text-align:right;font-size:10px">
+          <span style="color:${pct>=100?'var(--red)':pct>=75?'var(--orange)':'var(--text)'}">$${p.cost_month.toFixed(3)}</span>
+          <span style="color:var(--text-muted)"> / $${p.budget_usd.toFixed(0)}</span>
+        </div>
+      </div>
+      <div class="api-limit-bar">
+        <div class="api-limit-fill ${fillClass}" style="width:${pct.toFixed(0)}%"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:2px;font-size:9px;color:var(--text-muted)">
+        <span>${pct.toFixed(1)}% del presupuesto</span>
+        ${p.killed
+          ? `<button class="btn-sm" style="font-size:9px;padding:1px 6px" onclick="resumeProject('${escHtml(p.project_name)}')">▶ Reanudar</button>`
+          : `<span>${p.events_month} eventos</span>`}
+      </div>
+    </div>`;
+  }).join('') + `<div style="padding:6px 14px;font-size:10px;color:var(--text-muted)">
+    Ciclo: desde ${escHtml(data.billing_start || '')} · Límite: $100/proyecto/mes
+  </div>`;
+}
+
+async function resumeProject(projectName) {
+  await fetch(`${API}/api/apiAdmin/projectBudgets/${encodeURIComponent(projectName)}/resume`, { method: 'POST' });
+  loadApiAdmin();
+}
+
+// ─── API Admin — historical ───────────────────────────────
+function renderApiHistorical(data) {
+  const el = document.getElementById('api-historical');
+  if (!el) return;
+  if (!data) { el.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:4px">Cargando…</div>'; return; }
+  const real = data.real || {};
+  const est  = data.estimated || {};
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px 14px">
+      <div style="background:var(--bg3);border-radius:6px;padding:8px">
+        <div style="font-size:9px;color:var(--text-muted);margin-bottom:2px">Real Anthropic (Admin API)</div>
+        <div style="font-size:18px;font-weight:700;color:var(--green)">$${(real.total||0).toFixed(2)}</div>
+        <div style="font-size:9px;color:var(--text-muted)">todas las cuentas</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:6px;padding:8px">
+        <div style="font-size:9px;color:var(--text-muted);margin-bottom:2px">Estimado (todos los providers)</div>
+        <div style="font-size:18px;font-weight:700;color:var(--accent)">$${(est.total||0).toFixed(2)}</div>
+        <div style="font-size:9px;color:var(--text-muted)">${est.days_active||0} días de actividad</div>
+      </div>
+    </div>
+    ${real.by_account?.length ? `
+    <div style="padding:4px 14px 8px">
+      <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Por cuenta (histórico):</div>
+      ${real.by_account.map(a => `
+        <div style="display:flex;justify-content:space-between;font-size:10px;padding:2px 0">
+          <span style="color:var(--text)">${escHtml(a.account)}</span>
+          <span style="color:var(--text-muted)">${a.first_record ? escHtml(String(a.first_record).slice(0,10)) : '—'} → ${a.last_record ? escHtml(String(a.last_record).slice(0,10)) : '—'}</span>
+          <span style="font-weight:600;color:var(--green)">$${(a.cost||0).toFixed(2)}</span>
+        </div>`).join('')}
+    </div>` : ''}
+    ${est.by_project?.length ? `
+    <div style="padding:4px 14px 8px">
+      <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Por proyecto (estimado histórico):</div>
+      ${est.by_project.slice(0,8).map(p => `
+        <div style="display:flex;justify-content:space-between;font-size:10px;padding:2px 0">
+          <span style="color:var(--text)">${escHtml(p.project)}</span>
+          <span style="color:var(--text-muted)">${p.events} eventos</span>
+          <span style="font-weight:600;color:var(--accent)">$${(p.cost||0).toFixed(4)}</span>
+        </div>`).join('')}
+    </div>` : ''}`;
 }
 
 // ─── Init ─────────────────────────────────────────────────

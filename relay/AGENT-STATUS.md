@@ -13,6 +13,7 @@ _Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02 | Actualizado 20
 
 | Agente | Sesión/Branch | Último cambio | Estado |
 |--------|--------------|---------------|--------|
+| Claude Code (`claude/agent-monitoring-dashboard-4v8iq`) | 2026-05-03 | Multi-account spending, $100/proyecto/mes kill-switch, gasto histórico, migrate-v12 | ✅ Pusheado |
 | Claude Code (`claude/agent-monitoring-dashboard-4v8iq`) | 2026-05-02 12:43 | Redesign, toggle tema, SYSTEM.md, audit, Cursor integration, AGENT-STATUS.md, PR #21 → mergeado a main | ✅ En main |
 | Claude Code (`claude/onboard-ai-monitor-subproject-zXvki`) | 2026-05-02 11:35 | LiteLLM activado, auth login, kptl-credito fix | ✅ Pusheado |
 | Claude Code (`claude/financial-multiagent-system-YwtYQ`) | 2026-05-03 | financial-bot bugs: timeout /saldo + CLABE/asistente, race condition, reconnect, keywords clabegv | ✅ En producción |
@@ -97,9 +98,15 @@ git -C /var/www/html/vilarkptl.com/ai-monitor push origin HEAD:backup/server-loc
 
 ## Tareas pendientes
 
-- [ ] Merge PR #21 a main → `git fetch && git reset --hard origin/main` en servidor
+- [ ] Mergear `claude/agent-monitoring-dashboard-4v8iq` → main (multi-account spending, project budgets — este PR)
+- [ ] En servidor: correr `mysql ai_monitoring < backend/db/migrate-v12.sql`
+- [ ] En servidor: agregar Admin API keys al relay/.env:
+  - `ANTHROPIC_ADMIN_KEY` (ya debe existir — cuenta vilarkptl@gmail.com)
+  - `ANTHROPIC_ADMIN_KEY_GVA` (cuenta gva.server@gmail.com)
+  - `ANTHROPIC_ADMIN_KEY_LEASINGAGATA` (cuenta leasingagata@gmail.com)
+  - Obtener en: https://console.anthropic.com/settings/keys (Admin keys)
+- [ ] En servidor: `pm2 restart ai-monitor` para activar project budget poller
 - [ ] Crear y mergear PR de `claude/onboard-ai-monitor-subproject-zXvki` → main (auth + LiteLLM)
-- [ ] Al mergear: resolver conflictos → frontend = sesión 4v8iq, server.js = sesión zXvki, AGENT-STATUS.md = este archivo, borrar ESTADO-SERVIDOR.md
 - [ ] Agregar 1GB swap: `fallocate -l 1G /swapfile2 && chmod 600 /swapfile2 && mkswap /swapfile2 && swapon /swapfile2`
 - [ ] Investigar `vilar-legal-os-v59` — causa de 146k+ restarts
 - [ ] `git push origin main` desde servidor (commits locales sin push)
