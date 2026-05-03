@@ -2210,34 +2210,42 @@ bot.on('message:voice', async (ctx) => {
 
 // Función segura para enviar replies con manejo de desconexiones y reintentos
 async function safeReply(ctx, text, options = {}) {
-  const maxRetries = 3;
-  const retryDelay = 2000; // 2s entre reintentos
-  const maxWaitTime = 15000; // 15s timeout total
+  const maxRetries = 4;
+  const retryDelay = 800; // 800ms entre reintentos (más rápido)
+  const maxWaitTime = 10000; // 10s timeout total (reducido)
+  const perReplyTimeout = 6000; // 6s timeout por intento individual
 
   let lastError = null;
   const startTime = Date.now();
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      return await ctx.reply(text, options);
+      // Aplicar timeout por sendMessage para evitar bloqueos largos
+      const replyPromise = ctx.reply(text, options);
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Reply timeout exceeded')), perReplyTimeout)
+      );
+      return await Promise.race([replyPromise, timeoutPromise]);
     } catch (err) {
       lastError = err;
       const errMsg = err?.message || String(err);
 
-      // Si es error de desconexión, esperar y reintentar
-      if (errMsg?.includes('Cannot send requests while disconnected') ||
-          errMsg?.includes('Failed to fetch') ||
-          errMsg?.includes('ECONNREFUSED')) {
+      // Si es error de desconexión, timeout o red, esperar y reintentar
+      if ((errMsg?.includes('Cannot send requests while disconnected') ||
+           errMsg?.includes('Failed to fetch') ||
+           errMsg?.includes('ECONNREFUSED') ||
+           errMsg?.includes('timeout') ||
+           errMsg?.includes('Timeout')) && attempt < maxRetries - 1) {
         const elapsed = Date.now() - startTime;
-        if (elapsed < maxWaitTime && attempt < maxRetries - 1) {
-          console.warn(`[safeReply] Desconexión detectada (intento ${attempt + 1}/${maxRetries}), esperando ${retryDelay}ms...`);
+        if (elapsed < maxWaitTime) {
+          console.warn(`[safeReply] Error de conexión/timeout (intento ${attempt + 1}/${maxRetries}): ${errMsg}, reintentando en ${retryDelay}ms...`);
           botStarted = false;
           await new Promise(resolve => setTimeout(resolve, retryDelay));
           continue;
         }
       }
 
-      // Si no es desconexión o ya agotamos reintentos, lanzar error
+      // Si no es desconexión/timeout o ya agotamos reintentos, lanzar error
       throw err;
     }
   }
@@ -2288,8 +2296,8 @@ let botHealthCheckInterval = null;
 let botStartAttempts = 0;
 const MAX_START_ATTEMPTS = 10;
 const START_RETRY_DELAY = 3000; // 3s
-const HEALTH_CHECK_INTERVAL = 5000; // 5s (más frecuente para detectar desconexiones rápido)
-const HEALTH_CHECK_TIMEOUT = 5000; // 5s timeout para getMe()
+const HEALTH_CHECK_INTERVAL = 2000; // 2s (optimizado para detectar desconexiones inmediatas)
+const HEALTH_CHECK_TIMEOUT = 3000; // 3s timeout para getMe() (reducido para failover rápido)
 
 async function startBotWithRetry() {
   botStartAttempts++;
@@ -2365,15 +2373,15 @@ async function startBotWithRetry() {
 function startHealthCheck() {
   if (botHealthCheckInterval) clearInterval(botHealthCheckInterval);
 
-  // Health check cada 30s: verifica si el bot puede hacer una llamada a la API
+  // Health check cada 2s: verifica si el bot puede hacer una llamada a la API
   botHealthCheckInterval = setInterval(async () => {
     try {
-      // Timeout de 10s para detectar desconexiones
+      // Timeout agresivo para detectar desconexiones en < 3s
       const mePromise = bot.api.getMe();
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Health check timeout')), HEALTH_CHECK_TIMEOUT)
       );
-      
+
       const me = await Promise.race([mePromise, timeoutPromise]);
       if (!me) throw new Error('getMe retornó undefined');
       // console.log('[health-check] ✅ Bot respondiendo');
@@ -2381,12 +2389,12 @@ function startHealthCheck() {
       console.error('[health-check] ❌ Bot no responde:', err.message);
       botStarted = false;
       if (botHealthCheckInterval) clearInterval(botHealthCheckInterval);
-      // Reintentar iniciar el bot después de 2s
+      // Reintentar iniciar el bot después de 1s (más rápido)
       setTimeout(() => {
         console.log('[health-check] Reiniciando bot después de detección de desconexión...');
         botStartAttempts = 0;
         startBotWithRetry();
-      }, 2000);
+      }, 1000);
     }
   }, HEALTH_CHECK_INTERVAL);
 }
