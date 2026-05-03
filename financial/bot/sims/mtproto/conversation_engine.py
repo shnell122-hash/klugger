@@ -384,6 +384,25 @@ def gen_scenarios(tier: int) -> list[dict]:
     return scenarios
 
 
+# ─── Conexión robusta ────────────────────────────────────────────────────────
+
+async def ensure_connected(client, account: str) -> bool:
+    """Reconnect Telethon client if it dropped the TCP connection between rounds."""
+    if client.is_connected():
+        return True
+    print(f"  [{account.upper()}] disconnected — reconnecting...")
+    try:
+        await client.connect()
+        await asyncio.sleep(0.5)
+        ok = client.is_connected()
+        if ok:
+            print(f"  [{account.upper()}] reconnected OK")
+        return ok
+    except Exception as e:
+        print(f"  [{account.upper()}] reconnect failed: {e!r}")
+        return False
+
+
 # ─── Detección de respuesta del bot ───────────────────────────────────────────
 
 async def wait_for_bot_response(client, chat_id: int, timeout: int) -> Optional[str]:
@@ -461,6 +480,7 @@ async def run_chat_scenario(clients: dict, chat_entities: dict, scenario: dict,
 
             await asyncio.sleep(delay)
             try:
+                await ensure_connected(client, acct)
                 await client.send_message(target, message)
                 print(f"    [{acct.upper()}] {message[:70]}")
             except Exception as e:
@@ -542,6 +562,7 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
 
                 print(f"  [{account.upper()}] -> {label} | caption='{cap[:40]}'")
                 try:
+                    await ensure_connected(client, account)
                     buf = io.BytesIO(data)
                     buf.name = fname  # tells Telethon the MIME type (png/jpg/xlsx)
                     await client.send_file(
@@ -567,6 +588,7 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
         elif messages:
             # ── Enviar mensajes de texto ─────────────────────────────────────
             try:
+                await ensure_connected(client, account)
                 await client.send_message(target, messages[0])
             except Exception as send_err:
                 print(f"  WARNING: send_message failed ({account}): {send_err!r}")
@@ -785,6 +807,11 @@ async def run_engine(rounds: int = 0, force_tier: int = 0, dry_run: bool = False
 
     while rounds == 0 or round_num < rounds:
         round_num += 1
+
+        # Reconectar clientes que hayan perdido conexión entre rondas
+        for acct in list(active_accounts):
+            await ensure_connected(clients[acct], acct)
+
         tier = force_tier or _calculate_next_tier()
         print(f"\n{'─'*50}")
         print(f" Ronda #{round_num} | Tier {tier} | {datetime.now().strftime('%H:%M:%S')}")
