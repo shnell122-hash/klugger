@@ -41,7 +41,7 @@ from learning import (
 
 DELAY_BETWEEN_MESSAGES = 3      # segundos entre mensajes de un mismo escenario
 DELAY_BETWEEN_SCENARIOS = 8     # segundos entre escenarios distintos
-BOT_RESPONSE_TIMEOUT   = 12    # segundos esperando respuesta del bot
+BOT_RESPONSE_TIMEOUT   = 18    # segundos esperando respuesta del bot (aumentado de 12)
 ROUNDS_PER_REPORT       = 10   # cuántos rounds antes de publicar resumen en Telegram
 
 # ID de Flujos AI (financial-bot) — se auto-descubre al iniciar
@@ -736,25 +736,48 @@ async def ensure_connected(client, account: str) -> bool:
 
 # ─── Detección de respuesta del bot ───────────────────────────────────────────
 
-async def wait_for_bot_response(client, chat_id: int, timeout: int) -> Optional[str]:
+class BotResponseCollector:
     """
-    Espera hasta `timeout` segundos por un mensaje del financial-bot en el grupo.
-    Retorna el texto del mensaje o None si no llega.
+    Registra el handler ANTES del send para no perder respuestas rápidas.
+    Uso:
+        async with BotResponseCollector(client, target) as collector:
+            await client.send_message(target, msg)
+        response = await collector.wait(timeout)
     """
-    global BOT_USER_ID
-    received = []
+    def __init__(self, client, chat_entity):
+        self._client   = client
+        self._chat     = chat_entity
+        self._received: list[str] = []
 
-    async def handler(event):
-        msg = event.message
-        if msg.sender_id and BOT_USER_ID and msg.sender_id == BOT_USER_ID:
-            received.append(msg.text or "")
+    async def __aenter__(self):
+        async def _handler(event):
+            msg = event.message
+            if msg.sender_id and BOT_USER_ID and msg.sender_id == BOT_USER_ID:
+                self._received.append(msg.text or "")
+        self._handler_fn = _handler
+        self._client.add_event_handler(_handler, events.NewMessage(chats=self._chat))
+        return self
 
-    client.add_event_handler(handler, events.NewMessage(chats=chat_id))
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline and not received:
-        await asyncio.sleep(0.5)
-    client.remove_event_handler(handler)
-    return received[-1] if received else None
+    async def __aexit__(self, *_):
+        self._client.remove_event_handler(self._handler_fn)
+
+    async def wait(self, timeout: int) -> Optional[str]:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline and not self._received:
+            await asyncio.sleep(0.4)
+        return self._received[-1] if self._received else None
+
+    def latest(self) -> Optional[str]:
+        return self._received[-1] if self._received else None
+
+
+async def wait_for_bot_response(client, chat_entity, timeout: int) -> Optional[str]:
+    """Compat wrapper — registra handler, espera, retorna respuesta o None."""
+    async with BotResponseCollector(client, chat_entity) as col:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline and not col._received:
+            await asyncio.sleep(0.4)
+    return col.latest()
 
 
 async def discover_bot_user_id(client, chat_id: int) -> Optional[int]:
@@ -855,84 +878,86 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
         print(f"  [{account.upper()}] -> {messages[0][:60]}")
 
     if not dry_run:
-        if asset_spec or photo_type or doc_type:
-            # ── Enviar asset generado por assets.py ─────────────────────────
-            try:
-                from assets import gen_for_tier
-                if asset_spec:
-                    a_type, a_tier = asset_spec
-                    data, meta = gen_for_tier(a_type, a_tier)
-                    cap   = meta.get("caption", caption)
-                    fname = meta.get("filename", "asset.bin")
-                    is_doc = a_type == "cuadro_xlsx"
-                    label = (f"[xlsx {fname}]"      if is_doc else
-                             f"[png cuadro sem{meta.get('semana','?')} "
-                             f"{meta.get('clientes','?')} clientes"
-                             + (f" +{meta['negativos']} neg" if meta.get('negativos') else "")
-                             + "]"                  if "cuadro" in a_type else
-                             f"[comprobante ${meta.get('monto', 0):,.0f}]")
-                else:
-                    from assets import gen_cuadro_png, gen_comprobante_png
-                    if photo_type == "cuadro_retorno":
-                        data = gen_cuadro_png(1)
-                        cap, fname, is_doc, label = caption, "cuadro.png", False, "[cuadro png]"
-                    elif doc_type:
-                        from assets import gen_cuadro_xlsx
-                        data = gen_cuadro_xlsx(1)
-                        cap, fname, is_doc, label = caption, filename, True, f"[xlsx {filename}]"
+        # Registrar handler ANTES del send — no perdemos respuestas rápidas del bot
+        async with BotResponseCollector(client, target) as col:
+            if asset_spec or photo_type or doc_type:
+                # ── Enviar asset generado por assets.py ─────────────────────
+                try:
+                    from assets import gen_for_tier
+                    if asset_spec:
+                        a_type, a_tier = asset_spec
+                        data, meta = gen_for_tier(a_type, a_tier)
+                        cap   = meta.get("caption", caption)
+                        fname = meta.get("filename", "asset.bin")
+                        is_doc = a_type == "cuadro_xlsx"
+                        label = (f"[xlsx {fname}]"      if is_doc else
+                                 f"[png cuadro sem{meta.get('semana','?')} "
+                                 f"{meta.get('clientes','?')} clientes"
+                                 + (f" +{meta['negativos']} neg" if meta.get('negativos') else "")
+                                 + "]"                  if "cuadro" in a_type else
+                                 f"[comprobante ${meta.get('monto', 0):,.0f}]")
                     else:
-                        data = gen_comprobante_png()
-                        cap, fname, is_doc, label = caption, "comprobante.jpg", False, "[comprobante]"
+                        from assets import gen_cuadro_png, gen_comprobante_png
+                        if photo_type == "cuadro_retorno":
+                            data = gen_cuadro_png(1)
+                            cap, fname, is_doc, label = caption, "cuadro.png", False, "[cuadro png]"
+                        elif doc_type:
+                            from assets import gen_cuadro_xlsx
+                            data = gen_cuadro_xlsx(1)
+                            cap, fname, is_doc, label = caption, filename, True, f"[xlsx {filename}]"
+                        else:
+                            data = gen_comprobante_png()
+                            cap, fname, is_doc, label = caption, "comprobante.jpg", False, "[comprobante]"
 
-                print(f"  [{account.upper()}] -> {label} | caption='{cap[:40]}'")
+                    print(f"  [{account.upper()}] -> {label} | caption='{cap[:40]}'")
+                    try:
+                        await ensure_connected(client, account)
+                        buf = io.BytesIO(data)
+                        buf.name = fname
+                        await client.send_file(
+                            target, buf,
+                            caption=cap,
+                            force_document=is_doc,
+                            **({"file_name": fname} if is_doc else {})
+                        )
+                    except Exception as send_err:
+                        print(f"  WARNING: send_file failed ({account}): {send_err!r}")
+                        if isinstance(target, int):
+                            print(f"  WARNING: {account.upper()} not in group — add manually in Telegram")
+                        return {"test_id": test_id, "passed": False,
+                                "detail": f"send_file failed: {send_err}", "bot_response": None}
+                except Exception as e:
+                    print(f"  WARNING: asset preparation error: {e}")
+                    return {"test_id": test_id, "passed": False,
+                            "detail": f"asset error: {e}", "bot_response": None}
+
+                bot_response = await col.wait(BOT_RESPONSE_TIMEOUT + 5)
+
+            elif messages:
+                # ── Enviar mensajes de texto ─────────────────────────────────
                 try:
                     await ensure_connected(client, account)
-                    buf = io.BytesIO(data)
-                    buf.name = fname
-                    await client.send_file(
-                        target, buf,
-                        caption=cap,
-                        force_document=is_doc,
-                        **({"file_name": fname} if is_doc else {})
-                    )
+                    await client.send_message(target, messages[0])
                 except Exception as send_err:
-                    print(f"  WARNING: send_file failed ({account}): {send_err!r}")
+                    print(f"  WARNING: send_message failed ({account}): {send_err!r}")
                     if isinstance(target, int):
                         print(f"  WARNING: {account.upper()} not in group — add manually in Telegram")
                     return {"test_id": test_id, "passed": False,
-                            "detail": f"send_file failed: {send_err}", "bot_response": None}
-            except Exception as e:
-                print(f"  WARNING: asset preparation error: {e}")
-                return {"test_id": test_id, "passed": False,
-                        "detail": f"asset error: {e}", "bot_response": None}
-
-            bot_response = await wait_for_bot_response(client, target, BOT_RESPONSE_TIMEOUT + 5)
-
-        elif messages:
-            # ── Enviar mensajes de texto ─────────────────────────────────────
-            try:
-                await ensure_connected(client, account)
-                await client.send_message(target, messages[0])
-            except Exception as send_err:
-                print(f"  WARNING: send_message failed ({account}): {send_err!r}")
-                if isinstance(target, int):
-                    print(f"  WARNING: {account.upper()} not in group — add manually in Telegram")
-                return {"test_id": test_id, "passed": False,
-                        "detail": f"send_message failed: {send_err}", "bot_response": None}
-            bot_response = await wait_for_bot_response(client, target, BOT_RESPONSE_TIMEOUT)
-            for i, msg in enumerate(messages[1:], 1):
-                await asyncio.sleep(DELAY_BETWEEN_MESSAGES)
-                print(f"  [{account.upper()}] -> {msg[:60]}")
-                try:
-                    await ensure_connected(client, account)
-                    await client.send_message(target, msg)
-                except Exception as send_err:
-                    print(f"  WARNING: send_message[{i}] failed ({account}): {send_err!r}")
-                    break
-                if i == len(messages) - 1:
-                    r2 = await wait_for_bot_response(client, target, BOT_RESPONSE_TIMEOUT)
-                    if r2:
-                        bot_response = r2
+                            "detail": f"send_message failed: {send_err}", "bot_response": None}
+                bot_response = await col.wait(BOT_RESPONSE_TIMEOUT)
+                for i, msg in enumerate(messages[1:], 1):
+                    await asyncio.sleep(DELAY_BETWEEN_MESSAGES)
+                    print(f"  [{account.upper()}] -> {msg[:60]}")
+                    try:
+                        await ensure_connected(client, account)
+                        await client.send_message(target, msg)
+                    except Exception as send_err:
+                        print(f"  WARNING: send_message[{i}] failed ({account}): {send_err!r}")
+                        break
+                    if i == len(messages) - 1:
+                        r2 = await col.wait(BOT_RESPONSE_TIMEOUT)
+                        if r2:
+                            bot_response = r2
     else:
         await asyncio.sleep(0.1)
         bot_response = "[dry-run]"
