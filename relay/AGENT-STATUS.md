@@ -5,7 +5,7 @@
 > 2. **Actualizar este archivo AL FINAL** de su sesión con commit + push
 > 3. Nunca hacer acciones destructivas (reset, drop, rm -rf) sin verificar "En progreso"
 
-_Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02_
+_Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02 | Actualizado 2026-05-03_
 
 ---
 
@@ -13,9 +13,10 @@ _Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02_
 
 | Agente | Sesión/Branch | Último cambio | Estado |
 |--------|--------------|---------------|--------|
-| Claude Code (`claude/agent-monitoring-dashboard-4v8iq`) | 2026-05-02 12:43 | Redesign, toggle tema, SYSTEM.md, audit, Cursor integration, AGENT-STATUS.md, PR #21 | ✅ Pusheado |
-| Claude Code (`claude/onboard-ai-monitor-subproject-zXvki`) | 2026-05-02 11:35 | LiteLLM activado, auth login, kptl-credito detenido, ESTADO-SERVIDOR.md | ✅ Pusheado |
-| relay-master / fiscalai-front | 2026-05-02 08:20 | Diagnóstico sistema limpio | — |
+| Claude Code (`claude/agent-monitoring-dashboard-4v8iq`) | 2026-05-02 12:43 | Redesign, toggle tema, SYSTEM.md, audit, Cursor integration, AGENT-STATUS.md, PR #21 → mergeado a main | ✅ En main |
+| Claude Code (`claude/onboard-ai-monitor-subproject-zXvki`) | 2026-05-02 11:35 | LiteLLM activado, auth login, kptl-credito fix | ✅ Pusheado |
+| Claude Code (`claude/financial-multiagent-system-YwtYQ`) | 2026-05-03 | financial-bot bugs: timeout /saldo + CLABE/asistente, race condition, reconnect, keywords clabegv | ✅ En producción |
+| relay-master / claude-code-suborq | 2026-05-03 | Nuevo proyecto activo — comunicación bidireccional confirmada | ✅ Funcionando |
 
 ---
 
@@ -31,7 +32,9 @@ _Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02_
 | `kptl-credito` | ✅ online | Fix webhook.py aplicado — era SyntaxError línea 52 |
 | `kptl-credito-worker` | ⚠️ online | 213 restarts — depende de kptl-credito |
 | `vilar-legal-os-v59` | ⚠️ online | 146k+ restarts — crash loop no resuelto |
-| `financial-bot` | ⚠️ online | 136+ restarts |
+| `financial-bot` | ✅ online | Fixes aplicados 2026-05-03 — score 73.3% → ~85% esperado |
+| `conversation-engine` | ✅ online | Tier 2, score 62.5% (ep. #52), restart 5 |
+| `claude-code-suborq` | ✅ online | Nuevo — comunicación bidireccional activa |
 
 ### Memoria
 
