@@ -290,16 +290,17 @@ def post_to_telegram(text: str, chat_id: str = None):
         print(f"[learning] Error enviando reporte Telegram: {e}")
 
 
-# ── Dispatch fix (verifier → claude-code) ────────────────────────────────────
+# ── Dispatch fix (verifier + claude-code) ─────────────────────────────────────
 
 def dispatch_fix_if_needed(episode_id: int, results: list[dict], stats: dict):
     """
     Si hay patrones con consecutive_count >= 2 Y score < 80%:
-    - Busca fix previo en CBR
-    - Escribe tarea en relay/inbox-finbot-verifier.md para dispatch
+      - Escribe tarea en relay/inbox-finbot-verifier.md  (revisión rápida)
+    Si además consecutive_count >= 5 Y score < 65%:
+      - Escribe tarea en relay/claude-code-inbox.md      (fix de código, cooldown 30min)
     """
     if stats["score"] >= 80.0:
-        return  # no se necesita fix
+        return
 
     critical = db_query(
         "SELECT pattern_key, test_id, description, consecutive_count "
@@ -309,8 +310,11 @@ def dispatch_fix_if_needed(episode_id: int, results: list[dict], stats: dict):
     if not critical:
         return
 
+    episode_num = db_one(f"SELECT episode_num FROM learning_episodes WHERE id={episode_id}")
+
+    # ── Nivel 1: finbot-verifier (revisión rápida) ────────────────────────────
     task_lines = [
-        f"## Fix automático — Episodio #{db_one(f'SELECT episode_num FROM learning_episodes WHERE id={episode_id}')}",
+        f"## Fix automático — Episodio #{episode_num}",
         f"Score actual: {stats['score']:.1f}% — bajo el umbral del 80%",
         "",
         "### Patrones de falla recurrentes:",
@@ -335,6 +339,92 @@ def dispatch_fix_if_needed(episode_id: int, results: list[dict], stats: dict):
     inbox_path = Path("/var/www/html/vilarkptl.com/ai-monitor/relay/inbox-finbot-verifier.md")
     try:
         inbox_path.write_text("\n".join(task_lines) + "\n")
-        print(f"[learning] Fix task escrita en {inbox_path}")
+        print(f"[learning] Fix task → finbot-verifier (ep#{episode_num})")
     except Exception as e:
-        print(f"[learning] No se pudo escribir inbox: {e} (ejecutando en dev?)")
+        print(f"[learning] No se pudo escribir inbox verifier: {e}")
+
+    # ── Nivel 2: claude-code (fix de código, solo patrones severos) ───────────
+    severe = [p for p in critical if p[3] >= 5]
+    if severe and stats["score"] < 65.0:
+        _dispatch_to_claude_code(episode_num, severe, results, stats)
+
+
+def _dispatch_to_claude_code(episode_num, patterns, results: list[dict], stats: dict):
+    """
+    Escribe en relay/claude-code-inbox.md para que el relay-master despache
+    Claude Code CLI con un fix task estructurado.
+
+    Cooldown de 30 min para no re-disparar en cada episodio.
+    """
+    import time
+
+    COOLDOWN_SECS = 30 * 60
+    REPO_ROOT = Path(__file__).resolve().parents[4]
+    inbox_path    = REPO_ROOT / "relay" / "claude-code-inbox.md"
+    cooldown_file = REPO_ROOT / "relay" / ".claude-code-dispatch-ts"
+
+    # Verificar cooldown
+    if cooldown_file.exists():
+        try:
+            last_ts = float(cooldown_file.read_text().strip() or "0")
+            if time.time() - last_ts < COOLDOWN_SECS:
+                print(f"[learning] Claude Code dispatch cooldown activo — omitiendo")
+                return
+        except Exception:
+            pass
+
+    failed = [r for r in results if not r.get("passed") and not r.get("skipped")]
+
+    task_lines = [
+        f"## Fix automático — Episodio #{episode_num}",
+        f"Score: {stats['score']:.1f}% ({stats['passed']}/{stats['total']}) — "
+        f"bajo el umbral crítico del 65%",
+        "",
+        "### Patrones severos (≥5 episodios consecutivos):",
+    ]
+    for p in patterns:
+        key, test_id, desc, count = p[0], p[1], p[2], p[3]
+        prev_fix = recall_fix(test_id, desc)
+        task_lines.append(f"- **{key}** (×{count} episodios): {desc[:200]}")
+        if prev_fix:
+            task_lines.append(f"  Fix previo efectivo: `{prev_fix[:120]}`")
+
+    if failed:
+        task_lines += ["", "### Tests fallando en este episodio:"]
+        for r in failed[:6]:
+            detail = (r.get("detail") or "")[:120]
+            resp   = (r.get("bot_response") or "")[:80]
+            task_lines.append(f"- `{r['test_id']}`: {detail}")
+            if resp:
+                task_lines.append(f"  Respuesta bot: `{resp}`")
+
+    task_lines += [
+        "",
+        "### Archivos relevantes:",
+        "- `financial/bot/financial-bot.js` — lógica principal del bot",
+        "- `financial/bot/sims/mtproto/conversation_engine.py` — motor de pruebas",
+        "- `financial/bot/agents/` — agentes especializados",
+        "",
+        "### Diagnóstico sugerido:",
+        "```bash",
+        "pm2 logs financial-bot --nostream --lines 50",
+        "pm2 logs conversation-engine --nostream --lines 30",
+        "```",
+        "",
+        "### Instrucciones:",
+        "1. Analizar el patrón de falla + logs del bot",
+        "2. Identificar causa raíz y hacer el fix mínimo necesario",
+        "3. Commit + push a rama `claude/financial-multiagent-system-YwtYQ`",
+        "4. Escribir resultado en `relay/claude-code-outbox.md` con formato:",
+        "   STATUS: done | partial | failed",
+        "   CHANGED: archivos modificados",
+        "   DEPLOYED: yes | no",
+        "   PENDING: lo que falta",
+    ]
+
+    try:
+        inbox_path.write_text("\n".join(task_lines) + "\n")
+        cooldown_file.write_text(str(time.time()))
+        print(f"[learning] Claude Code dispatch → claude-code-inbox.md (ep#{episode_num})")
+    except Exception as e:
+        print(f"[learning] Claude Code dispatch falló: {e}")
