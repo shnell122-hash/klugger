@@ -28,6 +28,10 @@ import time
 from pathlib import Path
 
 from client import get_client, env, chat_id
+from learning import (
+    start_episode, record_test_result, complete_episode,
+    build_report, post_to_telegram, dispatch_fix_if_needed
+)
 
 ASSETS = Path(__file__).parent.parent / "assets"
 CHAT_ID = None   # se carga al inicio
@@ -59,12 +63,6 @@ def _read_backend_env(key: str) -> str:
 
 async def wait_bot_response(seconds: int = 8):
     await asyncio.sleep(seconds)
-
-
-def result(test: str, ok: bool, msg: str):
-    icon = "✅" if ok else "❌"
-    print(f"{test}: {icon} — {msg}")
-    return ok
 
 
 # ─── Tests ────────────────────────────────────────────────────────────────────
@@ -187,16 +185,39 @@ async def T10():
 
 ALL_TESTS = ["T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08", "T09", "T10"]
 
+# Resultado acumulado del episodio actual
+_results: list[dict] = []
 
-async def run(tests: list[str]):
-    global CHAT_ID
+
+def result(test: str, ok: bool, msg: str) -> bool:
+    icon = "✅" if ok else "❌"
+    print(f"{test}: {icon} — {msg}")
+    _results.append({"test_id": test, "passed": ok, "detail": msg,
+                     "skipped": msg.startswith("SKIP")})
+    return ok
+
+
+async def run(tests: list[str], triggered_by: str = "manual"):
+    global CHAT_ID, _results
     CHAT_ID = chat_id()
-    print(f"\n=== Suite MTProto | CHAT_ID={CHAT_ID} ===\n")
+    _results = []
+
+    print(f"\n=== Suite MTProto | CHAT_ID={CHAT_ID} ===")
+
+    # Iniciar episodio en la learning DB
+    try:
+        episode_id = start_episode(triggered_by)
+        print(f"=== Episodio #{episode_id} iniciado ===\n")
+    except Exception as e:
+        episode_id = None
+        print(f"[learning] DB no disponible: {e} — corriendo sin registro\n")
 
     async with get_client("gv") as gv:
         for t in tests:
             print(f"── {t} ──")
-            if t == "T01": await T01(gv)
+            t_start = time.monotonic()
+
+            if t == "T01":   await T01(gv)
             elif t == "T02": await T02(gv)
             elif t == "T03": await T03(gv)
             elif t == "T04": await T04(gv)
@@ -208,8 +229,33 @@ async def run(tests: list[str]):
             elif t == "T10": await T10()
             else:
                 print(f"{t}: ⚠️  test desconocido")
+                continue
+
+            duration_ms = int((time.monotonic() - t_start) * 1000)
+            if episode_id and _results:
+                r = _results[-1]
+                try:
+                    record_test_result(episode_id, r["test_id"], r["passed"],
+                                       r["detail"], duration_ms)
+                except Exception:
+                    pass
 
     print()
+
+    # Completar episodio, calcular score, detectar patrones
+    if episode_id:
+        try:
+            stats = complete_episode(episode_id, _results)
+            print(f"=== Score: {stats['score']:.1f}% ({stats['passed']}/{stats['total']}) ===")
+
+            # Publicar reporte en el grupo de Testing (visible para GV)
+            report = build_report(episode_id, _results, stats)
+            post_to_telegram(report)
+
+            # Si hay fallas recurrentes → dispatch fix task al verifier
+            dispatch_fix_if_needed(episode_id, _results, stats)
+        except Exception as e:
+            print(f"[learning] Error al completar episodio: {e}")
 
 
 def main():
