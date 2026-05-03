@@ -785,19 +785,34 @@ bot.on('message:text', async (ctx, next) => {
   // Ignorar comandos (pasar al siguiente handler en la cadena)
   if (text.startsWith('/')) return next();
 
-  // Modo asistente: solo procesa instrucciones de pago en texto (CLABEs/cuentas), silencio para todo lo demás
+  // Modo asistente: procesa CLABEs, consultas de saldo y operaciones; silencio para todo lo demás
   const _modoChat = await getChatModo(chatId);
   if (_modoChat === 'asistente') {
-    const rawCuentas = BankingManager.parsearTexto(text);
-    if (rawCuentas.length) {
-      const clientAsist = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
-      const { ajenas }  = await filtrarCuentasAjenas(rawCuentas);
-      if (ajenas.length) {
-        await bankingManager.guardarCuentas(clientAsist.id, null, ajenas);
-        await ctx.reply(`✅ Guardado · ${ajenas.length} cuenta(s) registrada(s)`);
-      }
+    // 1. Consulta de saldo — responder aunque sea modo asistente
+    if (/\b(saldo|cu[aá]nto (tengo|hay|queda)|mi saldo|saldo actual)\b/i.test(text)) {
+      const clientS = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+      await ctx.reply(`💰 Saldo actual: <b>$${fmt(clientS.saldo)}</b>`, { parse_mode: 'HTML' });
+      return;
     }
-    return; // silencio para todo lo demás
+    // 2. Operación o sesión activa esperando datos — caer al flujo normal
+    const _sessionAsist = await getOrCreateSession(chatId,
+      (await balanceManager.getOrCreateClient(userId, ctx.from?.username)).id);
+    const _hasActiveSession = _sessionAsist.estado && _sessionAsist.estado !== 'idle';
+    if (_hasActiveSession || isOperacionCommand(text) || isImplicitOperacion(text)) {
+      // fall through to normal processing below
+    } else {
+      // 3. CLABEs/cuentas — guardar silenciosamente
+      const rawCuentas = BankingManager.parsearTexto(text);
+      if (rawCuentas.length) {
+        const clientAsist = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+        const { ajenas }  = await filtrarCuentasAjenas(rawCuentas);
+        if (ajenas.length) {
+          await bankingManager.guardarCuentas(clientAsist.id, null, ajenas);
+          await ctx.reply(`✅ Guardado · ${ajenas.length} cuenta(s) registrada(s)`);
+        }
+      }
+      return; // silencio para todo lo demás
+    }
   }
 
   const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
