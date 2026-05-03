@@ -278,28 +278,51 @@ Los ~$5 del finbot-verifier se gastaron en **3 intentos fallidos** por créditos
 
 ---
 
-## 6. Trayectoria de Scores por Episodio
+## 6. Trayectoria de Scores por Episodio (datos reales)
 
-> Datos reportados vía Telegram durante la sesión:
+> Datos completos de la sesión de testing (2026-05-03):
 
-| Episodio | Score | Tier | Commits desplegados |
-|---------|-------|------|---------------------|
-| #392 | 73.3% (11/15) | 2 | Antes de cursor fix |
-| #442 | 73.3% (11/15) | 2 | Antes de cursor fix |
-| #496+ | Pendiente | 2 | **Cursor fix activo** (d090bcc) |
+| Episodio | Score | Tier | Tests fallando | Patrón dominante |
+|---------|-------|------|----------------|-----------------|
+| **#220** | 60.0% (9/15) | 2 | `saldo_gv`, `saldo_kevin`, `saldo_noela` (timeout), `operacion_*` (keywords) | `saldo_gv_send_message_failed` ×116 |
+| **#245** | 57.1% (8/14) | 2 | mismo + `operacion_*` | `saldo_gv_send_message_failed` ×130 |
+| **#319** | 57.1% (8/14) | 2 | mismo | `saldo_gv_send_message_failed` ×174 |
+| **#344** | 57.1% (8/14) | 2 | mismo | `saldo_gv_send_message_failed` ×190 |
+| **#392** | **73.3%** (11/15) | 2 | `operacion_*` (timeout), `clabe_noela` (timeout) | `clabe_gv_send_message_failed` ×6 ← **salto** |
+| **#442** | 73.3% (11/15) | 2 | `operacion_*` (timeout), `clabe_kevin` (timeout) | `clabe_gv_*` ×4-17 |
+| **#496+** | Pendiente | 2 | — | **Cursor fix activo** (d090bcc) |
 
-### Evolución de patrones activos
+### Análisis de la trayectoria
 
-| Patrón | Episodio inicial | Episodio actual | Causa raíz | Fix aplicado |
-|--------|-----------------|-----------------|-----------|-------------|
-| `clabe_gv_send_message_failed` | ~#300 | ×32 episodios | Sesión GV Telethon stale | `ensure_connected(force=True)` ✅ |
-| `clabe_gv_timeout` | ~#440 | ×9 episodios | Sesión GV desconectada | mismo fix ✅ |
-| `clabe_gv_respuesta_sin_keywords` | ~#350 | ×6 episodios | Bot muestra selector de cuentas (no error) | keywords ampliadas ✅ |
-| `operacion_*_timeout` | ~#390 | activo | BotResponseCollector devolvía cached | cursor fix desplegado ✅ |
+**Fase 1 — Episodios #220–#344 (plateau en 57-60%)**
 
-### Score esperado tras cursor fix
+El sistema estuvo **bloqueado 174+ episodios** por el mismo bug: la sesión Telethon de GV se desconectaba. El patrón `saldo_gv_send_message_failed_cannot_send_request` creció de ×116 a ×190 sin resolverse. Esto demuestra que el **dispatch automático de fixes no existía aún** en esa fase — la tarea tuvo que escalarse manualmente.
 
-El cursor fix (d090bccf) resuelve el problema raíz de `operacion_*` (4 tests de 15 = 26% del score). Score esperado: **85-90%** en episodios post-fix. Si se confirma, el sistema avanzaría a **Tier 3**.
+Además: `operacion_*` fallaba desde el principio (ep. #220) con `respuesta sin keywords ['resumen', 'monto', 'comision']: '✅ Guardado · 1 cuenta(s)'` — esto es el bug del cursor de `BotResponseCollector`: el `wait()` devolvía la respuesta del CLABE anterior en vez de esperar la respuesta a la frase de operación. Este bug estuvo activo durante TODO el plateau.
+
+**Fase 2 — Episodio #392 (salto a 73.3%)**
+
+El fix de `ensure_connected(force=True)` resolvió el patrón de GV. Los tests de saldo pasaron inmediatamente. Pero `operacion_*` siguió fallando porque el cursor bug aún no estaba corregido.
+
+**Fase 3 — Post #442 (cursor fix desplegado)**
+
+`BotResponseCollector` ahora usa cursor tracking: `mark_consumed()` antes de cada mensaje intermedio + `drain=2.0` al final. El `operacion_*` (4 de 15 tests = 27% del score) debería recuperarse. Score esperado: **85-90%** → avance a Tier 3.
+
+### Evolución de patrones activos (datos reales)
+
+| Patrón | Ep. inicio | Ep. resolución | Duración | Causa raíz | Fix |
+|--------|-----------|---------------|----------|-----------|-----|
+| `saldo_gv_send_message_failed` | <#220 | ~#392 | **≥174 episodios** | Sesión GV Telethon stale TCP | `ensure_connected(force=True)` ✅ |
+| `saldo_gv_timeout` | <#220 | ~#392 | **≥95 episodios** | mismo | mismo fix ✅ |
+| `operacion_*_wrong_response` | <#220 | ~#496 | **≥276 episodios** | `BotResponseCollector.wait()` devolvía cached | cursor tracking fix ✅ |
+| `clabe_gv_send_message_failed` | ~#344 | activo | ×17 | Sesión GV stale para CLABE | `ensure_connected(force=True)` ✅ |
+| `clabe_gv_timeout` | ~#430 | activo | ×4 | mismo | mismo fix ✅ |
+
+### Lección clave: costo del bug no detectado
+
+El bug del `BotResponseCollector` estuvo activo durante **toda la sesión** (~276+ episodios) pero no se detectó porque los fallos de `operacion_*` eran enmascarados por el patrón `saldo_gv` (que era más frecuente y ruidoso). Solo cuando `saldo_gv` se resolvió en #392, quedó visible que `operacion_*` seguía fallando.
+
+**Recomendación**: implementar alertas separadas por categoría de test (`saldo_*`, `operacion_*`, `clabe_*`, `cuadro_*`) para detectar regresiones en cada flujo de forma independiente.
 
 ---
 
