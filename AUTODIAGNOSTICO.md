@@ -1,203 +1,463 @@
 # Autodiagnóstico del Sistema — ia.vilarkptl.com
-_Generado 2026-05-03 por Claude Code (sesión claude/agent-monitoring-dashboard-4v8iq)_
+_Generado 2026-05-03 por Claude Code (sesión `claude/agent-monitoring-dashboard-4v8iq`)_
+_Actualizado con stack completo, costos históricos y recomendaciones priorizadas_
 
 ---
 
-## Resumen ejecutivo
-
-El sistema funciona pero opera cerca de sus límites de recursos y tiene varios puntos de fragilidad que han causado pérdidas económicas reales ($250+ en créditos Anthropic) y degradación de servicios. Las mejoras prioritarias están identificadas abajo.
-
----
-
-## Estado actual de procesos
-
-| Proceso | Restarts | Estado | Problema |
-|---------|----------|--------|---------|
-| `ai-monitor` | 43 | ✅ online | Branch divergence frecuente |
-| `relay-master` | 154 | ✅ online | Kill-switch ahora activo |
-| `claude-chat-bot` | 14 | ✅ online | OK |
-| `cursor-worker` | 0 | ✅ online | OK |
-| `financial-bot` | 136k+ | ✅ online | Crash loop histórico |
-| `conversation-engine` | 6 | ✅ online | OK |
-| `kptl-credito` | 4011 | ⚠️ online | Inestable |
-| `kptl-credito-worker` | 213 | ⚠️ online | Depende de kptl-credito |
-| `vilar-legal-os-v59` | 146k+ | 🔴 online | **Crash loop crítico** |
-| `vilar-legal-os-v58` | 53 | ⚠️ online | Inestable |
-
-**RAM:** ~50% usada (1.9 GB / 3.8 GB total)
-**Swap:** 70-73% — próximo a saturación (límite real ~94%)
+## Índice
+1. [Stack técnico](#stack-técnico)
+2. [Árbol de agentes](#árbol-de-agentes)
+3. [Estado de procesos](#estado-de-procesos)
+4. [Costos históricos del sistema](#costos-históricos-del-sistema)
+5. [Costos ocultos](#costos-ocultos)
+6. [Ventajas del sistema](#ventajas-del-sistema)
+7. [Debilidades](#debilidades)
+8. [Recomendaciones priorizadas](#recomendaciones-priorizadas)
+9. [Control de emergencia](#control-de-emergencia)
 
 ---
 
-## Problemas identificados
+## Stack técnico
 
-### 🔴 CRÍTICO
+### Infraestructura
+| Componente | Tecnología | Versión | Notas |
+|------------|-----------|---------|-------|
+| Servidor | DigitalOcean Droplet | Ubuntu 22.04 LTS | 143.198.228.78 — 2 vCPU, 3.8 GB RAM |
+| Runtime | Node.js (via NVM) | v22.17.0 | Todos los procesos backend |
+| Gestor de procesos | PM2 | — | 19 procesos activos |
+| Base de datos | MySQL / MariaDB | 5.7.x | DB: `ai_monitoring` |
+| Web server | Apache2 | — | `mod_proxy` + `mod_proxy_wstunnel` para WebSocket |
+| Proxy reverso | Apache → localhost:3010 | — | ia.vilarkptl.com → ai-monitor |
 
-**1. vilar-legal-os-v59 — 146,000+ reinicios**
-- Causa: crash loop no diagnosticado. PM2 lo reinicia automáticamente cada vez que falla.
-- Impacto: consume CPU en reinicio constante, contamina logs, oculta errores reales.
-- Fix: `pm2 logs vilar-legal-os-v59 --lines 50` para ver el error. Probablemente un `require()` que falla o un puerto ocupado.
+### Backend
+| Componente | Tecnología | Notas |
+|------------|-----------|-------|
+| API / Dashboard | Express.js + Socket.io | Puerto 3010 |
+| Orquestador de agentes | Node.js custom (`relay/master.js`) | PM2: relay-master |
+| Bot Telegram directo | Grammy + Anthropic SDK (`chat-agent.js`) | PM2: claude-chat-bot |
+| Revisor de código | DeepSeek V3 API (`code-reviewer.js`) | PM2: code-reviewer, $0.001/audit |
+| Proxy LLM | LiteLLM (Python) | Puerto 4000, chains de fallback |
+| Worker Cursor | Node.js bridge (`cursor-worker.js`) | PM2: cursor-worker |
 
-**2. Directorio git compartido entre procesos PM2**
-- Todos los procesos apuntan a `/var/www/html/vilarkptl.com/ai-monitor/` como working directory.
-- Cuando un agente hace `git reset --hard` para un proceso (ej: `conversation-engine`), sobreescribe los archivos de TODOS los demás procesos incluyendo `ai-monitor`.
-- Impacto observado: el redesign del dashboard se revirtió 3+ veces en esta sesión.
-- Fix: cada proceso debería tener su propio directorio de trabajo.
+### Frontend
+| Componente | Tecnología | Notas |
+|------------|-----------|-------|
+| Dashboard | HTML / CSS / JS vanilla | Glassmorphism light + dark toggle |
+| Charts | Chart.js | Donut, bar, line, stacked |
+| WebSocket | Socket.io client | Actualizaciones en tiempo real |
+| Auth | bcrypt hash en .env | Login con contraseña única |
 
-**3. Kill-switch diario no existía hasta hoy**
-- Pérdida documentada: $250 en créditos en una sola noche por finbot-verifier en loop.
-- El kill-switch de $7/día y $100/proyecto/mes ya está implementado (migrate-v12).
-- Pendiente: verificar que relay-master lo respeta correctamente en producción.
+### APIs externas
+| Proveedor | Uso | Modelos / Servicios | Costo aprox. |
+|-----------|-----|---------------------|-------------|
+| **Anthropic** | Agentes principales | claude-sonnet-4-6, claude-haiku-4-5 | $3/$15 por M tokens |
+| **DeepSeek** | Planning, memory summaries, code review | deepseek-chat (V3), deepseek-reasoner (R1) | $0.27/$1.10 por M tokens |
+| **OpenAI** | Fallback via LiteLLM | gpt-4o, gpt-4o-mini | $2.50/$10 por M tokens |
+| **FAL.ai** | Generación de imágenes | — | Variable por imagen |
+| **ElevenLabs** | Síntesis de voz | — | Por caracteres |
+| **Telegram** | Bot notifications + control | Bot API | Gratis |
 
-### 🟠 ALTO
-
-**4. /detente no mata procesos activos**
-- El comando marca `journal.state = 'stopped'` pero el proceso Claude CLI continúa ejecutándose hasta timeout (25 min).
-- No hay forma de parada inmediata desde Telegram sin usar bash.
-- Fix recomendado: agregar `SIGTERM` al proceso CLI activo cuando se recibe `/detente`.
-
-**5. Swap al 70-73% — riesgo de OOM**
-- Con 19 procesos activos y swap casi lleno, un pico de memoria causaría que el kernel mate procesos aleatoriamente.
-- Fix inmediato:
-  ```bash
-  fallocate -l 1G /swapfile2 && chmod 600 /swapfile2 && mkswap /swapfile2 && swapon /swapfile2
-  ```
-
-**6. Branch chaos — código fragmentado en 3 branches sin merge a main**
-- `main` no tiene: redesign, auth/login, LiteLLM, kill-switch, multi-account tracking.
-- Producción corre features de branches que se revierten con cada gitPull.
-- Fix: merge PRs #21 y onboard-ai-monitor → main esta semana.
-
-**7. Login con pattern HTML que rechaza caracteres especiales**
-- El campo de contraseña tiene un atributo `pattern` que no permite `:` ni otros caracteres.
-- Contraseña "romanos12:2" falla la validación del browser antes de llegar al servidor.
-- Fix: eliminar el atributo `pattern` del input de contraseña en el login HTML.
-
-**8. financial-bot — 136,000+ reinicios**
-- Crash loop histórico. El proceso actual está estable pero el contador es acumulado.
-- Indica que en algún momento estuvo en crash loop severo.
-- Fix: `pm2 reset financial-bot` para limpiar el contador después de confirmar estabilidad.
-
-### 🟡 MEDIO
-
-**9. Solo 1 de 3 cuentas Anthropic monitoreadas**
-- `gva.server@gmail.com` y `leasingagata@gmail.com` no tienen Admin API keys configuradas.
-- No hay visibilidad del gasto en esas cuentas.
-
-**10. MySQL password inconsistente**
-- `VilarRoot2026!` no funciona para el usuario `root`.
-- La contraseña correcta está en `backend/.env` como `DB_PASS`.
-- Documentar la contraseña correcta en `/opt/kptl-secrets/server-credentials.txt`.
-
-**11. Sin ambiente de staging**
-- Todo deploy va directo a producción.
-- Un error en una migración SQL (como el de esta sesión con `IF NOT EXISTS`) afecta producción directamente.
-
-**12. relay-master en modo cluster con una sola instancia**
-- `ai-monitor` corre en modo `cluster` (según pm2 status) pero debería ser `fork` para un proceso único.
-- En modo cluster, PM2 usa el cluster module de Node — innecesario para este caso.
-
-### 🟢 BAJO
-
-**13. 86 actualizaciones de sistema pendientes (28 de seguridad)**
-- El servidor no se ha actualizado. Hay vulnerabilidades conocidas.
-- Fix: `apt update && apt upgrade -y` en ventana de mantenimiento.
-
-**14. Restart del sistema pendiente**
-- El sistema muestra `*** System restart required ***` desde hace días.
-- Reiniciar en horario de bajo tráfico para aplicar actualizaciones de kernel.
-
-**15. Logs sin rotación configurada**
-- PM2 escribe logs a `/var/log/ai-monitor/` sin rotación.
-- Con 146k+ reinicios de vilar-legal-os-v59, esos logs pueden estar en GB.
-- Fix: `pm2 install pm2-logrotate`
-
----
-
-## Plan de acción — prioridades
-
-### Esta semana (urgente)
-```bash
-# 1. Agregar swap ahora
-fallocate -l 1G /swapfile2 && chmod 600 /swapfile2 && mkswap /swapfile2 && swapon /swapfile2
-
-# 2. Diagnosticar vilar-legal-os-v59
-pm2 logs vilar-legal-os-v59 --lines 100 --nostream
-
-# 3. Configurar log rotation
-pm2 install pm2-logrotate
-
-# 4. Ver tamaño real de logs
-du -sh /var/log/ai-monitor/ /root/.pm2/logs/
+### LiteLLM — Cadenas de fallback
+```
+kptl-chat:       Sonnet 4.6 → DeepSeek V3 → GPT-4o
+kptl-chat-fast:  Haiku 4.5  → GPT-4o-mini → Gemini
+kptl-reasoning:  DeepSeek R1 → Opus 4.x
 ```
 
-### Próximas 2 semanas
-1. **Merge branches a main** — PR #21 + auth + LiteLLM → producción estable
-2. **Directorio separado por proceso** — mover `conversation-engine` a su propio repo clone
-3. **Fix /detente** — agregar kill real al proceso CLI activo
-4. **Configurar Admin API keys** para gva.server y leasingagata
+---
 
-### Este mes
-1. **Ambiente staging** — clonar stack en puerto diferente (3011) para pruebas
-2. **Actualizar servidor** — apt upgrade + kernel restart
-3. **Monitoreo de swap** — alerta en Telegram cuando swap > 80%
+## Árbol de agentes
+
+```
+Usuario / Telegram
+       │
+       ├──▶ claude-chat-bot (chat-agent.js)
+       │         Grammy + Anthropic SDK — interfaz conversacional directa
+       │         Herramientas: bash, leer/escribir archivos, despachar tareas
+       │
+       └──▶ relay-master (master.js)  ◄── polling cada 15s por proyecto
+                 │
+                 ├──▶ coordinator (claude-haiku-4-5)
+                 │         Orquesta, descompone tareas complejas en sub-tareas
+                 │         No escribe código — solo gestiona dispatches
+                 │
+                 ├──▶ fiscalai (claude-sonnet-4-6)
+                 │         Backend Node.js + SAT APIs + MySQL
+                 │         Repo: DeCabeceraTax | fiscalai.mx
+                 │
+                 ├──▶ fiscalai-front (claude-sonnet-4-6)
+                 │         Frontend HTML/CSS/JS vanilla
+                 │         Páginas fiscales, formularios, UX
+                 │
+                 ├──▶ ai-monitor (claude-haiku-4-5)
+                 │         Este mismo dashboard
+                 │         Backend Express + Socket.io
+                 │
+                 ├──▶ financial-bot (claude-sonnet-4-6)
+                 │         Bot de operaciones bancarias en Telegram
+                 │         CLABE, saldo, transferencias
+                 │
+                 └──▶ (proyectos adicionales vía projects.json)
+
+Procesos auxiliares (no manejados por relay-master):
+  ├── code-reviewer    — DeepSeek V3, audita commits cada 5 min
+  ├── cursor-worker    — Cursor Cloud Agents (self-hosted)
+  ├── cost-monitor     — Monitoreo de costos en tiempo real
+  ├── conversation-engine — Simulaciones financieras (testing)
+  ├── kptl-credito     — Webhook crédito
+  └── vilar-legal-os-v59 — Agente legal (en crash loop)
+```
+
+### Flujo de una tarea
+```
+1. Usuario escribe en Telegram: "/tarea fiscalai Corrige el login SAT"
+2. relay-master recibe → coordinator descompone el plan
+3. coordinator escribe inbox.md en el repo de fiscalai
+4. relay-master detecta cambio en inbox.md (polling 15s)
+5. Spawns: claude --model claude-sonnet-4-6 (proceso hijo)
+6. Claude Code edita archivos, commit, push
+7. Outbox.md con resultados → relay-master lo parsea
+8. Telegram recibe resumen + screenshots automáticos
+```
 
 ---
 
-## Comandos de control rápido
+## Estado de procesos
 
+| Proceso | Restarts | RAM est. | Estado | Diagnóstico |
+|---------|----------|----------|--------|------------|
+| `ai-monitor` | 43 | ~120 MB | ✅ | Branch divergence frecuente |
+| `relay-master` | 154 | ~180 MB | ✅ | Kill-switch activo desde hoy |
+| `claude-chat-bot` | 14 | ~80 MB | ✅ | Estable |
+| `cursor-worker` | 0 | ~60 MB | ✅ | Estable |
+| `code-reviewer` | 4 | ~40 MB | ✅ | Estable |
+| `conversation-engine` | 6 | ~80 MB | ✅ | Estable |
+| `financial-bot` | 136k+ | ~120 MB | ✅ | Estable hoy; contador histórico |
+| `kptl-credito` | 4011 | ~80 MB | ⚠️ | Inestable — SyntaxError recurrente |
+| `kptl-credito-worker` | 213 | ~60 MB | ⚠️ | Dependiente de kptl-credito |
+| `vilar-legal-os-v59` | 146k+ | ~40 MB | 🔴 | **Crash loop** — nunca estable |
+| `vilar-legal-os-v58` | 53 | ~40 MB | ⚠️ | Semi-estable |
+| `sat-api` | 93 | ~80 MB | ⚠️ | Moderado |
+| `litellm` | — | ~357 MB | ✅ | Mayor consumidor de RAM |
+
+**RAM total estimada:** ~1.8 GB de 3.8 GB
+**Swap actual:** 70-73% — riesgo moderado-alto
+
+---
+
+## Costos históricos del sistema
+
+> Los costos reales de Anthropic se ven en ia.vilarkptl.com → Tab "Plataforma" → Cuentas Anthropic.
+> Los estimados están en Tab "API Admin" → Gasto histórico total.
+
+### Cuentas Anthropic activas
+| Cuenta | Admin Key | Estado |
+|--------|-----------|--------|
+| vilarkptl@gmail.com | `ANTHROPIC_ADMIN_KEY` | ✅ Configurada |
+| gva.server@gmail.com | `ANTHROPIC_ADMIN_KEY_GVA` | ❌ Pendiente |
+| leasingagata@gmail.com | `ANTHROPIC_ADMIN_KEY_LEASINGAGATA` | ❌ Pendiente |
+
+### Incidentes de costo documentados
+| Fecha | Cuenta | Gasto | Causa | Estado |
+|-------|--------|-------|-------|--------|
+| 2026-04-21/22 | vilarkptl | ~$70 | FiscalAI en loop 26+ iteraciones | Resuelto — watchdog 25 min |
+| 2026-05-01-03 | vilarkptl | ~$250 | finbot-verifier loop, créditos agotados | Resuelto — kill-switch $7/día |
+| Total conocido | — | **~$320+** | Loops sin límite diario | Kill-switch activo |
+
+### Límites configurados (desde hoy, migrate-v12)
+| Nivel | Límite | Acción |
+|-------|--------|--------|
+| Total diario | $7 USD | Pausa todo el relay |
+| Por proveedor/día | Anthropic $6, OpenAI $2, DeepSeek $1 | Pausa proveedor |
+| Por proyecto/mes | $100 USD | Pausa ese proyecto |
+
+### Costo estimado mensual si el sistema opera normal
+| Servicio | Uso esperado | Costo/mes est. |
+|---------|-------------|----------------|
+| Anthropic (Sonnet 4.6) | ~500k tokens/día | $15-25 |
+| Anthropic (Haiku 4.5) | ~200k tokens/día | $2-4 |
+| DeepSeek V3 | planning + reviews | $3-8 |
+| OpenAI (fallback) | occasional | $2-5 |
+| DigitalOcean | Droplet 4GB | $24 |
+| **Total estimado** | — | **$46-66/mes** |
+
+---
+
+## Costos ocultos
+
+Estos no aparecen en ningún dashboard pero son reales:
+
+### 1. Tiempo de ingeniería perdido en incidentes
+- ~8h diagnosticando crash loops y branch divergence en esta semana
+- Costo si se valoriza a $50/h: **~$400 en tiempo**
+- Causa raíz: arquitectura de directorio compartido + branches sin merge
+
+### 2. Créditos quemados en loops sin resultado
+- finbot-verifier ejecutó 40-44 iteraciones TODAS fallando por "Credit balance too low"
+- Cada iteración consumió tokens ANTES de fallar
+- Los tokens gastados en errores no producen valor = **desperdicio puro**
+
+### 3. Swap como "RAM prestada"
+- 70-73% de swap = el sistema está pidiendo prestada RAM al disco
+- El disco es SSD pero sigue siendo 10-100x más lento que RAM
+- Procesos en swap corren MÁS LENTO → agentes tardan más → más tokens por tarea → más costo
+
+### 4. 146,000+ reinicios de vilar-legal-os-v59
+- Cada reinicio: Node.js startup (~200ms CPU + disk I/O)
+- 146,000 × 200ms = **~8 horas de CPU gastadas solo en reinicios**
+- Más el swap pressure que genera cada proceso nuevo
+
+### 5. DeepSeek sin prompt caching
+- El sistema de relay usa prompt caching para Anthropic pero NO para DeepSeek
+- Cada llamada re-envía el system prompt completo
+- Ahorro potencial con caching: 40-60% en costos DeepSeek
+
+### 6. Modelos premium donde no es necesario
+- coordinator y ai-monitor usan Haiku (correcto)
+- Pero el coordinator despachó tareas a Sonnet para cosas que Haiku puede resolver
+- Estimado: 20-30% de llamadas a Sonnet podrían ser Haiku
+
+### 7. Sin staged rollouts
+- Un error de código en producción afecta a todos los usuarios inmediatamente
+- El costo de un bug en prod es 10x mayor que en staging
+
+---
+
+## Ventajas del sistema
+
+### Arquitectura
+- **Multi-agente real funcionando**: coordinación automática entre 5+ agentes especializados
+- **Self-hosting**: control total sobre datos, sin dependencia de plataformas third-party
+- **Fallback chains via LiteLLM**: si Anthropic falla, el sistema continúa con DeepSeek/OpenAI
+- **Prompt caching activo**: ahorra ~60% en tokens de contexto en llamadas a Anthropic
+- **Outbox watchdog**: detecta agentes atascados y los termina automáticamente
+- **Kill-switch económico**: pausa automática si el gasto supera umbral (nuevo)
+- **Dashboard en tiempo real**: visibilidad completa vía Socket.io
+
+### Operacional
+- **Control por Telegram**: despachar, monitorear y parar agentes desde el celular
+- **Screenshots automáticos**: verificación visual de cambios frontend sin intervención manual
+- **Code reviewer automático**: DeepSeek V3 audita cada commit silenciosamente
+- **Cross-agent state sharing**: AGENT-STATUS.md previene que agentes se pisen entre sí
+- **Memoria persistente por proyecto**: los agentes recuerdan contexto entre sesiones
+- **Deploy vía git**: los agentes hacen commit + push, el servidor hace pull automático
+
+### Económico
+- **DeepSeek V3 para planning**: 10x más barato que Sonnet para razonamiento
+- **Haiku para coordinator**: 25x más barato que Sonnet para orquestación
+- **Self-hosted LiteLLM**: sin markup de proveedores intermediarios
+
+---
+
+## Debilidades
+
+### Debilidad #1 — Directorio git compartido (CRÍTICA)
+Todos los procesos PM2 apuntan al mismo `/var/www/html/vilarkptl.com/ai-monitor/`. Cuando un agente hace `git reset --hard` para actualizar su código, sobreescribe los archivos de TODOS los demás procesos. Esto causó que el redesign del dashboard se revirtiera 3+ veces.
+
+### Debilidad #2 — Sin límite de gasto hasta hoy (CRÍTICA)
+El sistema podía gastar ilimitadamente. Dos incidentes de >$100 USD en loops en 2 semanas. Resuelto parcialmente con migrate-v12, pero falta integrar el kill-switch de proyecto en relay-master.
+
+### Debilidad #3 — /detente no es instantáneo
+El comando para emergencias no mata el proceso activo. Un agente en loop puede continuar 25 minutos más después de `/detente`. No hay forma de parada real desde Telegram sin acceso al servidor.
+
+### Debilidad #4 — Branches desincronizadas con producción
+`main` no tiene auth, no tiene LiteLLM, no tiene kill-switch, no tiene redesign. El servidor corre un mix de branches que se revierten con cada gitPull automático. Requiere coordinar merges manualmente.
+
+### Debilidad #5 — Un solo servidor, sin redundancia
+Si el droplet de DigitalOcean cae, todo el sistema cae. No hay failover, no hay backups automáticos de la base de datos, no hay health checks externos.
+
+### Debilidad #6 — Swap saturado
+Con 19 procesos activos y 3.8 GB de RAM, el sistema opera crónicamente con swap. Un pico de memoria mata procesos aleatoriamente (OOM killer). vilar-legal-os-v59 en crash loop agrava esto.
+
+### Debilidad #7 — Sin staging
+Todo cambio va directo a producción. Un error de migración SQL (como el de esta sesión) afecta producción inmediatamente. Un bug en server.js tumba el dashboard.
+
+### Debilidad #8 — Logs sin rotación
+Con 146k+ reinicios de vilar-legal-os-v59, los logs pueden estar en gigabytes. Sin rotación configurada, el disco puede llenarse silenciosamente hasta que el sistema falla.
+
+### Debilidad #9 — Seguridad de credenciales mixta
+- Contraseña MySQL en texto plano en `backend/.env`
+- Admin API keys de Anthropic en `relay/.env`
+- Hash de login en `/opt/kptl-secrets/api-keys.env`
+- Sin rotación de credenciales configurada
+- 28 vulnerabilidades de seguridad del OS sin parchear
+
+### Debilidad #10 — Dependencia de Anthropic sin cap por proyecto en relay-master
+El `GLOBAL_KILLED` flag existe pero el relay-master no consulta los flags de `project_killed_*` todavía. Los límites por proyecto están en la base de datos pero no se aplican al despacho de tareas.
+
+---
+
+## Recomendaciones priorizadas
+
+### 🔴 Hacer HOY
+
+**R1 — Agregar swap ahora**
 ```bash
-# PARAR relay inmediatamente (servidor)
+fallocate -l 1G /swapfile2 && chmod 600 /swapfile2 && mkswap /swapfile2 && swapon /swapfile2
+echo '/swapfile2 none swap sw 0 0' >> /etc/fstab
+```
+
+**R2 — Diagnosticar y detener vilar-legal-os-v59**
+```bash
+pm2 logs vilar-legal-os-v59 --lines 30 --nostream
+# Si el error es irreparable:
+pm2 stop vilar-legal-os-v59 && pm2 delete vilar-legal-os-v59
+```
+
+**R3 — Configurar log rotation**
+```bash
+pm2 install pm2-logrotate
+pm2 set pm2-logrotate:max_size 50M
+pm2 set pm2-logrotate:retain 7
+```
+
+### 🟠 Esta semana
+
+**R4 — Merge de branches a main**
+1. Merge PR `claude/agent-monitoring-dashboard-4v8iq` → main (redesign + kill-switch)
+2. Merge `claude/onboard-ai-monitor-subproject-zXvki` → main (auth + LiteLLM)
+3. En servidor: `git reset --hard origin/main && pm2 restart ai-monitor`
+
+**R5 — Fix /detente para parada inmediata**
+En `relay/master.js`, cuando se recibe `/detente`, también hacer:
+```js
+// Después de marcar journals como stopped:
+for (const [pid, info] of ACTIVE_PIDS.entries()) {
+  if (info.kill) info.kill('SIGTERM');
+}
+GLOBAL_KILLED = true;
+```
+
+**R6 — Integrar project_killed en relay-master**
+Antes de `processProject()`, consultar:
+```js
+const [[killed]] = await db.query("SELECT value FROM system_state WHERE key=?", [`project_killed_${projectId}`]);
+if (killed?.value === '1') return; // skip
+```
+
+**R7 — Fix login — quitar pattern restrictivo**
+```bash
+grep -r "pattern" /var/www/html/vilarkptl.com/ai-monitor/frontend/
+# Editar el archivo y eliminar el atributo pattern del input de contraseña
+```
+
+### 🟡 Próximo mes
+
+**R8 — Repositorios separados por proceso**
+Cada proceso PM2 debería tener su propio clone del repo en un directorio separado:
+```
+/var/www/ai-monitor/     ← ai-monitor exclusivo
+/var/www/conversation/   ← conversation-engine exclusivo
+/var/www/relay/          ← relay-master exclusivo
+```
+
+**R9 — Backup automático de MySQL**
+```bash
+# Cron diario a las 3am
+0 3 * * * mysqldump -u root -p"$DB_PASS" ai_monitoring | gzip > /var/backups/ai_monitoring_$(date +%Y%m%d).sql.gz
+# Retener 30 días
+find /var/backups/ -name "ai_monitoring_*.sql.gz" -mtime +30 -delete
+```
+
+**R10 — Admin API keys de las 3 cuentas**
+Obtener en console.anthropic.com → Settings → API Keys para:
+- gva.server@gmail.com → `ANTHROPIC_ADMIN_KEY_GVA`
+- leasingagata@gmail.com → `ANTHROPIC_ADMIN_KEY_LEASINGAGATA`
+
+**R11 — Alerta de swap por Telegram**
+Agregar a relay-master: si swap > 80%, enviar alerta a Telegram cada hora.
+
+**R12 — Actualizar el servidor**
+```bash
+apt update && apt upgrade -y
+# Programar restart en ventana de bajo tráfico (ej: lunes 3am)
+```
+
+### 🟢 Largo plazo (1-3 meses)
+
+**R13 — Ambiente de staging**
+Clonar el stack en puerto 3011 para pruebas antes de producción.
+
+**R14 — Health check externo**
+Configurar UptimeRobot o similar para alertar si ia.vilarkptl.com no responde.
+
+**R15 — Rotación de credenciales**
+Implementar rotación automática de API keys cada 90 días.
+
+**R16 — Migrar a servidor con más RAM**
+Con 19 procesos activos, un droplet de 8 GB ($48/mes) eliminaría el problema de swap permanentemente y daría headroom para crecer.
+
+---
+
+## Control de emergencia
+
+### Parar relay-master
+```bash
+# Desde servidor (inmediato):
 pm2 stop relay-master
 
-# REANUDAR
+# Desde Telegram — decirle al chat-bot Claude:
+"Para el relay master con pm2 stop relay-master"
+
+# Desde Telegram — bot relay-master:
+/detente
+# ⚠️ Solo detiene nuevas tareas. Procesos activos continúan hasta 25 min.
+```
+
+### Reanudar relay-master
+```bash
 pm2 restart relay-master
 
-# Ver qué está consumiendo RAM
-pm2 monit
-
-# Ver errores de un proceso
-pm2 logs vilar-legal-os-v59 --lines 50 --nostream
-pm2 logs financial-bot --lines 50 --nostream
-
-# Estado del kill-switch
-curl -s http://localhost:3010/api/platform/kill-check | python3 -m json.tool
-
-# Gasto actual por proyecto
-curl -s http://localhost:3010/api/apiAdmin/spendingSummary | python3 -m json.tool
-
-# Resetear contador de reinicios (solo cosmético)
-pm2 reset financial-bot
-
-# Ver swap
-free -h
+# O desde Telegram — bot relay-master:
+/activar
 ```
 
----
-
-## Cómo parar relay-master desde Telegram
-
-**Método 1 — Chat Claude bot** (texto libre):
-> "Para el relay master con pm2 stop relay-master"
-
-El chat-bot tiene acceso a bash y lo ejecuta directamente.
-
-**Método 2 — Bot relay-master** (comando):
-> `/detente`
-
-⚠️ Solo detiene nuevas tareas, no mata el proceso CLI activo. El proceso actual termina en hasta 25 min.
-
-**Método 3 — Servidor:**
-```bash
-pm2 stop relay-master    # detener
-pm2 restart relay-master # reanudar
-```
-
-**Para parada de emergencia TOTAL** (incluye matar procesos Claude activos):
+### Kill de emergencia total (mata procesos Claude activos)
 ```bash
 pm2 stop relay-master && pkill -f "claude-code\|claude --model"
 ```
 
+### Consultar gasto actual (desde servidor)
+```bash
+curl -s http://localhost:3010/api/apiAdmin/spendingSummary | python3 -m json.tool
+```
+
+### Reset kill-switch si fue activado por error
+```bash
+curl -s -X POST http://localhost:3010/api/platform/resume
+curl -s -X POST http://localhost:3010/api/apiAdmin/resume
+```
+
 ---
 
-_Actualizado: 2026-05-03 | Próxima revisión recomendada: 2026-05-10_
+## Comandos de diagnóstico rápido
+
+```bash
+# Ver estado de memoria
+free -h && pm2 list
+
+# Ver qué proceso consume más RAM
+pm2 monit
+
+# Ver errores de proceso en crash
+pm2 logs vilar-legal-os-v59 --lines 30 --nostream
+pm2 logs financial-bot --lines 30 --nostream
+
+# Tamaño de logs
+du -sh /root/.pm2/logs/ /var/log/ai-monitor/
+
+# Gasto de hoy
+curl -s http://localhost:3010/api/platform/kill-check | python3 -m json.tool
+
+# Estado de proyectos vs presupuesto $100/mes
+curl -s http://localhost:3010/api/apiAdmin/projectBudgets | python3 -m json.tool
+
+# Resetear contador de reinicios (cosmético, no afecta el proceso)
+pm2 reset financial-bot
+pm2 reset vilar-legal-os-v59
+```
+
+---
+
+_Próxima revisión recomendada: 2026-05-10_
+_Link permanente: https://github.com/vilarkptl-lang/agentic-repo/blob/claude/agent-monitoring-dashboard-4v8iq/AUTODIAGNOSTICO.md_
