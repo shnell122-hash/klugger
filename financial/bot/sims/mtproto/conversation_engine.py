@@ -542,8 +542,10 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
 
                 print(f"  [{account.upper()}] -> {label} | caption='{cap[:40]}'")
                 try:
+                    buf = io.BytesIO(data)
+                    buf.name = fname  # tells Telethon the MIME type (png/jpg/xlsx)
                     await client.send_file(
-                        target, io.BytesIO(data),
+                        target, buf,
                         caption=cap,
                         force_document=is_doc,
                         **({"file_name": fname} if is_doc else {})
