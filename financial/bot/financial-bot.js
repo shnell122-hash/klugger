@@ -860,15 +860,32 @@ bot.on('message:text', async (ctx, next) => {
     const kb = new InlineKeyboard()
       .text('✅ Sí, continuar', 'confirmar_cuentas')
       .text('✏️ Corregir', 'nueva_cuenta');
-    await ctx.reply(
-      `✅ Datos encontrados:\n\n${BankingManager.formatearCuentas(cuentas)}\n\n¿Es correcto?`,
+    await safeReply(ctx,
+      `✅ Cuenta guardada:\n\n${BankingManager.formatearCuentas(cuentas)}\n\n¿Es correcto?`,
       { parse_mode: 'HTML', reply_markup: kb }
     );
     return;
   }
   if (session.estado === 'confirmando_cuentas') {
+    const draft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
+    // Si el usuario envió una CLABE/cuenta directamente → guardarla como nueva cuenta
+    const rawCuentasNew = BankingManager.parsearTexto(text);
+    if (rawCuentasNew.length) {
+      const { ajenas: nuevas, eraVuelta } = await filtrarCuentasAjenas(rawCuentasNew);
+      if (!eraVuelta && nuevas.length) {
+        draft.cuentas_bancarias = nuevas;
+        await updateSession(session.id, 'esperando_datos_bancarios', draft);
+        const kb2 = new InlineKeyboard()
+          .text('✅ Sí, continuar', 'confirmar_cuentas')
+          .text('✏️ Corregir', 'nueva_cuenta');
+        await safeReply(ctx,
+          `✅ Cuenta guardada:\n\n${BankingManager.formatearCuentas(nuevas)}\n\n¿Es correcto?`,
+          { parse_mode: 'HTML', reply_markup: kb2 }
+        );
+        return;
+      }
+    }
     // El usuario escribió texto en vez de usar el botón → re-mostrar opciones
-    const draft   = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     const cuentas = draft.cuentas_disponibles ?? [];
     if (cuentas.length) {
       const kb = new InlineKeyboard();
@@ -876,7 +893,7 @@ bot.on('message:text', async (ctx, next) => {
         kb.text(`${c.tipo} ···${c.numero.slice(-4)}${c.banco ? ' · ' + c.banco : ''}`, `usar_cuenta_${c.id}`).row();
       });
       kb.text('➕ Nuevos datos', 'nueva_cuenta');
-      await ctx.reply('Por favor selecciona una opción 👇', { reply_markup: kb });
+      await safeReply(ctx, '✅ Cuenta guardada. Selecciona una opción 👇', { reply_markup: kb });
     }
     return;
   }
@@ -2191,6 +2208,29 @@ bot.on('message:voice', async (ctx) => {
 });
 
 // Callback: guardar como admin
+
+// ── safeReply — reintentar ante desconexiones transitorias ───────────────────
+async function safeReply(ctx, text, options = {}) {
+  const maxRetries = 3;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await ctx.reply(text, options);
+    } catch (err) {
+      const msg = err?.message ?? '';
+      const isTransient = msg.includes('Cannot send requests while disconnected') ||
+                          msg.includes('Failed to fetch') ||
+                          msg.includes('ECONNRESET') ||
+                          msg.includes('ETIMEDOUT') ||
+                          msg.includes('timeout');
+      if (i < maxRetries - 1 && isTransient) {
+        await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 // ── Error handling ────────────────────────────────────────────────────────────
 
 bot.catch((err) => {
