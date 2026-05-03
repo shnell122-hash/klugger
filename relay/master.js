@@ -1413,10 +1413,36 @@ ${taskContent}`;
     timedOut = true;
     clearInterval(heartbeat);
     clearInterval(filePoller);
+    clearInterval(watchdogInterval);
     try { execSync(`pkill -9 -P ${child.pid} 2>/dev/null || true`, { stdio: 'pipe' }); } catch (_) {}
     try { child.kill('SIGKILL'); } catch (_) {}
     setTimeout(() => safeCallback(1, `[TIMEOUT después de ${timeoutMs / 60000}min]\n${resultText.trim()}`), 10000);
   }, timeoutMs);
+
+  // Independent watchdog: hard 25min limit per process (fixes issue: session ran 6.9h)
+  // Checks every 60s if elapsed time exceeded MAX_PROCESS_DURATION
+  const MAX_PROCESS_DURATION = 25 * 60 * 1000;
+  const watchdogInterval = setInterval(() => {
+    const elapsed = Date.now() - runStart;
+    if (elapsed > MAX_PROCESS_DURATION) {
+      clearInterval(watchdogInterval);
+      const elapsedMin = Math.round(elapsed / 60000);
+      log(project.id, `⚠️ watchdog: proceso excedió 25 min (${elapsedMin}min) — enviando SIGTERM`);
+      tg(`⚠️ <b>Watchdog — ${project.name}</b>
+Proceso ha excedido 25 min (${elapsedMin}m). SIGTERM…`);
+
+      try { process.kill(child.pid, 'SIGTERM'); } catch (e) {}
+
+      // SIGKILL after 5s if SIGTERM doesn't work
+      setTimeout(() => {
+        try {
+          process.kill(child.pid, 0); // Test if still alive
+          log(project.id, `⚠️ watchdog: SIGTERM inefectivo — enviando SIGKILL`);
+          process.kill(child.pid, 'SIGKILL');
+        } catch (_) {} // Process already dead
+      }, 5000);
+    }
+  }, 60000);
 
   const heartbeat = setInterval(() => {
     const elapsedMin = Math.round((Date.now() - runStart) / 60000);
@@ -1560,6 +1586,7 @@ Timeout en ${remainMin} min`);
       clearTimeout(timer);
       clearInterval(heartbeat);
       clearInterval(filePoller);
+      clearInterval(watchdogInterval);
       if (timedOut) resultText = `[TIMEOUT después de ${CLAUDE_TIMEOUT_MS / 60000}min]\n` + resultText;
 
       // All attempts exhausted with quick failure → actionable Telegram msg
@@ -1578,6 +1605,7 @@ Timeout en ${remainMin} min`);
       clearTimeout(timer);
       clearInterval(heartbeat);
       clearInterval(filePoller);
+      clearInterval(watchdogInterval);
       log(project.id, `runClaude error: ${err.message}`);
       safeCallback(1, `Error lanzando claude: ${err.message}`);
     });
