@@ -575,12 +575,12 @@ bot.command('saldo', async (ctx) => {
     const client = await balanceManager.getOrCreateClient(
       ctx.from?.id, ctx.from?.username
     );
-    await ctx.reply(
+    await safeReply(ctx,
       `💰 Saldo actual: <b>$${fmt(client.saldo)}</b>`,
       { parse_mode: 'HTML' }
     );
   } catch (err) {
-    await ctx.reply('Error consultando saldo.');
+    await safeReply(ctx, 'Error consultando saldo.').catch(() => {});
   }
 });
 
@@ -590,18 +590,18 @@ bot.command('historial', async (ctx) => {
     const client = await balanceManager.getOrCreateClient(ctx.from?.id, ctx.from?.username);
     const hist   = await balanceManager.getHistorial(client.id, 10, 0);
     if (!hist.length) {
-      await ctx.reply('Sin movimientos registrados.');
+      await safeReply(ctx, 'Sin movimientos registrados.');
       return;
     }
     const lineas = hist.map(h =>
       `• ${h.tipo_movimiento.padEnd(15)} $${fmt(h.monto).padStart(12)} → $${fmt(h.saldo_despues)}`
     );
-    await ctx.reply(
+    await safeReply(ctx,
       `📋 <b>Últimos movimientos:</b>\n<pre>${lineas.join('\n')}</pre>`,
       { parse_mode: 'HTML' }
     );
   } catch (err) {
-    await ctx.reply('Error consultando historial.');
+    await safeReply(ctx, 'Error consultando historial.').catch(() => {});
   }
 });
 
@@ -610,7 +610,7 @@ bot.command('historial', async (ctx) => {
 // Busca por nombre exacto (insensible a mayúsculas) o por telegram_username.
 bot.command('ajuste', async (ctx) => {
   if (!isAdmin(ctx.from?.id)) {
-    await ctx.reply('⛔ Sin permisos.');
+    await safeReply(ctx, '⛔ Sin permisos.').catch(() => {});
     return;
   }
   const args = (ctx.match ?? '').trim().split(/\s+/).filter(Boolean);
@@ -629,7 +629,7 @@ bot.command('ajuste', async (ctx) => {
       [nameQuery, nameQuery]
     );
     if (!rows.length) {
-      await ctx.reply(`❌ Cliente "${nameQuery}" no encontrado.`);
+      await safeReply(ctx, `❌ Cliente "${nameQuery}" no encontrado.`).catch(() => {});
       return;
     }
     client = rows[0];
@@ -637,14 +637,14 @@ bot.command('ajuste', async (ctx) => {
     // Solo número → reply mode
     const replyTo = ctx.message?.reply_to_message?.from?.id;
     if (!replyTo) {
-      await ctx.reply('Uso: /ajuste [nombre o @username] nuevo_saldo [descripcion]\n     o responde al mensaje del cliente con /ajuste nuevo_saldo [descripcion]');
+      await safeReply(ctx, 'Uso: /ajuste [nombre o @username] nuevo_saldo [descripcion]\n     o responde al mensaje del cliente con /ajuste nuevo_saldo [descripcion]').catch(() => {});
       return;
     }
     client     = await balanceManager.getOrCreateClient(replyTo);
     nuevoSaldo = parseFloat(args[0]);
     desc       = args.slice(1).join(' ') || 'Ajuste manual';
   } else {
-    await ctx.reply('Uso: /ajuste [nombre o @username] nuevo_saldo [descripcion]');
+    await safeReply(ctx, 'Uso: /ajuste [nombre o @username] nuevo_saldo [descripcion]').catch(() => {});
     return;
   }
 
@@ -655,14 +655,14 @@ bot.command('ajuste', async (ctx) => {
     const { saldo_antes, saldo_despues } = await balanceManager.ajusteManual({
       clientId: client.id, monto: delta, descripcion: desc, adminId: ctx.from?.id,
     });
-    await ctx.reply(
+    await safeReply(ctx,
       `✅ Ajuste aplicado a <b>${client.nombre ?? client.telegram_username}</b>.\n` +
       `Saldo: $${fmt(saldo_antes)} → <b>$${fmt(saldo_despues)}</b>\n` +
       `Movimiento: ${signo}${fmt(delta)}`,
       { parse_mode: 'HTML' }
     );
   } catch (err) {
-    await ctx.reply(`Error: ${err.message}`);
+    await safeReply(ctx, `Error: ${err.message}`).catch(() => {});
   }
 });
 
@@ -675,9 +675,9 @@ bot.command('reset', async (ctx) => {
     const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
     const session = await getOrCreateSession(chatId, client.id);
     await updateSession(session.id, 'completado', null);
-    await ctx.reply('🔄 Sesión reiniciada. Puedes empezar de nuevo.');
+    await safeReply(ctx, '🔄 Sesión reiniciada. Puedes empezar de nuevo.').catch(() => {});
   } catch (err) {
-    await ctx.reply('⚠️ No pude reiniciar la sesión. Intenta de nuevo.').catch(() => {});
+    await safeReply(ctx, '⚠️ No pude reiniciar la sesión. Intenta de nuevo.').catch(() => {});
   }
 });
 
@@ -686,20 +686,20 @@ const testModeChats = new Set();
 bot.command('testmode', async (ctx) => {
   const userId = ctx.from?.id;
   if (!ADMIN_USER_IDS.has(userId)) {
-    await ctx.reply('⛔ Solo administradores pueden usar este comando.');
+    await safeReply(ctx, '⛔ Solo administradores pueden usar este comando.').catch(() => {});
     return;
   }
   const chatId = ctx.chat?.id;
   if (testModeChats.has(chatId)) {
     testModeChats.delete(chatId);
-    await ctx.reply('🧪 Modo prueba <b>desactivado</b>.', { parse_mode: 'HTML' });
+    await safeReply(ctx, '🧪 Modo prueba <b>desactivado</b>.', { parse_mode: 'HTML' }).catch(() => {});
   } else {
     testModeChats.add(chatId);
-    await ctx.reply(
+    await safeReply(ctx,
       '🧪 Modo prueba <b>activado</b>.\n' +
       'Los comprobantes de texto serán aceptados como pagos válidos sin validación de imagen.',
       { parse_mode: 'HTML' }
-    );
+    ).catch(() => {});
   }
 });
 
@@ -714,7 +714,7 @@ bot.command('operacion', async (ctx) => {
   // Sin argumentos → modo asistido
   if (!cmdArgs.trim()) {
     const tipos = listTypes();
-    await ctx.reply(responseGen.formatAskTipo(tipos), { parse_mode: 'HTML' });
+    await safeReply(ctx, responseGen.formatAskTipo(tipos), { parse_mode: 'HTML' }).catch(() => {});
     await updateSession(session.id, 'esperando_tipo', { clientId: client.id });
     return;
   }
@@ -728,13 +728,13 @@ bot.command('rol', async (ctx) => {
   const ADMIN_IDS = (process.env.ADMIN_TELEGRAM_IDS ?? '').split(',').map(s => s.trim()).filter(Boolean);
   const fromId    = String(ctx.from?.id ?? '');
   if (!ADMIN_IDS.includes(fromId)) {
-    await ctx.reply('⛔ Solo los administradores pueden usar este comando.');
+    await safeReply(ctx, '⛔ Solo los administradores pueden usar este comando.').catch(() => {});
     return;
   }
   const arg = (ctx.match ?? '').trim().toLowerCase();
   const roles = ['cliente', 'proveedor', 'ambos'];
   if (!roles.includes(arg)) {
-    await ctx.reply(`Uso: /rol <b>${roles.join(' | ')}</b>\nEjemplo: /rol proveedor`, { parse_mode: 'HTML' });
+    await safeReply(ctx, `Uso: /rol <b>${roles.join(' | ')}</b>\nEjemplo: /rol proveedor`, { parse_mode: 'HTML' }).catch(() => {});
     return;
   }
   const chatId = ctx.chat?.id;
@@ -744,26 +744,26 @@ bot.command('rol', async (ctx) => {
     [chatId]
   );
   if (!rows.length) {
-    await ctx.reply('No encontré un cliente vinculado a este chat. El usuario debe haber interactuado antes.');
+    await safeReply(ctx, 'No encontré un cliente vinculado a este chat. El usuario debe haber interactuado antes.').catch(() => {});
     return;
   }
   const clientId = rows[0].client_id;
   await pool.query(`UPDATE fin_clients SET rol=? WHERE id=?`, [arg, clientId]);
   const labels = { cliente: '🏢 Cliente', proveedor: '🏭 Proveedor', ambos: '🔄 Ambos' };
-  await ctx.reply(`✅ Rol actualizado: <b>${labels[arg]}</b>`, { parse_mode: 'HTML' });
+  await safeReply(ctx, `✅ Rol actualizado: <b>${labels[arg]}</b>`, { parse_mode: 'HTML' }).catch(() => {});
 });
 
 // /modo [normal|asistente] — configura cómo se comporta el bot en este chat
 bot.command('modo', async (ctx) => {
-  if (!isAdmin(ctx.from?.id)) { await ctx.reply('⛔ Sin permisos.'); return; }
+  if (!isAdmin(ctx.from?.id)) { await safeReply(ctx, '⛔ Sin permisos.').catch(() => {}); return; }
   const arg = (ctx.match ?? '').trim().toLowerCase();
   if (!['normal', 'asistente'].includes(arg)) {
-    await ctx.reply(
+    await safeReply(ctx,
       'Uso: /modo <b>normal</b> | <b>asistente</b>\n\n' +
       '<b>normal</b> → modo interactivo para clientes (confirmaciones, flujos)\n' +
       '<b>asistente</b> → silencioso para grupos internos: solo registra comprobantes y cuentas',
       { parse_mode: 'HTML' }
-    );
+    ).catch(() => {});
     return;
   }
   await pool.query(
@@ -773,7 +773,7 @@ bot.command('modo', async (ctx) => {
     [ctx.chat?.id, arg]
   );
   const labels = { normal: '🔄 Normal (modo cliente)', asistente: '🤫 Asistente silencioso' };
-  await ctx.reply(`✅ Modo actualizado: <b>${labels[arg]}</b>`, { parse_mode: 'HTML' });
+  await safeReply(ctx, `✅ Modo actualizado: <b>${labels[arg]}</b>`, { parse_mode: 'HTML' }).catch(() => {});
 });
 
 // Mensajes de texto — detecta operaciones implícitas o responde a flujo activo
@@ -791,7 +791,7 @@ bot.on('message:text', async (ctx, next) => {
     // 1. Consulta de saldo — responder aunque sea modo asistente
     if (/\b(saldo|cu[aá]nto (tengo|hay|queda)|mi saldo|saldo actual)\b/i.test(text)) {
       const clientS = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
-      await ctx.reply(`💰 Saldo actual: <b>$${fmt(clientS.saldo)}</b>`, { parse_mode: 'HTML' });
+      await safeReply(ctx, `💰 Saldo actual: <b>$${fmt(clientS.saldo)}</b>`, { parse_mode: 'HTML' }).catch(() => {});
       return;
     }
     // 2. Operación o sesión activa esperando datos — caer al flujo normal
@@ -2207,6 +2207,45 @@ bot.on('message:voice', async (ctx) => {
 
 // Callback: guardar como admin
 // ── Error handling ────────────────────────────────────────────────────────────
+
+// Función segura para enviar replies con manejo de desconexiones y reintentos
+async function safeReply(ctx, text, options = {}) {
+  const maxRetries = 3;
+  const retryDelay = 2000; // 2s entre reintentos
+  const maxWaitTime = 15000; // 15s timeout total
+
+  let lastError = null;
+  const startTime = Date.now();
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await ctx.reply(text, options);
+    } catch (err) {
+      lastError = err;
+      const errMsg = err?.message || String(err);
+
+      // Si es error de desconexión, esperar y reintentar
+      if (errMsg?.includes('Cannot send requests while disconnected') ||
+          errMsg?.includes('Failed to fetch') ||
+          errMsg?.includes('ECONNREFUSED')) {
+        const elapsed = Date.now() - startTime;
+        if (elapsed < maxWaitTime && attempt < maxRetries - 1) {
+          console.warn(`[safeReply] Desconexión detectada (intento ${attempt + 1}/${maxRetries}), esperando ${retryDelay}ms...`);
+          botStarted = false;
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          continue;
+        }
+      }
+
+      // Si no es desconexión o ya agotamos reintentos, lanzar error
+      throw err;
+    }
+  }
+
+  // Si llegamos aquí, todos los reintentos fallaron
+  console.error('[safeReply] ❌ Falló después de', maxRetries, 'intentos:', lastError?.message);
+  throw lastError;
+}
 
 // Middleware: bloquear updates si el bot está desconectado
 bot.use(async (ctx, next) => {
