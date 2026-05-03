@@ -46,3 +46,12 @@
 ## [3/5/2026, 04:43:41 CST] [URGENTE] Fijar sesiones colgadas y endpoint /operations
 
 ## [3/5/2026, 04:46:07 CST] Fix automático — Episodio #215
+
+## [3/5/2026, 04:46:59 CST] Inbox — FinBot Verifier
+- Logs: sin errores críticos
+- Dashboard: KPIs respondiendo normalmente (5 clientes, 56 operaciones hoy)
+- DB: 0 operaciones incompletas
+- Sesiones: todas en estado idle o reciente
+- Bot: proceso activo (PID 57865)
+- Dashboard UI: sirviendo HTML correctamente
+- ️  Nota: Saldos negativos detectados (probablemente test accounts)
