@@ -2391,6 +2391,32 @@ function startHealthCheck() {
   }, HEALTH_CHECK_INTERVAL);
 }
 
+// ── Limpieza de sesiones colgadas ─────────────────────────────────────────────
+
+const STALE_SESSION_HOURS = 8;
+const STALE_SESSION_CLEANUP_INTERVAL = 60 * 60 * 1000; // 1 hora
+
+async function cleanupStaleSessions() {
+  try {
+    const [result] = await pool.query(
+      `UPDATE fin_sessions
+       SET estado = 'idle', operation_draft_json = NULL, updated_at = NOW(3)
+       WHERE estado NOT IN ('idle', 'completado')
+         AND updated_at < DATE_SUB(NOW(), INTERVAL ? HOUR)`,
+      [STALE_SESSION_HOURS]
+    );
+    if (result.affectedRows > 0) {
+      console.log(`[session-cleanup] Reseteadas ${result.affectedRows} sesiones colgadas (>${STALE_SESSION_HOURS}h sin actualización)`);
+    }
+  } catch (err) {
+    console.error('[session-cleanup] Error:', err.message);
+  }
+}
+
+// Ejecutar al arrancar y luego cada hora
+cleanupStaleSessions();
+setInterval(cleanupStaleSessions, STALE_SESSION_CLEANUP_INTERVAL);
+
 // Inicia el bot con reintentos
 startBotWithRetry();
 
