@@ -25,11 +25,10 @@ ON DUPLICATE KEY UPDATE billing_day=VALUES(billing_day), env_key=VALUES(env_key)
 -- ── Añadir columna account_email a platform_usage ────────────────────────────
 -- NULL = datos de cuenta única (pre-v12) o cuenta no identificada
 ALTER TABLE platform_usage
-  ADD COLUMN IF NOT EXISTS account_email VARCHAR(128) DEFAULT NULL;
+  ADD COLUMN account_email VARCHAR(128) DEFAULT NULL;
 
--- Índice solo si no existe (MariaDB 10.5+ / MySQL 8.0+ syntax)
 ALTER TABLE platform_usage
-  ADD INDEX IF NOT EXISTS idx_account (account_email);
+  ADD INDEX idx_account (account_email);
 
 -- ── Presupuesto mensual por proyecto ─────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS project_monthly_budget (
