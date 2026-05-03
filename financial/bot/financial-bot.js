@@ -795,17 +795,25 @@ bot.on('message:text', async (ctx, next) => {
       return;
     }
     // 2. Operación o sesión activa esperando datos — caer al flujo normal
-    const _sessionAsist = await getOrCreateSession(chatId,
-      (await balanceManager.getOrCreateClient(userId, ctx.from?.username)).id);
+    const clientAsist    = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const _sessionAsist  = await getOrCreateSession(chatId, clientAsist.id);
     const _hasActiveSession = _sessionAsist.estado && _sessionAsist.estado !== 'idle';
+    // Solo el dueño de la sesión puede continuar una operación activa.
+    // Otros usuarios del grupo son silenciados (charla ambiental).
+    const _isOwner = !_hasActiveSession ||
+                     !_sessionAsist.client_id ||
+                     _sessionAsist.client_id === clientAsist.id;
+
+    if (!_isOwner) {
+      return; // mensaje de otro usuario mientras hay sesión activa — silencio
+    }
     if (_hasActiveSession || isOperacionCommand(text) || isImplicitOperacion(text)) {
       // fall through to normal processing below
     } else {
       // 3. CLABEs/cuentas — guardar silenciosamente
       const rawCuentas = BankingManager.parsearTexto(text);
       if (rawCuentas.length) {
-        const clientAsist = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
-        const { ajenas }  = await filtrarCuentasAjenas(rawCuentas);
+        const { ajenas } = await filtrarCuentasAjenas(rawCuentas);
         if (ajenas.length) {
           await bankingManager.guardarCuentas(clientAsist.id, null, ajenas);
           await ctx.reply(`✅ Guardado · ${ajenas.length} cuenta(s) registrada(s)`);
