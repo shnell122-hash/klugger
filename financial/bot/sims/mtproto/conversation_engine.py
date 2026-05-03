@@ -301,7 +301,7 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
     Retorna {"test_id", "passed", "detail", "bot_response"}.
     """
     account  = scenario["account"]
-    messages = scenario["messages"]
+    messages = scenario.get("messages", [])
     expected = scenario.get("expected", [])
     test_id  = scenario["id"]
     client   = clients.get(account)
@@ -324,7 +324,8 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
     t0 = time.monotonic()
     bot_response = None
 
-    print(f"  [{account.upper()}] → {messages[0][:60]}")
+    if messages:
+        print(f"  [{account.upper()}] → {messages[0][:60]}")
 
     if not dry_run:
         if asset_spec or photo_type or doc_type:
@@ -368,18 +369,18 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
                 print(f"  ⚠️  Error enviando asset: {e}")
 
             # En asistente el bot SÍ responde con comisiones/saldo — esperar respuesta
-            bot_response = await wait_for_bot_response(client, chat_id, BOT_RESPONSE_TIMEOUT + 5)
+            bot_response = await wait_for_bot_response(client, target, BOT_RESPONSE_TIMEOUT + 5)
 
         elif messages:
             # ── Enviar mensajes de texto ─────────────────────────────────────
             await client.send_message(target, messages[0])
-            bot_response = await wait_for_bot_response(client, chat_id, BOT_RESPONSE_TIMEOUT)
+            bot_response = await wait_for_bot_response(client, target, BOT_RESPONSE_TIMEOUT)
             for i, msg in enumerate(messages[1:], 1):
                 await asyncio.sleep(DELAY_BETWEEN_MESSAGES)
                 print(f"  [{account.upper()}] → {msg[:60]}")
                 await client.send_message(target, msg)
                 if i == len(messages) - 1:
-                    r2 = await wait_for_bot_response(client, chat_id, BOT_RESPONSE_TIMEOUT)
+                    r2 = await wait_for_bot_response(client, target, BOT_RESPONSE_TIMEOUT)
                     if r2:
                         bot_response = r2
     else:
@@ -465,18 +466,36 @@ def set_asistente_mode(chat_id: int):
 
 async def resolve_group_entity(client, chat_id: int):
     """
-    Resuelve la entidad del grupo en la caché de Telethon.
-    Necesario antes de send_message() con IDs numéricos negativos.
+    Resuelve la entidad del grupo para Telethon.
+    Megagrupos son Channels internamente — get_entity(int_neg) falla con PeerIdInvalidError.
+    Solución: poblar caché con get_dialogs(limit=None) y buscar por ID positivo.
     """
+    target_id = abs(chat_id)
+
+    # Poblar caché completa — sin límite para asegurar que el grupo aparezca
     try:
-        # get_dialogs() puebla la caché de todas las conversaciones del usuario
-        await client.get_dialogs(limit=50)
-        # Intentar resolver directamente
-        entity = await client.get_entity(chat_id)
-        return entity
+        dialogs = await client.get_dialogs(limit=None)
+        for dialog in dialogs:
+            eid = getattr(dialog.entity, 'id', None)
+            if eid == target_id:
+                title = getattr(dialog.entity, 'title', '?')
+                print(f"[engine] Entidad resuelta desde diálogos: '{title}' (id={eid})")
+                return dialog.entity
     except Exception as e:
-        print(f"[engine] ⚠️  Error resolviendo entidad {chat_id}: {e}")
-        return chat_id  # fallback al integer
+        print(f"[engine] get_dialogs error: {e}")
+
+    # Segunda oportunidad: get_input_entity usa la caché interna (más permisivo que get_entity)
+    try:
+        return await client.get_input_entity(chat_id)
+    except Exception:
+        pass
+
+    # Último recurso: get_entity después de poblar caché
+    try:
+        return await client.get_entity(chat_id)
+    except Exception as e:
+        print(f"[engine] ⚠️  No se pudo resolver entidad {chat_id}: {e}")
+        return chat_id  # último fallback al integer
 
 
 async def run_engine(rounds: int = 0, force_tier: int = 0, dry_run: bool = False):
@@ -517,9 +536,11 @@ async def run_engine(rounds: int = 0, force_tier: int = 0, dry_run: bool = False
     if not dry_run:
         set_asistente_mode(chat_id)
 
-    # Descubrir bot con cualquier cliente
-    main_client = next(iter(clients.values()))
-    await discover_bot_user_id(main_client, chat_id)
+    # Descubrir bot con cualquier cliente (usar entidad resuelta)
+    main_account = next(iter(clients.keys()))
+    main_client  = clients[main_account]
+    main_entity  = chat_entities.get(main_account, chat_id)
+    await discover_bot_user_id(main_client, main_entity)
     if not BOT_USER_ID:
         print("[engine] ⚠️  No se detectó el financial-bot en el grupo.")
         print("[engine]    Verifica que FIN_ALLOWED_CHAT_IDS incluya este chat_id")
