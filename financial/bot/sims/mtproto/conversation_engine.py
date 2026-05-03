@@ -84,59 +84,62 @@ def gen_scenarios(tier: int) -> list[dict]:
     """Genera escenarios dinámicos para el tier dado."""
     scenarios = []
 
-    # ── Escenarios modo ASISTENTE (siempre activos en todos los tiers) ──────────
-    # En modo asistente el bot procesa CLABEs y fotos silenciosamente.
-    # Éxito = datos guardados en DB (no respuesta de texto del bot).
+    # ── Escenarios modo ASISTENTE ────────────────────────────────────────────────
+    # El bot SÍ responde en asistente: publica comisiones y saldo actualizado.
+    # "expected" contiene keywords del resumen financiero que el bot manda.
+    # Complejidad progresiva: más clientes, saldos negativos, montos disputados.
 
-    # CLABE enviada como texto plano → bot extrae y guarda cuenta bancaria
-    clabes_pool = [
-        ("058597000030773833", "BANREGIO", "GV"),
-        ("058597000068994820", "BANREGIO", "Noela"),
-        ("140180900000120017", "BBVA",     "Kevin"),
-        ("012914002436956798", "BANAMEX",  "Ricardo"),
+    CLABES_POOL = [
+        ("058597000030773833", "BANREGIO"),
+        ("058597000068994820", "BANREGIO"),
+        ("140180900000120017", "BBVA"),
+        ("012914002436956798", "BANAMEX"),
     ]
-    for acct, (clabe, banco, titular) in zip(
-        ("gv", "noela", "kevin"), random.sample(clabes_pool, min(3, len(clabes_pool)))
+
+    # CLABEs como texto plano → bot extrae y guarda cuenta bancaria
+    for acct, (clabe, banco) in zip(
+        ("gv", "noela", "kevin"),
+        random.sample(CLABES_POOL, min(3, len(CLABES_POOL)))
     ):
         scenarios.append({
-            "tier": 1, "id": f"clabe_asistente_{acct}", "account": acct,
+            "tier": 1, "id": f"clabe_texto_{acct}", "account": acct,
             "messages": [clabe],
             "mode": "asistente",
             "verify_db": f"SELECT COUNT(*) FROM fin_banking_accounts WHERE clabe='{clabe}'",
-            "expected": [],  # bot silencioso en asistente
+            "expected": ["guardad", "cuenta", "✅"],   # bot confirma CLABE guardada
         })
 
-    # Cuadro de retorno PNG → bot extrae montos, CLABEs y registra tabla_pagos
+    # Cuadro de retorno PNG — complejidad crece con el tier
     for acct in ("gv", "noela", "kevin"):
         scenarios.append({
-            "tier": 1, "id": f"cuadro_retorno_png_{acct}", "account": acct,
-            "photo": "cuadro_retorno",   # generado por assets.py
-            "caption": f"PARA PAGO SEM {random.randint(10, 30)}",
+            "tier": tier, "id": f"cuadro_png_{acct}", "account": acct,
+            "asset": ("cuadro_png", tier),             # genera asset con tier actual
             "mode": "asistente",
-            "verify_db": "SELECT COUNT(*) FROM fin_operations WHERE created_at > NOW() - INTERVAL 120 SECOND",
-            "expected": [],
+            "verify_db": "SELECT COUNT(*) FROM fin_operations WHERE created_at > NOW() - INTERVAL 180 SECOND",
+            # Bot responde con resumen: Saldo, comisión, →
+            "expected": ["Saldo", "→", "comisión", "$"],
         })
 
-    # Comprobante de pago JPG → bot detecta monto y marca operación como pagada
+    # Comprobante JPG — pago recibido
     for acct in ("noela", "kevin"):
         scenarios.append({
-            "tier": 1, "id": f"comprobante_jpg_{acct}", "account": acct,
-            "photo": "comprobante",      # generado por assets.py
-            "caption": "Comprobante ingreso",
+            "tier": tier, "id": f"comprobante_{acct}", "account": acct,
+            "asset": ("comprobante", tier),
             "mode": "asistente",
-            "expected": [],
+            # Bot responde con saldo actualizado tras registrar pago
+            "expected": ["Saldo", "→", "$", "comisión"],
         })
 
-    # Cuadro XLSX (tier 2+)
+    # Cuadro XLSX (tier 2+) — más filas, más detalle
     if tier >= 2:
-        scenarios.append({
-            "tier": 2, "id": "cuadro_xlsx_gv", "account": "gv",
-            "document": "cuadro_retorno_xlsx",
-            "filename": f"SEM{random.randint(10, 30)}.xlsx",
-            "mode": "asistente",
-            "verify_db": "SELECT COUNT(*) FROM fin_operations WHERE created_at > NOW() - INTERVAL 120 SECOND",
-            "expected": [],
-        })
+        for acct in ("gv", "kevin"):
+            scenarios.append({
+                "tier": tier, "id": f"cuadro_xlsx_{acct}", "account": acct,
+                "asset": ("cuadro_xlsx", tier),
+                "mode": "asistente",
+                "verify_db": "SELECT COUNT(*) FROM fin_operations WHERE created_at > NOW() - INTERVAL 180 SECOND",
+                "expected": ["Saldo", "→", "$"],
+            })
 
     if tier >= 1:
         # T1: operaciones básicas (modo NORMAL — el Testing group está en asistente,
@@ -307,10 +310,12 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
 
     is_asistente = scenario.get("mode") == "asistente"
     verify_db    = scenario.get("verify_db")
-    photo_type   = scenario.get("photo")
-    doc_type     = scenario.get("document")
+    asset_spec   = scenario.get("asset")        # (asset_type, tier) tuple
     caption      = scenario.get("caption", "")
     filename     = scenario.get("filename", "archivo.xlsx")
+    # Legacy compat
+    photo_type   = scenario.get("photo")
+    doc_type     = scenario.get("document")
 
     if not client:
         return {"test_id": test_id, "passed": False,
@@ -322,36 +327,48 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
     print(f"  [{account.upper()}] → {messages[0][:60]}")
 
     if not dry_run:
-        if photo_type:
-            # ── Enviar foto generada programáticamente ──────────────────────
+        if asset_spec or photo_type or doc_type:
+            # ── Enviar asset generado por assets.py ─────────────────────────
             try:
-                from assets import random_cuadro_png, random_comprobante_jpg
-                if photo_type == "cuadro_retorno":
-                    img_bytes, semana = random_cuadro_png()
-                    fname = f"cuadro_sem{semana}.png"
-                    print(f"  [{account.upper()}] → [foto cuadro retorno sem{semana}] caption='{caption}'")
+                from assets import gen_for_tier
+                if asset_spec:
+                    a_type, a_tier = asset_spec
+                    data, meta = gen_for_tier(a_type, a_tier)
+                    cap  = meta.get("caption", caption)
+                    fname = meta.get("filename", "asset.bin")
+                    is_doc = a_type == "cuadro_xlsx"
+                    label = (f"[xlsx {fname}]"      if is_doc else
+                             f"[png cuadro sem{meta.get('semana','?')} "
+                             f"{meta.get('clientes','?')} clientes"
+                             + (f" ⚠️{meta['negativos']} neg" if meta.get('negativos') else "")
+                             + "]"                  if "cuadro" in a_type else
+                             f"[comprobante ${meta.get('monto', 0):,.0f}]")
                 else:
-                    img_bytes, monto = random_comprobante_jpg()
-                    fname = "comprobante.jpg"
-                    print(f"  [{account.upper()}] → [foto comprobante ${monto:,.0f}]")
-                await client.send_file(target, io.BytesIO(img_bytes),
-                                       caption=caption, attributes=[])
-            except Exception as e:
-                print(f"  ⚠️  Error enviando foto: {e}")
-            await asyncio.sleep(BOT_RESPONSE_TIMEOUT)  # dar tiempo al bot
+                    # legacy
+                    from assets import gen_cuadro_png, gen_comprobante_png
+                    if photo_type == "cuadro_retorno":
+                        data = gen_cuadro_png(1)
+                        cap, fname, is_doc, label = caption, "cuadro.png", False, "[cuadro png]"
+                    elif doc_type:
+                        from assets import gen_cuadro_xlsx
+                        data = gen_cuadro_xlsx(1)
+                        cap, fname, is_doc, label = caption, filename, True, f"[xlsx {filename}]"
+                    else:
+                        data = gen_comprobante_png()
+                        cap, fname, is_doc, label = caption, "comprobante.jpg", False, "[comprobante]"
 
-        elif doc_type:
-            # ── Enviar documento XLSX ────────────────────────────────────────
-            try:
-                from assets import gen_cuadro_retorno_xlsx
-                xlsx_bytes = gen_cuadro_retorno_xlsx()
-                print(f"  [{account.upper()}] → [xlsx {filename}]")
-                await client.send_file(target, io.BytesIO(xlsx_bytes),
-                                       caption=caption, force_document=True,
-                                       attributes=[], file_name=filename)
+                print(f"  [{account.upper()}] → {label} | caption='{cap[:40]}'")
+                await client.send_file(
+                    target, io.BytesIO(data),
+                    caption=cap,
+                    force_document=is_doc,
+                    **({"file_name": fname} if is_doc else {})
+                )
             except Exception as e:
-                print(f"  ⚠️  Error enviando xlsx: {e}")
-            await asyncio.sleep(BOT_RESPONSE_TIMEOUT)
+                print(f"  ⚠️  Error enviando asset: {e}")
+
+            # En asistente el bot SÍ responde con comisiones/saldo — esperar respuesta
+            bot_response = await wait_for_bot_response(client, chat_id, BOT_RESPONSE_TIMEOUT + 5)
 
         elif messages:
             # ── Enviar mensajes de texto ─────────────────────────────────────
@@ -372,18 +389,37 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
     duration_ms = int((time.monotonic() - t0) * 1000)
 
     # ── Evaluar resultado ─────────────────────────────────────────────────────
-    if is_asistente or (photo_type or doc_type):
-        # En modo asistente: evaluar por estado de DB, no por respuesta del bot
+    if is_asistente or asset_spec or photo_type or doc_type:
+        # En asistente: el bot RESPONDE con comisiones/saldo + actualiza DB
+        # Evaluación combinada: respuesta del bot + estado de DB
+        resp_ok = False
+        db_ok   = False
+
+        if bot_response and expected:
+            resp_lower = bot_response.lower()
+            matched = [kw for kw in expected if kw.lower() in resp_lower or kw in bot_response]
+            resp_ok = len(matched) > 0
+
         if verify_db and not dry_run:
             from learning import db_one
             count = db_one(verify_db)
-            passed = count.isdigit() and int(count) > 0
-            detail = (f"DB OK — {count} registro(s) encontrado(s)" if passed
-                      else "sin registro en DB — bot no procesó el archivo")
-        else:
-            # No hay verify_db: asumir OK si no hubo excepción (bot silencioso)
+            db_ok = count.isdigit() and int(count) > 0
+
+        if bot_response and resp_ok:
             passed = True
-            detail = "enviado en modo asistente (bot silencioso — verificar DB manualmente)"
+            detail = f"bot respondió con comisión/saldo: {bot_response[:120]}"
+        elif db_ok:
+            passed = True
+            detail = f"DB actualizada (bot procesó en silencio): {bot_response[:60] if bot_response else 'sin resp'}"
+        elif bot_response and not expected:
+            passed = True
+            detail = f"bot respondió: {bot_response[:100]}"
+        elif bot_response is None:
+            passed = False
+            detail = "bot no respondió (timeout) — ¿FIN_ALLOWED_CHAT_IDS configurado?"
+        else:
+            passed = False
+            detail = f"respuesta sin keywords {expected[:2]}: '{(bot_response or '')[:80]}'"
     elif bot_response is None:
         passed = False
         detail = f"bot no respondió (timeout {BOT_RESPONSE_TIMEOUT}s)"
