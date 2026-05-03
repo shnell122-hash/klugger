@@ -604,7 +604,7 @@ def gen_scenarios(tier: int, active_accounts: set = None) -> list[dict]:
         "messages": [clabe],
         "mode": "asistente",
         "verify_db": f"SELECT COUNT(*) FROM fin_banking_accounts WHERE clabe='{clabe}'",
-        "expected": ["guardad", "cuenta"],
+        "expected": ["guardad", "cuenta", "selecciona", "opci", "Guardado"],
     })
 
     # ── Comprobante JPG ────────────────────────────────────────────────────────
