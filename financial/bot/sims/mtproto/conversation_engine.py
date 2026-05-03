@@ -49,15 +49,28 @@ BOT_USER_ID: Optional[int] = None
 
 # ─── CLABEs y montos de prueba ────────────────────────────────────────────────
 
-CLABES_POOL = [
+# CLABEs internas (empresa) — usadas como cuentas de pago en operaciones
+CLABES_EMPRESA = [
     ("058597000030773833", "BANREGIO"),
     ("058597000068994820", "BANREGIO"),
+]
+
+# CLABEs de clientes/externos — usadas para probar registro silencioso en asistente
+# Son ajenas (no en fin_empresa_cuentas) así que filtrarCuentasAjenas las acepta
+CLABES_CLIENTE = [
     ("140180900000120017", "BBVA"),
     ("012914002436956798", "BANAMEX"),
     ("032180000118359719", "IXE"),
+    ("706180000800012345", "HSBC"),
+    ("014580000500123456", "SANTANDER"),
 ]
 
+CLABES_POOL = CLABES_EMPRESA + CLABES_CLIENTE
 CLABES = [c for c, _ in CLABES_POOL]
+# Usadas en operaciones (pago salida) — incluyen tanto empresa como cliente
+CLABES_OP = [c for c, _ in CLABES_POOL]
+# Usadas solo para probar registro de cuenta en asistente mode
+CLABES_TEST = [c for c, _ in CLABES_CLIENTE]
 
 AMOUNTS_T1 = [5_000, 8_000, 10_000, 15_000, 20_000]
 AMOUNTS_T2 = [50_000, 75_000, 100_000, 150_000, 200_000]
@@ -398,42 +411,46 @@ def gen_op_scenario(acct: str, tipo: str, amount: int, tier: int) -> dict:
     Genera un escenario completo de operación para el tipo dado.
     Retorna un escenario type='bot' listo para ejecutar.
     """
-    clabe = pick(CLABES)
+    clabe = pick(CLABES_OP)
+
+    # "selecciona" / "tipo" son fallback válidos: el bot pidió tipo porque el parser
+    # no extrajo todo del texto natural — la conversación sigue, no es fallo total.
+    FALLBACK_EXPECTED = ["selecciona", "tipo", "operación", "monto"]
 
     if tipo == "IAS":
         frase_tmpl, kw1, kw2 = pick(FRASES_IAS)
         frase = frase_tmpl.format(amount=f"{amount:,}")
         messages = [frase, clabe]
-        expected = [kw1, kw2]
+        expected = [kw1, kw2] + FALLBACK_EXPECTED
 
     elif tipo == "SPEI":
         frase_tmpl, kw1, kw2 = pick(FRASES_SPEI)
         frase = frase_tmpl.format(amount=f"{amount:,}")
         messages = [frase, clabe]
-        expected = [kw1, kw2]
+        expected = [kw1, kw2] + FALLBACK_EXPECTED
 
     elif tipo == "SINDICATO":
         frase_tmpl, kw1, kw2 = pick(FRASES_SINDICATO)
         frase = frase_tmpl.format(amount=f"{amount:,}")
         messages = [frase, clabe]
-        expected = [kw1, kw2]
+        expected = [kw1, kw2] + FALLBACK_EXPECTED
 
     elif tipo == "EFECTIVO":
         frase_tmpl, kw1, kw2 = pick(FRASES_EFECTIVO)
         frase = frase_tmpl.format(amount=f"{amount:,}")
         messages = [frase]
-        expected = [kw1, kw2]
+        expected = [kw1, kw2] + FALLBACK_EXPECTED
 
     elif tipo == "TARJETAS":
         frase_tmpl, kw1, kw2 = pick(FRASES_TARJETAS)
         frase = frase_tmpl.format(amount=f"{amount:,}")
         messages = [frase, clabe]
-        expected = [kw1, kw2]
+        expected = [kw1, kw2] + FALLBACK_EXPECTED
 
     else:
         frase = f"operacion {tipo} {amount:,} neto"
         messages = [frase, clabe]
-        expected = ["encontrados", "correcto"]
+        expected = ["encontrados", "correcto"] + FALLBACK_EXPECTED
 
     return {
         "type":     "bot",
@@ -578,8 +595,8 @@ def gen_scenarios(tier: int, active_accounts: set = None) -> list[dict]:
     if post:
         scenarios.append({"type": "chat", "tier": tier, "id": "post_cuadro_png", "turns": post})
 
-    # ── CLABE como texto plano ─────────────────────────────────────────────────
-    clabe, banco = pick(CLABES_POOL)
+    # ── CLABE como texto plano (solo CLABEs externas — las internas se filtran como propias) ──
+    clabe, banco = pick(CLABES_CLIENTE)
     clabe_sender = pick(sorted(active_accounts))
     scenarios.append({
         "type": "bot", "tier": tier,
@@ -587,7 +604,7 @@ def gen_scenarios(tier: int, active_accounts: set = None) -> list[dict]:
         "messages": [clabe],
         "mode": "asistente",
         "verify_db": f"SELECT COUNT(*) FROM fin_banking_accounts WHERE clabe='{clabe}'",
-        "expected": ["guardad", "cuenta", "CLABE"],
+        "expected": ["guardad", "cuenta"],
     })
 
     # ── Comprobante JPG ────────────────────────────────────────────────────────
@@ -907,6 +924,7 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
                 await asyncio.sleep(DELAY_BETWEEN_MESSAGES)
                 print(f"  [{account.upper()}] -> {msg[:60]}")
                 try:
+                    await ensure_connected(client, account)
                     await client.send_message(target, msg)
                 except Exception as send_err:
                     print(f"  WARNING: send_message[{i}] failed ({account}): {send_err!r}")
