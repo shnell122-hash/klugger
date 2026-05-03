@@ -42,3 +42,5 @@
 ## [3/5/2026, 04:34:19 CST] Fix automático — Episodio #211
 
 ## [3/5/2026, 04:36:06 CST] Inbox — FinBot Verifier
+
+## [3/5/2026, 04:43:41 CST] [URGENTE] Fijar sesiones colgadas y endpoint /operations
