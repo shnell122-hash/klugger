@@ -9,3 +9,7 @@
 ## [3/5/2026, 00:02:30 CST] Inbox — FinBot Verifier
 
 ## [3/5/2026, 00:19:35 CST] Fix automático — Episodio #84
+
+## [3/5/2026, 00:20:58 CST] Inbox — FinBot Verifier
+- Build de financial-dashboard completado  
+- ️ PM2 restart falló (uid error en PM2 agent) — pero KPIs sigue respondiendo
