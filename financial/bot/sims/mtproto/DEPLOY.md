@@ -12,20 +12,20 @@ claude/financial-multiagent-system-YwtYQ
 
 ---
 
-## Latest commit: `725badd` - natural chat + crash-proof engine
+## Latest commit: `1e4fa23` - fix gemini-2.0-flash
 
 **What changed:**
-- `conversation_engine.py`: 14 ambient conversations between German/Vianey/Christian
-- Natural Spanish phrases replace bare commands (no more caveman `/operacion` only)
-- `type='chat'` scenarios send multi-turn cross-talk; `type='bot'` sends to the bot
-- Engine no longer crashes when Noela/Kevin are not in the group:
-  - `resolve_group_entity`: logs actual PeerChannel error instead of silent pass
-  - `run_chat_scenario`: skips turns for accounts without group access
-  - `run_scenario`: try/except around every send_message/send_file call
-  - `run_engine`: detects fallback accounts, filters scenarios, prints actionable warning
+- `DocumentIntelligenceAgent.js`: `gemini-1.5-flash` -> `gemini-2.0-flash`
+- The old model was removed from the v1beta endpoint (404 Not Found)
+- This was blocking ALL document processing: cuadros, comprobantes, audio
 
-**Required manual action:** Add Noela and Kevin (Christian) to the Testing group in Telegram.
-Once added, all three accounts will participate in conversations automatically.
+**Who writes in the group (roles):**
+- **German** = cliente (cuenta gv)
+- **Vianey** = asistente (cuenta noela) — PENDIENTE: agregar al grupo Testing
+- **Christian** = proveedor (cuenta kevin) — PENDIENTE: agregar al grupo Testing
+- **Flujos AI** = bot financiero
+
+Until Vianey and Christian are added to the Testing group, only German can send messages.
 
 ---
 
@@ -41,51 +41,43 @@ git reset --hard origin/claude/financial-multiagent-system-YwtYQ
 
 ```bash
 pm2 restart --update-env financial-bot
-pm2 logs financial-bot --nostream --lines 10
+pm2 logs financial-bot --nostream --lines 15
 ```
 
-Run the engine:
+Restart and tail engine:
 
 ```bash
+pkill -f conversation_engine.py
 cd /var/www/html/vilarkptl.com/ai-monitor/financial/bot/sims/mtproto
 nohup ./venv/bin/python -u conversation_engine.py > /tmp/engine.log 2>&1 &
 tail -f /tmp/engine.log
 ```
 
-Press `Ctrl+C` to stop tailing (engine keeps running). To stop the engine:
-
-```bash
-pkill -f conversation_engine.py
-```
-
 ---
 
-## What the group will look like after this deploy
-
-With only GV in the group (Noela/Kevin not yet added):
+## What the group looks like with all three accounts
 
 ```
-[GV] Buenos dias
-[GV] cuadro_png sent  <-- bot processes, replies with saldo/comision
-[GV] cuanto tengo?    <-- bot replies
-```
-
-After adding Noela (Vianey) and Kevin (Christian) to the group:
-
-```
-[GV]     Buenos dias
-[NOELA]  Buenos dias German!
-[KEVIN]  Que tal, buenos dias
-[NOELA]  Voy a mandar el cuadro de esta semana
-[GV]     Ok Vianey, ya lo espero
-[NOELA]  <cuadro_png>   <-- bot processes silently in asistente mode
-[GV]     Listo. Ya esta registrado en el sistema
-[KEVIN]  Perfecto, gracias German
+[GERMAN]    Buenos dias
+[VIANEY]    Buenos dias German!
+[CHRISTIAN] Que tal, buenos dias
+[VIANEY]    Voy a mandar el cuadro de esta semana
+[GERMAN]    Ok Vianey, ya lo espero
+[VIANEY]    <cuadro_png>
+[Flujos AI] Cuadro registrado. Saldo: $XXX | Comision: X%
+[GERMAN]    Listo. Ya esta registrado en el sistema
+[CHRISTIAN] Perfecto, gracias German
 ```
 
 ---
 
 ## Quick checks
+
+Gemini working (no 404 error):
+
+```bash
+pm2 logs financial-bot --nostream --lines 20 | grep -i gemini
+```
 
 Asistente mode active:
 
@@ -101,7 +93,7 @@ DB_PASS=$(grep -oP 'DB_PASS=\K[^ ]+' /var/www/html/vilarkptl.com/ai-monitor/fina
 mysql -u root -p"$DB_PASS" ai_monitoring -e "SELECT id, episode_num, score_pct, complexity_tier FROM learning_episodes ORDER BY id DESC LIMIT 5;"
 ```
 
-Engine log tail:
+Engine log:
 
 ```bash
 tail -50 /tmp/engine.log
@@ -113,10 +105,10 @@ tail -50 /tmp/engine.log
 
 | Commit | Description | Action |
 |--------|-------------|--------|
+| `1e4fa23` | Fix Gemini model 404 (gemini-2.0-flash) | Pull + pm2 restart |
 | `725badd` | Natural multi-user chat + crash-proof engine | Pull + pm2 restart + run engine |
 | `4404af7` | PeerChannel fix for megagroup | Pull + pm2 restart |
-| `c317ed3` | Progressive assets + learning DB + continuous engine | pm2 restart financial-bot |
-| `a3e84f9` | Migration v16 (learning tables) | Run migrate-financial-v16.sql |
+| `c317ed3` | Progressive assets + learning DB | pm2 restart financial-bot |
 
 ---
 
