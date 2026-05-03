@@ -2208,9 +2208,28 @@ bot.on('message:voice', async (ctx) => {
 // Callback: guardar como admin
 // ── Error handling ────────────────────────────────────────────────────────────
 
+// Middleware: bloquear updates si el bot está desconectado
+bot.use(async (ctx, next) => {
+  if (!botStarted) {
+    console.warn(`[bot-middleware] Update ${ctx.update.update_id} rechazado: bot no started`);
+    return; // No procesar updates si el bot no está listo
+  }
+  await next();
+});
+
 bot.catch((err) => {
   const ctx = err.ctx;
-  console.error(`[bot] Error en update ${ctx.update.update_id}:`, err.error);
+  const errMsg = err.error?.message || String(err.error);
+  console.error(`[bot] Error en update ${ctx?.update?.update_id}:`, errMsg);
+
+  // Detectar desconexión y marcar bot como offline
+  if (errMsg?.includes('Cannot send requests while disconnected') ||
+      errMsg?.includes('Failed to fetch') ||
+      errMsg?.includes('ECONNREFUSED')) {
+    console.error('[bot.catch] Desconexión detectada, marcando bot como offline');
+    botStarted = false;
+  }
+
   if (err.error instanceof GrammyError) {
     console.error('[grammy]', err.error.description);
   } else if (err.error instanceof HttpError) {
@@ -2228,10 +2247,10 @@ q.getAdminUserIds(pool)
 let botStarted = false;
 let botHealthCheckInterval = null;
 let botStartAttempts = 0;
-const MAX_START_ATTEMPTS = 5;
-const START_RETRY_DELAY = 5000; // 5s
-const HEALTH_CHECK_INTERVAL = 30000; // 30s
-const HEALTH_CHECK_TIMEOUT = 10000; // 10s timeout para getMe()
+const MAX_START_ATTEMPTS = 10;
+const START_RETRY_DELAY = 3000; // 3s
+const HEALTH_CHECK_INTERVAL = 5000; // 5s (más frecuente para detectar desconexiones rápido)
+const HEALTH_CHECK_TIMEOUT = 5000; // 5s timeout para getMe()
 
 async function startBotWithRetry() {
   botStartAttempts++;
