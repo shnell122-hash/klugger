@@ -1,71 +1,45 @@
 # Relay Outbox — FinBot — Verificador Continuo
-_3/5/2026, 6:27:35 p.m. | 176s | exit:0_
+_3/5/2026, 6:28:20 p.m. | 40s | exit:0_
 
 RELAY_DIAG user=claude-agent home=/home/claude-agent task=ok
-Entendido. Soy **FinBot Verifier** — iniciando diagnóstico del Episodio #588.
+Entendido. Soy **FinBot Verifier** — agente de verificación continua del sistema `financial-bot`. 
 
-**Contexto**: Score 37.5% (crítico), patrón recurrente de desconexiones Telegram (`Cannot send requests while disconnected`). Voy a revisar logs, identificar la causa raíz y aplicar el fix.Identificado el problema raíz: **race condition en reintentos de desconexión**. 
+Veo que el inbox está vacío (sin tarea activa del relay-master). Procederé con la **verificación periódica estándar** del sistema para detectar errores, inconsistencias en DB y anomalías en el dashboard.
 
-El bot entra en un ciclo de desconexiones porque:
-1. `safeReply()` reintenta 4 veces cuando ve "Cannot send requests while disconnected"
-2. Solo marca `botStarted = false` pero sigue reintentando (que fallarán)
-3. Múltiples health checks simultáneos pueden lanzar múltiples `startBotWithRetry()` sin sincronización
-4. No hay guard que prevenga race conditions
+Lanzaré los comandos de verificación:---
 
-Voy a aplicar el fix:---
+## Verificación completada — 2026-05-03 18:27 CST
 
-## ✅ **Fix completado: Episodio #588 — Race Condition en Desconexión Telegram**
+### Estado del sistema
 
-### **Diagnóstico** 
-- **Score crítico**: 37.5% (umbral: 80%)
-- **Patrón recurrente**: `Cannot send requests while disconnected` (×58 episodios)
-- **Causa raíz**: Race condition en reintentos de desconexión sin sincronización
-
-### **Problema**
-1. Cuando Telegram desconecta, `safeReply()` reintentaba **4 veces inútilmente** (~3.2s)
-2. Múltiples health checks podían lanzar `startBotWithRetry()` en paralelo **sin guard**
-3. Resultado: Ciclo de desconexión sin recuperación efectiva (~10s vs. potencial <1s)
-
-### **Fix Aplicado** ✅
-
-**Commit**: `e68d26b3da7da1c072a782284ac55d3e379183fa`
-
-**Cambios en `financial/bot/financial-bot.js`**:
-
-| Línea | Cambio | Propósito |
-|-------|--------|----------|
-| ~2303 | Agregado flag `botIsRestarting = false` | Guard para múltiples reintentos simultáneos |
-| ~2310 | Guard check en `startBotWithRetry()` | Prevenir múltiples inicios en paralelo |
-| ~2324, 2365, 2377 | Reset de `botIsRestarting = false` | Sincronización en todos los puntos de transición |
-| **~2246-2265** | **Modificado `safeReply()`** | **Crítico**: cuando detecta "Cannot send requests while disconnected": NO reintenta, dispara reinicio rápido (500ms), lanza error inmediatamente |
-
-### **Impacto Esperado**
-- **Tiempo de recuperación**: ~500ms (vs. ~10s antes)
-- **Score esperado**: 80%+ (desde 37.5%)
-- **Eliminados**: Reintentos fallidos, race conditions
-
-### **Deploy Status**
-| Fase | Status |
-|------|--------|
-| Commit & Push | ✅ Completado |
-| Git Pull (servidor) | ✅ Completado |
-| **PM2 Restart** | ⚠️ **Pendiente** (requiere permisos root) |
-
-**Acción requerida en servidor** (143.198.228.78):
-```bash
-pm2 restart financial-bot
-```
-
-El código ya está en el repo; el bot actual en memoria usa la versión anterior.
+| Recurso | Estado | Notas |
+|---------|--------|-------|
+| **Logs bot** | ✅ Sin errores críticos | 200 líneas revisadas, 0 exceptions |
+| **Dashboard KPIs** | ✅ Respondiendo | 8 clientes, 180 ops hoy, $6.43M saldo total |
+| **Proceso financal-bot** | ✅ Activo | PID 542494, mem 2.0%, cpu 0.3% |
+| **Operaciones incompletas** | ✅ 0 | Ninguna con `estado='confirmada'` y `saldo_despues IS NULL` |
+| **Sesiones bloqueadas** | ⚠️ **1 ANOMALÍA** | Sesión 67: "confirmando_cuentas" desde 09:58:32 (8.5h inactiva) |
+| **Clientes anómalos** | ⚠️ 4 saldos negativos | VILAR KPTL (-$12.6M), 3 test accounts (probable) |
 
 ---
 
-## Outbox
+## Anomalía detectada
+
+**Sesión ID 67** — Chat: `-5142407305`
+- **Estado actual**: `confirmando_cuentas`
+- **Última actualización**: 2026-05-03 09:58:32 (hace ~8.5 horas)
+- **Acción recomendada**: Verificar si el cliente respondió en Telegram o si la sesión debe ser forzada a `completado`
+
+Consultar inbox del relay para instrucciones de fix.
+
+---
+
+## Formato de salida
 
 ```
 STATUS: partial
-CHANGED: financial/bot/financial-bot.js (fix de race condition)
-DEPLOYED: no (requiere reinicio PM2 en producción)
-PENDING: pm2 restart financial-bot + verificar score
-USER_REQUIRED: Ejecutar reinicio en servidor producción
+CHANGED: (ninguno — solo verificación)
+DEPLOYED: no
+PENDING: Sesión 67 colgada (confirmando_cuentas, 8.5h sin actualización)
+USER_REQUIRED: Verificar inbox Telegram chat -5142407305; reiniciar sesión si es necesario
 ```
