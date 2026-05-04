@@ -2236,16 +2236,32 @@ async function safeReply(ctx, text, options = {}) {
       lastError = err;
       const errMsg = err?.message || String(err);
 
-      // Si es error de desconexión, timeout o red, esperar y reintentar
-      if ((errMsg?.includes('Cannot send requests while disconnected') ||
-           errMsg?.includes('Failed to fetch') ||
+      // Si es error de desconexión Telegram, NO reintentar — dejar que health check maneje
+      if (errMsg?.includes('Cannot send requests while disconnected')) {
+        // Marcar bot como offline y disparar reinicio si aún no está restarting
+        if (!botIsRestarting && botStarted) {
+          botStarted = false;
+          console.error(`[safeReply] ❌ Desconexión detectada: ${errMsg}, marcando para reinicio`);
+          botIsRestarting = true;
+          // Reinicio rápido sin esperar a health check
+          setTimeout(() => {
+            botIsRestarting = false;
+            botStartAttempts = 0;
+            startBotWithRetry();
+          }, 500);
+        }
+        // No reintentar — dejar que la próxima operación use el nuevo bot iniciado
+        throw err;
+      }
+      
+      // Otros errores de red/timeout: reintentar
+      if ((errMsg?.includes('Failed to fetch') ||
            errMsg?.includes('ECONNREFUSED') ||
            errMsg?.includes('timeout') ||
            errMsg?.includes('Timeout')) && attempt < maxRetries - 1) {
         const elapsed = Date.now() - startTime;
         if (elapsed < maxWaitTime) {
           console.warn(`[safeReply] Error de conexión/timeout (intento ${attempt + 1}/${maxRetries}): ${errMsg}, reintentando en ${retryDelay}ms...`);
-          botStarted = false;
           await new Promise(resolve => setTimeout(resolve, retryDelay));
           continue;
         }
@@ -2300,12 +2316,18 @@ q.getAdminUserIds(pool)
 let botStarted = false;
 let botHealthCheckInterval = null;
 let botStartAttempts = 0;
+let botIsRestarting = false; // Guard para prevenir múltiples reintentos simultáneos
 const MAX_START_ATTEMPTS = 10;
 const START_RETRY_DELAY = 3000; // 3s
 const HEALTH_CHECK_INTERVAL = 2000; // 2s (optimizado para detectar desconexiones inmediatas)
 const HEALTH_CHECK_TIMEOUT = 3000; // 3s timeout para getMe() (reducido para failover rápido)
 
 async function startBotWithRetry() {
+  if (botIsRestarting) {
+    console.warn('[startBotWithRetry] Ya hay un reinicio en progreso, ignorando nueva solicitud');
+    return;
+  }
+  botIsRestarting = true;
   botStartAttempts++;
   try {
     console.log(`[financial-bot] Intentando iniciar bot (intento ${botStartAttempts}/${MAX_START_ATTEMPTS})...`);
@@ -2313,6 +2335,7 @@ async function startBotWithRetry() {
     bot.start({
       onStart: async (info) => {
         console.log(`[financial-bot] Bot @${info.username} iniciado correctamente`);
+        botIsRestarting = false;
         botStarted = true;
         botStartAttempts = 0;
 
@@ -2358,6 +2381,7 @@ async function startBotWithRetry() {
     }).catch(err => {
       console.error(`[financial-bot] Error en bot.start():`, err.message);
       botStarted = false;
+      botIsRestarting = false;
       if (botStartAttempts < MAX_START_ATTEMPTS) {
         setTimeout(() => startBotWithRetry(), START_RETRY_DELAY);
       } else {
@@ -2368,6 +2392,7 @@ async function startBotWithRetry() {
   } catch (err) {
     console.error(`[financial-bot] Error al iniciar bot (intento ${botStartAttempts}):`, err.message);
     if (botStartAttempts < MAX_START_ATTEMPTS) {
+      botIsRestarting = false;
       setTimeout(() => startBotWithRetry(), START_RETRY_DELAY);
     } else {
       console.error('[financial-bot] ❌ No se pudo iniciar el bot después de', MAX_START_ATTEMPTS, 'intentos');
