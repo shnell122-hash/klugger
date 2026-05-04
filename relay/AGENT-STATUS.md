@@ -5,7 +5,7 @@
 > 2. **Actualizar este archivo AL FINAL** de su sesión con commit + push
 > 3. Nunca hacer acciones destructivas (reset, drop, rm -rf) sin verificar "En progreso"
 
-_Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02 | Actualizado 2026-05-03_
+_Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02 | Actualizado 2026-05-04_
 
 ---
 
@@ -13,6 +13,7 @@ _Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02 | Actualizado 20
 
 | Agente | Sesión/Branch | Último cambio | Estado |
 |--------|--------------|---------------|--------|
+| Claude Code (`claude/agent-monitoring-dashboard-4v8iq`) | 2026-05-04 | P1+P2 optimización costos: DeepSeek V4-Flash/Pro + caching, project_killed enforcement, budget proporcional (40%), max depth 3, projects.json actualizado | ✅ Pusheado |
 | Claude Code (`claude/agent-monitoring-dashboard-4v8iq`) | 2026-05-03 | Multi-account spending, $100/proyecto/mes kill-switch, gasto histórico, migrate-v12 | ✅ Pusheado |
 | Claude Code (`claude/agent-monitoring-dashboard-4v8iq`) | 2026-05-02 12:43 | Redesign, toggle tema, SYSTEM.md, audit, Cursor integration, AGENT-STATUS.md, PR #21 → mergeado a main | ✅ En main |
 | Claude Code (`claude/onboard-ai-monitor-subproject-zXvki`) | 2026-05-02 11:35 | LiteLLM activado, auth login, kptl-credito fix | ✅ Pusheado |
@@ -98,18 +99,25 @@ git -C /var/www/html/vilarkptl.com/ai-monitor push origin HEAD:backup/server-loc
 
 ## Tareas pendientes
 
-- [ ] Mergear `claude/agent-monitoring-dashboard-4v8iq` → main (multi-account spending, project budgets — este PR)
-- [ ] En servidor: correr `mysql ai_monitoring < backend/db/migrate-v12.sql`
-- [ ] En servidor: agregar Admin API keys al relay/.env:
-  - `ANTHROPIC_ADMIN_KEY` (ya debe existir — cuenta vilarkptl@gmail.com)
+### En servidor (ejecutar manualmente)
+- [ ] Mergear `claude/agent-monitoring-dashboard-4v8iq` → main y `pm2 restart relay-master` para activar P1+P2
+- [ ] Verificar IDs DeepSeek V4: `curl https://api.deepseek.com/v1/models -H "Authorization: Bearer $DEEPSEEK_API_KEY" | jq '.data[].id'`
+- [ ] Actualizar relay/.env con IDs reales: `DEEPSEEK_FLASH_MODEL=...` y `DEEPSEEK_PRO_MODEL=...`
+- [ ] Correr `mysql ai_monitoring < backend/db/migrate-v12.sql` si no se hizo
+- [ ] Agregar Admin API keys al relay/.env:
   - `ANTHROPIC_ADMIN_KEY_GVA` (cuenta gva.server@gmail.com)
   - `ANTHROPIC_ADMIN_KEY_LEASINGAGATA` (cuenta leasingagata@gmail.com)
-  - Obtener en: https://console.anthropic.com/settings/keys (Admin keys)
-- [ ] En servidor: `pm2 restart ai-monitor` para activar project budget poller
-- [ ] Crear y mergear PR de `claude/onboard-ai-monitor-subproject-zXvki` → main (auth + LiteLLM)
+- [ ] Detener `vilar-legal-os-v59`: `pm2 stop vilar-legal-os-v59 && pm2 delete vilar-legal-os-v59`
 - [ ] Agregar 1GB swap: `fallocate -l 1G /swapfile2 && chmod 600 /swapfile2 && mkswap /swapfile2 && swapon /swapfile2`
-- [ ] Investigar `vilar-legal-os-v59` — causa de 146k+ restarts
+- [ ] pm2-logrotate: `pm2 install pm2-logrotate && pm2 set pm2-logrotate:max_size 50M`
+- [ ] Crear y mergear PR de `claude/onboard-ai-monitor-subproject-zXvki` → main (auth + LiteLLM)
 - [ ] `git push origin main` desde servidor (commits locales sin push)
+
+### Próximas sesiones de código
+- [ ] P3: Quiet hours (11pm-8am MX) + rate limiting (3 dispatches/hora) en master.js
+- [ ] P4: `selectClaudeModel()` — routing inteligente usando `claude_model_fast`
+- [ ] P5: LiteLLM en master.js (`callViaLiteLLM()`) — copiar patrón de chat-agent.js
+- [ ] P6: Claude CLI proxy shadow test en ai-monitor (use_cli_proxy flag ya en projects.json)
 
 ---
 

@@ -710,6 +710,18 @@ function postAlert(alertType, projectId, severity, title, details, autoFixed = f
   postToMonitor('/api/alerts', { alert_type: alertType, project_id: projectId, severity, title, details, auto_fixed: autoFixed });
 }
 
+// ─── Per-project kill-switch (migrate-v12 project_monthly_budget) ────────────
+// Cache refreshed every 5 min by the kill-switch poller via /api/apiAdmin/projectBudgets.
+// Avoids a DB query on every 15-second poll cycle.
+const PROJECT_KILLED_CACHE = {};  // { projectId: { killed: bool, ts: number } }
+const PROJECT_KILLED_TTL   = 5 * 60 * 1000;
+
+function getProjectKilled(projectId) {
+  const cached = PROJECT_KILLED_CACHE[projectId];
+  if (cached && (Date.now() - cached.ts) < PROJECT_KILLED_TTL) return cached.killed;
+  return false;  // safe default; async refresh happens in kill-switch poller
+}
+
 // ─── Anthropic API directo (Opción B — buzon bidireccional) ──────────────────
 // Llama claude-haiku-4-5 via HTTPS nativo sin spawn Claude CLI.
 // Usada cuando buzon-fiscalai.md cambia para responder directamente.
@@ -760,14 +772,19 @@ function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512) {
   return Promise.race([apiCall, timeout]);
 }
 
-// Calls DeepSeek V3 via OpenAI-compatible API — used for /tarea planning and summaries.
+// Calls DeepSeek V4 via OpenAI-compatible API — used for /tarea planning and summaries.
+// useComplex=true → V4-Pro (Sonnet-quality, 4-6x cheaper); false → V4-Flash (fast/cheap).
 // Falls back gracefully (returns null) if no API key is configured.
-function callDeepSeekDirect(systemPrompt, userMessage, maxTokens = 512) {
+// Prefix caching is enabled: repeated calls with the same system prompt hit the KV cache.
+function callDeepSeekDirect(systemPrompt, userMessage, maxTokens = 512, useComplex = false) {
   const timeoutMs = 20000;
+  const model = useComplex
+    ? (process.env.DEEPSEEK_PRO_MODEL   || 'deepseek-chat')
+    : (process.env.DEEPSEEK_FLASH_MODEL || 'deepseek-chat');
   const apiCall = new Promise((resolve, reject) => {
     if (!DEEPSEEK_KEY) { reject(new Error('DEEPSEEK_API_KEY no configurado')); return; }
     const body = JSON.stringify({
-      model:      'deepseek-chat',
+      model,
       max_tokens: maxTokens,
       messages: [
         { role: 'system', content: systemPrompt },
@@ -790,6 +807,11 @@ function callDeepSeekDirect(systemPrompt, userMessage, maxTokens = 512) {
         try {
           const json = JSON.parse(data);
           if (json.error) { reject(new Error(`DeepSeek error: ${json.error.message}`)); return; }
+          // Log cache hit stats when available (DeepSeek V4 returns prompt_cache_hit_tokens)
+          const usage = json.usage;
+          if (usage?.prompt_cache_hit_tokens) {
+            log(null, `[deepseek] cache_hit=${usage.prompt_cache_hit_tokens} miss=${usage.prompt_cache_miss_tokens} model=${model}`);
+          }
           resolve(json.choices?.[0]?.message?.content || null);
         } catch (e) { reject(e); }
       });
@@ -1806,13 +1828,27 @@ async function processDispatchQueue(projects, hashes = null) {
 
     log(null, `Dispatch → ${target.name}: ${dispatch.task.slice(0, 80)}`);
 
+    // Max dispatch depth — block recursive coordinator chains beyond depth 3
+    const taskDepth = parseInt(dispatch.depth || 0);
+    const MAX_DISPATCH_DEPTH = parseInt(process.env.MAX_DISPATCH_DEPTH || '3');
+    if (taskDepth >= MAX_DISPATCH_DEPTH) {
+      log(null, `Dispatch ${dispatch.id}: depth ${taskDepth} >= max ${MAX_DISPATCH_DEPTH} — bloqueado`);
+      tg(`🚫 <b>Dispatch bloqueado — profundidad máxima</b>\nDepth ${taskDepth} en proyecto ${target.name}\n<code>${dispatch.task.slice(0, 200)}</code>`);
+      const idx = updated.findIndex(d => d.id === dispatch.id);
+      updated[idx] = { ...dispatch, status: 'error', dispatched_at: new Date().toISOString(), error: `max_depth:${MAX_DISPATCH_DEPTH}` };
+      continue;
+    }
+
     // Inject budget_usd_max for sub-dispatches without one (coordinator → agent).
-    // Prevents a coordinator session from spawning 10 × $2 tasks uncontrolled.
-    // The coordinator can override by including budget_usd_max explicitly in the task.
+    // Proportional: 40% of parent budget, min $0.50, max $5.00.
+    // Prevents a coordinator with $10 budget from spawning 5 × $2 tasks unchecked.
     let inboxTask = dispatch.task;
     if (!inboxTask.match(/budget_usd_max\s*[:=]/i) &&
-        (dispatch.depth >= 1 || dispatch.requester === 'coordinator')) {
-      inboxTask = `budget_usd_max: 1.50\n\n` + inboxTask;
+        (taskDepth >= 1 || dispatch.requester === 'coordinator')) {
+      const parentBudget = parseBudgetMax(dispatch.task);  // default $2.00
+      const BUDGET_SUB_FRACTION = parseFloat(process.env.BUDGET_SUB_FRACTION || '0.4');
+      const subBudget = Math.max(0.50, Math.min(+(parentBudget * BUDGET_SUB_FRACTION).toFixed(2), 5.00));
+      inboxTask = `budget_usd_max: ${subBudget}\n\n` + inboxTask;
     }
 
     // Write task to target inbox (append outbox template so agent always fills it)
@@ -1920,6 +1956,7 @@ function checkOutboxWatchdog(projects) {
 async function processProject(project, hashes, pulledRepos = new Set()) {
   if (!project.active || !project.inbox) return;
   if (GLOBAL_KILLED) { log(project.id, `Kill-switch activo (${GLOBAL_KILL_MSG || 'gasto diario'}) — saltando`); return; }
+  if (getProjectKilled(project.id)) { log(project.id, `project_killed: presupuesto mensual agotado — saltando`); return; }
 
   // Git pull — deduplicated per repo path to avoid concurrent git lock conflicts
   if (project.repo && project.branch && !pulledRepos.has(project.repo)) {
@@ -2487,6 +2524,25 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
           }
         }
       }
+
+      // Refresh per-project kill flags from /api/apiAdmin/projectBudgets
+      try {
+        const budgetData = await new Promise((resolve) => {
+          const req = http.get(`${MONITOR_API}/api/apiAdmin/projectBudgets`, (res) => {
+            let body = '';
+            res.on('data', c => body += c);
+            res.on('end', () => { try { resolve(JSON.parse(body)); } catch (_) { resolve(null); } });
+          });
+          req.setTimeout(5000, () => { req.destroy(); resolve(null); });
+          req.on('error', () => resolve(null));
+        });
+        if (budgetData?.projects) {
+          const now = Date.now();
+          for (const b of budgetData.projects) {
+            PROJECT_KILLED_CACHE[b.project_name] = { killed: !!b.killed, ts: now };
+          }
+        }
+      } catch (_) {}
     } catch (_) { /* no interrumpir por fallos de red */ }
   }, 60 * 1000);
 
