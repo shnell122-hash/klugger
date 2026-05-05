@@ -16,7 +16,7 @@ const MODELS = {
   sonnet:       { id: 'claude-sonnet-4-6',                              proxyModel: 'kptl-chat',      provider: 'anthropic',       label: 'Claude Sonnet 4.6',        costIn: 3,    costOut: 15    },
   haiku:        { id: 'claude-haiku-4-5-20251001',                      proxyModel: 'kptl-chat-fast', provider: 'anthropic',       label: 'Claude Haiku 4.5',         costIn: 0.8,  costOut: 4     },
   opus:         { id: 'claude-opus-4-7',                                proxyModel: 'kptl-reasoning', provider: 'anthropic',       label: 'Claude Opus 4.7',          costIn: 15,   costOut: 75    },
-  'claude-proxy': { id: 'claude-sonnet-4-6',                            proxyModel: null,             provider: 'anthropic-proxy', label: 'Claude Pro (proxy $0)',     costIn: 0,    costOut: 0     },
+  'claude-proxy': { id: 'claude-sonnet-4-6',                            proxyModel: null,             provider: 'anthropic-proxy', label: 'Claude Pro (Proxy - $0)',   costIn: 0,    costOut: 0     },
   deepseek:     { id: process.env.DEEPSEEK_FLASH_MODEL || 'deepseek-v4-flash', proxyModel: 'kptl-chat-fast', provider: 'deepseek',  label: 'DeepSeek V4-Flash 💸',     costIn: 0.02, costOut: 0.14  },
   deepseekPro:  { id: process.env.DEEPSEEK_PRO_MODEL   || 'deepseek-v4-pro',   proxyModel: 'kptl-chat',      provider: 'deepseek',  label: 'DeepSeek V4-Pro 💸',       costIn: 0.14, costOut: 1.10  },
   r1:           { id: 'deepseek-reasoner',                              proxyModel: 'kptl-reasoning', provider: 'deepseek',        label: 'DeepSeek R1 🧠',           costIn: 0.55, costOut: 2.19  },
@@ -228,7 +228,7 @@ async function runTool(name, input, sessionDispatched = null) {
 // ── Model abstraction ─────────────────────────────────────────────────────────
 // Returns { text, tokensIn, tokensOut, stopReason, toolCalls }
 async function callModel(modelKey, messages, ctx, onProgress, signal) {
-  if (modelKey === 'claude-proxy') return callClaudeProxy(messages);
+  if (modelKey === 'claude-proxy') return callClaudeProxy(messages, MODELS['claude-proxy'].id);
   const m = MODELS[modelKey] || MODELS[DEFAULT_MODEL];
   if (litellmProxy && m.proxyModel) return callLiteLLMProxy(m, messages, ctx, onProgress, signal);
   if (m.provider === 'anthropic') return callAnthropic(m, messages, ctx, onProgress, signal);
@@ -529,7 +529,7 @@ async function callLiteLLMProxy(m, messages, ctx, onProgress, signal) {
 // Routes to a local claude-relay process that consumes the Pro/Max subscription.
 // No agentic loop: one turn in → one turn out. Fast, conversational, free.
 // Used by: /claude command, or when TOPIC_MODEL is set to 'claude-proxy'.
-async function callClaudeProxy(messages) {
+async function callClaudeProxy(messages, model = 'claude-sonnet-4-6') {
   if (!anthropicProxy) {
     throw new Error(
       'ANTHROPIC_PROXY_URL no configurado.\n' +
@@ -538,9 +538,9 @@ async function callClaudeProxy(messages) {
     );
   }
   const resp = await anthropicProxy.messages.create({
-    model:      'claude-sonnet-4-6',
+    model,
     max_tokens: 4096,
-    system:     SYSTEM_CACHED,
+    system:     SYSTEM_CACHED,   // cache_control: ephemeral — reduces tokens on repeat calls
     messages,
   });
   const text = resp.content.find(b => b.type === 'text')?.text || '(sin respuesta)';
@@ -678,7 +678,7 @@ function modelKeyboard() {
     .row()
     .text('DeepSeek R1 🧠',      'model:r1');
   if (anthropicProxy) {
-    kb.row().text('🤖 Claude Pro (proxy $0)', 'model:claude-proxy');
+    kb.row().text('🤖 Claude Pro (Proxy - $0)', 'model:claude-proxy');
   }
   return kb;
 }
@@ -767,12 +767,12 @@ bot.on('message:text', async (ctx) => {
 
   // ── /claude — chat directo con Claude Pro via CLI proxy ($0 por llamada) ──
   // Uso: /claude Hola ¿cómo estás?
-  // También funciona como modelo persistente: /model → "Claude Pro (proxy $0)"
+  // También funciona como modelo persistente: /model → "Claude Pro (Proxy - $0)"
   if (userText.startsWith('/claude')) {
     const query = userText.slice('/claude'.length).trim();
     if (!query) {
       return ctx.reply(
-        '💬 *Claude Pro via proxy*\n\nUso: `/claude [tu mensaje]`\nEjemplo: `/claude ¿cómo vas con el sprint?`\n\nO usa `/model` y selecciona _Claude Pro (proxy $0)_ para que todo el chat use el proxy.',
+        '💬 *Claude Pro via proxy*\n\nUso: `/claude [tu mensaje]`\nEjemplo: `/claude ¿cómo vas con el sprint?`\n\nO usa `/model` y selecciona _Claude Pro (Proxy - $0)_ para que todo el chat use el proxy.',
         { parse_mode: 'Markdown', ...topicOpts(threadId) },
       );
     }
@@ -803,8 +803,8 @@ bot.on('message:text', async (ctx) => {
       const history = await loadHistory(ctx.chat.id, threadId);
       history.push({ role: 'user', content: query });
 
-      const result   = await callClaudeProxy(history);
-      const footer   = `\n\n_🤖 Claude Pro (proxy) · ${result.tokensIn}↑ ${result.tokensOut}↓ · $0.00_`;
+      const result   = await callClaudeProxy(history, MODELS['claude-proxy'].id);
+      const footer   = `\n\n_🤖 Claude Pro (Proxy) · ${result.tokensIn}↑ ${result.tokensOut}↓ · $0.00_`;
       const chunks   = chunkText(result.text + footer, 4000);
 
       await safeEdit(ctx.chat.id, progressMsg.message_id, chunks[0]);

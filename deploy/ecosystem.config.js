@@ -68,6 +68,28 @@ module.exports = {
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
     },
     {
+      // Claude CLI proxy — serves POST /v1/messages using local claude --print
+      // Routes Anthropic API calls through your Pro/Max subscription ($0 per call)
+      // Requires: claude CLI installed and authenticated (claude auth login)
+      // Configure: ANTHROPIC_PROXY_URL=http://127.0.0.1:5001 in relay/.env
+      name:        'claude-proxy',
+      script:      'deploy/claude-proxy.js',
+      args:        '--port 5001',
+      cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
+      exec_mode:   'fork',
+      instances:   1,
+      autorestart: true,
+      watch:       false,
+      max_memory_restart: '128M',
+      env: {
+        CLAUDE_BIN: process.env.CLAUDE_BIN || '/usr/local/bin/claude',
+        HOME:       '/root',   // needed to read ~/.claude/credentials
+      },
+      error_file:  '/var/log/ai-monitor/claude-proxy-error.log',
+      out_file:    '/var/log/ai-monitor/claude-proxy-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss',
+    },
+    {
       name:        'ai-monitor',
       script:      'backend/server.js',
       cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
