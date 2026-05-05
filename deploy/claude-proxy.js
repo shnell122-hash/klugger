@@ -45,7 +45,10 @@ async function callClaude(model, systemPrompt, messages, maxTokens) {
       '--max-tokens', String(maxTokens || 4096),
     ];
 
-    const proc  = spawn(CLAUDE_BIN, args, { env: process.env });
+    // Strip ANTHROPIC_API_KEY so claude --print uses saved credentials (Pro/Max, $0)
+    const childEnv = { ...process.env };
+    delete childEnv.ANTHROPIC_API_KEY;
+    const proc  = spawn(CLAUDE_BIN, args, { env: childEnv });
     let stdout = '';
     let stderr = '';
 

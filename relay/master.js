@@ -1407,7 +1407,9 @@ ${taskContent}`;
       HOME:               realHome,
       USER:               user,
       LOGNAME:            user,
-      ANTHROPIC_API_KEY:  ANTHROPIC_KEY,
+      // ANTHROPIC_API_KEY deliberately omitted — Claude CLI uses ~/.claude/credentials
+      // (Pro/Max subscription, $0). Passing the key routes every agent call through
+      // the paid API at Sonnet/Haiku prices. Do not add it back.
       CLAUDE_MONITOR_URL: MONITOR_API,
       CLAUDE_CHAT_SOURCE: `relay-${project.id}`,
       // Use user's own ~/.claude for auth — project hooks dir still passed separately
@@ -1419,6 +1421,7 @@ ${taskContent}`;
       TERM:               'dumb',
     };
     const exports = Object.entries(env)
+      .filter(([, v]) => v != null)
       .map(([k, v]) => `export ${k}='${String(v).replace(/'/g, "'\\''")}'`)
       .join('\n');
     return `${exports}\n${coreCmd}`;
