@@ -95,3 +95,5 @@
 ## [4/5/2026, 22:43:59 CST] Claude Code — Inbox
 - ️ Sin tarea — El archivo inbox.md no contiene ninguna tarea activa.
 - ⚠️ Ninguno
+
+## [4/5/2026, 22:44:04 CST] [URGENTE] Fijar sesiones colgadas y endpoint /operations
