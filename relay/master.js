@@ -1407,11 +1407,9 @@ ${taskContent}`;
       HOME:               realHome,
       USER:               user,
       LOGNAME:            user,
-      // When proxy is configured: omit API key so claude CLI uses its own saved auth
-      // (Pro/Max subscription via ~/.claude/credentials). Pass ANTHROPIC_BASE_URL so
-      // the SDK inside claude CLI routes to the proxy instead of api.anthropic.com.
-      ANTHROPIC_API_KEY:  useProxy ? undefined : ANTHROPIC_KEY,
-      ...(useProxy ? { ANTHROPIC_BASE_URL: ANTHROPIC_PROXY_URL } : {}),
+      // ANTHROPIC_API_KEY deliberately omitted — Claude CLI uses ~/.claude/credentials
+      // (Pro/Max subscription, $0). Passing the key routes every agent call through
+      // the paid API at Sonnet/Haiku prices. Do not add it back.
       CLAUDE_MONITOR_URL: MONITOR_API,
       CLAUDE_CHAT_SOURCE: `relay-${project.id}`,
       // Use user's own ~/.claude for auth — project hooks dir still passed separately
