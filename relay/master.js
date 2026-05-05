@@ -1407,7 +1407,11 @@ ${taskContent}`;
       HOME:               realHome,
       USER:               user,
       LOGNAME:            user,
-      ANTHROPIC_API_KEY:  ANTHROPIC_KEY,
+      // When proxy is configured: omit API key so claude CLI uses its own saved auth
+      // (Pro/Max subscription via ~/.claude/credentials). Pass ANTHROPIC_BASE_URL so
+      // the SDK inside claude CLI routes to the proxy instead of api.anthropic.com.
+      ANTHROPIC_API_KEY:  useProxy ? undefined : ANTHROPIC_KEY,
+      ...(useProxy ? { ANTHROPIC_BASE_URL: ANTHROPIC_PROXY_URL } : {}),
       CLAUDE_MONITOR_URL: MONITOR_API,
       CLAUDE_CHAT_SOURCE: `relay-${project.id}`,
       // Use user's own ~/.claude for auth — project hooks dir still passed separately
@@ -1419,6 +1423,7 @@ ${taskContent}`;
       TERM:               'dumb',
     };
     const exports = Object.entries(env)
+      .filter(([, v]) => v != null)
       .map(([k, v]) => `export ${k}='${String(v).replace(/'/g, "'\\''")}'`)
       .join('\n');
     return `${exports}\n${coreCmd}`;
