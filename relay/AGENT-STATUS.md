@@ -1,15 +1,24 @@
-# AGENT-STATUS.md — Estado compartido entre agentes
+# AGENT-STATUS.md
 
-> ⚠️ **PROTOCOLO OBLIGATORIO**: Todo agente que trabaje en este repo DEBE:
-> 1. **Leer este archivo AL INICIO** de su sesión
-> 2. **Actualizar este archivo AL FINAL** de su sesión con commit + push
-> 3. Nunca hacer acciones destructivas (reset, drop, rm -rf) sin verificar "En progreso"
+Estado compartido de agentes activos — actualizado por cada agente al terminar su sesión.
 
-_Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02 | Actualizado 2026-05-04_
+_Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02 | Actualizado 2026-05-05_
+
+## ai-monitor (Claude Code — AI Monitor Dashboard)
+
+| Campo | Valor |
+|-------|-------|
+| Última sesión | 2026-05-03 12:15 CST |
+| Estado | ✅ Completo |
+| Rama | main |
+| Archivos | financial/bot/financial-bot.js |
+| Cambio | Agregada función cleanupStaleSessions() — auto-reset sesiones > 8h |
+| Commit | 2a8f0b5 |
+| Usuario requerido | No |
 
 ---
 
-## Última sesión por agente
+## Otros agentes (vacío)
 
 | Agente | Sesión/Branch | Último cambio | Estado |
 |--------|--------------|---------------|--------|

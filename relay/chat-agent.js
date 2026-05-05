@@ -74,6 +74,7 @@ const anthropicProxy = ANTHROPIC_PROXY_URL ? new Anthropic({
   baseURL: ANTHROPIC_PROXY_URL,
 }) : null;
 
+
 const db = mysql.createPool({
   host:               process.env.DB_HOST || '127.0.0.1',
   port:               parseInt(process.env.DB_PORT || '3306'),
@@ -552,6 +553,7 @@ async function callClaudeProxy(messages, model = 'claude-sonnet-4-6') {
     cacheWrite: resp.usage?.cache_creation_input_tokens || 0,
   };
 }
+
 
 // ── Cost calculation ──────────────────────────────────────────────────────────
 function calcCost(modelKey, tokensIn, tokensOut) {
