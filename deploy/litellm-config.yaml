@@ -1,0 +1,78 @@
+# /opt/litellm/config.yaml
+# Deploy: cp deploy/litellm-config.yaml /opt/litellm/config.yaml && pm2 restart litellm
+#
+# Chains:
+#   kptl-chat-fast  → DeepSeek V4-Flash  (coordinator, ACKs, verifier, ai-monitor)
+#   kptl-chat       → DeepSeek V4-Pro    (fiscalai, planning, código complejo)
+#   kptl-reasoning  → DeepSeek V4-Pro    (razonamiento profundo)
+
+model_list:
+  # ── Fast chain: V4-Flash primero, fallbacks baratos ──────────────────────────
+  - model_name: kptl-chat-fast
+    litellm_params:
+      model: deepseek/deepseek-v4-flash
+      api_key: "os.environ/DEEPSEEK_API_KEY"
+      api_base: https://api.deepseek.com/v1
+
+  - model_name: kptl-chat-fast
+    litellm_params:
+      model: anthropic/claude-haiku-4-5-20251001
+      api_key: "os.environ/ANTHROPIC_API_KEY"
+
+  - model_name: kptl-chat-fast
+    litellm_params:
+      model: openai/gpt-4o-mini
+      api_key: "os.environ/OPENAI_API_KEY"
+
+  # ── Pro chain: V4-Pro primero, fallback Sonnet solo si falla ─────────────────
+  - model_name: kptl-chat
+    litellm_params:
+      model: deepseek/deepseek-v4-pro
+      api_key: "os.environ/DEEPSEEK_API_KEY"
+      api_base: https://api.deepseek.com/v1
+
+  - model_name: kptl-chat
+    litellm_params:
+      model: anthropic/claude-sonnet-4-6
+      api_key: "os.environ/ANTHROPIC_API_KEY"
+
+  - model_name: kptl-chat
+    litellm_params:
+      model: openai/gpt-4o
+      api_key: "os.environ/OPENAI_API_KEY"
+
+  # ── Reasoning chain: V4-Pro como razonamiento económico ──────────────────────
+  - model_name: kptl-reasoning
+    litellm_params:
+      model: deepseek/deepseek-v4-pro
+      api_key: "os.environ/DEEPSEEK_API_KEY"
+      api_base: https://api.deepseek.com/v1
+
+  - model_name: kptl-reasoning
+    litellm_params:
+      model: anthropic/claude-opus-4-7
+      api_key: "os.environ/ANTHROPIC_API_KEY"
+
+litellm_settings:
+  # Prompt caching habilitado para todos los providers que lo soportan
+  enable_prompt_caching: true
+  cache_params:
+    type: "local"
+  # Fallback automático al siguiente modelo si el primero falla
+  set_verbose: false
+  fallbacks:
+    - kptl-chat-fast:
+        - kptl-chat-fast   # round-robin dentro del grupo
+    - kptl-chat:
+        - kptl-chat        # round-robin dentro del grupo
+
+router_settings:
+  routing_strategy: "latency-based-routing"
+  num_retries: 1            # máximo 1 reintento (no 3)
+  timeout: 25               # segundos
+  retry_after: 0
+
+general_settings:
+  master_key: "os.environ/LITELLM_MASTER_KEY"
+  database_url: null        # sin Prisma DB — state en memoria
+  store_model_in_db: false

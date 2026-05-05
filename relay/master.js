@@ -728,22 +728,49 @@ function getProjectKilled(projectId) {
 // Haiku es suficiente para ACKs/pre-responses del buzon; el trabajo real
 // lo hace el coordinator dispatch (paso 2 en responderBuzonFiscalai).
 // Prompt caching activo en system prompt para reducir costos en llamadas repetidas.
-function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512) {
+//
+// CLI Proxy routing: if ANTHROPIC_PROXY_URL is set (and optionally restricted to a project via
+// ANTHROPIC_PROXY_PROJECT), requests go to a local claude-relay proxy instead of api.anthropic.com.
+// This routes through a Pro/Max subscription to avoid per-token billing on background tasks.
+const ANTHROPIC_PROXY_URL     = process.env.ANTHROPIC_PROXY_URL     || null;  // e.g. http://127.0.0.1:5001
+const ANTHROPIC_PROXY_PROJECT = process.env.ANTHROPIC_PROXY_PROJECT || '';   // restrict to this project id
+
+function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512, projectId = null) {
+  // Determine if this call should go through the local CLI proxy
+  const useProxy = ANTHROPIC_PROXY_URL &&
+    (!ANTHROPIC_PROXY_PROJECT || ANTHROPIC_PROXY_PROJECT === projectId);
+
   const timeoutMs = 90000;
   const apiCall = new Promise((resolve, reject) => {
-    if (!ANTHROPIC_KEY) { reject(new Error('ANTHROPIC_API_KEY no configurado')); return; }
+    if (!ANTHROPIC_KEY && !useProxy) { reject(new Error('ANTHROPIC_API_KEY no configurado')); return; }
     const body = JSON.stringify({
       model:      'claude-haiku-4-5-20251001',
       max_tokens: maxTokens,
       system:     [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
       messages:   [{ role: 'user', content: userMessage }],
     });
-    const req = https.request({
-      hostname: 'api.anthropic.com',
-      path:     '/v1/messages',
-      method:   'POST',
+
+    let hostname, port, isHttps;
+    if (useProxy) {
+      const parsed = new URL(ANTHROPIC_PROXY_URL);
+      hostname = parsed.hostname;
+      port     = parseInt(parsed.port || (parsed.protocol === 'https:' ? '443' : '80'));
+      isHttps  = parsed.protocol === 'https:';
+      log(projectId, `[anthropic-proxy] routing via ${ANTHROPIC_PROXY_URL}`);
+    } else {
+      hostname = 'api.anthropic.com';
+      port     = 443;
+      isHttps  = true;
+    }
+
+    const transport = isHttps ? https : http;
+    const req = transport.request({
+      hostname,
+      port,
+      path:    '/v1/messages',
+      method:  'POST',
       headers: {
-        'x-api-key':         ANTHROPIC_KEY,
+        'x-api-key':         useProxy ? 'proxy-key' : ANTHROPIC_KEY,
         'anthropic-version': '2023-06-01',
         'anthropic-beta':    'prompt-caching-2024-07-31',
         'content-type':      'application/json',
@@ -767,7 +794,7 @@ function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512) {
   });
 
   const timeout = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error(`Timeout ${timeoutMs/1000}s — api.anthropic.com no respondió`)), timeoutMs)
+    setTimeout(() => reject(new Error(`Timeout ${timeoutMs/1000}s — anthropic${useProxy ? '-proxy' : ''} no respondió`)), timeoutMs)
   );
   return Promise.race([apiCall, timeout]);
 }
@@ -775,20 +802,27 @@ function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512) {
 // Calls DeepSeek V4 via OpenAI-compatible API — used for /tarea planning and summaries.
 // useComplex=true → V4-Pro (Sonnet-quality, 4-6x cheaper); false → V4-Flash (fast/cheap).
 // Falls back gracefully (returns null) if no API key is configured.
-// Prefix caching is enabled: repeated calls with the same system prompt hit the KV cache.
+//
+// Caching: DeepSeek V4 supports explicit prefix caching via cache_control on system content
+// blocks (same field name as Anthropic). The API also returns prompt_cache_hit_tokens so we
+// log savings. Caching is also automatic for repeated prefixes, but explicit markers improve
+// hit rate across different user prompts that share the same system context.
 function callDeepSeekDirect(systemPrompt, userMessage, maxTokens = 512, useComplex = false) {
   const timeoutMs = 20000;
   const model = useComplex
-    ? (process.env.DEEPSEEK_PRO_MODEL   || 'deepseek-chat')
-    : (process.env.DEEPSEEK_FLASH_MODEL || 'deepseek-chat');
+    ? (process.env.DEEPSEEK_PRO_MODEL   || 'deepseek-v4-pro')
+    : (process.env.DEEPSEEK_FLASH_MODEL || 'deepseek-v4-flash');
   const apiCall = new Promise((resolve, reject) => {
     if (!DEEPSEEK_KEY) { reject(new Error('DEEPSEEK_API_KEY no configurado')); return; }
     const body = JSON.stringify({
       model,
       max_tokens: maxTokens,
       messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user',   content: userMessage  },
+        {
+          role:    'system',
+          content: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
+        },
+        { role: 'user', content: userMessage },
       ],
     });
     const req = https.request({
@@ -799,6 +833,8 @@ function callDeepSeekDirect(systemPrompt, userMessage, maxTokens = 512, useCompl
         'Authorization':  `Bearer ${DEEPSEEK_KEY}`,
         'Content-Type':   'application/json',
         'Content-Length': Buffer.byteLength(body),
+        // Explicit prompt-caching beta header (mirrors Anthropic pattern; ignored if not supported)
+        'x-deepseek-cache-policy': 'ephemeral',
       },
     }, (res) => {
       let data = '';
@@ -807,11 +843,14 @@ function callDeepSeekDirect(systemPrompt, userMessage, maxTokens = 512, useCompl
         try {
           const json = JSON.parse(data);
           if (json.error) { reject(new Error(`DeepSeek error: ${json.error.message}`)); return; }
-          // Log cache hit stats when available (DeepSeek V4 returns prompt_cache_hit_tokens)
-          const usage = json.usage;
-          if (usage?.prompt_cache_hit_tokens) {
-            log(null, `[deepseek] cache_hit=${usage.prompt_cache_hit_tokens} miss=${usage.prompt_cache_miss_tokens} model=${model}`);
-          }
+          const usage = json.usage ?? {};
+          const hitTok  = usage.prompt_cache_hit_tokens  ?? 0;
+          const missTok = usage.prompt_cache_miss_tokens ?? 0;
+          const totalIn = usage.prompt_tokens ?? 0;
+          log(null,
+            `[deepseek/${model}] in=${totalIn} out=${usage.completion_tokens ?? 0} ` +
+            `cache_hit=${hitTok} cache_miss=${missTok} (${hitTok ? Math.round(hitTok / totalIn * 100) : 0}% hit)`
+          );
           resolve(json.choices?.[0]?.message?.content || null);
         } catch (e) { reject(e); }
       });
