@@ -11,7 +11,6 @@
 | Host | `143.198.228.78` (vilar-desarrollo) |
 | Usuario SSH | `root` |
 | Contraseñas | Ver `/opt/kptl-secrets/server-credentials.txt` en el servidor (solo root) |
-| Contraseñas | Ver con el equipo directamente — no documentar aquí |
 | OS | Ubuntu / Debian (Apache + PM2) |
 
 ### Árbol del servidor (rutas críticas)

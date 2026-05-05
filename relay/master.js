@@ -710,28 +710,67 @@ function postAlert(alertType, projectId, severity, title, details, autoFixed = f
   postToMonitor('/api/alerts', { alert_type: alertType, project_id: projectId, severity, title, details, auto_fixed: autoFixed });
 }
 
+// ─── Per-project kill-switch (migrate-v12 project_monthly_budget) ────────────
+// Cache refreshed every 5 min by the kill-switch poller via /api/apiAdmin/projectBudgets.
+// Avoids a DB query on every 15-second poll cycle.
+const PROJECT_KILLED_CACHE = {};  // { projectId: { killed: bool, ts: number } }
+const PROJECT_KILLED_TTL   = 5 * 60 * 1000;
+
+function getProjectKilled(projectId) {
+  const cached = PROJECT_KILLED_CACHE[projectId];
+  if (cached && (Date.now() - cached.ts) < PROJECT_KILLED_TTL) return cached.killed;
+  return false;  // safe default; async refresh happens in kill-switch poller
+}
+
 // ─── Anthropic API directo (Opción B — buzon bidireccional) ──────────────────
 // Llama claude-haiku-4-5 via HTTPS nativo sin spawn Claude CLI.
 // Usada cuando buzon-fiscalai.md cambia para responder directamente.
 // Haiku es suficiente para ACKs/pre-responses del buzon; el trabajo real
 // lo hace el coordinator dispatch (paso 2 en responderBuzonFiscalai).
 // Prompt caching activo en system prompt para reducir costos en llamadas repetidas.
-function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512) {
+//
+// CLI Proxy routing: if ANTHROPIC_PROXY_URL is set (and optionally restricted to a project via
+// ANTHROPIC_PROXY_PROJECT), requests go to a local claude-relay proxy instead of api.anthropic.com.
+// This routes through a Pro/Max subscription to avoid per-token billing on background tasks.
+const ANTHROPIC_PROXY_URL     = process.env.ANTHROPIC_PROXY_URL     || null;  // e.g. http://127.0.0.1:5001
+const ANTHROPIC_PROXY_PROJECT = process.env.ANTHROPIC_PROXY_PROJECT || '';   // restrict to this project id
+
+function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512, projectId = null) {
+  // Determine if this call should go through the local CLI proxy
+  const useProxy = ANTHROPIC_PROXY_URL &&
+    (!ANTHROPIC_PROXY_PROJECT || ANTHROPIC_PROXY_PROJECT === projectId);
+
   const timeoutMs = 90000;
   const apiCall = new Promise((resolve, reject) => {
-    if (!ANTHROPIC_KEY) { reject(new Error('ANTHROPIC_API_KEY no configurado')); return; }
+    if (!ANTHROPIC_KEY && !useProxy) { reject(new Error('ANTHROPIC_API_KEY no configurado')); return; }
     const body = JSON.stringify({
       model:      'claude-haiku-4-5-20251001',
       max_tokens: maxTokens,
       system:     [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
       messages:   [{ role: 'user', content: userMessage }],
     });
-    const req = https.request({
-      hostname: 'api.anthropic.com',
-      path:     '/v1/messages',
-      method:   'POST',
+
+    let hostname, port, isHttps;
+    if (useProxy) {
+      const parsed = new URL(ANTHROPIC_PROXY_URL);
+      hostname = parsed.hostname;
+      port     = parseInt(parsed.port || (parsed.protocol === 'https:' ? '443' : '80'));
+      isHttps  = parsed.protocol === 'https:';
+      log(projectId, `[anthropic-proxy] routing via ${ANTHROPIC_PROXY_URL}`);
+    } else {
+      hostname = 'api.anthropic.com';
+      port     = 443;
+      isHttps  = true;
+    }
+
+    const transport = isHttps ? https : http;
+    const req = transport.request({
+      hostname,
+      port,
+      path:    '/v1/messages',
+      method:  'POST',
       headers: {
-        'x-api-key':         ANTHROPIC_KEY,
+        'x-api-key':         useProxy ? 'proxy-key' : ANTHROPIC_KEY,
         'anthropic-version': '2023-06-01',
         'anthropic-beta':    'prompt-caching-2024-07-31',
         'content-type':      'application/json',
@@ -755,23 +794,35 @@ function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512) {
   });
 
   const timeout = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error(`Timeout ${timeoutMs/1000}s — api.anthropic.com no respondió`)), timeoutMs)
+    setTimeout(() => reject(new Error(`Timeout ${timeoutMs/1000}s — anthropic${useProxy ? '-proxy' : ''} no respondió`)), timeoutMs)
   );
   return Promise.race([apiCall, timeout]);
 }
 
-// Calls DeepSeek V3 via OpenAI-compatible API — used for /tarea planning and summaries.
+// Calls DeepSeek V4 via OpenAI-compatible API — used for /tarea planning and summaries.
+// useComplex=true → V4-Pro (Sonnet-quality, 4-6x cheaper); false → V4-Flash (fast/cheap).
 // Falls back gracefully (returns null) if no API key is configured.
-function callDeepSeekDirect(systemPrompt, userMessage, maxTokens = 512) {
+//
+// Caching: DeepSeek V4 supports explicit prefix caching via cache_control on system content
+// blocks (same field name as Anthropic). The API also returns prompt_cache_hit_tokens so we
+// log savings. Caching is also automatic for repeated prefixes, but explicit markers improve
+// hit rate across different user prompts that share the same system context.
+function callDeepSeekDirect(systemPrompt, userMessage, maxTokens = 512, useComplex = false) {
   const timeoutMs = 20000;
+  const model = useComplex
+    ? (process.env.DEEPSEEK_PRO_MODEL   || 'deepseek-v4-pro')
+    : (process.env.DEEPSEEK_FLASH_MODEL || 'deepseek-v4-flash');
   const apiCall = new Promise((resolve, reject) => {
     if (!DEEPSEEK_KEY) { reject(new Error('DEEPSEEK_API_KEY no configurado')); return; }
     const body = JSON.stringify({
-      model:      'deepseek-chat',
+      model,
       max_tokens: maxTokens,
       messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user',   content: userMessage  },
+        {
+          role:    'system',
+          content: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
+        },
+        { role: 'user', content: userMessage },
       ],
     });
     const req = https.request({
@@ -782,6 +833,8 @@ function callDeepSeekDirect(systemPrompt, userMessage, maxTokens = 512) {
         'Authorization':  `Bearer ${DEEPSEEK_KEY}`,
         'Content-Type':   'application/json',
         'Content-Length': Buffer.byteLength(body),
+        // Explicit prompt-caching beta header (mirrors Anthropic pattern; ignored if not supported)
+        'x-deepseek-cache-policy': 'ephemeral',
       },
     }, (res) => {
       let data = '';
@@ -790,6 +843,14 @@ function callDeepSeekDirect(systemPrompt, userMessage, maxTokens = 512) {
         try {
           const json = JSON.parse(data);
           if (json.error) { reject(new Error(`DeepSeek error: ${json.error.message}`)); return; }
+          const usage = json.usage ?? {};
+          const hitTok  = usage.prompt_cache_hit_tokens  ?? 0;
+          const missTok = usage.prompt_cache_miss_tokens ?? 0;
+          const totalIn = usage.prompt_tokens ?? 0;
+          log(null,
+            `[deepseek/${model}] in=${totalIn} out=${usage.completion_tokens ?? 0} ` +
+            `cache_hit=${hitTok} cache_miss=${missTok} (${hitTok ? Math.round(hitTok / totalIn * 100) : 0}% hit)`
+          );
           resolve(json.choices?.[0]?.message?.content || null);
         } catch (e) { reject(e); }
       });
@@ -1413,10 +1474,36 @@ ${taskContent}`;
     timedOut = true;
     clearInterval(heartbeat);
     clearInterval(filePoller);
+    clearInterval(watchdogInterval);
     try { execSync(`pkill -9 -P ${child.pid} 2>/dev/null || true`, { stdio: 'pipe' }); } catch (_) {}
     try { child.kill('SIGKILL'); } catch (_) {}
     setTimeout(() => safeCallback(1, `[TIMEOUT después de ${timeoutMs / 60000}min]\n${resultText.trim()}`), 10000);
   }, timeoutMs);
+
+  // Independent watchdog: hard 25min limit per process (fixes issue: session ran 6.9h)
+  // Checks every 60s if elapsed time exceeded MAX_PROCESS_DURATION
+  const MAX_PROCESS_DURATION = 25 * 60 * 1000;
+  const watchdogInterval = setInterval(() => {
+    const elapsed = Date.now() - runStart;
+    if (elapsed > MAX_PROCESS_DURATION) {
+      clearInterval(watchdogInterval);
+      const elapsedMin = Math.round(elapsed / 60000);
+      log(project.id, `⚠️ watchdog: proceso excedió 25 min (${elapsedMin}min) — enviando SIGTERM`);
+      tg(`⚠️ <b>Watchdog — ${project.name}</b>
+Proceso ha excedido 25 min (${elapsedMin}m). SIGTERM…`);
+
+      try { process.kill(child.pid, 'SIGTERM'); } catch (e) {}
+
+      // SIGKILL after 5s if SIGTERM doesn't work
+      setTimeout(() => {
+        try {
+          process.kill(child.pid, 0); // Test if still alive
+          log(project.id, `⚠️ watchdog: SIGTERM inefectivo — enviando SIGKILL`);
+          process.kill(child.pid, 'SIGKILL');
+        } catch (_) {} // Process already dead
+      }, 5000);
+    }
+  }, 60000);
 
   const heartbeat = setInterval(() => {
     const elapsedMin = Math.round((Date.now() - runStart) / 60000);
@@ -1560,6 +1647,7 @@ Timeout en ${remainMin} min`);
       clearTimeout(timer);
       clearInterval(heartbeat);
       clearInterval(filePoller);
+      clearInterval(watchdogInterval);
       if (timedOut) resultText = `[TIMEOUT después de ${CLAUDE_TIMEOUT_MS / 60000}min]\n` + resultText;
 
       // All attempts exhausted with quick failure → actionable Telegram msg
@@ -1578,6 +1666,7 @@ Timeout en ${remainMin} min`);
       clearTimeout(timer);
       clearInterval(heartbeat);
       clearInterval(filePoller);
+      clearInterval(watchdogInterval);
       log(project.id, `runClaude error: ${err.message}`);
       safeCallback(1, `Error lanzando claude: ${err.message}`);
     });
@@ -1778,13 +1867,27 @@ async function processDispatchQueue(projects, hashes = null) {
 
     log(null, `Dispatch → ${target.name}: ${dispatch.task.slice(0, 80)}`);
 
+    // Max dispatch depth — block recursive coordinator chains beyond depth 3
+    const taskDepth = parseInt(dispatch.depth || 0);
+    const MAX_DISPATCH_DEPTH = parseInt(process.env.MAX_DISPATCH_DEPTH || '3');
+    if (taskDepth >= MAX_DISPATCH_DEPTH) {
+      log(null, `Dispatch ${dispatch.id}: depth ${taskDepth} >= max ${MAX_DISPATCH_DEPTH} — bloqueado`);
+      tg(`🚫 <b>Dispatch bloqueado — profundidad máxima</b>\nDepth ${taskDepth} en proyecto ${target.name}\n<code>${dispatch.task.slice(0, 200)}</code>`);
+      const idx = updated.findIndex(d => d.id === dispatch.id);
+      updated[idx] = { ...dispatch, status: 'error', dispatched_at: new Date().toISOString(), error: `max_depth:${MAX_DISPATCH_DEPTH}` };
+      continue;
+    }
+
     // Inject budget_usd_max for sub-dispatches without one (coordinator → agent).
-    // Prevents a coordinator session from spawning 10 × $2 tasks uncontrolled.
-    // The coordinator can override by including budget_usd_max explicitly in the task.
+    // Proportional: 40% of parent budget, min $0.50, max $5.00.
+    // Prevents a coordinator with $10 budget from spawning 5 × $2 tasks unchecked.
     let inboxTask = dispatch.task;
     if (!inboxTask.match(/budget_usd_max\s*[:=]/i) &&
-        (dispatch.depth >= 1 || dispatch.requester === 'coordinator')) {
-      inboxTask = `budget_usd_max: 1.50\n\n` + inboxTask;
+        (taskDepth >= 1 || dispatch.requester === 'coordinator')) {
+      const parentBudget = parseBudgetMax(dispatch.task);  // default $2.00
+      const BUDGET_SUB_FRACTION = parseFloat(process.env.BUDGET_SUB_FRACTION || '0.4');
+      const subBudget = Math.max(0.50, Math.min(+(parentBudget * BUDGET_SUB_FRACTION).toFixed(2), 5.00));
+      inboxTask = `budget_usd_max: ${subBudget}\n\n` + inboxTask;
     }
 
     // Write task to target inbox (append outbox template so agent always fills it)
@@ -1892,6 +1995,7 @@ function checkOutboxWatchdog(projects) {
 async function processProject(project, hashes, pulledRepos = new Set()) {
   if (!project.active || !project.inbox) return;
   if (GLOBAL_KILLED) { log(project.id, `Kill-switch activo (${GLOBAL_KILL_MSG || 'gasto diario'}) — saltando`); return; }
+  if (getProjectKilled(project.id)) { log(project.id, `project_killed: presupuesto mensual agotado — saltando`); return; }
 
   // Git pull — deduplicated per repo path to avoid concurrent git lock conflicts
   if (project.repo && project.branch && !pulledRepos.has(project.repo)) {
@@ -2459,6 +2563,25 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
           }
         }
       }
+
+      // Refresh per-project kill flags from /api/apiAdmin/projectBudgets
+      try {
+        const budgetData = await new Promise((resolve) => {
+          const req = http.get(`${MONITOR_API}/api/apiAdmin/projectBudgets`, (res) => {
+            let body = '';
+            res.on('data', c => body += c);
+            res.on('end', () => { try { resolve(JSON.parse(body)); } catch (_) { resolve(null); } });
+          });
+          req.setTimeout(5000, () => { req.destroy(); resolve(null); });
+          req.on('error', () => resolve(null));
+        });
+        if (budgetData?.projects) {
+          const now = Date.now();
+          for (const b of budgetData.projects) {
+            PROJECT_KILLED_CACHE[b.project_name] = { killed: !!b.killed, ts: now };
+          }
+        }
+      } catch (_) {}
     } catch (_) { /* no interrumpir por fallos de red */ }
   }, 60 * 1000);
 

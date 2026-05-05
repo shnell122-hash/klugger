@@ -13,11 +13,13 @@ const { execSync } = require('child_process');
 
 // ── Model registry ────────────────────────────────────────────────────────────
 const MODELS = {
-  sonnet:    { id: 'claude-sonnet-4-6',         proxyModel: 'kptl-chat',      provider: 'anthropic', label: 'Claude Sonnet 4.6',   costIn: 3,    costOut: 15    },
-  haiku:     { id: 'claude-haiku-4-5-20251001',  proxyModel: 'kptl-chat-fast', provider: 'anthropic', label: 'Claude Haiku 4.5',    costIn: 0.8,  costOut: 4     },
-  opus:      { id: 'claude-opus-4-7',            proxyModel: 'kptl-reasoning', provider: 'anthropic', label: 'Claude Opus 4.7',     costIn: 15,   costOut: 75    },
-  deepseek:  { id: 'deepseek-chat',              proxyModel: 'kptl-chat',      provider: 'deepseek',  label: 'DeepSeek V3',         costIn: 0.07, costOut: 1.10  },
-  r1:        { id: 'deepseek-reasoner',          proxyModel: 'kptl-reasoning', provider: 'deepseek',  label: 'DeepSeek R1',         costIn: 0.55, costOut: 2.19  },
+  sonnet:       { id: 'claude-sonnet-4-6',                              proxyModel: 'kptl-chat',      provider: 'anthropic',       label: 'Claude Sonnet 4.6',        costIn: 3,    costOut: 15    },
+  haiku:        { id: 'claude-haiku-4-5-20251001',                      proxyModel: 'kptl-chat-fast', provider: 'anthropic',       label: 'Claude Haiku 4.5',         costIn: 0.8,  costOut: 4     },
+  opus:         { id: 'claude-opus-4-7',                                proxyModel: 'kptl-reasoning', provider: 'anthropic',       label: 'Claude Opus 4.7',          costIn: 15,   costOut: 75    },
+  'claude-proxy': { id: 'claude-sonnet-4-6',                            proxyModel: null,             provider: 'anthropic-proxy', label: 'Claude Pro (Proxy - $0)',   costIn: 0,    costOut: 0     },
+  deepseek:     { id: process.env.DEEPSEEK_FLASH_MODEL || 'deepseek-v4-flash', proxyModel: 'kptl-chat-fast', provider: 'deepseek',  label: 'DeepSeek V4-Flash 💸',     costIn: 0.02, costOut: 0.14  },
+  deepseekPro:  { id: process.env.DEEPSEEK_PRO_MODEL   || 'deepseek-v4-pro',   proxyModel: 'kptl-chat',      provider: 'deepseek',  label: 'DeepSeek V4-Pro 💸',       costIn: 0.14, costOut: 1.10  },
+  r1:           { id: 'deepseek-reasoner',                              proxyModel: 'kptl-reasoning', provider: 'deepseek',        label: 'DeepSeek R1 🧠',           costIn: 0.55, costOut: 2.19  },
 };
 const DEFAULT_MODEL = 'sonnet';
 
@@ -61,6 +63,17 @@ const litellmProxy = LITELLM_URL ? new OpenAI({
   apiKey:  process.env.LITELLM_MASTER_KEY || 'litellm',
   baseURL: `${LITELLM_URL}/v1`,
 }) : null;
+
+// Claude CLI proxy — routes Anthropic calls through a local claude-relay process
+// that consumes your Pro/Max subscription instead of charging per-token.
+// Configure: ANTHROPIC_PROXY_URL=http://127.0.0.1:5001 in relay/.env
+// Install: see deploy/claude-proxy-setup.md
+const ANTHROPIC_PROXY_URL = process.env.ANTHROPIC_PROXY_URL || null;
+const anthropicProxy = ANTHROPIC_PROXY_URL ? new Anthropic({
+  apiKey:  'proxy-key',          // proxy ignores the key — any value works
+  baseURL: ANTHROPIC_PROXY_URL,
+}) : null;
+
 
 const db = mysql.createPool({
   host:               process.env.DB_HOST || '127.0.0.1',
@@ -216,6 +229,7 @@ async function runTool(name, input, sessionDispatched = null) {
 // ── Model abstraction ─────────────────────────────────────────────────────────
 // Returns { text, tokensIn, tokensOut, stopReason, toolCalls }
 async function callModel(modelKey, messages, ctx, onProgress, signal) {
+  if (modelKey === 'claude-proxy') return callClaudeProxy(messages, MODELS['claude-proxy'].id);
   const m = MODELS[modelKey] || MODELS[DEFAULT_MODEL];
   if (litellmProxy && m.proxyModel) return callLiteLLMProxy(m, messages, ctx, onProgress, signal);
   if (m.provider === 'anthropic') return callAnthropic(m, messages, ctx, onProgress, signal);
@@ -512,6 +526,35 @@ async function callLiteLLMProxy(m, messages, ctx, onProgress, signal) {
   return { text: '⚠️ Máximo de iteraciones alcanzado.', tokensIn: totalIn, tokensOut: totalOut };
 }
 
+// ── Claude CLI proxy — pure chat, no tools, $0 per call ──────────────────────
+// Routes to a local claude-relay process that consumes the Pro/Max subscription.
+// No agentic loop: one turn in → one turn out. Fast, conversational, free.
+// Used by: /claude command, or when TOPIC_MODEL is set to 'claude-proxy'.
+async function callClaudeProxy(messages, model = 'claude-sonnet-4-6') {
+  if (!anthropicProxy) {
+    throw new Error(
+      'ANTHROPIC_PROXY_URL no configurado.\n' +
+      'Instala el proxy y agrega ANTHROPIC_PROXY_URL=http://127.0.0.1:5001 a relay/.env\n' +
+      'Instrucciones: deploy/claude-proxy-setup.md'
+    );
+  }
+  const resp = await anthropicProxy.messages.create({
+    model,
+    max_tokens: 4096,
+    system:     SYSTEM_CACHED,   // cache_control: ephemeral — reduces tokens on repeat calls
+    messages,
+  });
+  const text = resp.content.find(b => b.type === 'text')?.text || '(sin respuesta)';
+  return {
+    text,
+    tokensIn:   resp.usage?.input_tokens                || 0,
+    tokensOut:  resp.usage?.output_tokens               || 0,
+    cacheRead:  resp.usage?.cache_read_input_tokens     || 0,
+    cacheWrite: resp.usage?.cache_creation_input_tokens || 0,
+  };
+}
+
+
 // ── Cost calculation ──────────────────────────────────────────────────────────
 function calcCost(modelKey, tokensIn, tokensOut) {
   const m = MODELS[modelKey] || MODELS[DEFAULT_MODEL];
@@ -626,14 +669,20 @@ const PROCESSED_MSG_IDS = new Set();
 
 // ── /model command — inline keyboard ─────────────────────────────────────────
 function modelKeyboard() {
-  return new InlineKeyboard()
-    .text('Sonnet 4.6 ✦',  'model:sonnet')
-    .text('Haiku 4.5',      'model:haiku')
+  const kb = new InlineKeyboard()
+    .text('Sonnet 4.6 ✦',       'model:sonnet')
+    .text('Haiku 4.5',           'model:haiku')
     .row()
-    .text('Opus 4.7',       'model:opus')
+    .text('Opus 4.7',            'model:opus')
     .row()
-    .text('DeepSeek V3 💸', 'model:deepseek')
-    .text('DeepSeek R1 🧠', 'model:r1');
+    .text('DeepSeek V4-Flash 💸','model:deepseek')
+    .text('DeepSeek V4-Pro 💸',  'model:deepseekPro')
+    .row()
+    .text('DeepSeek R1 🧠',      'model:r1');
+  if (anthropicProxy) {
+    kb.row().text('🤖 Claude Pro (Proxy - $0)', 'model:claude-proxy');
+  }
+  return kb;
 }
 
 bot.callbackQuery(/^model:(.+)$/, async (ctx) => {
@@ -701,18 +750,84 @@ bot.on('message:text', async (ctx) => {
   }
 
   if (userText === '/help') {
+    const proxyStatus = anthropicProxy ? '✅ activo' : '❌ no configurado (ver ANTHROPIC_PROXY_URL)';
     const modelList = Object.entries(MODELS)
-      .map(([k, v]) => `  \`/model\` → ${v.label} (\`${k}\`)`)
+      .map(([k, v]) => `  • \`${k}\` — ${v.label}`)
       .join('\n');
     return ctx.reply(
       '*Claude Code · Vilar AI*\n\n' +
+      '`/claude [msg]` — Chat directo con Claude Pro via proxy ($0)\n' +
       '`/model` — Cambiar modelo de IA\n' +
       '`/reset` — Borrar historial de este topic\n' +
       '`/status` — Stats del topic actual\n' +
       '`/help` — Esta ayuda\n\n' +
+      `*Proxy CLI:* ${proxyStatus}\n\n` +
       '*Modelos disponibles:*\n' + modelList,
       { parse_mode: 'Markdown', ...topicOpts(threadId) },
     );
+  }
+
+  // ── /claude — chat directo con Claude Pro via CLI proxy ($0 por llamada) ──
+  // Uso: /claude Hola ¿cómo estás?
+  // También funciona como modelo persistente: /model → "Claude Pro (Proxy - $0)"
+  if (userText.startsWith('/claude')) {
+    const query = userText.slice('/claude'.length).trim();
+    if (!query) {
+      return ctx.reply(
+        '💬 *Claude Pro via proxy*\n\nUso: `/claude [tu mensaje]`\nEjemplo: `/claude ¿cómo vas con el sprint?`\n\nO usa `/model` y selecciona _Claude Pro (Proxy - $0)_ para que todo el chat use el proxy.',
+        { parse_mode: 'Markdown', ...topicOpts(threadId) },
+      );
+    }
+
+    if (!anthropicProxy) {
+      return ctx.reply(
+        '❌ *Proxy no configurado*\n\n' +
+        'Agrega a `relay/.env`:\n`ANTHROPIC_PROXY_URL=http://127.0.0.1:5001`\n\n' +
+        'Instrucciones de instalación: `deploy/claude-proxy-setup.md`',
+        { parse_mode: 'Markdown', ...topicOpts(threadId) },
+      );
+    }
+
+    if (BUSY.get(topicKey)) return ctx.reply('⏳ Procesando solicitud anterior…', topicOpts(threadId));
+    BUSY.set(topicKey, true);
+
+    const sessionId   = `tg-proxy-${userMeta.userId}-${threadId}-${Date.now()}`;
+    const projectName = `tg-proxy-${threadId > 0 ? `topic${threadId}` : 'dm'}`;
+    const progressMsg = await ctx.reply('⏳ _Claude Pro…_', { parse_mode: 'Markdown', ...topicOpts(threadId) });
+    bot.api.sendChatAction(ctx.chat.id, 'typing', topicOpts(threadId)).catch(() => {});
+
+    apiPost('/api/sessions', {
+      session_id: sessionId, project_name: projectName,
+      api_provider: 'anthropic-proxy', agent_user: userMeta.username, chat_source: 'telegram-proxy',
+    });
+
+    try {
+      const history = await loadHistory(ctx.chat.id, threadId);
+      history.push({ role: 'user', content: query });
+
+      const result   = await callClaudeProxy(history, MODELS['claude-proxy'].id);
+      const footer   = `\n\n_🤖 Claude Pro (Proxy) · ${result.tokensIn}↑ ${result.tokensOut}↓ · $0.00_`;
+      const chunks   = chunkText(result.text + footer, 4000);
+
+      await safeEdit(ctx.chat.id, progressMsg.message_id, chunks[0]);
+      for (let i = 1; i < chunks.length; i++) {
+        await ctx.reply(chunks[i], { parse_mode: 'Markdown', ...topicOpts(threadId) });
+      }
+
+      await saveMsg(ctx.chat.id, threadId, 'user', query, { ...userMeta });
+      await saveMsg(ctx.chat.id, threadId, 'assistant', result.text, {
+        ...userMeta, modelId: 'claude-sonnet-4-6', provider: 'anthropic-proxy',
+        tokensIn: result.tokensIn, tokensOut: result.tokensOut, costUsd: 0,
+        cacheRead: result.cacheRead, cacheWrite: result.cacheWrite,
+      });
+    } catch (err) {
+      console.error('[claude-proxy]', err.message);
+      await safeEdit(ctx.chat.id, progressMsg.message_id, `❌ ${err.message.slice(0, 300)}`);
+    } finally {
+      apiPost('/api/sessions/end', { session_id: sessionId, input_tokens: 0, output_tokens: 0 });
+      BUSY.delete(topicKey);
+    }
+    return;
   }
 
   if (BUSY.get(topicKey)) {
