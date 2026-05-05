@@ -40,9 +40,9 @@ from learning import (
 # ─── Configuración ────────────────────────────────────────────────────────────
 
 DELAY_BETWEEN_MESSAGES = 3      # segundos entre mensajes de un mismo escenario
-DELAY_BETWEEN_SCENARIOS = 8     # segundos entre escenarios distintos
+DELAY_BETWEEN_SCENARIOS = 15    # segundos entre escenarios distintos
 BOT_RESPONSE_TIMEOUT   = 18    # segundos esperando respuesta del bot (aumentado de 12)
-ROUNDS_PER_REPORT       = 10   # cuántos rounds antes de publicar resumen en Telegram
+ROUNDS_PER_REPORT       = 5    # cuántos rounds antes de publicar resumen en Telegram
 
 # ID de Flujos AI (financial-bot) — se auto-descubre al iniciar
 BOT_USER_ID: Optional[int] = None

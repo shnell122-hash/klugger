@@ -101,8 +101,8 @@ const visionAgent      = process.env.ANTHROPIC_API_KEY
 const docAgent = process.env.GOOGLE_API_KEY
   ? new DocumentIntelligenceAgent(process.env.GOOGLE_API_KEY)
   : null;
-const transactionOrchestrator = process.env.ANTHROPIC_API_KEY
-  ? new TransactionOrchestrator(process.env.ANTHROPIC_API_KEY)
+const transactionOrchestrator = process.env.DEEPSEEK_API_KEY
+  ? new TransactionOrchestrator(process.env.DEEPSEEK_API_KEY)
   : null;
 
 // ── Transformer: log bot outgoing messages ────────────────────────────────────

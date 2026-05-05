@@ -660,28 +660,29 @@ function postAlert(alertType, projectId, severity, title, details, autoFixed = f
   postToMonitor('/api/alerts', { alert_type: alertType, project_id: projectId, severity, title, details, auto_fixed: autoFixed });
 }
 
-// ─── Anthropic API directo (Opción B — buzon bidireccional) ──────────────────
-// Llama claude-sonnet-4-6 via HTTPS nativo sin spawn Claude CLI.
-// Usada cuando buzon-fiscalai.md cambia para responder directamente.
+// ─── DeepSeek Flash API directo (buzon bidireccional) ────────────────────────
+// Reemplaza claude-sonnet-4-6. V4-Flash es ~200x más barato para respuestas de texto.
 function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512) {
-  const timeoutMs = 90000;
+  const timeoutMs = 30000;
   const apiCall = new Promise((resolve, reject) => {
-    if (!ANTHROPIC_KEY) { reject(new Error('ANTHROPIC_API_KEY no configurado')); return; }
+    if (!DEEPSEEK_KEY) { reject(new Error('DEEPSEEK_API_KEY no configurado')); return; }
+    const model = process.env.DEEPSEEK_CHAT_MODEL ?? 'deepseek-chat';
     const body = JSON.stringify({
-      model:      'claude-sonnet-4-6',
+      model,
       max_tokens: maxTokens,
-      system:     systemPrompt,
-      messages:   [{ role: 'user', content: userMessage }],
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: userMessage  },
+      ],
     });
     const req = https.request({
-      hostname: 'api.anthropic.com',
-      path:     '/v1/messages',
+      hostname: 'api.deepseek.com',
+      path:     '/v1/chat/completions',
       method:   'POST',
       headers: {
-        'x-api-key':         ANTHROPIC_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type':      'application/json',
-        'content-length':    Buffer.byteLength(body),
+        'Authorization':  `Bearer ${DEEPSEEK_KEY}`,
+        'Content-Type':   'application/json',
+        'Content-Length': Buffer.byteLength(body),
       },
     }, (res) => {
       let data = '';
@@ -689,9 +690,14 @@ function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512) {
       res.on('end', () => {
         try {
           const json = JSON.parse(data);
-          if (json.error) { reject(new Error(`API error ${json.error.type}: ${json.error.message}`)); return; }
-          if (!json.content || !json.content[0]) { reject(new Error('Respuesta API vacía')); return; }
-          resolve(json.content[0].text);
+          if (json.error) { reject(new Error(`DeepSeek error: ${json.error.message}`)); return; }
+          const text = json.choices?.[0]?.message?.content;
+          if (!text) { reject(new Error('Respuesta API vacía')); return; }
+          const usage = json.usage ?? {};
+          if (usage.prompt_cache_hit_tokens) {
+            log(null, `[deepseek-flash] cache_hit=${usage.prompt_cache_hit_tokens}tok`);
+          }
+          resolve(text);
         } catch (e) { reject(e); }
       });
     });
@@ -699,9 +705,8 @@ function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512) {
     req.write(body);
     req.end();
   });
-
   const timeout = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error(`Timeout ${timeoutMs/1000}s — api.anthropic.com no respondió`)), timeoutMs)
+    setTimeout(() => reject(new Error(`Timeout ${timeoutMs/1000}s — api.deepseek.com`)), timeoutMs)
   );
   return Promise.race([apiCall, timeout]);
 }
@@ -1148,8 +1153,8 @@ function updateJournal(projectId, { title, exitCode, resultSummary, durationSec,
   });
   journal.recent_tasks = journal.recent_tasks.slice(0, 10);
 
-  // Auto-stop: 3 consecutive failures (loop breaker — Phase 1.4)
-  if (journal.consecutive_failures >= 3 && journal.state === 'active') {
+  // Auto-stop: 2 consecutive failures (loop breaker — Phase 1.4)
+  if (journal.consecutive_failures >= 2 && journal.state === 'active') {
     journal.state = 'stopped';
     const errorSnippet = (fullResult || resultSummary || '').slice(-600)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

@@ -1,7 +1,7 @@
 'use strict';
-const Anthropic = require('@anthropic-ai/sdk');
+const { OpenAI } = require('openai');
 
-const MODEL = 'claude-sonnet-4-6';
+const MODEL = process.env.DEEPSEEK_PRO_MODEL ?? 'deepseek-chat';
 
 const SYSTEM_PROMPT =
   'Eres el orquestador de transacciones de un sistema financiero de cobro en México.\n' +
@@ -23,37 +23,44 @@ const SYSTEM_PROMPT =
   '- "ignorar" si el mensaje es saludo casual, off-topic o ruido\n' +
   '- Sé conservador: ante la duda, "ignorar"';
 
+// Tool schema en formato OpenAI-compatible (DeepSeek): "parameters" en vez de "input_schema"
 const TOOL_SCHEMA = {
-  name: 'decidir_accion',
-  description: 'Decide qué acción tomar para el mensaje actual del usuario',
-  input_schema: {
-    type: 'object',
-    required: ['accion', 'confianza', 'razon'],
-    properties: {
-      accion: {
-        type: 'string',
-        enum: ['iniciar_operacion', 'confirmar', 'cancelar', 'pedir_monto',
-               'pedir_cuenta_bancaria', 'responder_info', 'ignorar'],
-      },
-      params: {
-        type: 'object',
-        properties: {
-          tipo_operacion:    { type: 'string' },
-          monto:             { type: 'number' },
-          tipo_monto:        { type: 'string' },
-          mensaje_respuesta: { type: 'string' },
+  type: 'function',
+  function: {
+    name: 'decidir_accion',
+    description: 'Decide qué acción tomar para el mensaje actual del usuario',
+    parameters: {
+      type: 'object',
+      required: ['accion', 'confianza', 'razon'],
+      properties: {
+        accion: {
+          type: 'string',
+          enum: ['iniciar_operacion', 'confirmar', 'cancelar', 'pedir_monto',
+                 'pedir_cuenta_bancaria', 'responder_info', 'ignorar'],
         },
+        params: {
+          type: 'object',
+          properties: {
+            tipo_operacion:    { type: 'string' },
+            monto:             { type: 'number' },
+            tipo_monto:        { type: 'string' },
+            mensaje_respuesta: { type: 'string' },
+          },
+        },
+        confianza: { type: 'string', enum: ['alta', 'media', 'baja'] },
+        razon:     { type: 'string' },
       },
-      confianza: { type: 'string', enum: ['alta', 'media', 'baja'] },
-      razon:     { type: 'string' },
     },
   },
 };
 
 class TransactionOrchestrator {
   constructor(apiKey) {
-    if (!apiKey) throw new Error('TransactionOrchestrator requiere ANTHROPIC_API_KEY');
-    this.client = new Anthropic({ apiKey });
+    if (!apiKey) throw new Error('TransactionOrchestrator requiere DEEPSEEK_API_KEY');
+    this.client = new OpenAI({
+      apiKey,
+      baseURL: 'https://api.deepseek.com/v1',
+    });
   }
 
   async rutear({ estado, mensajesRecientes, textoUsuario, saldo, nombre }) {
@@ -71,22 +78,28 @@ class TransactionOrchestrator {
 
     const start = Date.now();
     try {
-      const response = await this.client.messages.create({
-        model:     MODEL,
-        max_tokens: 256,
-        system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
-        tools:      [TOOL_SCHEMA],
-        tool_choice: { type: 'tool', name: 'decidir_accion' },
-        messages:   [{ role: 'user', content: userMsg }],
+      const response = await this.client.chat.completions.create({
+        model:       MODEL,
+        max_tokens:  256,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user',   content: userMsg },
+        ],
+        tools:       [TOOL_SCHEMA],
+        tool_choice: 'required',
       });
 
-      const toolUse = response.content.find(b => b.type === 'tool_use');
-      const result  = toolUse?.input ?? { accion: 'ignorar', confianza: 'baja', razon: 'no tool use', params: {} };
+      const toolCall = response.choices?.[0]?.message?.tool_calls?.[0];
+      const result   = toolCall
+        ? JSON.parse(toolCall.function.arguments)
+        : { accion: 'ignorar', confianza: 'baja', razon: 'no tool call', params: {} };
 
       const usage = response.usage ?? {};
       console.log(
-        `[TransactionOrchestrator/sonnet] accion=${result.accion} confianza=${result.confianza} ` +
-        `tokens=${usage.input_tokens ?? 0}+${usage.output_tokens ?? 0} ${Date.now() - start}ms`
+        `[TransactionOrchestrator/deepseek-pro] accion=${result.accion} confianza=${result.confianza} ` +
+        `tokens=${usage.prompt_tokens ?? 0}+${usage.completion_tokens ?? 0}` +
+        (usage.prompt_cache_hit_tokens ? ` cache_hit=${usage.prompt_cache_hit_tokens}` : '') +
+        ` ${Date.now() - start}ms`
       );
 
       return { params: {}, ...result };

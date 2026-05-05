@@ -50,7 +50,7 @@
   {
     "id": "finbot-tester",
     "name": "FinBot — Tester Automatizado",
-    "claude_model": "claude-sonnet-4-6",
+    "claude_model": "claude-haiku-4-5-20251001",
     "inbox":  "/var/www/html/vilarkptl.com/ai-monitor/relay/inbox-finbot-tester.md",
     "outbox": "/var/www/html/vilarkptl.com/ai-monitor/relay/outbox-finbot-tester.md",
     "repo":   "/var/www/html/vilarkptl.com/ai-monitor",

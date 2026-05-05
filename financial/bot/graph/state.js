@@ -22,6 +22,7 @@ const FinBotStateAnnotation = Annotation.Root({
   // 'text' | 'photo' | 'document' | 'voice' | 'callback' | 'unknown'
   messageType:       Annotation({ reducer: last, default: () => 'unknown' }),
   inputText:         Annotation({ reducer: last, default: () => null }),
+  inputFileId:       Annotation({ reducer: last, default: () => null }),
   inputBuffer:       Annotation({ reducer: last, default: () => null }),
   inputMimeType:     Annotation({ reducer: last, default: () => null }),
   inputFileName:     Annotation({ reducer: last, default: () => null }),
