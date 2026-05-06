@@ -667,6 +667,42 @@ const BUSY = new Map();
 // Deduplicate Telegram updates — at-least-once delivery can send same message_id twice
 const PROCESSED_MSG_IDS = new Set();
 
+// ── Named sessions per private chat ───────────────────────────────────────────
+// chatId → { current: 'default', tags: Map<name, virtualThreadId> }
+// Virtual thread IDs for named sessions use negative integers to avoid collision
+// with real Telegram forum thread IDs (which are always positive).
+const CHAT_SESSIONS = new Map();
+let _sessionCounter = -1;
+
+function getSessionState(chatId) {
+  if (!CHAT_SESSIONS.has(chatId)) {
+    CHAT_SESSIONS.set(chatId, { current: 'default', tags: new Map([['default', 0]]) });
+  }
+  return CHAT_SESSIONS.get(chatId);
+}
+
+// Returns the thread_id to use for DB operations.
+// In Telegram groups with topics, uses the real TG thread ID.
+// In private chats, uses the session-managed virtual thread ID.
+function effectiveThreadId(chatId, tgThreadId) {
+  if (tgThreadId > 0) return tgThreadId;
+  const s = getSessionState(chatId);
+  return s.tags.get(s.current) ?? 0;
+}
+
+function chatSessionKeyboard(chatId) {
+  const s = getSessionState(chatId);
+  const kb = new InlineKeyboard();
+  let col = 0;
+  for (const [name] of s.tags) {
+    const label = name === s.current ? `✓ ${name}` : name;
+    kb.text(label, `cs:${name}`);
+    if (++col % 2 === 0) kb.row();
+  }
+  kb.row().text('🆕 Nueva sesión', 'cs:__new__');
+  return kb;
+}
+
 // ── /model command — inline keyboard ─────────────────────────────────────────
 function modelKeyboard() {
   const kb = new InlineKeyboard()
@@ -700,6 +736,30 @@ bot.callbackQuery(/^model:(.+)$/, async (ctx) => {
   );
 });
 
+// ── /chat session callback ────────────────────────────────────────────────────
+bot.callbackQuery(/^cs:(.+)$/, async (ctx) => {
+  const key    = ctx.match[1];
+  const chatId = ctx.chat.id;
+  const s      = getSessionState(chatId);
+
+  if (key === '__new__') {
+    await ctx.answerCallbackQuery();
+    return ctx.reply('Escribe el nombre de la nueva sesión:\n`/chat [nombre]`', { parse_mode: 'Markdown' });
+  }
+
+  if (!s.tags.has(key)) {
+    await ctx.answerCallbackQuery({ text: 'Sesión no encontrada' });
+    return;
+  }
+
+  s.current = key;
+  await ctx.answerCallbackQuery({ text: `✓ Sesión "${key}" activada` });
+  await ctx.editMessageText(
+    `✅ Sesión *${key}* activada.\nHistorial cargado. Continúa chateando.`,
+    { parse_mode: 'Markdown' },
+  );
+});
+
 // ── Message handler ───────────────────────────────────────────────────────────
 bot.on('message:text', async (ctx) => {
   if (!isAuthorized(ctx)) return;
@@ -710,7 +770,7 @@ bot.on('message:text', async (ctx) => {
   setTimeout(() => PROCESSED_MSG_IDS.delete(msgId), 120_000);
 
   const userText  = ctx.message.text.trim();
-  const threadId  = ctx.message.message_thread_id ?? 0;
+  const threadId  = effectiveThreadId(ctx.chat.id, ctx.message.message_thread_id ?? 0);
   const topicKey  = `${ctx.chat.id}:${threadId}`;
   const modelKey  = TOPIC_MODEL.get(topicKey) || DEFAULT_MODEL;
   const userMeta  = {
@@ -719,6 +779,29 @@ bot.on('message:text', async (ctx) => {
   };
 
   // ── Commands ───────────────────────────────────────────────────────────────
+  // ── /chat — gestión de sesiones nombradas ────────────────────────────────────
+  if (userText === '/chat' || userText.startsWith('/chat ')) {
+    const arg = userText.slice('/chat'.length).trim();
+    const s   = getSessionState(ctx.chat.id);
+
+    if (!arg) {
+      return ctx.reply(
+        `*Sesiones de chat*\nActual: \`${s.current}\`\n\nSelecciona o crea una sesión:`,
+        { parse_mode: 'Markdown', reply_markup: chatSessionKeyboard(ctx.chat.id), ...topicOpts(threadId) },
+      );
+    }
+
+    // /chat [nombre] → create or switch
+    const name = arg.slice(0, 40).replace(/[^a-zA-Z0-9_\-áéíóúñÁÉÍÓÚÑ ]/g, '').trim();
+    if (!name) return ctx.reply('Nombre inválido. Usa letras, números o guiones.', topicOpts(threadId));
+
+    if (!s.tags.has(name)) {
+      s.tags.set(name, _sessionCounter--);
+    }
+    s.current = name;
+    return ctx.reply(`✅ Sesión *${name}* activada.`, { parse_mode: 'Markdown', ...topicOpts(threadId) });
+  }
+
   if (userText === '/reset') {
     await db.query(
       'DELETE FROM conversations WHERE chat_id = ? AND thread_id = ?',
@@ -758,8 +841,10 @@ bot.on('message:text', async (ctx) => {
       '*Claude Code · Vilar AI*\n\n' +
       '`/claude [msg]` — Chat directo con Claude Pro via proxy ($0)\n' +
       '`/model` — Cambiar modelo de IA\n' +
-      '`/reset` — Borrar historial de este topic\n' +
-      '`/status` — Stats del topic actual\n' +
+      '`/chat` — Ver y cambiar sesión de chat\n' +
+      '`/chat [nombre]` — Crear o activar sesión nombrada\n' +
+      '`/reset` — Borrar historial de la sesión actual\n' +
+      '`/status` — Stats de la sesión actual\n' +
       '`/help` — Esta ayuda\n\n' +
       `*Proxy CLI:* ${proxyStatus}\n\n` +
       '*Modelos disponibles:*\n' + modelList,
