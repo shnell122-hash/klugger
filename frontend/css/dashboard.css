@@ -934,6 +934,36 @@ main {
   font-weight: 600;
 }
 
+.btn-tg {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #229ED9;
+  background: rgba(34,158,217,0.1);
+  border: 1px solid rgba(34,158,217,0.25);
+  border-radius: 6px;
+  padding: 3px 9px;
+  text-decoration: none;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn-tg:hover { background: #229ED9; color: #fff; border-color: #229ED9; }
+
+.conv-user-tg {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: #229ED9;
+  text-decoration: none;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+.conv-user-tg:hover { opacity: 1; }
+
 /* END PART 5 */
 
 /* ── PART 6: Platform, API admin, modals ── */
