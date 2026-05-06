@@ -45,7 +45,6 @@ async function callClaude(model, systemPrompt, messages, maxTokens) {
       '--print',
       '--dangerously-skip-permissions',
       '--model', model,
-      '--max-tokens', String(maxTokens || 4096),
     ];
 
     // Strip ANTHROPIC_API_KEY so claude --print uses saved credentials (Pro/Max, $0)
