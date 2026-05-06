@@ -43,7 +43,6 @@ async function callClaude(model, systemPrompt, messages, maxTokens) {
 
     const args = [
       '--print',
-      '--dangerously-skip-permissions',
       '--model', model,
     ];
 
