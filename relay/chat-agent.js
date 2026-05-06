@@ -1013,10 +1013,20 @@ console.log(`[chat-agent] Modelos: ${Object.keys(MODELS).join(', ')} (default: $
 const WEBHOOK_URL  = process.env.BOT_WEBHOOK_URL  || '';
 const WEBHOOK_PORT = parseInt(process.env.BOT_WEBHOOK_PORT || '3011');
 
+const BOT_COMMANDS = [
+  { command: 'claude',  description: 'Chat con Claude Pro via proxy ($0)' },
+  { command: 'chat',    description: 'Ver/cambiar sesión de chat' },
+  { command: 'model',   description: 'Cambiar modelo de IA' },
+  { command: 'reset',   description: 'Borrar historial de la sesión actual' },
+  { command: 'status',  description: 'Stats de la sesión actual' },
+  { command: 'help',    description: 'Lista de comandos' },
+];
+
 if (WEBHOOK_URL) {
   const { webhookCallback } = require('grammy');
   const http = require('http');
 
+  bot.api.setMyCommands(BOT_COMMANDS).catch(err => console.warn('[chat-agent] setMyCommands:', err.message));
   bot.api.setWebhook(WEBHOOK_URL, { drop_pending_updates: true })
     .then(() => {
       const handleUpdate = webhookCallback(bot, 'http');
@@ -1037,6 +1047,9 @@ if (WEBHOOK_URL) {
     });
 } else {
   bot.start({
-    onStart: info => console.log(`[chat-agent] @${info.username} listo — polling activo`),
+    onStart: info => {
+      console.log(`[chat-agent] @${info.username} listo — polling activo`);
+      bot.api.setMyCommands(BOT_COMMANDS).catch(err => console.warn('[chat-agent] setMyCommands:', err.message));
+    },
   });
 }
