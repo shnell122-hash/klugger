@@ -2021,7 +2021,6 @@ async function processProject(project, hashes, pulledRepos = new Set()) {
   if (GLOBAL_KILLED) { log(project.id, `Kill-switch activo (${GLOBAL_KILL_MSG || 'gasto diario'}) — saltando`); return; }
   if (getProjectKilled(project.id)) { log(project.id, `project_killed: presupuesto mensual agotado — saltando`); return; }
   if (isQuietHour() && !project.ignore_quiet_hours) { log(project.id, 'Quiet hours (11pm–8am MX) — tarea diferida'); return; }
-  if (isRateLimited(project.id)) { log(project.id, `Rate limit: >${DISPATCH_RATE_LIMIT} dispatches/h — esperando`); tg(`⏸ Rate limit en ${project.id} — dispatches pausados 1h`); return; }
 
   // Git pull — deduplicated per repo path to avoid concurrent git lock conflicts
   if (project.repo && project.branch && !pulledRepos.has(project.repo)) {
@@ -2032,7 +2031,20 @@ async function processProject(project, hashes, pulledRepos = new Set()) {
 
   const currentHash = fileHash(project.inbox);
   if (!currentHash) return;
-  if (hashes[project.id] === currentHash) return;  // no change
+  if (hashes[project.id] === currentHash) return;  // no change — check BEFORE rate limit
+
+  // Rate limit only counts when there's actually a new task to execute
+  if (isRateLimited(project.id)) {
+    log(project.id, `Rate limit: >${DISPATCH_RATE_LIMIT} dispatches/h — tarea diferida`);
+    // Notify Telegram at most once per project per hour (not every 15s)
+    const alertKey = `ratelimit_${project.id}`;
+    const lastAlert = PROVIDER_LAST_ALERT[alertKey] || 0;
+    if (Date.now() - lastAlert > DISPATCH_WINDOW_MS) {
+      PROVIDER_LAST_ALERT[alertKey] = Date.now();
+      tg(`⏸ Rate limit en ${project.id} — max ${DISPATCH_RATE_LIMIT} dispatches/h alcanzado`);
+    }
+    return;
+  }
 
   // Changed! Try to acquire per-project lock (other projects run in parallel)
   if (!acquireLock(project.id)) {
