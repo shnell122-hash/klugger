@@ -1,7 +1,7 @@
 'use strict';
 const { OpenAI } = require('openai');
 
-const MODEL = process.env.DEEPSEEK_PRO_MODEL ?? 'deepseek-chat';
+const MODEL = process.env.DEEPSEEK_PRO_MODEL ?? 'deepseek-v4-pro';
 
 const SYSTEM_PROMPT =
   'Eres el orquestador de transacciones de un sistema financiero de cobro en México.\n' +

@@ -666,7 +666,7 @@ function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512) {
   const timeoutMs = 30000;
   const apiCall = new Promise((resolve, reject) => {
     if (!DEEPSEEK_KEY) { reject(new Error('DEEPSEEK_API_KEY no configurado')); return; }
-    const model = process.env.DEEPSEEK_CHAT_MODEL ?? 'deepseek-chat';
+    const model = process.env.DEEPSEEK_CHAT_MODEL ?? 'deepseek-v4-flash';
     const body = JSON.stringify({
       model,
       max_tokens: maxTokens,
@@ -718,7 +718,7 @@ function callDeepSeekDirect(systemPrompt, userMessage, maxTokens = 512) {
   const apiCall = new Promise((resolve, reject) => {
     if (!DEEPSEEK_KEY) { reject(new Error('DEEPSEEK_API_KEY no configurado')); return; }
     const body = JSON.stringify({
-      model:      'deepseek-chat',
+      model:      process.env.DEEPSEEK_CHAT_MODEL ?? 'deepseek-v4-flash',
       max_tokens: maxTokens,
       messages: [
         { role: 'system', content: systemPrompt },
