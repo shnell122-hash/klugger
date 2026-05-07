@@ -17,6 +17,9 @@
 const http       = require('http');
 const { spawn }  = require('child_process');
 
+process.on('uncaughtException',  err => console.error('[claude-proxy] uncaughtException:', err.message));
+process.on('unhandledRejection', err => console.error('[claude-proxy] unhandledRejection:', err?.message || err));
+
 const PORT       = parseInt(process.argv.find((a, i) => process.argv[i - 1] === '--port') || '5001');
 const CLAUDE_BIN = process.env.CLAUDE_BIN || 'claude';
 
@@ -40,9 +43,7 @@ async function callClaude(model, systemPrompt, messages, maxTokens) {
 
     const args = [
       '--print',
-      '--dangerously-skip-permissions',
       '--model', model,
-      '--max-tokens', String(maxTokens || 4096),
     ];
 
     // Strip ANTHROPIC_API_KEY so claude --print uses saved credentials (Pro/Max, $0)
@@ -52,16 +53,12 @@ async function callClaude(model, systemPrompt, messages, maxTokens) {
     let stdout = '';
     let stderr = '';
 
-    proc.stdin.write(prompt);
-    proc.stdin.end();
-
     proc.stdout.on('data', d => { stdout += d; });
     proc.stderr.on('data', d => { stderr += d; });
 
     proc.on('close', code => {
       if (code !== 0) return reject(new Error(`claude exited ${code}: ${stderr.slice(0, 300)}`));
       const text = stdout.trim();
-      // Rough token estimates (4 chars ≈ 1 token)
       const inputTokens  = Math.ceil(prompt.length  / 4);
       const outputTokens = Math.ceil(text.length    / 4);
       resolve({
@@ -81,6 +78,10 @@ async function callClaude(model, systemPrompt, messages, maxTokens) {
     });
 
     proc.on('error', reject);
+    // Suppress EPIPE if claude exits before stdin drains (auth error, early exit, etc.)
+    proc.stdin.on('error', () => {});
+    proc.stdin.write(prompt);
+    proc.stdin.end();
   });
 }
 

@@ -65,6 +65,26 @@ let GLOBAL_KILL_TS  = null;
 let GLOBAL_KILL_MSG = '';
 const PROVIDER_LAST_ALERT = {};  // proveedor → timestamp última alerta (antispam)
 
+// ── Quiet hours (11pm–8am hora México UTC-6) ──────────────────────────────────
+function isQuietHour() {
+  const mxHour = (new Date().getUTCHours() - 6 + 24) % 24;
+  return mxHour >= 23 || mxHour < 8;
+}
+
+// ── Rate limiting por proyecto (máx 3 dispatches/hora) ────────────────────────
+const DISPATCH_TIMESTAMPS = new Map();
+const DISPATCH_RATE_LIMIT = parseInt(process.env.DISPATCH_RATE_LIMIT || '3');
+const DISPATCH_WINDOW_MS  = 60 * 60 * 1000;
+
+function isRateLimited(projectId) {
+  const now = Date.now();
+  const ts  = (DISPATCH_TIMESTAMPS.get(projectId) || []).filter(t => now - t < DISPATCH_WINDOW_MS);
+  DISPATCH_TIMESTAMPS.set(projectId, ts);
+  if (ts.length >= DISPATCH_RATE_LIMIT) return true;
+  ts.push(now);
+  return false;
+}
+
 // ─── Buzon IA (ia.vilarkptl.com → FiscalAI relay shared mailbox) ─────────────
 // When relay/buzon-ia.md in agentic-repo changes, relay-master mirrors it to
 // DeCabeceraTax (ryby.lease) so FiscalAI can read messages from ia.vilarkptl.com
@@ -1853,6 +1873,7 @@ function saveDispatchQueue(q) {
 
 async function processDispatchQueue(projects, hashes = null) {
   if (GLOBAL_KILLED) { log(null, 'Kill-switch activo — dispatch queue pausada'); return; }
+  if (isQuietHour()) { log(null, 'Quiet hours — dispatch queue pausada'); return; }
   const queue = readDispatchQueue();
   const pending = queue.filter(d => d.status === 'pending');
   if (!pending.length) return;
@@ -1999,6 +2020,7 @@ async function processProject(project, hashes, pulledRepos = new Set()) {
   if (!project.active || !project.inbox) return;
   if (GLOBAL_KILLED) { log(project.id, `Kill-switch activo (${GLOBAL_KILL_MSG || 'gasto diario'}) — saltando`); return; }
   if (getProjectKilled(project.id)) { log(project.id, `project_killed: presupuesto mensual agotado — saltando`); return; }
+  if (isQuietHour() && !project.ignore_quiet_hours) { log(project.id, 'Quiet hours (11pm–8am MX) — tarea diferida'); return; }
 
   // Git pull — deduplicated per repo path to avoid concurrent git lock conflicts
   if (project.repo && project.branch && !pulledRepos.has(project.repo)) {
@@ -2009,7 +2031,20 @@ async function processProject(project, hashes, pulledRepos = new Set()) {
 
   const currentHash = fileHash(project.inbox);
   if (!currentHash) return;
-  if (hashes[project.id] === currentHash) return;  // no change
+  if (hashes[project.id] === currentHash) return;  // no change — check BEFORE rate limit
+
+  // Rate limit only counts when there's actually a new task to execute
+  if (isRateLimited(project.id)) {
+    log(project.id, `Rate limit: >${DISPATCH_RATE_LIMIT} dispatches/h — tarea diferida`);
+    // Notify Telegram at most once per project per hour (not every 15s)
+    const alertKey = `ratelimit_${project.id}`;
+    const lastAlert = PROVIDER_LAST_ALERT[alertKey] || 0;
+    if (Date.now() - lastAlert > DISPATCH_WINDOW_MS) {
+      PROVIDER_LAST_ALERT[alertKey] = Date.now();
+      tg(`⏸ Rate limit en ${project.id} — max ${DISPATCH_RATE_LIMIT} dispatches/h alcanzado`);
+    }
+    return;
+  }
 
   // Changed! Try to acquire per-project lock (other projects run in parallel)
   if (!acquireLock(project.id)) {
