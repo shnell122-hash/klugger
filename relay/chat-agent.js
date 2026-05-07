@@ -1057,6 +1057,20 @@ bot.on('message:text', async (ctx) => {
     );
   }
 
+  if (userText.startsWith('/model ')) {
+    const key = userText.slice('/model '.length).trim();
+    if (MODELS[key]) {
+      TOPIC_MODEL.set(topicKey, key);
+      const m = MODELS[key];
+      return ctx.reply(
+        `✅ Modelo: *${m.label}*\n_${m.costIn === 0 ? '$0 — usa Pro/Max OAuth' : `$${m.costIn}/$${m.costOut} por MTok ↑↓`}_`,
+        { parse_mode: 'Markdown', ...topicOpts(threadId) },
+      );
+    }
+    const keys = Object.keys(MODELS).join(', ');
+    return ctx.reply(`❌ Modelo \`${key}\` no existe.\nOpciones: ${keys}`, { parse_mode: 'Markdown', reply_markup: modelKeyboard(), ...topicOpts(threadId) });
+  }
+
   if (userText === '/status') {
     const [rows] = await db.query(
       `SELECT COUNT(*) AS total, ROUND(SUM(cost_usd), 4) AS cost, MAX(created_at) AS last
