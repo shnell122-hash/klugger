@@ -1041,12 +1041,14 @@ bot.on('message:text', async (ctx) => {
   }
 
   if (userText === '/reset') {
+    BUSY.delete(topicKey);
+    TOPIC_MODEL.delete(topicKey);
     await db.query(
       'DELETE FROM conversations WHERE chat_id = ? AND thread_id = ?',
       [ctx.chat.id, threadId],
     );
     SESSION_CONTEXT.delete(ctx.chat.id);
-    return ctx.reply('✅ Historial y contexto borrados.', topicOpts(threadId));
+    return ctx.reply('✅ Historial, contexto y modelo restablecidos.', topicOpts(threadId));
   }
 
   if (userText === '/model') {
