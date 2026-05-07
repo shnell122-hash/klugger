@@ -252,7 +252,7 @@ async function callAnthropic(m, messages, ctx, onProgress, signal) {
       model:      m.id,
       tools:      TOOLS_ANTHROPIC,
       max_tokens: 8096,
-      system:     SYSTEM_CACHED,
+      system:     buildSystemBlocks(ctx.chat?.id),
       messages:   history,
     }, { signal });
 
@@ -597,9 +597,20 @@ async function loadHistory(chatId, threadId) {
     `SELECT role, content FROM conversations
      WHERE chat_id = ? AND thread_id = ?
      ORDER BY created_at DESC LIMIT ?`,
-    [chatId, threadId, MAX_HISTORY],
+    [chatId, threadId, MAX_HISTORY + 5],
   );
-  return rows.reverse();
+  const all = rows.reverse();
+  const compactRow = all.find(r => r.role === '__compact__');
+  const messages   = all.filter(r => r.role !== '__compact__').slice(-MAX_HISTORY);
+
+  if (compactRow) {
+    return [
+      { role: 'user',      content: `[Resumen de conversación anterior]\n${compactRow.content}`, __isSummaryCtx: true },
+      { role: 'assistant', content: 'Entendido, tengo el contexto de nuestra conversación anterior.', __isSummaryCtx: true },
+      ...messages,
+    ];
+  }
+  return messages;
 }
 
 async function saveMsg(chatId, threadId, role, content, meta = {}) {
@@ -703,6 +714,106 @@ function chatSessionKeyboard(chatId) {
   return kb;
 }
 
+// ── Project context injection ─────────────────────────────────────────────────
+const PROJECTS_LIST = (() => {
+  try {
+    const raw = fs.readFileSync(path.join(REPO, 'relay', 'projects.json'), 'utf8');
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : (parsed.projects || []);
+  } catch (_) { return []; }
+})();
+
+// Per-chat project context: chatId → { projectId, claudeMd }
+const SESSION_CONTEXT = new Map();
+
+function getProjectClaudeMd(projectId) {
+  const p = PROJECTS_LIST.find(x => x.id === projectId);
+  if (!p?.repo) return '';
+  try { return fs.readFileSync(path.join(p.repo, 'CLAUDE.md'), 'utf8').slice(0, 3000); }
+  catch (_) { return ''; }
+}
+
+// Returns system blocks — adds project CLAUDE.md as second ephemeral cache block when set
+function buildSystemBlocks(chatId) {
+  const sctx = SESSION_CONTEXT.get(chatId);
+  if (!sctx?.claudeMd) return SYSTEM_CACHED;
+  return [
+    ...SYSTEM_CACHED,
+    { type: 'text', text: `\n--- CLAUDE.md (${sctx.projectId}) ---\n${sctx.claudeMd}`, cache_control: { type: 'ephemeral' } },
+  ];
+}
+
+// ── Semantic memory compaction ─────────────────────────────────────────────────
+const COMPACT_THRESHOLD = 12; // compact after N user messages in history
+
+async function callDeepSeekCompact(prompt) {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) return null;
+  try {
+    const resp = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: process.env.DEEPSEEK_FLASH_MODEL || 'deepseek-chat',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 700,
+      }),
+    });
+    const data = await resp.json();
+    return data.choices?.[0]?.message?.content?.trim() || null;
+  } catch (err) {
+    console.warn('[compact] DeepSeek error:', err.message);
+    return null;
+  }
+}
+
+async function compactSession(chatId, threadId, history, force = false) {
+  const userMsgs = history.filter(m => m.role === 'user').length;
+  if (!force && userMsgs < COMPACT_THRESHOLD) return history;
+
+  const KEEP_LAST = 6;
+  const toSummarize = history.filter(m => !m.__isSummaryCtx).slice(0, -KEEP_LAST);
+  if (toSummarize.length < 4) return history;
+
+  const sctx = SESSION_CONTEXT.get(chatId);
+  const projectHint = sctx?.projectId ? ` del proyecto ${sctx.projectId}` : '';
+
+  const summaryPrompt =
+    `Resume esta conversación${projectHint} de forma estructurada. Incluye SOLO:\n` +
+    `- Decisiones técnicas tomadas (archivos, rutas exactas)\n` +
+    `- Errores y sus fixes\n` +
+    `- Tareas completadas y pendientes\n` +
+    `- Contexto clave que NO debe perderse\n\n` +
+    `Conversación:\n` +
+    toSummarize.map(m => `${m.role.toUpperCase()}: ${typeof m.content === 'string' ? m.content.slice(0, 800) : '[tool]'}`).join('\n\n') +
+    `\n\nResumen (máx 500 palabras, español):`;
+
+  const summary = await callDeepSeekCompact(summaryPrompt);
+  if (!summary) return history;
+
+  // Delete old messages keeping last KEEP_LAST
+  const [countRows] = await db.query(
+    'SELECT COUNT(*) AS n FROM conversations WHERE chat_id=? AND thread_id=? AND role != ?',
+    [chatId, threadId, '__compact__'],
+  );
+  const total = countRows[0]?.n || 0;
+  const toDelete = Math.max(0, total - KEEP_LAST);
+  if (toDelete > 0) {
+    await db.query(
+      `DELETE FROM conversations WHERE chat_id=? AND thread_id=? AND role != '__compact__'
+       ORDER BY created_at ASC LIMIT ?`,
+      [chatId, threadId, toDelete],
+    );
+  }
+  await db.query('DELETE FROM conversations WHERE chat_id=? AND thread_id=? AND role=?', [chatId, threadId, '__compact__']);
+  await db.query(
+    `INSERT INTO conversations (chat_id, thread_id, role, content) VALUES (?,?,'__compact__',?)`,
+    [chatId, threadId, summary],
+  );
+
+  return history.slice(-KEEP_LAST);
+}
+
 // ── /model command — inline keyboard ─────────────────────────────────────────
 function modelKeyboard() {
   const kb = new InlineKeyboard()
@@ -799,7 +910,38 @@ bot.on('message:text', async (ctx) => {
       s.tags.set(name, _sessionCounter--);
     }
     s.current = name;
+
+    // Auto-inject project context when session name matches a known project
+    const matchedProject = PROJECTS_LIST.find(p => p.id === name || p.name?.toLowerCase() === name.toLowerCase());
+    if (matchedProject) {
+      const claudeMd = getProjectClaudeMd(matchedProject.id);
+      SESSION_CONTEXT.set(ctx.chat.id, { projectId: matchedProject.id, claudeMd });
+      const ctxNote = claudeMd ? ` · contexto de ${matchedProject.id} cargado` : '';
+      return ctx.reply(`✅ Sesión *${name}* activada${ctxNote}.`, { parse_mode: 'Markdown', ...topicOpts(threadId) });
+    }
+
+    // Clear project context when switching to a non-project session
+    SESSION_CONTEXT.delete(ctx.chat.id);
     return ctx.reply(`✅ Sesión *${name}* activada.`, { parse_mode: 'Markdown', ...topicOpts(threadId) });
+  }
+
+  if (userText === '/compact') {
+    const history = await loadHistory(ctx.chat.id, threadId);
+    const waiting = await ctx.reply('⏳ Compactando memoria…', topicOpts(threadId));
+    const compacted = await compactSession(ctx.chat.id, threadId, history, true);
+    await safeEdit(ctx.chat.id, waiting.message_id,
+      `✅ Memoria compactada — ${history.length} → ${compacted.length} mensajes en contexto.`);
+    return;
+  }
+
+  if (userText === '/summary') {
+    const [[row]] = await db.query(
+      `SELECT content, created_at FROM conversations WHERE chat_id=? AND thread_id=? AND role='__compact__' LIMIT 1`,
+      [ctx.chat.id, threadId],
+    );
+    if (!row) return ctx.reply('Sin resumen aún. Usa /compact para generar uno.', topicOpts(threadId));
+    const ts = new Date(row.created_at).toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
+    return ctx.reply(`📋 *Resumen de sesión* _(${ts})_\n\n${row.content}`, { parse_mode: 'Markdown', ...topicOpts(threadId) });
   }
 
   if (userText === '/reset') {
@@ -807,7 +949,8 @@ bot.on('message:text', async (ctx) => {
       'DELETE FROM conversations WHERE chat_id = ? AND thread_id = ?',
       [ctx.chat.id, threadId],
     );
-    return ctx.reply('✅ Historial borrado.', topicOpts(threadId));
+    SESSION_CONTEXT.delete(ctx.chat.id);
+    return ctx.reply('✅ Historial y contexto borrados.', topicOpts(threadId));
   }
 
   if (userText === '/model') {
@@ -840,9 +983,11 @@ bot.on('message:text', async (ctx) => {
     return ctx.reply(
       '*Claude Code · Vilar AI*\n\n' +
       '`/claude [msg]` — Chat directo con Claude Pro via proxy ($0)\n' +
+      '`/chat` — Ver sesiones · `/chat [nombre]` — Crear/activar sesión\n' +
+      '`/chat fiscalai` — Sesión con contexto de proyecto auto-inyectado\n' +
       '`/model` — Cambiar modelo de IA\n' +
-      '`/chat` — Ver y cambiar sesión de chat\n' +
-      '`/chat [nombre]` — Crear o activar sesión nombrada\n' +
+      '`/compact` — Compactar memoria con IA (DeepSeek V4-Flash)\n' +
+      '`/summary` — Ver resumen compactado de la sesión\n' +
       '`/reset` — Borrar historial de la sesión actual\n' +
       '`/status` — Stats de la sesión actual\n' +
       '`/help` — Esta ayuda\n\n' +
@@ -946,7 +1091,9 @@ bot.on('message:text', async (ctx) => {
 
   let tokensIn = 0, tokensOut = 0, cacheRead = 0, cacheWrite = 0;
   try {
-    const history = await loadHistory(ctx.chat.id, threadId);
+    let history = await loadHistory(ctx.chat.id, threadId);
+    // Auto-compact when history grows beyond threshold (runs silently in background after reply)
+    const shouldCompact = history.filter(m => m.role === 'user' && !m.__isSummaryCtx).length >= COMPACT_THRESHOLD;
     history.push({ role: 'user', content: userText });
 
     const abortCtrl = new AbortController();
@@ -984,6 +1131,14 @@ bot.on('message:text', async (ctx) => {
       ...userMeta, modelId: m.id, provider: m.provider,
       tokensIn, tokensOut, costUsd, cacheRead, cacheWrite,
     });
+
+    // Auto-compact after reply (non-blocking — user doesn't wait)
+    if (shouldCompact) {
+      const freshHistory = await loadHistory(ctx.chat.id, threadId);
+      compactSession(ctx.chat.id, threadId, freshHistory, false).catch(err =>
+        console.warn('[compact] auto-compact error:', err.message),
+      );
+    }
   } catch (err) {
     console.error('[chat-agent] error:', err.message);
     await safeEdit(
@@ -1015,8 +1170,10 @@ const WEBHOOK_PORT = parseInt(process.env.BOT_WEBHOOK_PORT || '3011');
 
 const BOT_COMMANDS = [
   { command: 'claude',  description: 'Chat con Claude Pro via proxy ($0)' },
-  { command: 'chat',    description: 'Ver/cambiar sesión de chat' },
+  { command: 'chat',    description: 'Ver/cambiar sesión — /chat [proyecto]' },
   { command: 'model',   description: 'Cambiar modelo de IA' },
+  { command: 'compact', description: 'Compactar memoria de la sesión con IA' },
+  { command: 'summary', description: 'Ver resumen compactado de la sesión' },
   { command: 'reset',   description: 'Borrar historial de la sesión actual' },
   { command: 'status',  description: 'Stats de la sesión actual' },
   { command: 'help',    description: 'Lista de comandos' },
