@@ -533,13 +533,7 @@ function initTabs() {
         document.getElementById('feed-panel').classList.add('mobile-active');
       } else {
         document.getElementById('right-panel').classList.add('mobile-active');
-        // Activate the right sub-panel
-        switchRightTab(panel === 'agents'        ? 'agents'        :
-                       panel === 'screenshots' ? 'screenshots'   :
-                       panel === 'sessions'    ? 'sessions'      :
-                       panel === 'costs'       ? 'costs'         :
-                       panel === 'projects'    ? 'projects'      :
-                       panel === 'conversations'? 'conversations' : 'providers');
+        switchRightTab(panel);
       }
     });
   });
@@ -555,7 +549,7 @@ function initTabs() {
 }
 
 function switchRightTab(tab) {
-  ['agents','screenshots','sessions','costs','providers','projects','alerts','conversations','platform','api-admin'].forEach(t => {
+  ['agents','screenshots','sessions','costs','providers','projects','alerts','conversations','tg-users','platform','api-admin'].forEach(t => {
     const el = document.getElementById(t + '-panel');
     if (el) el.classList.toggle('visible', t === tab);
   });
