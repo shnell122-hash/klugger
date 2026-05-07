@@ -19,6 +19,7 @@ const alertsRouter         = require('./routes/alerts');
 const conversationsRouter  = require('./routes/conversations');
 const { router: platformRouter, fetchAndCacheUsage, checkBudgets } = require('./routes/platform');
 const { router: apiAdminRouter, dailySnapshot } = require('./routes/apiAdmin');
+const telegramUsersRouter = require('./routes/telegramUsers');
 const financialRoutes = require('../financial/backend/routes/financial');
 const pool            = require('./db/mysql');
 
@@ -52,6 +53,7 @@ app.use('/api/alerts',          alertsRouter);
 app.use('/api/conversations',   conversationsRouter);
 app.use('/api/platform',        platformRouter);
 app.use('/api/apiAdmin',        apiAdminRouter);
+app.use('/api/telegram',        telegramUsersRouter);
 app.use('/api/financial',      financialRoutes(pool, io, express));
 
 // Serve screenshots directory (already covered by express.static on /frontend,

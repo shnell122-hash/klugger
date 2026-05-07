@@ -1,0 +1,9 @@
+[
+  {
+    "id": "",
+    "name": "Admin",
+    "role": "admin",
+    "active": true,
+    "note": "Reemplaza el campo 'id' con tu Telegram user ID (obtenlo con /id en el bot)"
+  }
+]

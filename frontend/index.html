@@ -75,6 +75,7 @@
   <button class="tab-btn" data-panel="providers">APIs</button>
   <button class="tab-btn" data-panel="projects">Proyectos</button>
   <button class="tab-btn" data-panel="conversations">Chats</button>
+  <button class="tab-btn" data-panel="tg-users">Telegram</button>
   <button class="tab-btn platform-tab" data-panel="platform">Plataforma</button>
   <button class="tab-btn" data-panel="api-admin">API Admin</button>
 </div>
@@ -242,6 +243,47 @@
           <span id="conv-user-cost" style="color:var(--text-muted)"></span>
         </div>
         <div id="conv-msg-list"></div>
+      </div>
+    </div>
+
+    <!-- Telegram Users -->
+    <div id="tg-users-panel">
+      <div class="panel-header">
+        <span class="title">Chats Telegram — @iaVilarBot</span>
+        <button class="btn-sm" onclick="tgUsersRefresh()">↻ Actualizar</button>
+      </div>
+      <div style="padding:10px 14px 0">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:11px;color:var(--text-muted);line-height:1.6">
+          <strong>Cómo agregar un desarrollador:</strong><br>
+          1. El dev abre <a href="https://t.me/iaVilarBot" target="_blank" style="color:var(--blue)">@iaVilarBot</a> en Telegram y envía <code>/id</code><br>
+          2. El bot responde con su Telegram User ID<br>
+          3. Pega el ID aquí → el bot lo reconoce en &lt;60 segundos (sin reiniciar)
+        </div>
+        <!-- Add user form -->
+        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">
+          <div style="display:flex;flex-direction:column;gap:3px">
+            <label style="font-size:10px;color:var(--text-muted)">Telegram User ID</label>
+            <input id="tg-new-id" type="text" placeholder="123456789"
+              style="width:130px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--input-bg);color:var(--text);font-size:12px;font-family:var(--font)">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:3px">
+            <label style="font-size:10px;color:var(--text-muted)">Nombre</label>
+            <input id="tg-new-name" type="text" placeholder="Nombre del dev"
+              style="width:140px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--input-bg);color:var(--text);font-size:12px;font-family:var(--font)">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:3px">
+            <label style="font-size:10px;color:var(--text-muted)">Rol</label>
+            <select id="tg-new-role"
+              style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--input-bg);color:var(--text);font-size:12px;font-family:var(--font)">
+              <option value="dev">dev</option>
+              <option value="admin">admin</option>
+              <option value="viewer">viewer</option>
+            </select>
+          </div>
+          <button class="btn-sm" style="padding:5px 14px;font-size:12px" onclick="tgUsersAdd()">+ Agregar</button>
+        </div>
+        <!-- Users table -->
+        <div id="tg-users-table" style="font-size:12px"></div>
       </div>
     </div>
 

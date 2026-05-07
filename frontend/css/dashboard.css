@@ -1303,4 +1303,19 @@ main {
   .header-stats .stat-pill:last-child { display: none; }
 }
 
+/* ── Telegram Users panel ── */
+#tg-users-panel {
+  display: none;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+}
+#tg-users-panel.visible { display: flex; }
+#tg-users-panel table th { border-bottom: 1px solid var(--border); }
+#tg-users-panel input:focus,
+#tg-users-panel select:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
 /* END PART 7 */

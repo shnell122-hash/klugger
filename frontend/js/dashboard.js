@@ -566,6 +566,7 @@ function switchRightTab(tab) {
   if (tab === 'screenshots')   loadScreenshots();
   if (tab === 'alerts')        loadAlerts();
   if (tab === 'conversations') loadConversaciones();
+  if (tab === 'tg-users')      tgUsersRefresh();
   if (tab === 'platform')      loadPlatform();
   if (tab === 'api-admin')     loadApiAdmin();
 }
@@ -1809,6 +1810,99 @@ function renderApiHistorical(data) {
           <span style="font-weight:600;color:var(--accent)">$${(p.cost||0).toFixed(4)}</span>
         </div>`).join('')}
     </div>` : ''}`;
+}
+
+// ─── Telegram Users panel ─────────────────────────────────
+async function tgUsersRefresh() {
+  const el = document.getElementById('tg-users-table');
+  if (!el) return;
+  try {
+    const users = await fetch('/api/telegram/users').then(r => r.json());
+    if (!users.length) {
+      el.innerHTML = '<p style="color:var(--text-muted);font-size:11px;padding:4px 0">Sin usuarios registrados. Agrega el primero arriba.</p>';
+      return;
+    }
+    const roleColor = { admin: 'var(--blue)', dev: 'var(--green)', viewer: 'var(--text-muted)' };
+    el.innerHTML = `
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="font-size:10px;color:var(--text-muted);text-align:left">
+            <th style="padding:4px 8px 4px 0">Nombre</th>
+            <th style="padding:4px 8px">ID Telegram</th>
+            <th style="padding:4px 8px">Rol</th>
+            <th style="padding:4px 8px">Estado</th>
+            <th style="padding:4px 0;text-align:right">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${users.map(u => `
+            <tr style="border-top:1px solid var(--border);font-size:11px">
+              <td style="padding:6px 8px 6px 0;font-weight:600;color:var(--text)">${escHtml(u.name)}</td>
+              <td style="padding:6px 8px;font-family:monospace;color:var(--text-muted)">${escHtml(String(u.id))}</td>
+              <td style="padding:6px 8px">
+                <span style="background:color-mix(in srgb,${roleColor[u.role]||'var(--text-muted)'} 15%,transparent);color:${roleColor[u.role]||'var(--text-muted)'};padding:1px 6px;border-radius:10px;font-size:10px">${escHtml(u.role||'dev')}</span>
+              </td>
+              <td style="padding:6px 8px">
+                <span style="color:${u.active ? 'var(--green)' : 'var(--text-muted)'}">
+                  ${u.active ? '● activo' : '○ inactivo'}
+                </span>
+              </td>
+              <td style="padding:6px 0;text-align:right;white-space:nowrap">
+                <button class="btn-sm" style="font-size:10px;margin-right:4px"
+                  onclick="tgUsersToggle('${escHtml(String(u.id))}', this)">
+                  ${u.active ? 'Desactivar' : 'Activar'}
+                </button>
+                <button class="btn-sm" style="font-size:10px;color:var(--red);border-color:var(--red)"
+                  onclick="tgUsersDelete('${escHtml(String(u.id))}')">
+                  Eliminar
+                </button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      <p style="font-size:10px;color:var(--text-muted);margin-top:8px">
+        Los cambios surten efecto en &lt;60 segundos sin reiniciar el bot.
+      </p>`;
+  } catch (e) {
+    el.innerHTML = `<p style="color:var(--red);font-size:11px">Error: ${escHtml(e.message)}</p>`;
+  }
+}
+
+async function tgUsersAdd() {
+  const id   = document.getElementById('tg-new-id')?.value.trim();
+  const name = document.getElementById('tg-new-name')?.value.trim();
+  const role = document.getElementById('tg-new-role')?.value || 'dev';
+  if (!id || !name) return alert('ID y Nombre son obligatorios');
+  if (!/^\d+$/.test(id)) return alert('El ID debe ser un número entero (ej. 123456789)');
+  try {
+    const r = await fetch('/api/telegram/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, name, role, active: true }),
+    }).then(r => r.json());
+    if (!r.ok) throw new Error(r.error);
+    document.getElementById('tg-new-id').value  = '';
+    document.getElementById('tg-new-name').value = '';
+    tgUsersRefresh();
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+async function tgUsersToggle(id, btn) {
+  try {
+    const r = await fetch(`/api/telegram/users/${id}/toggle`, { method: 'PATCH' }).then(r => r.json());
+    if (!r.ok) throw new Error(r.error);
+    tgUsersRefresh();
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+async function tgUsersDelete(id) {
+  if (!confirm('¿Eliminar este usuario?')) return;
+  try {
+    const r = await fetch(`/api/telegram/users/${id}`, { method: 'DELETE' }).then(r => r.json());
+    if (!r.ok) throw new Error(r.error);
+    tgUsersRefresh();
+  } catch (e) { alert('Error: ' + e.message); }
 }
 
 // ─── Init ─────────────────────────────────────────────────

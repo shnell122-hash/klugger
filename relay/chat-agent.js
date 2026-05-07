@@ -36,14 +36,29 @@ const MAX_COST_USD  = parseFloat(process.env.MAX_COST_USD  || '1.00');       // 
 const TOKEN_BUDGET  = parseInt(process.env.TOKEN_BUDGET    || '180000');     // input token circuit breaker — matches Sonnet 4.6 context
 const TASK_TIMEOUT_MS = parseInt(process.env.TASK_TIMEOUT_MS || String(5 * 60 * 1000)); // hard ceiling per message (default 5 min)
 
-const ALLOWED_USER_IDS = new Set(
-  (process.env.TG_ALLOWED_USER_IDS || '')
-    .split(',').map(s => s.trim()).filter(Boolean),
-);
+// ── Authorized users — loaded from telegram-users.json + TG_ALLOWED_USER_IDS env ──
+// Hot-reloads every 60s so new users take effect without restarting the bot.
+const TG_USERS_FILE = path.join(__dirname, 'telegram-users.json');
+
+function loadAuthorizedIds() {
+  const ids = new Set(
+    (process.env.TG_ALLOWED_USER_IDS || '').split(',').map(s => s.trim()).filter(Boolean),
+  );
+  try {
+    const users = JSON.parse(fs.readFileSync(TG_USERS_FILE, 'utf8'));
+    for (const u of users) {
+      if (u.active !== false && u.id) ids.add(String(u.id));
+    }
+  } catch (_) {}
+  return ids;
+}
+
+let ALLOWED_USER_IDS = loadAuthorizedIds();
+setInterval(() => { ALLOWED_USER_IDS = loadAuthorizedIds(); }, 60_000);
 
 if (ALLOWED_USER_IDS.size === 0) {
-  console.error('[chat-agent] FATAL: TG_ALLOWED_USER_IDS no definido en relay/.env');
-  process.exit(1);
+  console.warn('[chat-agent] ADVERTENCIA: TG_ALLOWED_USER_IDS vacío y telegram-users.json sin usuarios activos');
+  console.warn('[chat-agent] Arrancando de todas formas — agrega usuarios en relay/telegram-users.json');
 }
 
 // ── Clients ───────────────────────────────────────────────────────────────────
@@ -903,7 +918,23 @@ bot.callbackQuery(/^cs:(.+)$/, async (ctx) => {
 
 // ── Message handler ───────────────────────────────────────────────────────────
 bot.on('message:text', async (ctx) => {
-  if (!isAuthorized(ctx)) return;
+  // /id works for everyone — lets new devs discover their Telegram user ID
+  if (ctx.message.text?.trim() === '/id') {
+    const uid = ctx.from?.id;
+    const name = ctx.from?.first_name || ctx.from?.username || 'Usuario';
+    return ctx.reply(
+      `👤 *${name}*, tu ID de Telegram es:\n\`${uid}\`\n\nCompártelo con el admin para que te agregue en ia\\.vilarkptl\\.com → Chats Telegram`,
+      { parse_mode: 'MarkdownV2' },
+    );
+  }
+
+  if (!isAuthorized(ctx)) {
+    const uid = ctx.from?.id;
+    return ctx.reply(
+      `⛔ No autorizado\\. Tu ID: \`${uid}\`\nCompártelo con el admin para obtener acceso\\.`,
+      { parse_mode: 'MarkdownV2' },
+    );
+  }
 
   const msgId = ctx.message.message_id;
   if (PROCESSED_MSG_IDS.has(msgId)) return;
@@ -1235,6 +1266,7 @@ const WEBHOOK_URL  = process.env.BOT_WEBHOOK_URL  || '';
 const WEBHOOK_PORT = parseInt(process.env.BOT_WEBHOOK_PORT || '3011');
 
 const BOT_COMMANDS = [
+  { command: 'id',      description: 'Ver tu Telegram user ID (sin autenticación)' },
   { command: 'claude',  description: 'Chat con Claude Pro via proxy ($0)' },
   { command: 'tarea',   description: 'Despachar tarea al relay — /tarea [proyecto] [desc]' },
   { command: 'chat',    description: 'Ver/cambiar sesión — /chat [proyecto]' },
