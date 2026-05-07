@@ -2,6 +2,8 @@
   {
     "id": "coordinator",
     "name": "Orquestador Central",
+    "mode": "plan-execute",
+    "ignore_quiet_hours": true,
     "claude_model": "claude-haiku-4-5-20251001",
     "claude_model_fast": "claude-haiku-4-5-20251001",
     "deepseek_model": "flash",
@@ -16,6 +18,8 @@
   {
     "id": "ai-monitor",
     "name": "AI Monitor",
+    "mode": "full-claude-code",
+    "ignore_quiet_hours": false,
     "claude_model": "claude-haiku-4-5-20251001",
     "claude_model_fast": "claude-haiku-4-5-20251001",
     "deepseek_model": "flash",
@@ -31,6 +35,8 @@
   {
     "id": "fiscalai",
     "name": "FiscalAI — Backend",
+    "mode": "plan-execute",
+    "ignore_quiet_hours": false,
     "claude_model": "claude-sonnet-4-6",
     "claude_model_fast": "claude-haiku-4-5-20251001",
     "deepseek_model": "pro",
@@ -46,6 +52,8 @@
   {
     "id": "fiscalai-front",
     "name": "FiscalAI — Frontend",
+    "mode": "full-claude-code",
+    "ignore_quiet_hours": false,
     "claude_model": "claude-sonnet-4-6",
     "claude_model_fast": "claude-haiku-4-5-20251001",
     "deepseek_model": "pro",
@@ -61,6 +69,8 @@
   {
     "id": "finbot-tester",
     "name": "FinBot — Tester Automatizado",
+    "mode": "full-claude-code",
+    "ignore_quiet_hours": false,
     "claude_model": "claude-sonnet-4-6",
     "inbox":  "/var/www/html/vilarkptl.com/ai-monitor/relay/inbox-finbot-tester.md",
     "outbox": "/var/www/html/vilarkptl.com/ai-monitor/relay/outbox-finbot-tester.md",
@@ -73,6 +83,8 @@
   {
     "id": "finbot-verifier",
     "name": "FinBot — Verificador Continuo",
+    "mode": "full-claude-code",
+    "ignore_quiet_hours": false,
     "claude_model": "claude-sonnet-4-6",
     "inbox":  "/var/www/html/vilarkptl.com/ai-monitor/relay/inbox-finbot-verifier.md",
     "outbox": "/var/www/html/vilarkptl.com/ai-monitor/relay/outbox-finbot-verifier.md",
@@ -85,6 +97,7 @@
   {
     "id": "credito",
     "name": "credito.vilarkptl.com",
+    "mode": "full-claude-code",
     "inbox":  "",
     "outbox": "",
     "repo":   "",
@@ -96,6 +109,7 @@
   {
     "id": "voltic",
     "name": "voltic.mx",
+    "mode": "full-claude-code",
     "inbox":  "",
     "outbox": "",
     "repo":   "",
@@ -107,6 +121,7 @@
   {
     "id": "ocr",
     "name": "ocr.ryby.lease",
+    "mode": "full-claude-code",
     "inbox":  "",
     "outbox": "",
     "repo":   "",
@@ -118,6 +133,7 @@
   {
     "id": "tareas",
     "name": "tareas.ryby.lease",
+    "mode": "plan-execute",
     "inbox":  "",
     "outbox": "",
     "repo":   "",
@@ -129,6 +145,7 @@
   {
     "id": "noticias",
     "name": "noticias.ryby.lease",
+    "mode": "full-claude-code",
     "inbox":  "",
     "outbox": "",
     "repo":   "",
@@ -140,6 +157,7 @@
   {
     "id": "telegram-inversiones",
     "name": "Telegram Bot Inversiones",
+    "mode": "plan-execute",
     "inbox":  "",
     "outbox": "",
     "repo":   "",

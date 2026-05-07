@@ -726,6 +726,35 @@ const PROJECTS_LIST = (() => {
 // Per-chat project context: chatId → { projectId, claudeMd }
 const SESSION_CONTEXT = new Map();
 
+// ── Session persistence across bot restarts ───────────────────────────────────
+const SESSIONS_FILE = path.join(REPO, 'relay', 'chat-sessions.json');
+
+function persistSessions() {
+  try {
+    const data = {};
+    for (const [chatId, state] of CHAT_SESSIONS) {
+      data[chatId] = { current: state.current, tags: Object.fromEntries(state.tags) };
+    }
+    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(data, null, 2), 'utf8');
+  } catch (err) { console.warn('[sessions] persist error:', err.message); }
+}
+
+function restoreSessions() {
+  try {
+    if (!fs.existsSync(SESSIONS_FILE)) return;
+    const data = JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8'));
+    for (const [chatId, state] of Object.entries(data)) {
+      CHAT_SESSIONS.set(Number(chatId), {
+        current: state.current || 'default',
+        tags:    new Map(Object.entries(state.tags || { default: 0 }).map(([k, v]) => [k, Number(v)])),
+      });
+    }
+    console.log(`[sessions] ${Object.keys(data).length} sesiones restauradas`);
+  } catch (err) { console.warn('[sessions] restore error:', err.message); }
+}
+
+restoreSessions();
+
 function getProjectClaudeMd(projectId) {
   const p = PROJECTS_LIST.find(x => x.id === projectId);
   if (!p?.repo) return '';
@@ -864,6 +893,7 @@ bot.callbackQuery(/^cs:(.+)$/, async (ctx) => {
   }
 
   s.current = key;
+  persistSessions();
   await ctx.answerCallbackQuery({ text: `✓ Sesión "${key}" activada` });
   await ctx.editMessageText(
     `✅ Sesión *${key}* activada.\nHistorial cargado. Continúa chateando.`,
@@ -910,6 +940,7 @@ bot.on('message:text', async (ctx) => {
       s.tags.set(name, _sessionCounter--);
     }
     s.current = name;
+    persistSessions();
 
     // Auto-inject project context when session name matches a known project
     const matchedProject = PROJECTS_LIST.find(p => p.id === name || p.name?.toLowerCase() === name.toLowerCase());
@@ -923,6 +954,40 @@ bot.on('message:text', async (ctx) => {
     // Clear project context when switching to a non-project session
     SESSION_CONTEXT.delete(ctx.chat.id);
     return ctx.reply(`✅ Sesión *${name}* activada.`, { parse_mode: 'Markdown', ...topicOpts(threadId) });
+  }
+
+  // ── /tarea — despachar tarea al relay-master desde Telegram ──────────────────
+  // Uso: /tarea fiscalai Agrega endpoint GET /api/salud
+  //      /tarea coordinator Revisa y organiza el inbox de todos los proyectos
+  if (userText.startsWith('/tarea')) {
+    const arg   = userText.slice('/tarea'.length).trim();
+    const match = arg.match(/^(\S+)\s+([\s\S]+)$/);
+    const projectId = match ? match[1] : 'coordinator';
+    const task      = match ? match[2] : arg;
+
+    if (!task) {
+      return ctx.reply(
+        'Uso: `/tarea [proyecto] [descripción]`\nEj: `/tarea fiscalai Agrega endpoint GET /api/salud`\n' +
+        'Proyectos activos: ' + PROJECTS_LIST.filter(p => p.active && p.inbox).map(p => `\`${p.id}\``).join(', '),
+        { parse_mode: 'Markdown', ...topicOpts(threadId) },
+      );
+    }
+
+    try {
+      const resp = await fetch(`${MONITOR_API}/api/relay/dispatch`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ project: projectId, task, requester: `tg:${userMeta.username}` }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+      return ctx.reply(
+        `✅ Tarea enviada a *${projectId}*\n_El relay la procesará en el próximo ciclo (~15s)_\n\n> ${task.slice(0, 120)}`,
+        { parse_mode: 'Markdown', ...topicOpts(threadId) },
+      );
+    } catch (err) {
+      return ctx.reply(`❌ Error al despachar: ${err.message}`, topicOpts(threadId));
+    }
   }
 
   if (userText === '/compact') {
@@ -983,10 +1048,11 @@ bot.on('message:text', async (ctx) => {
     return ctx.reply(
       '*Claude Code · Vilar AI*\n\n' +
       '`/claude [msg]` — Chat directo con Claude Pro via proxy ($0)\n' +
+      '`/tarea [proyecto] [desc]` — Despachar tarea al relay-master\n' +
       '`/chat` — Ver sesiones · `/chat [nombre]` — Crear/activar sesión\n' +
-      '`/chat fiscalai` — Sesión con contexto de proyecto auto-inyectado\n' +
+      '`/chat fiscalai` — Sesión con contexto CLAUDE.md del proyecto\n' +
       '`/model` — Cambiar modelo de IA\n' +
-      '`/compact` — Compactar memoria con IA (DeepSeek V4-Flash)\n' +
+      '`/compact` — Compactar memoria (DeepSeek V4-Flash)\n' +
       '`/summary` — Ver resumen compactado de la sesión\n' +
       '`/reset` — Borrar historial de la sesión actual\n' +
       '`/status` — Stats de la sesión actual\n' +
@@ -1170,6 +1236,7 @@ const WEBHOOK_PORT = parseInt(process.env.BOT_WEBHOOK_PORT || '3011');
 
 const BOT_COMMANDS = [
   { command: 'claude',  description: 'Chat con Claude Pro via proxy ($0)' },
+  { command: 'tarea',   description: 'Despachar tarea al relay — /tarea [proyecto] [desc]' },
   { command: 'chat',    description: 'Ver/cambiar sesión — /chat [proyecto]' },
   { command: 'model',   description: 'Cambiar modelo de IA' },
   { command: 'compact', description: 'Compactar memoria de la sesión con IA' },
