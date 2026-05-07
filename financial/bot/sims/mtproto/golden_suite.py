@@ -3,10 +3,10 @@
 Exit 0 = verde (>=92%). Exit 1 = bloqueado (<92% o errores criticos).
 No escribe a learning_episodes (no contamina el curriculum score).
 
-Uso:
-  DB_PASS=$(grep -oP 'DB_PASS=\K.*' ../../.env) python3 golden_suite.py
+Uso (auto-detecta DB_PASS del .env):
+  python3 golden_suite.py
 """
-import sys, os, subprocess, json
+import sys, os, re, subprocess, json
 
 PASS_SYM, FAIL_SYM = '✅', '❌'
 results = []
@@ -26,7 +26,24 @@ def assert_eq(a, b, msg=''):
 def assert_approx(a, b, tol=0.01, msg=''):
     if abs(a - b) > tol: raise AssertionError(f'{msg}: |{a} - {b}| > {tol}')
 
-BOT_ROOT = os.path.join(os.path.dirname(__file__), '..', '..')
+BOT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+# Auto-detecta DB_PASS buscando .env en bot/ y en financial/ (un nivel arriba)
+def _autodetect_db_pass():
+    for candidate in [
+        os.path.join(BOT_ROOT, '.env'),
+        os.path.normpath(os.path.join(BOT_ROOT, '..', '.env')),
+    ]:
+        if os.path.exists(candidate):
+            m = re.search(r'^DB_PASS=(.+)$', open(candidate).read(), re.MULTILINE)
+            if m:
+                return m.group(1).strip()
+    return ''
+
+if not os.environ.get('DB_PASS'):
+    _found = _autodetect_db_pass()
+    if _found:
+        os.environ['DB_PASS'] = _found
 
 def node_eval(code):
     res = subprocess.run(
@@ -40,7 +57,7 @@ def node_eval(code):
 def mysql_query(sql):
     db_pass = os.environ.get('DB_PASS', '')
     if not db_pass:
-        raise AssertionError('DB_PASS no configurado — export DB_PASS=...')
+        raise AssertionError('DB_PASS no encontrado — verifica financial/.env o financial/bot/.env')
     res = subprocess.run(
         ['mysql', '-u', 'root', f'-p{db_pass}', 'ai_monitoring',
          '-e', sql, '--batch', '--silent'],
