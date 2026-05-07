@@ -20,6 +20,7 @@ const conversationsRouter  = require('./routes/conversations');
 const { router: platformRouter, fetchAndCacheUsage, checkBudgets } = require('./routes/platform');
 const { router: apiAdminRouter, dailySnapshot } = require('./routes/apiAdmin');
 const telegramUsersRouter = require('./routes/telegramUsers');
+const proxyUsageRouter    = require('./routes/proxyUsage');
 const financialRoutes = require('../financial/backend/routes/financial');
 const pool            = require('./db/mysql');
 
@@ -31,8 +32,9 @@ const io     = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] },
 });
 
-// Make io available to routes
+// Make io and pool available to routes
 app.set('io', io);
+app.locals.pool = require('./db/mysql');
 
 // Middleware
 app.use(cors());
@@ -54,6 +56,7 @@ app.use('/api/conversations',   conversationsRouter);
 app.use('/api/platform',        platformRouter);
 app.use('/api/apiAdmin',        apiAdminRouter);
 app.use('/api/telegram',        telegramUsersRouter);
+app.use('/api/proxy-usage',     proxyUsageRouter);
 app.use('/api/financial',      financialRoutes(pool, io, express));
 
 // Serve screenshots directory (already covered by express.static on /frontend,

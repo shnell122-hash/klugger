@@ -567,7 +567,7 @@ function switchRightTab(tab) {
   if (tab === 'alerts')        loadAlerts();
   if (tab === 'conversations') loadConversaciones();
   if (tab === 'tg-users')      tgUsersRefresh();
-  if (tab === 'platform')      loadPlatform();
+  if (tab === 'platform')      { loadPlatform(); loadProxyQuota(); }
   if (tab === 'api-admin')     loadApiAdmin();
 }
 
@@ -1297,6 +1297,92 @@ function escHtml(str) {
 
 // ─── Platform (Anthropic Admin API spend) ─────────────────
 let platformHourlyChart = null;
+
+async function loadProxyQuota() {
+  const el = document.getElementById('proxy-quota-widget');
+  if (!el) return;
+  try {
+    const s = await fetch(`${API}/api/proxy-usage/stats`).then(r => r.json());
+    if (s.error) throw new Error(s.error);
+
+    const fmt = n => n >= 1_000_000 ? (n/1_000_000).toFixed(2)+'M' : n >= 1_000 ? (n/1_000).toFixed(1)+'K' : n;
+    const pct  = s.pct_used;
+    const barColor = pct >= 90 ? 'var(--red)' : pct >= 70 ? 'var(--warn,#f59e0b)' : 'var(--green)';
+    const weekTok  = s.week.total_tokens;
+    const todayTok = s.today.total_tokens;
+    const limit    = s.limit_weekly;
+
+    el.innerHTML = `
+      <div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">
+          <span style="color:var(--text)"><strong>${fmt(weekTok)}</strong> tokens esta semana</span>
+          <span style="color:var(--text-muted)">límite: ${fmt(limit)}</span>
+        </div>
+        <div style="background:var(--border);border-radius:6px;height:8px;overflow:hidden">
+          <div style="width:${pct}%;height:100%;background:${barColor};border-radius:6px;transition:width .4s"></div>
+        </div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:3px">${pct}% usado · Reinicia el domingo</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px">
+          <div style="font-size:9px;color:var(--text-muted);margin-bottom:2px">Hoy</div>
+          <div style="font-size:16px;font-weight:700;color:var(--accent)">${fmt(todayTok)}</div>
+          <div style="font-size:9px;color:var(--text-muted)">tokens totales</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px">
+          <div style="font-size:9px;color:var(--text-muted);margin-bottom:2px">Costo equivalente ahorrado</div>
+          <div style="font-size:16px;font-weight:700;color:var(--green)">$${(weekTok / 1_000_000 * 3).toFixed(3)}</div>
+          <div style="font-size:9px;color:var(--text-muted)">vs Sonnet 4.6 directo</div>
+        </div>
+      </div>
+
+      <table style="width:100%;border-collapse:collapse;font-size:11px">
+        <thead><tr style="font-size:10px;color:var(--text-muted)">
+          <th style="text-align:left;padding:2px 0">Fuente</th>
+          <th style="text-align:right;padding:2px 0">Hoy</th>
+          <th style="text-align:right;padding:2px 0">Esta semana</th>
+        </tr></thead>
+        <tbody>
+          <tr style="border-top:1px solid var(--border)">
+            <td style="padding:4px 0;color:var(--text)">🤖 Bot /claude (proxy)</td>
+            <td style="text-align:right;color:var(--text-muted)">${s.today.bot_proxy.calls} llamadas · ${fmt(s.today.bot_proxy.tokens_in + s.today.bot_proxy.tokens_out)} tok</td>
+            <td style="text-align:right;color:var(--text-muted)">${s.week.bot_proxy.calls} · ${fmt(s.week.bot_proxy.tokens_in + s.week.bot_proxy.tokens_out)} tok</td>
+          </tr>
+          <tr style="border-top:1px solid var(--border)">
+            <td style="padding:4px 0;color:var(--text)">⚙️ Relay OAuth (tareas)</td>
+            <td style="text-align:right;color:var(--text-muted)">${s.today.relay_oauth.sessions} sesiones · ${fmt(s.today.relay_oauth.tokens_in + s.today.relay_oauth.tokens_out)} tok</td>
+            <td style="text-align:right;color:var(--text-muted)">${s.week.relay_oauth.sessions} · ${fmt(s.week.relay_oauth.tokens_in + s.week.relay_oauth.tokens_out)} tok</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="margin-top:10px;display:flex;align-items:center;gap:8px">
+        <span style="font-size:10px;color:var(--text-muted)">Límite semanal configurado:</span>
+        <input id="proxy-limit-input" type="number" value="${limit}" min="100000" step="100000"
+          style="width:100px;padding:3px 6px;border:1px solid var(--border);border-radius:5px;background:var(--input-bg);color:var(--text);font-size:11px;font-family:var(--font)">
+        <button class="btn-sm" style="font-size:10px" onclick="saveProxyLimit()">Guardar</button>
+      </div>
+      <div style="font-size:9px;color:var(--text-muted);margin-top:4px">
+        ⚠️ Tokens de bot son estimados (longitud/4). Relay usa conteo real del stream-json.
+      </div>`;
+  } catch (e) {
+    if (el) el.innerHTML = `<p style="font-size:11px;color:var(--text-muted)">Error cargando quota: ${escHtml(e.message)}</p>`;
+  }
+}
+
+async function saveProxyLimit() {
+  const v = parseInt(document.getElementById('proxy-limit-input')?.value);
+  if (!v || v < 0) return;
+  try {
+    await fetch(`${API}/api/proxy-usage/limit`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ limit: v }),
+    });
+    loadProxyQuota();
+  } catch (e) { alert('Error: ' + e.message); }
+}
 
 async function loadPlatform() {
   try {
