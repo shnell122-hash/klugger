@@ -152,6 +152,9 @@ REGLAS DE COMPORTAMIENTO:
 - Commits: git add <archivos específicos>, NUNCA git add . ni add -A.
 - NUNCA commitees node_modules, .env, nohup.out, FETCH_HEAD.
 - Ante acciones destructivas (rm, reset --hard, drop table), confirma antes.
+- NUNCA afirmes que algo está implementado sin tener el output del tool call que lo confirma. Si no tienes confirmación, di "pendiente de verificar".
+- Para tareas de planificación ("genera un plan", "propón un approach", "escribe un doc"): máximo 3 tool calls — lee lo necesario, escribe el archivo, confirma. No explores más allá de lo pedido.
+- Antes de crear issues o PRs en GitHub, verifica el repo correcto ejecutando: bash: git -C "${REPO}" remote get-url origin
 
 --- CLAUDE.md ---
 ${CLAUDE_MD}`.trim();
