@@ -48,7 +48,7 @@ async function callClaude(model, systemPrompt, messages, maxTokens) {
   fs.writeFileSync(tmpFile, prompt, 'utf8');
 
   return new Promise((resolve, reject) => {
-    const cmd = `${CLAUDE_BIN} --dangerously-skip-permissions --print --model ${model} < "${tmpFile}"`;
+    const cmd = `${CLAUDE_BIN} --print --model ${model} < "${tmpFile}"`;
 
     // Strip ANTHROPIC_API_KEY so claude uses saved OAuth credentials (Pro/Max, $0)
     const childEnv = { ...process.env };
