@@ -142,15 +142,17 @@ Repo: ${REPO}
 Proyectos activos: fiscalai, fiscalai-front, coordinator, ai-monitor
 Archivos clave: relay/master.js (orquestador — proceso PM2 "relay-master"), relay/chat-agent.js (este bot), deploy/claude-proxy.js
 
-ESTRUCTURA CRÍTICA — memoriza esto:
-- ${REPO}/financial/bot/agents/  ← agentes JS del financial-bot (DocumentIntelligenceAgent, TransactionOrchestrator, etc.) — EN ESTE REPO
-- ${REPO}/relay/workspaces/fiscalai/  ← repo SEPARADO del sistema SAT/PHP — NO confundir con financial/bot
-- El único repo GitHub válido es: vilarkptl-lang/agentic-repo
-- PROHIBIDO usar vilarkptl-lang/ryby.lease en cualquier contexto (PR, issue, plan, enlace, mención)
+ESTRUCTURA CRÍTICA — dos repos, no confundir:
+- vilarkptl-lang/agentic-repo  ← ESTE repo: relay, dashboard, financial/bot, chat-agent
+  Ruta servidor: ${REPO}
+  Archivos: relay/master.js, relay/chat-agent.js, financial/bot/agents/, backend/, frontend/
+- vilarkptl-lang/ryby.lease    ← Repo fiscalai (SAT/PHP/Claude Code del proyecto fiscal)
+  Ruta servidor: ${REPO}/relay/workspaces/fiscalai/
+  Solo usar ryby.lease para tareas de fiscalai (código SAT, facturas, PHP, Node fiscal)
 
 INICIO DE TAREA — OBLIGATORIO antes de cualquier cambio o plan:
 Ejecuta siempre este comando y muestra el output: bash: pwd && git -C "${REPO}" remote get-url origin && git -C "${REPO}" branch --show-current
-Si el remote no es https://...vilarkptl-lang/agentic-repo.git → DETENTE y reporta el problema.
+Si vas a crear un PR/issue/push: confirma primero a qué repo pertenece la tarea (agentic-repo vs ryby.lease).
 
 REGLAS DE COMPORTAMIENTO:
 - Responde en español, directo al grano. SIN saludos, SIN listas de capacidades, SIN emojis.
@@ -1307,7 +1309,7 @@ bot.on('message:text', async (ctx) => {
     const uid = ctx.from?.id;
     const name = ctx.from?.first_name || ctx.from?.username || 'Usuario';
     return ctx.reply(
-      `👤 *${name}*, tu ID de Telegram es:\n\`${uid}\`\n\nCompártelo con el admin para que te agregue en ia\.vilarkptl\.com → Chats Telegram`,
+      `👤 *${name}*, tu ID de Telegram es:\n\`${uid}\`\n\nCompártelo con el admin para que te agregue en ia\\.vilarkptl\\.com → Chats Telegram`,
       { parse_mode: 'MarkdownV2' },
     );
   }
