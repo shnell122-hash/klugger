@@ -707,8 +707,8 @@ function wizModeKeyboard() {
 async function runShell(cmd) {
   const { exec } = require('child_process');
   return new Promise((resolve, reject) => {
-    exec(cmd, { timeout: 120_000 }, (err, stdout, stderr) => {
-      if (err) reject(new Error((stderr || err.message || '').slice(0, 300)));
+    exec(cmd, { timeout: 180_000 }, (err, stdout, stderr) => {
+      if (err) reject(new Error((stderr || stdout || err.message || '').slice(0, 400)));
       else resolve((stdout || '').trim());
     });
   });
@@ -728,7 +728,7 @@ async function executeProjectCreation(data, ctx, threadId) {
 
   // 1. Clone repo
   try {
-    await runShell(`git clone https://github.com/${repo} "${repoPath}" 2>&1`);
+    await runShell(`git clone git@github.com:${repo}.git "${repoPath}" 2>&1`);
     await say(`✅ Repo clonado → \`${repoPath}\``);
   } catch (e) {
     if (e.message.includes('already exists') || e.message.includes('destination path')) {
