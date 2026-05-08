@@ -687,6 +687,152 @@ function isAuthorized(ctx) {
 // Prevent overlapping requests per topic
 const BUSY = new Map();
 
+// ── Project creation wizard ───────────────────────────────────────────────────
+const WIZARD = new Map(); // topicKey → { step, data }
+const BASE_PROJECTS_PATH = process.env.PROJECTS_BASE_PATH || '/var/www/html/vilarkptl.com';
+const PROJECTS_JSON_PATH = path.join(REPO, 'relay/projects.json');
+
+function wizModelKeyboard() {
+  return new InlineKeyboard()
+    .text('Sonnet 4.6 ✦ (recomendado)', 'wiz:model:sonnet').row()
+    .text('Haiku 4.5 💨 (rápido/barato)', 'wiz:model:haiku');
+}
+
+function wizModeKeyboard() {
+  return new InlineKeyboard()
+    .text('🤖 full-claude-code', 'wiz:mode:full-claude-code').row()
+    .text('📋 plan-execute',     'wiz:mode:plan-execute');
+}
+
+async function runShell(cmd) {
+  const { exec } = require('child_process');
+  return new Promise((resolve, reject) => {
+    exec(cmd, { timeout: 120_000 }, (err, stdout, stderr) => {
+      if (err) reject(new Error((stderr || err.message || '').slice(0, 300)));
+      else resolve((stdout || '').trim());
+    });
+  });
+}
+
+async function executeProjectCreation(data, ctx, threadId) {
+  const { id, name, repo, branch, model, mode, url } = data;
+  const repoPath = `${BASE_PROJECTS_PATH}/${id}`;
+  const relayDir = `${repoPath}/relay`;
+  const inbox    = `${relayDir}/inbox-${id}.md`;
+  const outbox   = `${relayDir}/outbox-${id}.md`;
+  const modelId  = model === 'sonnet' ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001';
+
+  const say = (msg) => ctx.reply(msg, { parse_mode: 'Markdown', ...topicOpts(threadId) });
+
+  await say(`⏳ *Creando proyecto \`${id}\`...*`);
+
+  // 1. Clone repo
+  try {
+    await runShell(`git clone https://github.com/${repo} "${repoPath}" 2>&1`);
+    await say(`✅ Repo clonado → \`${repoPath}\``);
+  } catch (e) {
+    if (e.message.includes('already exists') || e.message.includes('destination path')) {
+      await say(`ℹ️ Directorio ya existe → \`${repoPath}\``);
+    } else {
+      return say(`❌ Error clonando repo:\n\`\`\`\n${e.message}\n\`\`\``);
+    }
+  }
+
+  // 2. Checkout branch
+  try {
+    await runShell(`git -C "${repoPath}" fetch origin && git -C "${repoPath}" checkout ${branch} 2>&1`);
+  } catch (_) {
+    try { await runShell(`git -C "${repoPath}" checkout -b ${branch} 2>&1`); } catch (_2) {}
+  }
+
+  // 3. Create relay dir + inbox/outbox
+  await runShell(`mkdir -p "${relayDir}" && touch "${inbox}" && touch "${outbox}"`);
+  await say(`✅ \`relay/inbox-${id}.md\` y \`outbox-${id}.md\` creados`);
+
+  // 4. Update projects.json
+  let projects = [];
+  try { projects = JSON.parse(fs.readFileSync(PROJECTS_JSON_PATH, 'utf8')); } catch (_) {}
+  const entry = {
+    id,
+    name: name || id,
+    mode: mode || 'full-claude-code',
+    ignore_quiet_hours: false,
+    claude_model:      modelId,
+    claude_model_fast: 'claude-haiku-4-5-20251001',
+    deepseek_model:    'flash',
+    use_cli_proxy:     false,
+    inbox,
+    outbox,
+    repo:   repoPath,
+    branch: branch || 'main',
+    github: repo,
+    url:    url || '',
+    active: true,
+  };
+  const idx = projects.findIndex(p => p.id === id);
+  if (idx >= 0) projects[idx] = entry; else projects.push(entry);
+  fs.writeFileSync(PROJECTS_JSON_PATH, JSON.stringify(projects, null, 2) + '\n');
+  await say(`✅ \`relay/projects.json\` actualizado`);
+
+  // 5. Commit + push
+  try {
+    await runShell(
+      `cd "${REPO}" && git add relay/projects.json && ` +
+      `git commit -m "feat: add project ${id} via Telegram wizard" && git push origin main 2>&1`
+    );
+    await say(`✅ Commit + push a \`main\``);
+  } catch (e) {
+    await say(`⚠️ Commit/push falló: \`${e.message}\``);
+  }
+
+  // 6. Restart relay-master
+  try {
+    await runShell('pm2 restart relay-master 2>&1');
+    await say(`✅ \`relay-master\` reiniciado`);
+  } catch (e) {
+    await say(`⚠️ pm2 restart falló: \`${e.message}\``);
+  }
+
+  await say(
+    `🎉 *Proyecto \`${id}\` activo*\n\n` +
+    `*Modelo:* ${modelId}\n` +
+    `*Modo:* ${mode}\n` +
+    `*Repo:* \`${repoPath}\`\n` +
+    `*Branch:* \`${branch}\`\n\n` +
+    `Envía tareas con:\n\`/tarea [${id}] descripción\``,
+  );
+}
+
+bot.callbackQuery(/^wiz:model:(.+)$/, async (ctx) => {
+  const threadId = ctx.callbackQuery.message?.message_thread_id ?? 0;
+  const topicKey = `${ctx.chat.id}:${threadId}`;
+  const wiz = WIZARD.get(topicKey);
+  if (!wiz || wiz.step !== 'model') return ctx.answerCallbackQuery({ text: 'Wizard no activo' });
+  wiz.data.model = ctx.match[1];
+  wiz.step = 'mode';
+  await ctx.answerCallbackQuery({ text: `✓ Modelo: ${ctx.match[1]}` });
+  await ctx.editMessageText(
+    `✅ Modelo: *${ctx.match[1]}*\n\n*¿Modo de operación?*\n\n` +
+    `• \`full-claude-code\` — escribe código, hace commits, push\n` +
+    `• \`plan-execute\` — planea y reporta sin commitear`,
+    { parse_mode: 'Markdown', reply_markup: wizModeKeyboard() },
+  );
+});
+
+bot.callbackQuery(/^wiz:mode:(.+)$/, async (ctx) => {
+  const threadId = ctx.callbackQuery.message?.message_thread_id ?? 0;
+  const topicKey = `${ctx.chat.id}:${threadId}`;
+  const wiz = WIZARD.get(topicKey);
+  if (!wiz || wiz.step !== 'mode') return ctx.answerCallbackQuery({ text: 'Wizard no activo' });
+  wiz.data.mode = ctx.match[1];
+  wiz.step = 'url';
+  await ctx.answerCallbackQuery({ text: `✓ Modo: ${ctx.match[1]}` });
+  await ctx.editMessageText(
+    `✅ Modo: *${ctx.match[1]}*\n\n*URL del proyecto* (ej: https://mi-sitio.com)\nEscribe \`-\` si no aplica:`,
+    { parse_mode: 'Markdown' },
+  );
+});
+
 // Deduplicate Telegram updates — at-least-once delivery can send same message_id twice
 const PROCESSED_MSG_IDS = new Set();
 
@@ -952,6 +1098,51 @@ bot.on('message:text', async (ctx) => {
     username: ctx.from?.username || ctx.from?.first_name || String(ctx.from?.id),
   };
 
+  // ── Wizard intercept (runs before all other commands) ────────────────────────
+  if (WIZARD.has(topicKey)) {
+    const wiz = WIZARD.get(topicKey);
+
+    if (userText === '/cancelar' || userText === '/cancel') {
+      WIZARD.delete(topicKey);
+      return ctx.reply('❌ Creación de proyecto cancelada.', topicOpts(threadId));
+    }
+
+    switch (wiz.step) {
+      case 'id': {
+        const id = userText.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+        if (!id || id.length < 2) return ctx.reply('❌ ID inválido. Usa letras minúsculas, números y guiones (ej: `mi-proyecto`).', { parse_mode: 'Markdown', ...topicOpts(threadId) });
+        wiz.data.id = id;
+        wiz.step = 'name';
+        return ctx.reply(`✅ ID: \`${id}\`\n\n*Nombre descriptivo* del proyecto (ej: _Mi Proyecto Web_):`, { parse_mode: 'Markdown', ...topicOpts(threadId) });
+      }
+      case 'name': {
+        wiz.data.name = userText.slice(0, 60);
+        wiz.step = 'repo';
+        return ctx.reply(`✅ Nombre: *${wiz.data.name}*\n\n*Repo GitHub* (formato: \`usuario/nombre-repo\`):`, { parse_mode: 'Markdown', ...topicOpts(threadId) });
+      }
+      case 'repo': {
+        const repo = userText.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
+        if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) return ctx.reply('❌ Formato incorrecto. Ej: `vilarkptl-lang/mi-repo`', { parse_mode: 'Markdown', ...topicOpts(threadId) });
+        wiz.data.repo = repo;
+        wiz.step = 'branch';
+        return ctx.reply(`✅ Repo: \`${repo}\`\n\n*Branch* (normalmente \`main\`):`, { parse_mode: 'Markdown', ...topicOpts(threadId) });
+      }
+      case 'branch': {
+        wiz.data.branch = userText.trim() || 'main';
+        wiz.step = 'model';
+        return ctx.reply(`✅ Branch: \`${wiz.data.branch}\`\n\n*¿Qué modelo Claude usará el agente?*`, { parse_mode: 'Markdown', reply_markup: wizModelKeyboard(), ...topicOpts(threadId) });
+      }
+      case 'url': {
+        wiz.data.url = userText.trim() === '-' ? '' : userText.trim();
+        WIZARD.delete(topicKey);
+        await executeProjectCreation(wiz.data, ctx, threadId);
+        return;
+      }
+    }
+    // model/mode steps are handled by callbackQuery handlers above
+    return;
+  }
+
   // ── Commands ───────────────────────────────────────────────────────────────
   // ── /chat — gestión de sesiones nombradas ────────────────────────────────────
   if (userText === '/chat' || userText.startsWith('/chat ')) {
@@ -1093,6 +1284,18 @@ bot.on('message:text', async (ctx) => {
     );
   }
 
+  if (userText === '/nuevo' || userText === '/new') {
+    WIZARD.set(topicKey, { step: 'id', data: {} });
+    return ctx.reply(
+      '🚀 *Nuevo proyecto — Wizard de creación*\n\n' +
+      'Voy a guiarte paso a paso. Al final clonaré el repo, crearé el inbox/outbox, ' +
+      'actualizaré `projects.json`, haré commit+push y reinicaré el relay.\n\n' +
+      'Escribe `/cancelar` en cualquier momento para abortar.\n\n' +
+      '*¿Cuál es el ID del proyecto?*\n_(ej: `fiscalai-v2`, `voltic`, `mi-app`)_',
+      { parse_mode: 'Markdown', ...topicOpts(threadId) },
+    );
+  }
+
   if (userText === '/help') {
     const proxyStatus = anthropicProxy ? '✅ activo' : '❌ no configurado (ver ANTHROPIC_PROXY_URL)';
     const modelList = Object.entries(MODELS)
@@ -1100,6 +1303,7 @@ bot.on('message:text', async (ctx) => {
       .join('\n');
     return ctx.reply(
       '*Claude Code · Vilar AI*\n\n' +
+      '`/nuevo` — Crear proyecto nuevo (wizard completo)\n' +
       '`/claude [msg]` — Chat directo con Claude Pro via proxy ($0)\n' +
       '`/tarea [proyecto] [desc]` — Despachar tarea al relay-master\n' +
       '`/chat` — Ver sesiones · `/chat [nombre]` — Crear/activar sesión\n' +
@@ -1109,6 +1313,7 @@ bot.on('message:text', async (ctx) => {
       '`/summary` — Ver resumen compactado de la sesión\n' +
       '`/reset` — Borrar historial de la sesión actual\n' +
       '`/status` — Stats de la sesión actual\n' +
+      '`/cancelar` — Cancelar wizard en curso\n' +
       '`/help` — Esta ayuda\n\n' +
       `*Proxy CLI:* ${proxyStatus}\n\n` +
       '*Modelos disponibles:*\n' + modelList,
@@ -1289,6 +1494,7 @@ const WEBHOOK_PORT = parseInt(process.env.BOT_WEBHOOK_PORT || '3011');
 
 const BOT_COMMANDS = [
   { command: 'id',      description: 'Ver tu Telegram user ID (sin autenticación)' },
+  { command: 'nuevo',   description: 'Crear nuevo proyecto — clona repo, configura agente' },
   { command: 'claude',  description: 'Chat con Claude Pro via proxy ($0)' },
   { command: 'tarea',   description: 'Despachar tarea al relay — /tarea [proyecto] [desc]' },
   { command: 'chat',    description: 'Ver/cambiar sesión — /chat [proyecto]' },
@@ -1297,6 +1503,7 @@ const BOT_COMMANDS = [
   { command: 'summary', description: 'Ver resumen compactado de la sesión' },
   { command: 'reset',   description: 'Borrar historial de la sesión actual' },
   { command: 'status',  description: 'Stats de la sesión actual' },
+  { command: 'cancelar',description: 'Cancelar wizard en curso' },
   { command: 'help',    description: 'Lista de comandos' },
 ];
 
