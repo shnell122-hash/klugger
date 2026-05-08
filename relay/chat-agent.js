@@ -36,30 +36,27 @@ const MAX_COST_USD  = parseFloat(process.env.MAX_COST_USD  || '1.00');       // 
 const TOKEN_BUDGET  = parseInt(process.env.TOKEN_BUDGET    || '180000');     // input token circuit breaker — matches Sonnet 4.6 context
 const TASK_TIMEOUT_MS = parseInt(process.env.TASK_TIMEOUT_MS || String(5 * 60 * 1000)); // hard ceiling per message (default 5 min)
 
-// ── Authorized users — loaded from telegram-users.json + TG_ALLOWED_USER_IDS env ──
-// Hot-reloads every 60s so new users take effect without restarting the bot.
-const TG_USERS_FILE = path.join(__dirname, 'telegram-users.json');
+// ── Authorized users — stored in DB (telegram_users table) + TG_ALLOWED_USER_IDS env ──
+// Reloaded from DB on demand and every 60s. Adding a user in the dashboard
+// takes effect immediately on the next message attempt (no restart needed).
 
-function loadAuthorizedIds() {
+async function loadAuthorizedIds() {
   const ids = new Set(
     (process.env.TG_ALLOWED_USER_IDS || '').split(',').map(s => s.trim()).filter(Boolean),
   );
   try {
-    const users = JSON.parse(fs.readFileSync(TG_USERS_FILE, 'utf8'));
-    for (const u of users) {
-      if (u.active !== false && u.id) ids.add(String(u.id));
-    }
+    const [rows] = await db.query('SELECT id FROM telegram_users WHERE active = 1');
+    for (const r of rows) if (r.id) ids.add(String(r.id));
   } catch (_) {}
   return ids;
 }
 
-let ALLOWED_USER_IDS = loadAuthorizedIds();
-setInterval(() => { ALLOWED_USER_IDS = loadAuthorizedIds(); }, 60_000);
-
-if (ALLOWED_USER_IDS.size === 0) {
-  console.warn('[chat-agent] ADVERTENCIA: TG_ALLOWED_USER_IDS vacío y telegram-users.json sin usuarios activos');
-  console.warn('[chat-agent] Arrancando de todas formas — agrega usuarios en relay/telegram-users.json');
-}
+let ALLOWED_USER_IDS = new Set(
+  (process.env.TG_ALLOWED_USER_IDS || '').split(',').map(s => s.trim()).filter(Boolean),
+);
+// Async initial load from DB (pool not ready at module parse time; resolves in <100ms)
+setImmediate(() => loadAuthorizedIds().then(ids => { ALLOWED_USER_IDS = ids; }).catch(() => {}));
+setInterval(async () => { ALLOWED_USER_IDS = await loadAuthorizedIds(); }, 60_000);
 
 // ── Clients ───────────────────────────────────────────────────────────────────
 const bot = new Bot(process.env.TG_CLAUDE_BOT_TOKEN);
@@ -929,10 +926,9 @@ bot.on('message:text', async (ctx) => {
   }
 
   if (!isAuthorized(ctx)) {
-    // Re-check with a fresh file read before rejecting — covers the case where
-    // the admin just added this user via dashboard but the 60s interval hasn't
-    // fired yet.
-    ALLOWED_USER_IDS = loadAuthorizedIds();
+    // Re-check with a fresh DB read before rejecting — new users added via
+    // dashboard are recognized immediately on their first message attempt.
+    ALLOWED_USER_IDS = await loadAuthorizedIds();
     if (!isAuthorized(ctx)) {
       const uid = ctx.from?.id;
       return ctx.reply(
@@ -1049,7 +1045,7 @@ bot.on('message:text', async (ctx) => {
   if (userText === '/reset') {
     BUSY.delete(topicKey);
     TOPIC_MODEL.delete(topicKey);
-    ALLOWED_USER_IDS = loadAuthorizedIds();
+    ALLOWED_USER_IDS = await loadAuthorizedIds();
     await db.query(
       'DELETE FROM conversations WHERE chat_id = ? AND thread_id = ?',
       [ctx.chat.id, threadId],
@@ -1067,7 +1063,10 @@ bot.on('message:text', async (ctx) => {
   }
 
   if (userText.startsWith('/model ')) {
-    const key = userText.slice('/model '.length).trim();
+    // Normalize: "claude proxy" → "claude-proxy", "deepseek pro" → "deepseekPro"
+    const raw = userText.slice('/model '.length).trim();
+    const ALIASES = { 'claude proxy': 'claude-proxy', 'deepseek pro': 'deepseekPro', 'deepseek flash': 'deepseek' };
+    const key = ALIASES[raw.toLowerCase()] ?? raw;
     if (MODELS[key]) {
       TOPIC_MODEL.set(topicKey, key);
       const m = MODELS[key];
@@ -1282,7 +1281,7 @@ bot.on('message:text', async (ctx) => {
 
 bot.catch(err => console.error('[grammy]', err.message));
 
-console.log(`[chat-agent] Iniciando — ${ALLOWED_USER_IDS.size} usuario(s) autorizados`);
+console.log(`[chat-agent] Iniciando — usuarios se cargan desde DB (telegram_users table)`);
 console.log(`[chat-agent] Modelos: ${Object.keys(MODELS).join(', ')} (default: ${DEFAULT_MODEL})`);
 
 const WEBHOOK_URL  = process.env.BOT_WEBHOOK_URL  || '';
