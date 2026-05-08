@@ -285,11 +285,13 @@ async function callModel(modelKey, messages, ctx, onProgress, signal) {
 }
 
 // Strip Claude-specific fields that Groq/DeepSeek reject when messages are replayed
-// through LiteLLM fallback chains (annotations, provider_specific_fields).
+// through LiteLLM fallback chains (top-level annotations, provider_specific_fields,
+// and per-block annotations inside content arrays).
 function cleanOAIMessage(msg) {
   if (!msg) return msg;
   const clean = { ...msg };
   delete clean.provider_specific_fields;
+  delete clean.annotations;
   if (Array.isArray(clean.content)) {
     clean.content = clean.content.map(({ annotations, ...rest }) => rest); // eslint-disable-line no-unused-vars
   }
