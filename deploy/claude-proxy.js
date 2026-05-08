@@ -44,6 +44,7 @@ async function callClaude(model, systemPrompt, messages, maxTokens) {
     const args = [
       '--print',
       '--model', model,
+      prompt,          // positional arg — claude --print reads message this way, not stdin
     ];
 
     // Strip ANTHROPIC_API_KEY so claude --print uses saved credentials (Pro/Max, $0)
@@ -78,10 +79,6 @@ async function callClaude(model, systemPrompt, messages, maxTokens) {
     });
 
     proc.on('error', reject);
-    // Suppress EPIPE if claude exits before stdin drains (auth error, early exit, etc.)
-    proc.stdin.on('error', () => {});
-    proc.stdin.write(prompt);
-    proc.stdin.end();
   });
 }
 
