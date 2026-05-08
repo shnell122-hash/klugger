@@ -890,7 +890,7 @@ async function githubCreateRepo(repoName, isPrivate = true) {
 }
 
 bot.callbackQuery(/^wiz:repo:(new|existing)$/, async (ctx) => {
-  const threadId = ctx.callbackQuery.message?.message_thread_id ?? 0;
+  const threadId = effectiveThreadId(ctx.chat.id, ctx.callbackQuery.message?.message_thread_id ?? 0);
   const topicKey = `${ctx.chat.id}:${threadId}`;
   const wiz = WIZARD.get(topicKey);
   if (!wiz || wiz.step !== 'repo_origin') return ctx.answerCallbackQuery({ text: 'Wizard no activo' });
@@ -914,7 +914,7 @@ bot.callbackQuery(/^wiz:repo:(new|existing)$/, async (ctx) => {
 });
 
 bot.callbackQuery(/^wiz:model:(.+)$/, async (ctx) => {
-  const threadId = ctx.callbackQuery.message?.message_thread_id ?? 0;
+  const threadId = effectiveThreadId(ctx.chat.id, ctx.callbackQuery.message?.message_thread_id ?? 0);
   const topicKey = `${ctx.chat.id}:${threadId}`;
   const wiz = WIZARD.get(topicKey);
   if (!wiz || wiz.step !== 'model') return ctx.answerCallbackQuery({ text: 'Wizard no activo' });
@@ -930,7 +930,7 @@ bot.callbackQuery(/^wiz:model:(.+)$/, async (ctx) => {
 });
 
 bot.callbackQuery(/^wiz:mode:(.+)$/, async (ctx) => {
-  const threadId = ctx.callbackQuery.message?.message_thread_id ?? 0;
+  const threadId = effectiveThreadId(ctx.chat.id, ctx.callbackQuery.message?.message_thread_id ?? 0);
   const topicKey = `${ctx.chat.id}:${threadId}`;
   const wiz = WIZARD.get(topicKey);
   if (!wiz || wiz.step !== 'mode') return ctx.answerCallbackQuery({ text: 'Wizard no activo' });
@@ -1139,7 +1139,7 @@ function modelKeyboard() {
 
 bot.callbackQuery(/^model:(.+)$/, async (ctx) => {
   const key      = ctx.match[1];
-  const threadId = ctx.callbackQuery.message?.message_thread_id ?? 0;
+  const threadId = effectiveThreadId(ctx.chat.id, ctx.callbackQuery.message?.message_thread_id ?? 0);
   const topicKey = `${ctx.chat.id}:${threadId}`;
   const m        = MODELS[key];
   if (!m) return ctx.answerCallbackQuery({ text: 'Modelo desconocido' });
