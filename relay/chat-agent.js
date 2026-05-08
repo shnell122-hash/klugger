@@ -1740,6 +1740,21 @@ bot.on('message:text', async (ctx) => {
 
 bot.catch(err => console.error('[grammy]', err.message));
 
+// Configure authenticated git remote so bot can push to the main repo
+(async () => {
+  const ghToken = process.env.GITHUB_TOKEN;
+  if (ghToken) {
+    try {
+      const { execSync } = require('child_process');
+      const remoteUrl = `https://${ghToken}@github.com/vilarkptl-lang/agentic-repo.git`;
+      execSync(`git -C "${REPO}" remote set-url origin "${remoteUrl}"`, { stdio: 'pipe' });
+      console.log('[chat-agent] Remote origin configurado con GITHUB_TOKEN');
+    } catch (e) {
+      console.warn('[chat-agent] No se pudo configurar remote con token:', e.message);
+    }
+  }
+})();
+
 console.log(`[chat-agent] Iniciando — usuarios se cargan desde DB (telegram_users table)`);
 console.log(`[chat-agent] Modelos: ${Object.keys(MODELS).join(', ')} (default: ${DEFAULT_MODEL})`);
 
