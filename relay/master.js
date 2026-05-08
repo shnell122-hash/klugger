@@ -952,10 +952,10 @@ async function responderBuzonFiscalai(buzonContent) {
     }
     if (relayContext) systemPrompt += '\n\n---\n\n## Estado actual del relay' + relayContext;
 
-    const respuesta = await callAnthropicDirect(systemPrompt, buzonContent, 1024);
+    const respuesta = await callDeepSeekDirect(systemPrompt, buzonContent, 1024, true);
     const richContent =
       `# Buzón IA — ia.vilarkptl.com → FiscalAI\n\n` +
-      `**[${timestamp} CST] — Anthropic API (claude-haiku-4-5)**\n\n---\n\n${respuesta}\n`;
+      `**[${timestamp} CST] — DeepSeek V4-Pro**\n\n---\n\n${respuesta}\n`;
     fs.writeFileSync(BUZON_SRC, richContent);
     log(null, `buzon-ia: respuesta Anthropic API escrita (${respuesta.length} chars)`);
     tg(`📨 <b>FiscalAI respondido via Anthropic API</b>\n<code>${respuesta.slice(0, 400)}</code>`);
@@ -1427,9 +1427,12 @@ ${taskContent}`;
       HOME:               realHome,
       USER:               user,
       LOGNAME:            user,
-      // ANTHROPIC_API_KEY deliberately omitted — Claude CLI uses ~/.claude/credentials
-      // (Pro/Max subscription, $0). Passing the key routes every agent call through
-      // the paid API at Sonnet/Haiku prices. Do not add it back.
+      // ANTHROPIC_API_KEY deliberately omitted — Claude CLI uses OAuth credentials ($0).
+      // use_cli_proxy: true routes through local claude-proxy (port 5001) for extra reliability.
+      ...(project.use_cli_proxy ? {
+        ANTHROPIC_BASE_URL: process.env.ANTHROPIC_PROXY_URL || 'http://127.0.0.1:5001',
+        ANTHROPIC_API_KEY:  'cli-proxy',  // dummy required by SDK when base_url is set
+      } : {}),
       CLAUDE_MONITOR_URL: MONITOR_API,
       CLAUDE_CHAT_SOURCE: `relay-${project.id}`,
       // Use user's own ~/.claude for auth — project hooks dir still passed separately

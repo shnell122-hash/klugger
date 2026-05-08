@@ -20,8 +20,9 @@ const MODELS = {
   deepseek:     { id: process.env.DEEPSEEK_FLASH_MODEL || 'deepseek-v4-flash', proxyModel: 'kptl-chat-fast', provider: 'deepseek',  label: 'DeepSeek V4-Flash 💸',     costIn: 0.02, costOut: 0.14  },
   deepseekPro:  { id: process.env.DEEPSEEK_PRO_MODEL   || 'deepseek-v4-pro',   proxyModel: 'kptl-chat',      provider: 'deepseek',  label: 'DeepSeek V4-Pro 💸',       costIn: 0.14, costOut: 1.10  },
   r1:           { id: 'deepseek-reasoner',                              proxyModel: 'kptl-reasoning', provider: 'deepseek',        label: 'DeepSeek R1 🧠',           costIn: 0.55, costOut: 2.19  },
+  gemini:       { id: process.env.GEMINI_MODEL || 'gemini-1.5-flash', proxyModel: null,             provider: 'gemini',          label: 'Gemini Flash 📸',          costIn: 0.075, costOut: 0.30 },
 };
-const DEFAULT_MODEL = 'sonnet';
+const DEFAULT_MODEL = 'deepseekPro';
 
 // Model preference per topic — backed by DB so it survives bot restarts
 const TOPIC_MODEL = new Map();
@@ -88,6 +89,11 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const deepseek = new OpenAI({
   apiKey:  process.env.DEEPSEEK_API_KEY || '',
   baseURL: 'https://api.deepseek.com/v1',
+});
+
+const geminiClient = new OpenAI({
+  apiKey:  process.env.GOOGLE_API_KEY || '',
+  baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
 });
 
 // LiteLLM proxy — routes through fallback chains if LITELLM_BASE_URL is set.
@@ -265,6 +271,7 @@ async function runTool(name, input, sessionDispatched = null) {
 async function callModel(modelKey, messages, ctx, onProgress, signal) {
   if (modelKey === 'claude-proxy') return callClaudeProxy(messages, MODELS['claude-proxy'].id);
   const m = MODELS[modelKey] || MODELS[DEFAULT_MODEL];
+  if (m.provider === 'gemini') return callDeepSeek(m, messages, ctx, onProgress, signal, geminiClient);
   if (litellmProxy && m.proxyModel) return callLiteLLMProxy(m, messages, ctx, onProgress, signal);
   if (m.provider === 'anthropic') return callAnthropic(m, messages, ctx, onProgress, signal);
   return callDeepSeek(m, messages, ctx, onProgress, signal);
@@ -370,7 +377,8 @@ async function callAnthropic(m, messages, ctx, onProgress, signal) {
   }
 }
 
-async function callDeepSeek(m, messages, ctx, onProgress, signal) { // eslint-disable-line no-unused-vars
+async function callDeepSeek(m, messages, ctx, onProgress, signal, oaiClient) { // eslint-disable-line no-unused-vars
+  const client = oaiClient || deepseek;
   let totalIn = 0, totalOut = 0;
   const callHist          = [];
   const sessionDispatched = new Set();
@@ -405,7 +413,7 @@ async function callDeepSeek(m, messages, ctx, onProgress, signal) { // eslint-di
   const msgs = [{ role: 'system', content: SYSTEM_PROMPT }, ...history];
 
   for (let i = 0; i < MAX_ITER; i++) {
-    const resp = await deepseek.chat.completions.create({
+    const resp = await client.chat.completions.create({
       model: m.id, messages: msgs, tools: TOOLS_OPENAI, max_tokens: 8096,
     });
 
@@ -445,13 +453,13 @@ async function callDeepSeek(m, messages, ctx, onProgress, signal) { // eslint-di
         apiPost('/api/events', {
           session_id: ctx.sessionId, event_type: 'pre_tool',
           tool_name: tc.function.name, tool_input_summary: inputSummary,
-          project_name: ctx.projectName, api_provider: 'deepseek', agent_user: ctx.username,
+          project_name: ctx.projectName, api_provider: m.provider, agent_user: ctx.username,
         });
         const result = await runTool(tc.function.name, input, sessionDispatched);
         apiPost('/api/events', {
           session_id: ctx.sessionId, event_type: 'post_tool',
           tool_name: tc.function.name, tool_response_summary: result.slice(0, 500),
-          project_name: ctx.projectName, api_provider: 'deepseek', agent_user: ctx.username,
+          project_name: ctx.projectName, api_provider: m.provider, agent_user: ctx.username,
         });
         msgs.push({ role: 'tool', tool_call_id: tc.id, content: result });
       }
@@ -798,8 +806,8 @@ async function executeProjectCreation(data, ctx, threadId) {
     ignore_quiet_hours: false,
     claude_model:      modelId,
     claude_model_fast: 'claude-haiku-4-5-20251001',
-    deepseek_model:    'flash',
-    use_cli_proxy:     false,
+    deepseek_model:    'pro',
+    use_cli_proxy:     true,
     inbox,
     outbox,
     repo:   repoPath,
@@ -1084,15 +1092,16 @@ async function compactSession(chatId, threadId, history, force = false) {
 // ── /model command — inline keyboard ─────────────────────────────────────────
 function modelKeyboard() {
   const kb = new InlineKeyboard()
+    .text('DeepSeek V4-Pro 💸',  'model:deepseekPro')
+    .text('DeepSeek V4-Flash 💸','model:deepseek')
+    .row()
+    .text('Gemini Flash 📸',     'model:gemini')
+    .text('DeepSeek R1 🧠',      'model:r1')
+    .row()
     .text('Sonnet 4.6 ✦',       'model:sonnet')
     .text('Haiku 4.5',           'model:haiku')
     .row()
-    .text('Opus 4.7',            'model:opus')
-    .row()
-    .text('DeepSeek V4-Flash 💸','model:deepseek')
-    .text('DeepSeek V4-Pro 💸',  'model:deepseekPro')
-    .row()
-    .text('DeepSeek R1 🧠',      'model:r1');
+    .text('Opus 4.7',            'model:opus');
   if (anthropicProxy) {
     kb.row().text('🤖 Claude Pro (Proxy - $0)', 'model:claude-proxy');
   }
@@ -1137,6 +1146,61 @@ bot.callbackQuery(/^cs:(.+)$/, async (ctx) => {
     `✅ Sesión *${key}* activada.\nHistorial cargado. Continúa chateando.`,
     { parse_mode: 'Markdown' },
   );
+});
+
+// ── Photo handler — uses Gemini Flash vision ──────────────────────────────────
+bot.on('message:photo', async (ctx) => {
+  if (!isAuthorized(ctx)) {
+    ALLOWED_USER_IDS = await loadAuthorizedIds();
+    if (!isAuthorized(ctx)) return;
+  }
+
+  const threadId = effectiveThreadId(ctx.chat.id, ctx.message.message_thread_id ?? 0);
+  const topicKey = `${ctx.chat.id}:${threadId}`;
+  if (BUSY.get(topicKey)) return ctx.reply('⏳ Procesando solicitud anterior…', topicOpts(threadId));
+
+  const caption = ctx.message.caption?.trim() || 'Describe esta imagen en detalle.';
+  const photos  = ctx.message.photo;
+  const best    = photos[photos.length - 1]; // highest resolution
+
+  BUSY.set(topicKey, true);
+  const progressMsg = await ctx.reply('⏳ _Gemini Flash analizando imagen…_', { parse_mode: 'Markdown', ...topicOpts(threadId) });
+
+  try {
+    const file    = await ctx.api.getFile(best.file_id);
+    const fileUrl = `https://api.telegram.org/file/bot${process.env.TG_CLAUDE_BOT_TOKEN}/${file.file_path}`;
+    const imgResp = await fetch(fileUrl);
+    if (!imgResp.ok) throw new Error(`No se pudo descargar imagen: ${imgResp.status}`);
+    const imgBuf  = Buffer.from(await imgResp.arrayBuffer());
+    const b64     = imgBuf.toString('base64');
+    const mime    = file.file_path?.endsWith('.png') ? 'image/png' : 'image/jpeg';
+
+    const m = MODELS['gemini'];
+    const resp = await geminiClient.chat.completions.create({
+      model: m.id,
+      max_tokens: 1024,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: [
+          { type: 'image_url', image_url: { url: `data:${mime};base64,${b64}` } },
+          { type: 'text', text: caption },
+        ]},
+      ],
+    });
+
+    const text      = resp.choices[0]?.message?.content || '(sin respuesta)';
+    const tokensIn  = resp.usage?.prompt_tokens     || 0;
+    const tokensOut = resp.usage?.completion_tokens || 0;
+    const costUsd   = (tokensIn * m.costIn + tokensOut * m.costOut) / 1_000_000;
+    const footer    = `\n\n_${m.label} · ${tokensIn}↑ ${tokensOut}↓ · $${costUsd.toFixed(5)}_`;
+
+    await safeEdit(ctx.chat.id, progressMsg.message_id, text + footer);
+  } catch (err) {
+    console.error('[photo-handler]', err.message);
+    await safeEdit(ctx.chat.id, progressMsg.message_id, `❌ ${err.message.slice(0, 300)}`);
+  } finally {
+    BUSY.delete(topicKey);
+  }
 });
 
 // ── Message handler ───────────────────────────────────────────────────────────
