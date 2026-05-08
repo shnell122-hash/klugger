@@ -58,7 +58,7 @@ async function callClaude(model, systemPrompt, messages) {
     : extractText(messages);
 
   const tmpFile = path.join(os.tmpdir(), `claude-proxy-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`);
-  fs.writeFileSync(tmpFile, prompt, 'utf8');
+  fs.writeFileSync(tmpFile, prompt, { encoding: 'utf8', mode: 0o644 }); // world-readable so CLAUDE_RUN_USER can read it
 
   return new Promise((resolve, reject) => {
     // When running as root, claude CLI blocks --dangerously-skip-permissions.
@@ -66,7 +66,10 @@ async function callClaude(model, systemPrompt, messages) {
     // That user must have `claude` authenticated (claude login done once).
     let cmd;
     if (CLAUDE_RUN_USER) {
-      cmd = `su -s /bin/bash ${CLAUDE_RUN_USER} -c '${CLAUDE_BIN} --dangerously-skip-permissions --print --model ${model} < "${tmpFile}"'`;
+      // Use login shell (-l) so HOME and PATH are set correctly for the target user.
+      // runuser is preferred over su when already root (no password prompt, same semantics).
+      const suBin = fs.existsSync('/usr/sbin/runuser') ? 'runuser' : 'su';
+      cmd = `${suBin} -l ${CLAUDE_RUN_USER} -s /bin/bash -c '${CLAUDE_BIN} --dangerously-skip-permissions --print --model ${model} < "${tmpFile}"'`;
     } else {
       cmd = `${CLAUDE_BIN} --print --model ${model} < "${tmpFile}"`;
     }
@@ -84,8 +87,9 @@ async function callClaude(model, systemPrompt, messages) {
     proc.on('close', code => {
       try { fs.unlinkSync(tmpFile); } catch (_) {}
       if (code !== 0) {
-        const detail = (stderr || stdout || '(no output)').slice(0, 400);
-        return reject(new Error(`claude exited ${code}: ${detail}`));
+        const detail = [stderr, stdout].filter(Boolean).join(' | ') || '(no output — PATH or auth issue?)';
+        console.error(`[claude-proxy] cmd was: ${cmd}`);
+        return reject(new Error(`claude exited ${code}: ${detail.slice(0, 400)}`));
       }
       const text = stdout.trim();
       const inputTokens  = Math.ceil(prompt.length  / 4);
