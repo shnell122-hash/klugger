@@ -23,8 +23,30 @@ const MODELS = {
 };
 const DEFAULT_MODEL = 'sonnet';
 
-// In-memory model preference per topic (chatId:threadId → model key)
+// Model preference per topic — backed by DB so it survives bot restarts
 const TOPIC_MODEL = new Map();
+
+async function getTopicModel(topicKey) {
+  if (TOPIC_MODEL.has(topicKey)) return TOPIC_MODEL.get(topicKey);
+  try {
+    const [[row]] = await db.query(
+      "SELECT value FROM system_state WHERE `key` = ?", [`chat_model_${topicKey}`]
+    );
+    if (row?.value && MODELS[row.value]) {
+      TOPIC_MODEL.set(topicKey, row.value);
+      return row.value;
+    }
+  } catch (_) {}
+  return DEFAULT_MODEL;
+}
+
+async function setTopicModel(topicKey, modelKey) {
+  TOPIC_MODEL.set(topicKey, modelKey);
+  db.query(
+    "INSERT INTO system_state (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = ?, updated_at = NOW(3)",
+    [`chat_model_${topicKey}`, modelKey, modelKey]
+  ).catch(() => {});
+}
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const REPO         = process.env.REPO_ROOT         || '/var/www/html/vilarkptl.com/ai-monitor';
@@ -99,7 +121,7 @@ const db = mysql.createPool({
 
 // ── System prompt ─────────────────────────────────────────────────────────────
 const CLAUDE_MD = (() => {
-  try { return fs.readFileSync(path.join(REPO, 'CLAUDE.md'), 'utf8'); }
+  try { return fs.readFileSync(path.join(REPO, 'CLAUDE.md'), 'utf8').slice(0, 6000); }
   catch (_) { return ''; }
 })();
 
@@ -1084,7 +1106,7 @@ bot.callbackQuery(/^model:(.+)$/, async (ctx) => {
   const m        = MODELS[key];
   if (!m) return ctx.answerCallbackQuery({ text: 'Modelo desconocido' });
 
-  TOPIC_MODEL.set(topicKey, key);
+  await setTopicModel(topicKey, key);
   await ctx.answerCallbackQuery({ text: `✓ ${m.label}` });
   await ctx.editMessageText(
     `Modelo cambiado a *${m.label}*\n_$${m.costIn}/$${m.costOut} por MTok ↑↓_`,
@@ -1150,7 +1172,7 @@ bot.on('message:text', async (ctx) => {
   const userText  = ctx.message.text.trim();
   const threadId  = effectiveThreadId(ctx.chat.id, ctx.message.message_thread_id ?? 0);
   const topicKey  = `${ctx.chat.id}:${threadId}`;
-  const modelKey  = TOPIC_MODEL.get(topicKey) || DEFAULT_MODEL;
+  const modelKey  = await getTopicModel(topicKey);
   const userMeta  = {
     userId:   ctx.from?.id,
     username: ctx.from?.username || ctx.from?.first_name || String(ctx.from?.id),
@@ -1317,6 +1339,7 @@ bot.on('message:text', async (ctx) => {
   if (userText === '/reset') {
     BUSY.delete(topicKey);
     TOPIC_MODEL.delete(topicKey);
+    db.query("DELETE FROM system_state WHERE `key` = ?", [`chat_model_${topicKey}`]).catch(() => {});
     ALLOWED_USER_IDS = await loadAuthorizedIds();
     await db.query(
       'DELETE FROM conversations WHERE chat_id = ? AND thread_id = ?',
@@ -1340,7 +1363,7 @@ bot.on('message:text', async (ctx) => {
     const ALIASES = { 'claude proxy': 'claude-proxy', 'deepseek pro': 'deepseekPro', 'deepseek flash': 'deepseek' };
     const key = ALIASES[raw.toLowerCase()] ?? raw;
     if (MODELS[key]) {
-      TOPIC_MODEL.set(topicKey, key);
+      await setTopicModel(topicKey, key);
       const m = MODELS[key];
       return ctx.reply(
         `✅ Modelo: *${m.label}*\n_${m.costIn === 0 ? '$0 — usa Pro/Max OAuth' : `$${m.costIn}/$${m.costOut} por MTok ↑↓`}_`,
