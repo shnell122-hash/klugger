@@ -1288,6 +1288,30 @@ bot.on('message:text', async (ctx) => {
     );
   }
 
+  if (userText.startsWith('/borrar ') || userText.startsWith('/delete ')) {
+    const id = userText.slice(userText.indexOf(' ') + 1).trim().toLowerCase();
+    let projects = [];
+    try { projects = JSON.parse(fs.readFileSync(PROJECTS_JSON_PATH, 'utf8')); } catch (_) {}
+    const idx = projects.findIndex(p => p.id === id);
+    if (idx < 0) {
+      return ctx.reply(`❌ Proyecto \`${id}\` no encontrado en projects.json.\nProyectos: ${projects.map(p => `\`${p.id}\``).join(', ')}`, { parse_mode: 'Markdown', ...topicOpts(threadId) });
+    }
+    const removed = projects.splice(idx, 1)[0];
+    fs.writeFileSync(PROJECTS_JSON_PATH, JSON.stringify(projects, null, 2) + '\n');
+    try {
+      await runShell(`cd "${REPO}" && git add relay/projects.json && git commit -m "chore: remove project ${id} via Telegram" && git push origin main 2>&1`);
+    } catch (e) {
+      return ctx.reply(`⚠️ projects.json actualizado localmente pero commit falló: \`${e.message}\`\n\nHaz el push manual.`, { parse_mode: 'Markdown', ...topicOpts(threadId) });
+    }
+    runShell('pm2 restart relay-master 2>&1').catch(() => {});
+    return ctx.reply(
+      `✅ Proyecto \`${id}\` eliminado de projects.json y relay-master reiniciado.\n\n` +
+      `_Nota: el directorio del repo en el servidor NO se borra automáticamente._\n` +
+      `Si quieres borrarlo: \`rm -rf ${removed.repo || `/var/www/html/vilarkptl.com/${id}`}\``,
+      { parse_mode: 'Markdown', ...topicOpts(threadId) },
+    );
+  }
+
   if (userText === '/nuevo' || userText === '/new' || userText.startsWith('/nuevo ') || userText.startsWith('/new ')) {
     const inlineArg = userText.includes(' ') ? userText.slice(userText.indexOf(' ') + 1).trim() : '';
     if (inlineArg) {
@@ -1318,6 +1342,7 @@ bot.on('message:text', async (ctx) => {
     return ctx.reply(
       '*Claude Code · Vilar AI*\n\n' +
       '`/nuevo` — Crear proyecto nuevo (wizard completo)\n' +
+      '`/borrar [id]` — Eliminar proyecto del relay y hacer commit\n' +
       '`/claude [msg]` — Chat directo con Claude Pro via proxy ($0)\n' +
       '`/tarea [proyecto] [desc]` — Despachar tarea al relay-master\n' +
       '`/chat` — Ver sesiones · `/chat [nombre]` — Crear/activar sesión\n' +
@@ -1509,6 +1534,7 @@ const WEBHOOK_PORT = parseInt(process.env.BOT_WEBHOOK_PORT || '3011');
 const BOT_COMMANDS = [
   { command: 'id',      description: 'Ver tu Telegram user ID (sin autenticación)' },
   { command: 'nuevo',   description: 'Crear nuevo proyecto — clona repo, configura agente' },
+  { command: 'borrar',  description: 'Borrar proyecto del relay — /borrar [id]' },
   { command: 'claude',  description: 'Chat con Claude Pro via proxy ($0)' },
   { command: 'tarea',   description: 'Despachar tarea al relay — /tarea [proyecto] [desc]' },
   { command: 'chat',    description: 'Ver/cambiar sesión — /chat [proyecto]' },
