@@ -293,7 +293,7 @@ async function callAnthropic(m, messages, ctx, onProgress, signal) {
       model:      m.id,
       tools:      TOOLS_ANTHROPIC,
       max_tokens: 8096,
-      system:     buildSystemBlocks(ctx.chat?.id),
+      system:     buildSystemBlocks(ctx.chatId),
       messages:   history,
     }, { signal });
 
@@ -410,7 +410,7 @@ async function callDeepSeek(m, messages, ctx, onProgress, signal, oaiClient) { /
     return { role: msg.role, content: String(msg.content) };
   }).flat().filter(Boolean);
 
-  const msgs = [{ role: 'system', content: SYSTEM_PROMPT }, ...history];
+  const msgs = [{ role: 'system', content: buildSystemPrompt(ctx.chatId) }, ...history];
 
   for (let i = 0; i < MAX_ITER; i++) {
     const resp = await client.chat.completions.create({
@@ -508,7 +508,7 @@ async function callLiteLLMProxy(m, messages, ctx, onProgress, signal) {
     return { role: msg.role, content: String(msg.content) };
   }).flat().filter(Boolean);
 
-  const msgs = [{ role: 'system', content: SYSTEM_PROMPT }, ...history];
+  const msgs = [{ role: 'system', content: buildSystemPrompt(ctx.chatId) }, ...history];
 
   for (let i = 0; i < MAX_ITER; i++) {
     const resp = await litellmProxy.chat.completions.create({
@@ -1016,6 +1016,13 @@ function buildSystemBlocks(chatId) {
     ...SYSTEM_CACHED,
     { type: 'text', text: `\n--- CLAUDE.md (${sctx.projectId}) ---\n${sctx.claudeMd}`, cache_control: { type: 'ephemeral' } },
   ];
+}
+
+// String variant used by DeepSeek / Gemini (OpenAI-compat system is a plain string)
+function buildSystemPrompt(chatId) {
+  const sctx = SESSION_CONTEXT.get(chatId);
+  if (!sctx?.claudeMd) return SYSTEM_PROMPT;
+  return `${SYSTEM_PROMPT}\n\n--- CLAUDE.md (${sctx.projectId}) ---\n${sctx.claudeMd}`;
 }
 
 // ── Semantic memory compaction ─────────────────────────────────────────────────
@@ -1600,6 +1607,7 @@ bot.on('message:text', async (ctx) => {
   const agentCtx = {
     sessionId, modelKey, projectName,
     username: userMeta.username,
+    chatId: ctx.chat.id,
   };
 
   // Register session in dashboard
