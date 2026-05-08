@@ -269,7 +269,10 @@ async function runTool(name, input, sessionDispatched = null) {
 // ── Model abstraction ─────────────────────────────────────────────────────────
 // Returns { text, tokensIn, tokensOut, stopReason, toolCalls }
 async function callModel(modelKey, messages, ctx, onProgress, signal) {
-  if (modelKey === 'claude-proxy') return callClaudeProxy(messages, MODELS['claude-proxy'].id);
+  if (modelKey === 'claude-proxy') {
+    if (!anthropicProxy) throw new Error('ANTHROPIC_PROXY_URL no configurado.\nAgrega ANTHROPIC_PROXY_URL=http://127.0.0.1:5001 a relay/.env');
+    return callAnthropic(MODELS['claude-proxy'], messages, ctx, onProgress, signal, anthropicProxy);
+  }
   const m = MODELS[modelKey] || MODELS[DEFAULT_MODEL];
   if (m.provider === 'gemini') return callDeepSeek(m, messages, ctx, onProgress, signal, geminiClient);
   if (litellmProxy && m.proxyModel) return callLiteLLMProxy(m, messages, ctx, onProgress, signal);
@@ -282,14 +285,15 @@ async function callModel(modelKey, messages, ctx, onProgress, signal) {
 // request after the first hits the cache. Saves ~$0.005–0.03 per request on Sonnet.
 const SYSTEM_CACHED = [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }];
 
-async function callAnthropic(m, messages, ctx, onProgress, signal) {
+async function callAnthropic(m, messages, ctx, onProgress, signal, anthropicClient) {
+  const client = anthropicClient || anthropic;
   let totalIn = 0, totalOut = 0, totalCacheRead = 0, totalCacheWrite = 0;
   const history          = [...messages];
   const callHist         = [];  // for loop detection
   const sessionDispatched = new Set(); // prevent double-dispatch within same session
 
   for (let i = 0; i < MAX_ITER; i++) {
-    const resp = await anthropic.messages.create({
+    const resp = await client.messages.create({
       model:      m.id,
       tools:      TOOLS_ANTHROPIC,
       max_tokens: 8096,
@@ -362,7 +366,7 @@ async function callAnthropic(m, messages, ctx, onProgress, signal) {
 
   // MAX_ITER reached — ask Claude to summarize what it completed and what's left
   try {
-    const synth = await anthropic.messages.create({
+    const synth = await client.messages.create({
       model: m.id, max_tokens: 512, system: SYSTEM_CACHED,
       messages: [...history, { role: 'user', content: 'Límite de pasos alcanzado. Resume en 3 líneas: qué se completó y qué falta para terminar.' }],
     }, { signal });
@@ -1429,10 +1433,11 @@ bot.on('message:text', async (ctx) => {
   }
 
   if (userText.startsWith('/model ')) {
-    // Normalize: "claude proxy" → "claude-proxy", "deepseek pro" → "deepseekPro"
+    // Normalize: "Claude-proxy" → "claude-proxy", "deepseek pro" → "deepseekPro"
     const raw = userText.slice('/model '.length).trim();
-    const ALIASES = { 'claude proxy': 'claude-proxy', 'deepseek pro': 'deepseekPro', 'deepseek flash': 'deepseek' };
-    const key = ALIASES[raw.toLowerCase()] ?? raw;
+    const ALIASES = { 'claude proxy': 'claude-proxy', 'claude-proxy': 'claude-proxy', 'deepseek pro': 'deepseekPro', 'deepseek flash': 'deepseek', 'deepseek pro': 'deepseekPro' };
+    const rawLower = raw.toLowerCase();
+    const key = ALIASES[rawLower] ?? (MODELS[rawLower] ? rawLower : raw);
     if (MODELS[key]) {
       await setTopicModel(topicKey, key);
       const m = MODELS[key];
