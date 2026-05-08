@@ -280,6 +280,18 @@ async function callModel(modelKey, messages, ctx, onProgress, signal) {
   return callDeepSeek(m, messages, ctx, onProgress, signal);
 }
 
+// Strip Claude-specific fields that Groq/DeepSeek reject when messages are replayed
+// through LiteLLM fallback chains (annotations, provider_specific_fields).
+function cleanOAIMessage(msg) {
+  if (!msg) return msg;
+  const clean = { ...msg };
+  delete clean.provider_specific_fields;
+  if (Array.isArray(clean.content)) {
+    clean.content = clean.content.map(({ annotations, ...rest }) => rest); // eslint-disable-line no-unused-vars
+  }
+  return clean;
+}
+
 // Cached system block — Anthropic charges 10% on cache reads vs 100% on normal input.
 // The system prompt + CLAUDE.md (~2K tokens) is static per process start, so every
 // request after the first hits the cache. Saves ~$0.005–0.03 per request on Sonnet.
@@ -449,7 +461,7 @@ async function callDeepSeek(m, messages, ctx, onProgress, signal, oaiClient) { /
       }).join('\n');
       await onProgress(preview);
 
-      msgs.push(choice.message);
+      msgs.push(cleanOAIMessage(choice.message));
       for (const tc of toolCalls) {
         let input = {};
         try { input = JSON.parse(tc.function.arguments); } catch (_) {}
@@ -545,7 +557,7 @@ async function callLiteLLMProxy(m, messages, ctx, onProgress, signal) {
       }).join('\n');
       await onProgress(preview);
 
-      msgs.push(choice.message);
+      msgs.push(cleanOAIMessage(choice.message));
       for (const tc of toolCalls) {
         let input = {};
         try { input = JSON.parse(tc.function.arguments); } catch (_) {}
