@@ -17,9 +17,9 @@ const MODELS = {
   haiku:        { id: 'claude-haiku-4-5-20251001',                      proxyModel: 'kptl-chat-fast', provider: 'anthropic',       label: 'Claude Haiku 4.5',         costIn: 0.8,  costOut: 4     },
   opus:         { id: 'claude-opus-4-7',                                proxyModel: 'kptl-reasoning', provider: 'anthropic',       label: 'Claude Opus 4.7',          costIn: 15,   costOut: 75    },
   'claude-proxy': { id: 'claude-sonnet-4-6',                            proxyModel: null,             provider: 'anthropic-proxy', label: 'Claude Pro (Proxy - $0)',   costIn: 0,    costOut: 0     },
-  deepseek:     { id: process.env.DEEPSEEK_FLASH_MODEL || 'deepseek-v4-flash', proxyModel: 'kptl-chat-fast', provider: 'deepseek',  label: 'DeepSeek V4-Flash 💸',     costIn: 0.02, costOut: 0.14  },
-  deepseekPro:  { id: process.env.DEEPSEEK_PRO_MODEL   || 'deepseek-v4-pro',   proxyModel: 'kptl-chat',      provider: 'deepseek',  label: 'DeepSeek V4-Pro 💸',       costIn: 0.14, costOut: 1.10  },
-  r1:           { id: 'deepseek-reasoner',                              proxyModel: 'kptl-reasoning', provider: 'deepseek',        label: 'DeepSeek R1 🧠',           costIn: 0.55, costOut: 2.19  },
+  deepseek:     { id: process.env.DEEPSEEK_FLASH_MODEL || 'deepseek-v4-flash', proxyModel: null, provider: 'deepseek',  label: 'DeepSeek V4-Flash 💸',     costIn: 0.02, costOut: 0.14  },
+  deepseekPro:  { id: process.env.DEEPSEEK_PRO_MODEL   || 'deepseek-v4-pro',   proxyModel: null, provider: 'deepseek',  label: 'DeepSeek V4-Pro 💸',       costIn: 0.14, costOut: 1.10  },
+  r1:           { id: 'deepseek-reasoner',                              proxyModel: null, provider: 'deepseek',        label: 'DeepSeek R1 🧠',           costIn: 0.55, costOut: 2.19  },
   gemini:       { id: process.env.GEMINI_MODEL || 'gemini-1.5-flash', proxyModel: null,             provider: 'gemini',          label: 'Gemini Flash 📸',          costIn: 0.075, costOut: 0.30 },
 };
 const DEFAULT_MODEL = 'deepseekPro';
@@ -1307,7 +1307,7 @@ bot.on('message:text', async (ctx) => {
     const uid = ctx.from?.id;
     const name = ctx.from?.first_name || ctx.from?.username || 'Usuario';
     return ctx.reply(
-      `👤 *${name}*, tu ID de Telegram es:\n\`${uid}\`\n\nCompártelo con el admin para que te agregue en ia\\.vilarkptl\\.com → Chats Telegram`,
+      `👤 *${name}*, tu ID de Telegram es:\n\`${uid}\`\n\nCompártelo con el admin para que te agregue en ia\.vilarkptl\.com → Chats Telegram`,
       { parse_mode: 'MarkdownV2' },
     );
   }
