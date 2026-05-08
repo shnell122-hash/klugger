@@ -726,13 +726,23 @@ async function executeProjectCreation(data, ctx, threadId) {
 
   await say(`⏳ *Creando proyecto \`${id}\`...*`);
 
-  // 1. Clone repo
+  // 1. Clone repo — HTTPS with optional token for private repos
   try {
-    await runShell(`git clone git@github.com:${repo}.git "${repoPath}" 2>&1`);
+    const ghToken = process.env.GITHUB_TOKEN || '';
+    const cloneUrl = ghToken
+      ? `https://${ghToken}@github.com/${repo}.git`
+      : `https://github.com/${repo}.git`;
+    await runShell(`git clone "${cloneUrl}" "${repoPath}" 2>&1`);
     await say(`✅ Repo clonado → \`${repoPath}\``);
   } catch (e) {
     if (e.message.includes('already exists') || e.message.includes('destination path')) {
       await say(`ℹ️ Directorio ya existe → \`${repoPath}\``);
+    } else if (e.message.includes('Authentication') || e.message.includes('not found') || e.message.includes('Repository not found')) {
+      return say(
+        `❌ Error de acceso al repo \`${repo}\`.\n\n` +
+        `Si es un repo *privado*, agrega a \`relay/.env\`:\n\`GITHUB_TOKEN=ghp_tu_token_aqui\`\n\n` +
+        `Genera el token en: github.com → Settings → Developer settings → Personal access tokens → Fine-grained → Contents: Read`
+      );
     } else {
       return say(`❌ Error clonando repo:\n\`\`\`\n${e.message}\n\`\`\``);
     }
