@@ -60,7 +60,7 @@ const MONITOR_API  = process.env.MONITOR_API_URL    || 'http://127.0.0.1:3010';
 const MAX_ITER      = 12;                                                    // token+cost circuit breakers are the real safety net
 const MAX_HISTORY   = 20;
 const MAX_COST_USD  = parseFloat(process.env.MAX_COST_USD  || '1.00');       // per-request cost circuit breaker
-const TOKEN_BUDGET  = parseInt(process.env.TOKEN_BUDGET    || '180000');     // input token circuit breaker — matches Sonnet 4.6 context
+const TOKEN_BUDGET  = parseInt(process.env.TOKEN_BUDGET    || '200000');     // input token circuit breaker — Sonnet 4.6 supports 200k; DeepSeek 128k
 const TASK_TIMEOUT_MS = parseInt(process.env.TASK_TIMEOUT_MS || String(5 * 60 * 1000)); // hard ceiling per message (default 5 min)
 
 // ── Authorized users — stored in DB (telegram_users table) + TG_ALLOWED_USER_IDS env ──
@@ -140,6 +140,7 @@ Tienes herramientas para leer/escribir archivos, ejecutar bash y despachar tarea
 
 Repo: ${REPO}
 Proyectos activos: fiscalai, fiscalai-front, coordinator, ai-monitor
+Archivos clave: relay/master.js (orquestador — proceso PM2 "relay-master"), relay/chat-agent.js (este bot), deploy/claude-proxy.js
 
 REGLAS DE COMPORTAMIENTO:
 - Responde en español, directo al grano. SIN saludos, SIN listas de capacidades, SIN emojis.
@@ -284,6 +285,25 @@ async function callModel(modelKey, messages, ctx, onProgress, signal) {
   return callDeepSeek(m, messages, ctx, onProgress, signal);
 }
 
+// Estimate token count for a messages array (rough: 1 token ≈ 4 chars)
+function estimateTokens(messages) {
+  return messages.reduce((sum, m) => {
+    const content = typeof m.content === 'string' ? m.content
+      : Array.isArray(m.content) ? m.content.map(b => b.text || b.content || '').join('') : '';
+    return sum + Math.ceil(content.length / 4);
+  }, 0);
+}
+
+// Trim oldest messages (preserving the first user message) until estimated tokens < limit.
+// Always keeps at least the last 4 messages so there's enough context for a response.
+function trimHistory(messages, tokenLimit) {
+  let trimmed = [...messages];
+  while (trimmed.length > 4 && estimateTokens(trimmed) > tokenLimit) {
+    trimmed.splice(1, 1); // remove second message (keep first for context)
+  }
+  return trimmed;
+}
+
 // Strip Claude-specific fields that Groq/DeepSeek reject when messages are replayed
 // through LiteLLM fallback chains (top-level annotations, provider_specific_fields,
 // and per-block annotations inside content arrays).
@@ -311,6 +331,13 @@ async function callAnthropic(m, messages, ctx, onProgress, signal, anthropicClie
   const sessionDispatched = new Set(); // prevent double-dispatch within same session
 
   for (let i = 0; i < MAX_ITER; i++) {
+    // Trim history proactively so we never exceed the context window on send
+    const trimLimit = Math.floor(TOKEN_BUDGET * 0.75); // keep 25% headroom for output
+    if (estimateTokens(history) > trimLimit) {
+      const before = history.length;
+      while (history.length > 4 && estimateTokens(history) > trimLimit) history.splice(1, 1);
+      console.warn(`[callAnthropic] trimmed history ${before}→${history.length} messages to fit context`);
+    }
     const resp = await client.messages.create({
       model:      m.id,
       tools:      TOOLS_ANTHROPIC,
@@ -435,6 +462,13 @@ async function callDeepSeek(m, messages, ctx, onProgress, signal, oaiClient) { /
   const msgs = [{ role: 'system', content: buildSystemPrompt(ctx.chatId) }, ...history];
 
   for (let i = 0; i < MAX_ITER; i++) {
+    // Trim to 75% of budget to leave headroom for model output
+    const trimLimit = Math.floor(TOKEN_BUDGET * 0.75);
+    if (estimateTokens(msgs.slice(1)) > trimLimit) { // skip system msg
+      const before = msgs.length;
+      while (msgs.length > 5 && estimateTokens(msgs.slice(1)) > trimLimit) msgs.splice(2, 1);
+      console.warn(`[callDeepSeek] trimmed history ${before}→${msgs.length} messages to fit context`);
+    }
     const resp = await client.chat.completions.create({
       model: m.id, messages: msgs, tools: TOOLS_OPENAI, max_tokens: 8096,
     });
