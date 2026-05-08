@@ -68,8 +68,10 @@ async function callClaude(model, systemPrompt, messages) {
     if (CLAUDE_RUN_USER) {
       // Use login shell (-l) so HOME and PATH are set correctly for the target user.
       // runuser is preferred over su when already root (no password prompt, same semantics).
+      // Do NOT pass --dangerously-skip-permissions: we're running as non-root (german), so
+      // the flag is unnecessary and claude CLI will reject it as originating from a root process.
       const suBin = fs.existsSync('/usr/sbin/runuser') ? 'runuser' : 'su';
-      cmd = `${suBin} -l ${CLAUDE_RUN_USER} -s /bin/bash -c '${CLAUDE_BIN} --dangerously-skip-permissions --print --model ${model} < "${tmpFile}"'`;
+      cmd = `${suBin} -l ${CLAUDE_RUN_USER} -s /bin/bash -c '${CLAUDE_BIN} --print --model ${model} < "${tmpFile}"'`;
     } else {
       cmd = `${CLAUDE_BIN} --print --model ${model} < "${tmpFile}"`;
     }
