@@ -12,6 +12,10 @@
  *
  * PM2:
  *   pm2 start deploy/claude-proxy.js --name claude-proxy -- --port 5001
+ *
+ * Root note: claude CLI blocks --dangerously-skip-permissions as root.
+ *   Set CLAUDE_RUN_USER=german (or whichever user has claude configured)
+ *   in relay/.env so the proxy runs claude as that user via `su`.
  */
 
 const http       = require('http');
@@ -23,11 +27,21 @@ const path       = require('path');
 process.on('uncaughtException',  err => console.error('[claude-proxy] uncaughtException:', err.message));
 process.on('unhandledRejection', err => console.error('[claude-proxy] unhandledRejection:', err?.message || err));
 
-const PORT       = parseInt(process.argv.find((a, i) => process.argv[i - 1] === '--port') || '5001');
-const CLAUDE_BIN = process.env.CLAUDE_BIN || 'claude';
+// Load relay/.env (same directory as this file's parent)
+(function loadEnv(file) {
+  try {
+    fs.readFileSync(file, 'utf8').split('\n').forEach(line => {
+      const m = line.match(/^([^=#\s][^=]*?)\s*=\s*(.*)\s*$/);
+      if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^['"]|['"]$/g, '');
+    });
+  } catch (_) {}
+})(path.join(__dirname, '..', 'relay', '.env'));
+
+const PORT            = parseInt(process.argv.find((a, i) => process.argv[i - 1] === '--port') || '5001');
+const CLAUDE_BIN      = process.env.CLAUDE_BIN      || 'claude';
+const CLAUDE_RUN_USER = process.env.CLAUDE_RUN_USER || ''; // e.g. "german"
 
 function extractText(messages) {
-  // Build a flat text prompt from messages array for --print mode
   return messages
     .map(m => {
       const content = Array.isArray(m.content)
@@ -38,19 +52,25 @@ function extractText(messages) {
     .join('\n\n');
 }
 
-async function callClaude(model, systemPrompt, messages, maxTokens) {
+async function callClaude(model, systemPrompt, messages) {
   const prompt = systemPrompt
     ? `${systemPrompt}\n\n${extractText(messages)}`
     : extractText(messages);
 
-  // Write prompt to temp file and redirect as stdin — same pattern as relay/master.js
   const tmpFile = path.join(os.tmpdir(), `claude-proxy-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`);
   fs.writeFileSync(tmpFile, prompt, 'utf8');
 
   return new Promise((resolve, reject) => {
-    const cmd = `${CLAUDE_BIN} --print --model ${model} < "${tmpFile}"`;
+    // When running as root, claude CLI blocks --dangerously-skip-permissions.
+    // Solution: run claude as CLAUDE_RUN_USER (non-root) via `su`.
+    // That user must have `claude` authenticated (claude login done once).
+    let cmd;
+    if (CLAUDE_RUN_USER) {
+      cmd = `su -s /bin/bash ${CLAUDE_RUN_USER} -c '${CLAUDE_BIN} --dangerously-skip-permissions --print --model ${model} < "${tmpFile}"'`;
+    } else {
+      cmd = `${CLAUDE_BIN} --print --model ${model} < "${tmpFile}"`;
+    }
 
-    // Strip ANTHROPIC_API_KEY so claude uses saved OAuth credentials (Pro/Max, $0)
     const childEnv = { ...process.env };
     delete childEnv.ANTHROPIC_API_KEY;
 
@@ -63,7 +83,10 @@ async function callClaude(model, systemPrompt, messages, maxTokens) {
 
     proc.on('close', code => {
       try { fs.unlinkSync(tmpFile); } catch (_) {}
-      if (code !== 0) return reject(new Error(`claude exited ${code}: ${stderr.slice(0, 300)}`));
+      if (code !== 0) {
+        const detail = (stderr || stdout || '(no output)').slice(0, 400);
+        return reject(new Error(`claude exited ${code}: ${detail}`));
+      }
       const text = stdout.trim();
       const inputTokens  = Math.ceil(prompt.length  / 4);
       const outputTokens = Math.ceil(text.length    / 4);
@@ -108,7 +131,7 @@ const server = http.createServer(async (req, res) => {
         ? payload.system.map(b => b.text || '').join('')
         : payload.system || '';
 
-      const result = await callClaude(model, system, payload.messages || [], payload.max_tokens);
+      const result = await callClaude(model, system, payload.messages || []);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(result));
     } catch (err) {
@@ -121,5 +144,5 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`[claude-proxy] listening on http://127.0.0.1:${PORT}`);
-  console.log(`[claude-proxy] using: ${CLAUDE_BIN}`);
+  console.log(`[claude-proxy] using: ${CLAUDE_BIN}${CLAUDE_RUN_USER ? ` (as user: ${CLAUDE_RUN_USER})` : ''}`);
 });
