@@ -57,7 +57,7 @@ async function setTopicModel(topicKey, modelKey) {
 const REPO         = process.env.REPO_ROOT         || '/var/www/html/vilarkptl.com/ai-monitor';
 const GROUP_CHAT   = process.env.TG_CLAUDE_GROUP_ID || '';
 const MONITOR_API  = process.env.MONITOR_API_URL    || 'http://127.0.0.1:3010';
-const MAX_ITER      = 8;                                                     // token+cost circuit breakers are the real safety net
+const MAX_ITER      = 12;                                                    // token+cost circuit breakers are the real safety net
 const MAX_HISTORY   = 20;
 const MAX_COST_USD  = parseFloat(process.env.MAX_COST_USD  || '1.00');       // per-request cost circuit breaker
 const TOKEN_BUDGET  = parseInt(process.env.TOKEN_BUDGET    || '180000');     // input token circuit breaker — matches Sonnet 4.6 context
@@ -491,7 +491,17 @@ async function callDeepSeek(m, messages, ctx, onProgress, signal, oaiClient) { /
     const text = choice.message?.content || '(sin respuesta)';
     return { text, tokensIn: totalIn, tokensOut: totalOut };
   }
-  return { text: '⚠️ Máximo de iteraciones alcanzado.', tokensIn: totalIn, tokensOut: totalOut };
+  // MAX_ITER reached — ask model to summarize what it completed and what's left
+  try {
+    msgs.push({ role: 'user', content: 'Límite de pasos alcanzado. Resume en 3 líneas: qué se completó y qué falta para terminar.' });
+    const synth = await client.chat.completions.create({ model: m.id, messages: msgs, max_tokens: 512 });
+    const summary = synth.choices[0]?.message?.content || '';
+    totalIn  += synth.usage?.prompt_tokens     || 0;
+    totalOut += synth.usage?.completion_tokens || 0;
+    return { text: `⚠️ _Límite de pasos alcanzado._\n\n${summary}`, tokensIn: totalIn, tokensOut: totalOut };
+  } catch (_) {
+    return { text: '⚠️ Límite de pasos alcanzado. Divide la tarea en partes más pequeñas.', tokensIn: totalIn, tokensOut: totalOut };
+  }
 }
 
 // Routes all model calls through LiteLLM proxy using OpenAI-compat API.
@@ -587,7 +597,17 @@ async function callLiteLLMProxy(m, messages, ctx, onProgress, signal) {
     const text = choice.message?.content || '(sin respuesta)';
     return { text, tokensIn: totalIn, tokensOut: totalOut };
   }
-  return { text: '⚠️ Máximo de iteraciones alcanzado.', tokensIn: totalIn, tokensOut: totalOut };
+  // MAX_ITER reached — ask model to summarize what it completed and what's left
+  try {
+    msgs.push({ role: 'user', content: 'Límite de pasos alcanzado. Resume en 3 líneas: qué se completó y qué falta para terminar.' });
+    const synth = await litellmProxy.chat.completions.create({ model: m.id, messages: msgs, max_tokens: 512 });
+    const summary = synth.choices[0]?.message?.content || '';
+    totalIn  += synth.usage?.prompt_tokens     || 0;
+    totalOut += synth.usage?.completion_tokens || 0;
+    return { text: `⚠️ _Límite de pasos alcanzado._\n\n${summary}`, tokensIn: totalIn, tokensOut: totalOut };
+  } catch (_) {
+    return { text: '⚠️ Límite de pasos alcanzado. Divide la tarea en partes más pequeñas.', tokensIn: totalIn, tokensOut: totalOut };
+  }
 }
 
 // ── Claude CLI proxy — pure chat, no tools, $0 per call ──────────────────────
