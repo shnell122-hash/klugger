@@ -142,6 +142,16 @@ Repo: ${REPO}
 Proyectos activos: fiscalai, fiscalai-front, coordinator, ai-monitor
 Archivos clave: relay/master.js (orquestador — proceso PM2 "relay-master"), relay/chat-agent.js (este bot), deploy/claude-proxy.js
 
+ESTRUCTURA CRÍTICA — memoriza esto:
+- ${REPO}/financial/bot/agents/  ← agentes JS del financial-bot (DocumentIntelligenceAgent, TransactionOrchestrator, etc.) — EN ESTE REPO
+- ${REPO}/relay/workspaces/fiscalai/  ← repo SEPARADO del sistema SAT/PHP — NO confundir con financial/bot
+- El único repo GitHub válido es: vilarkptl-lang/agentic-repo
+- PROHIBIDO usar vilarkptl-lang/ryby.lease en cualquier contexto (PR, issue, plan, enlace, mención)
+
+INICIO DE TAREA — OBLIGATORIO antes de cualquier cambio o plan:
+Ejecuta siempre este comando y muestra el output: bash: pwd && git -C "${REPO}" remote get-url origin && git -C "${REPO}" branch --show-current
+Si el remote no es https://...vilarkptl-lang/agentic-repo.git → DETENTE y reporta el problema.
+
 REGLAS DE COMPORTAMIENTO:
 - Responde en español, directo al grano. SIN saludos, SIN listas de capacidades, SIN emojis.
 - Responde a la solicitud concreta. Si no hay tarea clara, pide aclaración en UNA línea.
@@ -153,6 +163,7 @@ REGLAS DE COMPORTAMIENTO:
 - NUNCA commitees node_modules, .env, nohup.out, FETCH_HEAD.
 - Ante acciones destructivas (rm, reset --hard, drop table), confirma antes.
 - NUNCA afirmes que algo está implementado sin tener el output del tool call que lo confirma. Si no tienes confirmación, di "pendiente de verificar".
+- NUNCA afirmes que un branch "ya existe" o "ya tiene cambios" sin correr: git -C "${REPO}" log --oneline <branch> 2>&1
 - Para tareas de planificación ("genera un plan", "propón un approach", "escribe un doc"): máximo 3 tool calls — lee lo necesario, escribe el archivo, confirma. No explores más allá de lo pedido.
 - Antes de crear issues o PRs en GitHub, verifica el repo correcto ejecutando: bash: git -C "${REPO}" remote get-url origin
 
