@@ -1135,7 +1135,11 @@ bot.on('message:text', async (ctx) => {
       case 'url': {
         wiz.data.url = userText.trim() === '-' ? '' : userText.trim();
         WIZARD.delete(topicKey);
-        await executeProjectCreation(wiz.data, ctx, threadId);
+        // Fire-and-forget — do NOT await, so grammy can process the next message
+        // (git clone can take 30-180s; awaiting it blocks the entire update queue)
+        executeProjectCreation(wiz.data, ctx, threadId).catch(e =>
+          ctx.reply(`❌ Error inesperado en creación: ${e.message.slice(0, 200)}`, topicOpts(threadId))
+        );
         return;
       }
     }
