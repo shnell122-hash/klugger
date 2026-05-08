@@ -1284,7 +1284,17 @@ bot.on('message:text', async (ctx) => {
     );
   }
 
-  if (userText === '/nuevo' || userText === '/new') {
+  if (userText === '/nuevo' || userText === '/new' || userText.startsWith('/nuevo ') || userText.startsWith('/new ')) {
+    const inlineArg = userText.includes(' ') ? userText.slice(userText.indexOf(' ') + 1).trim() : '';
+    if (inlineArg) {
+      // /nuevo inspector → skip directly to name step
+      const id = inlineArg.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      WIZARD.set(topicKey, { step: 'name', data: { id } });
+      return ctx.reply(
+        `✅ ID: \`${id}\`\n\n*Nombre descriptivo* del proyecto (ej: _Inspector Web_):`,
+        { parse_mode: 'Markdown', ...topicOpts(threadId) },
+      );
+    }
     WIZARD.set(topicKey, { step: 'id', data: {} });
     return ctx.reply(
       '🚀 *Nuevo proyecto — Wizard de creación*\n\n' +

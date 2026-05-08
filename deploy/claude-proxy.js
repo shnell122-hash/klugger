@@ -16,6 +16,9 @@
 
 const http       = require('http');
 const { spawn }  = require('child_process');
+const fs         = require('fs');
+const os         = require('os');
+const path       = require('path');
 
 process.on('uncaughtException',  err => console.error('[claude-proxy] uncaughtException:', err.message));
 process.on('unhandledRejection', err => console.error('[claude-proxy] unhandledRejection:', err?.message || err));
@@ -36,21 +39,22 @@ function extractText(messages) {
 }
 
 async function callClaude(model, systemPrompt, messages, maxTokens) {
+  const prompt = systemPrompt
+    ? `${systemPrompt}\n\n${extractText(messages)}`
+    : extractText(messages);
+
+  // Write prompt to temp file and redirect as stdin — same pattern as relay/master.js
+  const tmpFile = path.join(os.tmpdir(), `claude-proxy-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`);
+  fs.writeFileSync(tmpFile, prompt, 'utf8');
+
   return new Promise((resolve, reject) => {
-    const prompt = systemPrompt
-      ? `${systemPrompt}\n\n${extractText(messages)}`
-      : extractText(messages);
+    const cmd = `${CLAUDE_BIN} --dangerously-skip-permissions --print --model ${model} < "${tmpFile}"`;
 
-    const args = [
-      '--print',
-      '--model', model,
-      prompt,          // positional arg — claude --print reads message this way, not stdin
-    ];
-
-    // Strip ANTHROPIC_API_KEY so claude --print uses saved credentials (Pro/Max, $0)
+    // Strip ANTHROPIC_API_KEY so claude uses saved OAuth credentials (Pro/Max, $0)
     const childEnv = { ...process.env };
     delete childEnv.ANTHROPIC_API_KEY;
-    const proc  = spawn(CLAUDE_BIN, args, { env: childEnv });
+
+    const proc = spawn('/bin/bash', ['-c', cmd], { env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
 
@@ -58,6 +62,7 @@ async function callClaude(model, systemPrompt, messages, maxTokens) {
     proc.stderr.on('data', d => { stderr += d; });
 
     proc.on('close', code => {
+      try { fs.unlinkSync(tmpFile); } catch (_) {}
       if (code !== 0) return reject(new Error(`claude exited ${code}: ${stderr.slice(0, 300)}`));
       const text = stdout.trim();
       const inputTokens  = Math.ceil(prompt.length  / 4);
@@ -78,7 +83,7 @@ async function callClaude(model, systemPrompt, messages, maxTokens) {
       });
     });
 
-    proc.on('error', reject);
+    proc.on('error', (err) => { try { fs.unlinkSync(tmpFile); } catch (_) {} reject(err); });
   });
 }
 
