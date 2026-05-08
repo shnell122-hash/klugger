@@ -691,11 +691,18 @@ const BUSY = new Map();
 const WIZARD = new Map(); // topicKey → { step, data }
 const BASE_PROJECTS_PATH = process.env.PROJECTS_BASE_PATH || '/var/www/html/vilarkptl.com';
 const PROJECTS_JSON_PATH = path.join(REPO, 'relay/projects.json');
+const GH_DEFAULT_ORG = process.env.GITHUB_ORG || 'vilarkptl-lang';
 
 function wizModelKeyboard() {
   return new InlineKeyboard()
     .text('Sonnet 4.6 ✦ (recomendado)', 'wiz:model:sonnet').row()
     .text('Haiku 4.5 💨 (rápido/barato)', 'wiz:model:haiku');
+}
+
+function wizRepoOriginKeyboard() {
+  return new InlineKeyboard()
+    .text('🆕 Crear repo nuevo en GitHub', 'wiz:repo:new').row()
+    .text('📦 Usar repo existente',         'wiz:repo:existing');
 }
 
 function wizModeKeyboard() {
@@ -812,6 +819,47 @@ async function executeProjectCreation(data, ctx, threadId) {
     `Envía tareas con:\n\`/tarea [${id}] descripción\``,
   );
 }
+
+async function githubCreateRepo(repoName, isPrivate = true) {
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) throw new Error('GITHUB_TOKEN no configurado en relay/.env');
+  const resp = await fetch(`https://api.github.com/orgs/${GH_DEFAULT_ORG}/repos`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `token ${token}`,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ name: repoName, private: isPrivate, auto_init: true }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.message || `GitHub API error ${resp.status}`);
+  return data.full_name; // e.g. "vilarkptl-lang/flujos-fiscalai"
+}
+
+bot.callbackQuery(/^wiz:repo:(new|existing)$/, async (ctx) => {
+  const threadId = ctx.callbackQuery.message?.message_thread_id ?? 0;
+  const topicKey = `${ctx.chat.id}:${threadId}`;
+  const wiz = WIZARD.get(topicKey);
+  if (!wiz || wiz.step !== 'repo_origin') return ctx.answerCallbackQuery({ text: 'Wizard no activo' });
+  const choice = ctx.match[1];
+  await ctx.answerCallbackQuery();
+  if (choice === 'new') {
+    wiz.step = 'repo_new_name';
+    await ctx.editMessageText(
+      `🆕 *Nombre del repo nuevo*\n\n` +
+      `Se creará como \`${GH_DEFAULT_ORG}/[nombre]\` en GitHub (privado).\n\n` +
+      `Escribe solo el nombre (ej: \`flujos-fiscalai\`):`,
+      { parse_mode: 'Markdown' },
+    );
+  } else {
+    wiz.step = 'repo';
+    await ctx.editMessageText(
+      `📦 *Repo GitHub existente*\n\nFormato: \`usuario/nombre-repo\`\n(ej: \`vilarkptl-lang/flujos-fiscalai\`):`,
+      { parse_mode: 'Markdown' },
+    );
+  }
+});
 
 bot.callbackQuery(/^wiz:model:(.+)$/, async (ctx) => {
   const threadId = ctx.callbackQuery.message?.message_thread_id ?? 0;
@@ -1127,8 +1175,27 @@ bot.on('message:text', async (ctx) => {
       }
       case 'name': {
         wiz.data.name = userText.slice(0, 60);
-        wiz.step = 'repo';
-        return ctx.reply(`✅ Nombre: *${wiz.data.name}*\n\n*Repo GitHub* (formato: \`usuario/nombre-repo\`):`, { parse_mode: 'Markdown', ...topicOpts(threadId) });
+        wiz.step = 'repo_origin';
+        return ctx.reply(
+          `✅ Nombre: *${wiz.data.name}*\n\n*¿El repo de GitHub ya existe o lo creamos ahora?*`,
+          { parse_mode: 'Markdown', reply_markup: wizRepoOriginKeyboard(), ...topicOpts(threadId) },
+        );
+      }
+      case 'repo_new_name': {
+        const repoName = userText.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+        if (!repoName) return ctx.reply('❌ Nombre inválido.', topicOpts(threadId));
+        await ctx.reply(`⏳ Creando repo \`${GH_DEFAULT_ORG}/${repoName}\` en GitHub...`, { parse_mode: 'Markdown', ...topicOpts(threadId) });
+        try {
+          const fullName = await githubCreateRepo(repoName);
+          wiz.data.repo = fullName;
+          wiz.step = 'branch';
+          return ctx.reply(
+            `✅ Repo creado: \`${fullName}\`\n\n*Branch* (normalmente \`main\`):`,
+            { parse_mode: 'Markdown', ...topicOpts(threadId) },
+          );
+        } catch (e) {
+          return ctx.reply(`❌ Error creando repo: ${e.message}`, topicOpts(threadId));
+        }
       }
       case 'repo': {
         const repo = userText.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
