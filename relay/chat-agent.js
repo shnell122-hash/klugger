@@ -929,11 +929,17 @@ bot.on('message:text', async (ctx) => {
   }
 
   if (!isAuthorized(ctx)) {
-    const uid = ctx.from?.id;
-    return ctx.reply(
-      `⛔ No autorizado\\. Tu ID: \`${uid}\`\nCompártelo con el admin para obtener acceso\\.`,
-      { parse_mode: 'MarkdownV2' },
-    );
+    // Re-check with a fresh file read before rejecting — covers the case where
+    // the admin just added this user via dashboard but the 60s interval hasn't
+    // fired yet.
+    ALLOWED_USER_IDS = loadAuthorizedIds();
+    if (!isAuthorized(ctx)) {
+      const uid = ctx.from?.id;
+      return ctx.reply(
+        `⛔ No autorizado\\. Tu ID: \`${uid}\`\nCompártelo con el admin para obtener acceso\\.`,
+        { parse_mode: 'MarkdownV2' },
+      );
+    }
   }
 
   const msgId = ctx.message.message_id;
@@ -1043,6 +1049,7 @@ bot.on('message:text', async (ctx) => {
   if (userText === '/reset') {
     BUSY.delete(topicKey);
     TOPIC_MODEL.delete(topicKey);
+    ALLOWED_USER_IDS = loadAuthorizedIds();
     await db.query(
       'DELETE FROM conversations WHERE chat_id = ? AND thread_id = ?',
       [ctx.chat.id, threadId],
