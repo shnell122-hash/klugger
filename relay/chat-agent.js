@@ -33,9 +33,13 @@ async function getTopicModel(topicKey) {
     const [[row]] = await db.query(
       "SELECT value FROM system_state WHERE `key` = ?", [`chat_model_${topicKey}`]
     );
-    if (row?.value && MODELS[row.value]) {
-      TOPIC_MODEL.set(topicKey, row.value);
-      return row.value;
+    if (row?.value) {
+      // Normalize stored key: try exact, then lowercase (fixes stale 'Claude-proxy' entries)
+      const resolved = MODELS[row.value] ? row.value : (MODELS[row.value.toLowerCase()] ? row.value.toLowerCase() : null);
+      if (resolved) {
+        TOPIC_MODEL.set(topicKey, resolved);
+        return resolved;
+      }
     }
   } catch (_) {}
   return DEFAULT_MODEL;
