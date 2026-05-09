@@ -1,6 +1,6 @@
 # Financial-Bot — Agent Reference
 
-> Updated: 2026-04-30
+> Updated: 2026-05-08 — branch migrate-llms-deepseek-gemini (testing)
 
 ## Agent Map
 
@@ -15,7 +15,7 @@ financial-bot.js  (GrammY bot, state machine)
       │         └── fallback: InvoiceAgent + VisionAgent
       │
       ├─── TransactionOrchestrator    (ambiguous text routing)
-      │         └── Claude Sonnet 4.6  [ANTHROPIC_API_KEY]
+      │         └── DeepSeek V4 Pro  [DEEPSEEK_API_KEY]  ← migrado de Claude Sonnet 4.6
       │         └── fallback: ContextReader (DeepSeek)
       │
       ├─── ResponseGen                (natural language replies)
@@ -73,8 +73,8 @@ If `GOOGLE_API_KEY` is not set, `financial-bot.js` uses the original `InvoiceAge
 ## TransactionOrchestrator
 
 **File:** `agents/TransactionOrchestrator.js`
-**Model:** `claude-sonnet-4-6`
-**Activated by:** `ANTHROPIC_API_KEY` in `.env`
+**Model:** `deepseek-v4-pro` (env: `DEEPSEEK_PRO_MODEL`) — migrado de `claude-sonnet-4-6`
+**Activated by:** `DEEPSEEK_API_KEY` in `.env` (siempre activo)
 **Replaces:** ContextReader in the fallback routing path
 
 ### Purpose
@@ -112,8 +112,8 @@ Handles PDF, XLSX, CSV, TXT. Returns `{ tipo: 'imagen_sin_ocr' }` for images (ca
 ## VisionAgent (legacy / fallback)
 
 **File:** `agents/vision-agent.js`
-**Model:** `claude-haiku-4-5-20251001`
-**Status:** Active as fallback when `GOOGLE_API_KEY` is not available
+**Model:** Gemini Flash (`GOOGLE_API_KEY` presente) → DeepSeek Flash fallback (`DEEPSEEK_FLASH_MODEL`)
+**Status:** Active as fallback when `GOOGLE_API_KEY` is not available for DocumentIntelligenceAgent
 
 Handles images only. Two methods: `extraerCuentasBancarias` and `analizarFactura`.
 
@@ -156,14 +156,18 @@ Las keys son **independientes** — cada una activa un conjunto de agentes disti
 | Variable | Activa | Sin ella |
 |----------|--------|----------|
 | `GOOGLE_API_KEY` | `DocumentIntelligenceAgent` (imágenes + docs) | Cae a `InvoiceAgent` + `VisionAgent` |
-| `ANTHROPIC_API_KEY` | `TransactionOrchestrator` + `VisionAgent` (fallback OCR) | Sin orchestrator ni OCR de imágenes |
-| `DEEPSEEK_API_KEY` | `InvoiceAgent`, `ContextReader`, `ResponseGen` | Bot no arranca |
+| `DEEPSEEK_API_KEY` | Todos los agentes LLM | Bot no arranca |
+| `DEEPSEEK_PRO_MODEL` | Modelo V4 Pro para orchestrator/invoice/context/response | Usa `deepseek-chat` |
+| `DEEPSEEK_FLASH_MODEL` | Modelo V4 Flash para vision-agent | Usa `deepseek-chat` |
 | `FIN_TELEGRAM_BOT_TOKEN` | Bot Telegram | Bot no arranca |
 | `DB_*` | MySQL | Bot no arranca |
 
-**Configuración mínima para nuevos agentes activos:**
+**Configuración mínima (testing branch):**
 ```
-DEEPSEEK_API_KEY=...      # siempre requerido
-ANTHROPIC_API_KEY=...     # activa TransactionOrchestrator + VisionAgent
-GOOGLE_API_KEY=...        # activa DocumentIntelligenceAgent (preferido sobre VisionAgent)
+DEEPSEEK_API_KEY=...           # siempre requerido
+DEEPSEEK_PRO_MODEL=deepseek-chat-pro    # verificar ID en api.deepseek.com/v1/models
+DEEPSEEK_FLASH_MODEL=deepseek-chat-flash  # verificar ID en api.deepseek.com/v1/models
+GOOGLE_API_KEY=...             # activa DocumentIntelligenceAgent (preferido sobre VisionAgent)
 ```
+
+> `ANTHROPIC_API_KEY` ya no es requerida en este branch — TransactionOrchestrator y VisionAgent usan DeepSeek.
