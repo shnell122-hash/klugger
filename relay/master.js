@@ -20,7 +20,7 @@ const path    = require('path');
   try {
     fs.readFileSync(file, 'utf8').split('\n').forEach(line => {
       const m = line.match(/^([^=#\s][^=]*?)\s*=\s*(.*)\s*$/);
-      if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^['"]|['"]{1}$/g, '');
+      if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^['"]|['"]$/g, '');
     });
   } catch (_) {}
 })(path.join(__dirname, '.env'));
