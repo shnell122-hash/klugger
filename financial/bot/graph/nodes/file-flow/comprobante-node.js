@@ -1,6 +1,11 @@
 'use strict';
 /**
  * ComprobanteNode — Confirma un comprobante de pago recibido (LangGraph Parte 5).
+ *
+ * Extrae lógica de handleAsistenteModo() sección comprobante — financial-bot.js:269-344.
+ *
+ * Lee:   state.detectedFile, state.client, state.chatId, state._pool
+ * Escribe: state.replyMessages, state.sessionEstado, state.nextAction
  */
 
 const BalanceManager = require('../../../agents/balance-manager');

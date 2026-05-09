@@ -28,6 +28,7 @@ def assert_approx(a, b, tol=0.01, msg=''):
 
 BOT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
+# Auto-detecta DB_PASS buscando .env en bot/ y en financial/ (un nivel arriba)
 def _autodetect_db_pass():
     for candidate in [
         os.path.join(BOT_ROOT, '.env'),
@@ -66,6 +67,8 @@ def mysql_query(sql):
         raise AssertionError(f'MySQL: {res.stderr.strip()[:200]}')
     return res.stdout.strip()
 
+# ── G01-G04: Calculadora financiera (sin LLM) ──────────────────────────────────────────
+
 def t_ias_bruto_desde_neto():
     neto, pct = 23000, 0.055
     bruto = round(neto / (1 - pct), 2)
@@ -80,6 +83,7 @@ def t_monto_negativo_rechazado():
     montos_invalidos = [-1, -0.01, -999999]
     for m in montos_invalidos:
         assert m < 0, 'setup'
+    # verifier.js rechaza < 0
     assert all(m < 0 for m in montos_invalidos)
 
 def t_comision_fuera_de_rango():
@@ -87,6 +91,8 @@ def t_comision_fuera_de_rango():
     for pct in invalidos:
         fuera = pct < 0 or pct > 0.30
         assert fuera, f'comision {pct} debio ser rechazada'
+
+# ── G05-G06: Parsing y validación ───────────────────────────────────────────────────
 
 def t_clabe_18_digitos():
     validas   = ['058597000030773833', '021180040600000003', '058597000068994820']
@@ -104,6 +110,8 @@ def t_tipos_operacion_validos():
     assert 'TRANSFERENCIA' not in validos
     assert 'BITCOIN' not in validos
 
+# ── G07-G08: Base de datos ───────────────────────────────────────────────────────────────────
+
 def t_fin_operations_columnas():
     out = mysql_query('DESCRIBE fin_operations;')
     for col in ['tipo_operacion', 'monto_bruto', 'monto_neto', 'estado', 'client_id']:
@@ -113,6 +121,8 @@ def t_fin_clients_existe():
     out = mysql_query('SELECT COUNT(*) FROM fin_clients;')
     assert out.isdigit() or out.replace('\n','').isdigit(), f'Query fallida: {out}'
 
+# ── G09-G10: Imports de agentes ──────────────────────────────────────────────────────────
+
 def t_transaction_orchestrator_importa():
     out = node_eval("const T=require('./agents/TransactionOrchestrator'); console.log(typeof T);")
     assert 'function' in out, f'Esperaba function, got: {out}'
@@ -121,12 +131,16 @@ def t_document_intelligence_importa():
     out = node_eval("const D=require('./agents/DocumentIntelligenceAgent'); console.log(typeof D);")
     assert 'function' in out, f'Esperaba function, got: {out}'
 
+# ── G11: TransactionOrchestrator usa DeepSeek (no Anthropic) ─────────────────────────
+
 def t_orchestrator_no_usa_anthropic():
     with open(os.path.join(BOT_ROOT, 'agents', 'TransactionOrchestrator.js')) as f:
         src = f.read()
     assert '@anthropic-ai/sdk' not in src, 'TransactionOrchestrator aun usa @anthropic-ai/sdk'
     assert 'openai' in src.lower(), 'TransactionOrchestrator deberia usar openai client'
     assert 'deepseek' in src.lower(), 'TransactionOrchestrator deberia apuntar a deepseek'
+
+# ── G12: relay/master.js usa DeepSeek en callAnthropicDirect ─────────────────────────
 
 def t_relay_no_llama_anthropic_en_buzon():
     relay_path = os.path.join(BOT_ROOT, '..', '..', 'relay', 'master.js')
@@ -135,11 +149,14 @@ def t_relay_no_llama_anthropic_en_buzon():
         raise AssertionError(f'No encontre relay/master.js en {relay_path}')
     with open(relay_path) as f:
         src = f.read()
+    # Buscar la funcion callAnthropicDirect y verificar que usa deepseek
     start = src.find('function callAnthropicDirect')
     end   = src.find('\nfunction ', start + 10)
     fn_src = src[start:end] if end > start else src[start:start+2000]
     assert 'api.deepseek.com' in fn_src, 'callAnthropicDirect debe usar api.deepseek.com'
     assert 'api.anthropic.com' not in fn_src, 'callAnthropicDirect aun usa api.anthropic.com'
+
+# ── Registro y ejecución ─────────────────────────────────────────────────────────────────────────
 
 GOLDEN_TESTS = [
     ('G01', 'IAS bruto correcto desde neto+comision 5.5%',     t_ias_bruto_desde_neto),

@@ -1,6 +1,11 @@
 'use strict';
 /**
  * CuadroRetornoNode — Registra un cuadro IAS de beneficiarios (LangGraph Parte 5).
+ *
+ * Extrae lógica de handleCuadroRetorno() — financial-bot.js:146-191.
+ *
+ * Lee:   state.cuadroRetorno, state.client, state.chatId, state._pool
+ * Escribe: state.replyMessages, state.sessionEstado, state.nextAction
  */
 
 const BalanceManager = require('../../../agents/balance-manager');

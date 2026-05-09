@@ -2,6 +2,14 @@
 /**
  * FileFlowGraph — Subgrafo LangGraph para archivos (fotos y documentos).
  * LangGraph Parte 5.
+ *
+ * Flujo:
+ *   __start__ → file_type_detector
+ *   file_type_detector →(conditional)→
+ *     cuadro_retorno  → __end__
+ *     comprobante     → __end__
+ *     banking         → __end__
+ *     __end__         (archivo no reconocido)
  */
 
 const { StateGraph } = require('@langchain/langgraph');

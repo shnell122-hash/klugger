@@ -1,14 +1,21 @@
 'use strict';
 /**
  * BankingExtractionNode — Extrae y guarda cuentas bancarias de una imagen/PDF (LangGraph Parte 5).
+ *
+ * Reutiliza docAgent.extraerCuentasBancarias() — DocumentIntelligenceAgent:150
+ * y filtrarCuentasAjenas() — financial-bot.js:366.
+ *
+ * Lee:   state.detectedFile, state.inputBuffer, state.inputMimeType, state.client, state._pool
+ * Escribe: state.bankingAccounts, state.replyMessages, state.nextAction
  */
 
 const BankingManager            = require('../../../agents/banking-manager');
 const DocumentIntelligenceAgent = require('../../../agents/DocumentIntelligenceAgent');
 
+// Cuentas propias del sistema (no guardar como cuentas de clientes)
 const CUENTAS_PROPIAS = new Set([
-  '058597000030773833',
-  '058597000068994820',
+  '058597000030773833', // GV Banregio
+  '058597000068994820', // Noela Banregio
 ]);
 
 function filtrarCuentasAjenas(cuentas) {
@@ -25,6 +32,7 @@ async function bankingExtractionNode(state) {
 
   let cuentas = detectedFile?.datos_bancarios ?? [];
 
+  // Si no hay cuentas en detectedFile pero tenemos buffer, intentar extracción directa
   if (!cuentas.length && inputBuffer && process.env.GOOGLE_API_KEY) {
     try {
       const docAgent = new DocumentIntelligenceAgent(process.env.GOOGLE_API_KEY);

@@ -1,6 +1,20 @@
 'use strict';
 /**
  * FinBotGraph — Grafo principal LangGraph para el bot financiero.
+ *
+ * Partes implementadas:
+ *   1 (skeleton):  estado + checkpointer + clase FinBotGraph
+ *   2 (text flow): RouterNode → TextFlowGraph (ParseNode → CommissionNode)
+ *
+ * Partes pendientes (se añaden nodos aquí conforme avanza la migración):
+ *   3: CalculatorNode + VerifierNode + AskFieldsNode
+ *   4: BankingQueryNode + ConfirmationNode (INTERRUPT)
+ *   5: FileFlowGraph
+ *   6: AsistenteModeGraph + VoiceFlowGraph
+ *   7: CallbackFlowGraph
+ *   8: MySQLCheckpointer completo
+ *   9: SupervisorNode
+ *  10: cutover financiero-bot-v2.js
  */
 
 const { StateGraph } = require('@langchain/langgraph');
@@ -10,13 +24,16 @@ const routerNode = require('./nodes/router');
 const { textFlowGraph } = require('./subgraphs/text-flow-graph');
 const { fileFlowGraph } = require('./subgraphs/file-flow-graph');
 
+// ── Función de routing (condicional desde RouterNode) ──────────────────────────────────────
 function routeFromRouter(state) {
   const action = state.nextAction;
   if (action === 'text_flow') return 'text_flow';
   if (action === 'file_flow' || action === 'asistente_flow') return 'file_flow';
+  // Flujos de Partes 6-7 aún no implementados → END
   return '__end__';
 }
 
+// ── Construcción del grafo ────────────────────────────────────────────────────────────
 function buildMainGraph(checkpointer) {
   const graph = new StateGraph(FinBotStateAnnotation)
     .addNode('router', routerNode)
@@ -34,7 +51,14 @@ function buildMainGraph(checkpointer) {
   return graph.compile({ checkpointer });
 }
 
+// ── Clase principal ────────────────────────────────────────────────────────────────────
 class FinBotGraph {
+  /**
+   * @param {object} opts
+   * @param {import('mysql2/promise').Pool}  opts.pool
+   * @param {import('grammy').Bot}           opts.bot
+   * @param {object}                         opts.agents — { balanceManager, bankingManager, ... }
+   */
   constructor({ pool, bot, agents = {} }) {
     this.pool   = pool;
     this.bot    = bot;
@@ -44,6 +68,14 @@ class FinBotGraph {
     this._app = buildMainGraph(checkpointer);
   }
 
+  /**
+   * Construye el estado inicial a partir del contexto de Telegram.
+   * Debe llamarse antes de invocar el grafo.
+   *
+   * @param {import('grammy').Context} ctx
+   * @param {object} [extras] — campos adicionales (client, modoChat, etc.)
+   * @returns {object} Estado inicial para FinBotStateAnnotation
+   */
   static buildState(ctx, extras = {}) {
     const msg  = ctx.message ?? ctx.callbackQuery?.message;
     const from = ctx.from ?? ctx.callbackQuery?.from;
@@ -55,6 +87,7 @@ class FinBotGraph {
     else if (msg?.document)           messageType = 'document';
     else if (msg?.text !== undefined) messageType = 'text';
 
+    // Para fotos: tomar la foto de mayor resolución
     const photo    = msg?.photo;
     const document = msg?.document;
     const fileId   = document?.file_id ?? (photo ? photo[photo.length - 1]?.file_id : null);
@@ -76,6 +109,13 @@ class FinBotGraph {
     };
   }
 
+  /**
+   * Ejecuta el grafo con el contexto de Telegram.
+   *
+   * @param {import('grammy').Context} ctx
+   * @param {object} [extras] — { client, modoChat, sessionId, ... }
+   * @returns {Promise<object>} Estado final del grafo
+   */
   async invoke(ctx, extras = {}) {
     const state  = FinBotGraph.buildState(ctx, extras);
     const config = { configurable: { thread_id: String(ctx.chat?.id ?? '') } };
