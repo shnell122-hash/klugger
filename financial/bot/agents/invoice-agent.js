@@ -1,14 +1,21 @@
 'use strict';
 /**
  * Invoice Agent — detecta facturas y comprobantes de pago en archivos.
+ * Soporta: Excel (.xlsx), CSV, TXT, PDF (extracción de texto).
+ * Para imágenes: pide al usuario que confirme el monto manualmente.
+ *
+ * Retorna:
+ *   { tipo: 'factura'|'comprobante'|null, monto_total, tipo_operacion, confianza }
  */
 
 const FACTURA_KEYWORDS    = ['factura', 'cfdi', 'uuid', 'rfc', 'subtotal', 'iva', 'total a pagar', 'comprobante fiscal'];
 const COMPROBANTE_KEYWORDS = ['comprobante', 'clave de rastreo', 'referencia', 'fecha de operación', 'spei enviado', 'transferencia enviada', 'monto transferido', 'operación exitosa'];
 const TIPO_OP_RE = /(IAS|SPEI|SINDICATO|TARJETAS|EFECTIVO)/gi;
-const AMOUNT_RE  = /\$?\s*([\d]{1,3}(?:[,.][\d]{3})*(?:[.,]\d{1,2})?|\d+(?:\.\d{1,2})?)\b/g;
+// Matches amounts like $350,000.00 or 350000 or 350,000
+const AMOUNT_RE  = /\$?\s*([\d]{1,3}(?:[,.][\s\d]{3})*(?:[.,]\d{1,2})?|\d+(?:\.\d{1,2})?)\b/g;
 
 function parseAmount(raw) {
+  // Normalize: remove thousands separators, handle comma decimal
   const clean = raw.replace(/,(?=\d{3})/g, '').replace(',', '.');
   return parseFloat(clean);
 }
@@ -29,6 +36,8 @@ class InvoiceAgent {
     this.logUsage = opts.logUsage ?? null;
   }
 
+  // ── Static text analysis ──────────────────────────────────────────────────
+
   static analizarTexto(texto) {
     if (!texto || texto.trim().length < 10) return null;
     const lower = texto.toLowerCase();
@@ -48,11 +57,14 @@ class InvoiceAgent {
     if (facturaHits >= 2) {
       return { tipo: 'factura', monto_total: amounts[0], tipo_operacion: tipo_op, confianza: 'alta' };
     }
+    // Weak signal — amount found but no strong keywords
     if (amounts.length > 0) {
       return { tipo: null, monto_total: amounts[0], tipo_operacion: tipo_op, confianza: 'baja' };
     }
     return null;
   }
+
+  // ── LLM fallback ─────────────────────────────────────────────────────────
 
   async analizarConLLM(extracto) {
     const prompt =
@@ -90,6 +102,8 @@ class InvoiceAgent {
     }
   }
 
+  // ── Buffer processing ─────────────────────────────────────────────────────
+
   async procesarBuffer(buffer, mimeType = '', fileName = '') {
     let texto = '';
 
@@ -108,10 +122,12 @@ class InvoiceAgent {
           const data = await pdfParse(buffer);
           texto = data.text ?? '';
         } catch {
+          // pdf-parse not installed or parse error — fallback to raw bytes as latin text
           texto = buffer.toString('latin1').replace(/[^\x20-\x7E\n]/g, ' ');
         }
 
       } else if (mime.startsWith('image/')) {
+        // Cannot do OCR without vision model — signal caller to ask user
         return { tipo: 'imagen_sin_ocr', monto_total: 0, tipo_operacion: null, confianza: 'ninguna' };
 
       } else {
@@ -124,9 +140,11 @@ class InvoiceAgent {
 
     if (!texto.trim()) return null;
 
+    // 1. Fast heuristic
     const heuristic = InvoiceAgent.analizarTexto(texto);
     if (heuristic?.tipo && heuristic.confianza === 'alta') return heuristic;
 
+    // 2. LLM for ambiguous / low-confidence cases
     if (texto.length > 30) {
       const llmResult = await this.analizarConLLM(texto);
       if (llmResult) {
@@ -134,6 +152,7 @@ class InvoiceAgent {
       }
     }
 
+    // 3. Return heuristic even with low confidence so caller can decide
     return heuristic;
   }
 }

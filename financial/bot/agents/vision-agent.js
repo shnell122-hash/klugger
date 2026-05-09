@@ -7,6 +7,7 @@
 const { OpenAI }             = require('openai');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
+// Acepta tablas Excel, capturas de WhatsApp/Telegram, fotos de papel, listas en cualquier formato
 const BANKING_PROMPT = `Analiza esta imagen y extrae TODA la información de cuentas bancarias que aparezca.
 La imagen puede ser: tabla de Excel, captura de pantalla de chat, foto de papel, lista de texto, comprobante bancario, etc.
 
@@ -48,6 +49,7 @@ Devuelve ÚNICAMENTE un JSON válido:
 Si no hay ninguna cuenta bancaria en la imagen, devuelve: { "cuentas": [], "notas": null }
 Devuelve SOLO el JSON, sin explicaciones.`;
 
+// Para facturas, comprobantes, capturas de pago
 const INVOICE_PROMPT = `Analiza esta imagen. Puede ser: factura SAT, comprobante de transferencia, captura de app bancaria, recibo de pago, screenshot de conversación mostrando un pago, etc.
 
 Extrae la información de pago que aparezca y devuelve ÚNICAMENTE un JSON válido:
@@ -74,6 +76,7 @@ class VisionAgent {
     if (!llmClient) throw new Error('VisionAgent requiere llmClient (OpenAI-compatible)');
     this.client     = llmClient;
     this.model      = opts.model ?? process.env.DEEPSEEK_FLASH_MODEL ?? 'deepseek-chat';
+    // Gemini Flash preferred for vision — better OCR than DeepSeek Flash
     const googleKey = opts.googleApiKey ?? process.env.GOOGLE_API_KEY;
     this.gemini     = googleKey ? new GoogleGenerativeAI(googleKey) : null;
     this.geminiModel = opts.geminiModel ?? process.env.GEMINI_FLASH_MODEL ?? 'gemini-1.5-flash';
@@ -83,6 +86,7 @@ class VisionAgent {
     const base64    = imageBuffer.toString('base64');
     const mediaType = (mimeType && mimeType.startsWith('image/')) ? mimeType : 'image/jpeg';
 
+    // Prefer Gemini Flash (better multimodal OCR) when available
     if (this.gemini) {
       const model = this.gemini.getGenerativeModel({ model: this.geminiModel });
       const result = await model.generateContent([
@@ -95,6 +99,7 @@ class VisionAgent {
       return JSON.parse(match[0]);
     }
 
+    // Fallback: DeepSeek Flash via OpenAI-compatible API
     const resp = await this.client.chat.completions.create({
       model:      this.model,
       max_tokens: 2048,
@@ -113,6 +118,10 @@ class VisionAgent {
     return JSON.parse(match[0]);
   }
 
+  /**
+   * Extrae cuentas bancarias de cualquier imagen.
+   * @returns {{ cuentas: Array<{tipo,numero,titular,banco,monto,confianza}>, notas: string|null }}
+   */
   async extraerCuentasBancarias(imageBuffer, mimeType) {
     try {
       const result = await this._callVision(imageBuffer, mimeType, BANKING_PROMPT);
@@ -123,20 +132,22 @@ class VisionAgent {
       const cuentas = result.cuentas
         .map(c => {
           const raw = String(c.numero ?? '').replace(/[\s\-\.]/g, '');
-          if (!/^\d{10,19}$/.test(raw)) return null;
+          if (!/^\d{10,19}$/.test(raw)) return null; // must be numeric, reasonable length
 
           let tipo = 'cuenta';
           if      (/^\d{18}$/.test(raw))    tipo = 'CLABE';
           else if (/^\d{16}$/.test(raw))    tipo = 'tarjeta';
           else if (/^\d{10,11}$/.test(raw)) tipo = 'cuenta';
+          // Accept non-standard lengths with baja confidence
           else                              tipo = 'cuenta';
 
           return {
-            tipo, numero: raw,
-            titular:   c.nombre    ? String(c.nombre).trim()   : null,
-            banco:     c.banco     ? String(c.banco).trim()    : null,
-            monto:     c.monto     ? parseFloat(c.monto)       : null,
-            confianza: c.confianza ?? 'media',
+            tipo,
+            numero:     raw,
+            titular:    c.nombre     ? String(c.nombre).trim()    : null,
+            banco:      c.banco      ? String(c.banco).trim()     : null,
+            monto:      c.monto      ? parseFloat(c.monto)        : null,
+            confianza:  c.confianza  ?? 'media',
           };
         })
         .filter(Boolean);
@@ -148,6 +159,11 @@ class VisionAgent {
     }
   }
 
+  /**
+   * Analiza una imagen de factura, comprobante o captura de pago.
+   * @returns {{ tipo, monto_total, emisor_nombre, emisor_rfc, receptor_nombre,
+   *             concepto, fecha, folio, datos_bancarios }}
+   */
   async analizarFactura(imageBuffer, mimeType) {
     try {
       const result = await this._callVision(imageBuffer, mimeType, INVOICE_PROMPT);
