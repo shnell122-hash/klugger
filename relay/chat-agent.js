@@ -17,9 +17,9 @@ const MODELS = {
   haiku:        { id: 'claude-haiku-4-5-20251001',                      proxyModel: 'kptl-chat-fast', provider: 'anthropic',       label: 'Claude Haiku 4.5',         costIn: 0.8,  costOut: 4     },
   opus:         { id: 'claude-opus-4-7',                                proxyModel: 'kptl-reasoning', provider: 'anthropic',       label: 'Claude Opus 4.7',          costIn: 15,   costOut: 75    },
   'claude-proxy': { id: 'claude-sonnet-4-6',                            proxyModel: null,             provider: 'anthropic-proxy', label: 'Claude Pro (Proxy - $0)',   costIn: 0,    costOut: 0     },
-  deepseek:     { id: process.env.DEEPSEEK_FLASH_MODEL || 'deepseek-v4-flash', proxyModel: null, provider: 'deepseek',  label: 'DeepSeek V4-Flash 💸',     costIn: 0.02, costOut: 0.14  },
-  deepseekPro:  { id: process.env.DEEPSEEK_PRO_MODEL   || 'deepseek-v4-pro',   proxyModel: null, provider: 'deepseek',  label: 'DeepSeek V4-Pro 💸',       costIn: 0.14, costOut: 1.10  },
-  r1:           { id: 'deepseek-reasoner',                              proxyModel: null, provider: 'deepseek',        label: 'DeepSeek R1 🧠',           costIn: 0.55, costOut: 2.19  },
+  deepseek:     { id: process.env.DEEPSEEK_FLASH_MODEL || 'deepseek-v4-flash', proxyModel: 'kptl-chat-fast', provider: 'deepseek',  label: 'DeepSeek V4-Flash 💸',     costIn: 0.02, costOut: 0.14  },
+  deepseekPro:  { id: process.env.DEEPSEEK_PRO_MODEL   || 'deepseek-v4-pro',   proxyModel: 'kptl-chat',      provider: 'deepseek',  label: 'DeepSeek V4-Pro 💸',       costIn: 0.14, costOut: 1.10  },
+  r1:           { id: 'deepseek-reasoner',                              proxyModel: 'kptl-reasoning', provider: 'deepseek',        label: 'DeepSeek R1 🧠',           costIn: 0.55, costOut: 2.19  },
   gemini:       { id: process.env.GEMINI_MODEL || 'gemini-1.5-flash', proxyModel: null,             provider: 'gemini',          label: 'Gemini Flash 📸',          costIn: 0.075, costOut: 0.30 },
 };
 const DEFAULT_MODEL = 'deepseekPro';
@@ -60,7 +60,7 @@ const MONITOR_API  = process.env.MONITOR_API_URL    || 'http://127.0.0.1:3010';
 const MAX_ITER      = 12;                                                    // token+cost circuit breakers are the real safety net
 const MAX_HISTORY   = 20;
 const MAX_COST_USD  = parseFloat(process.env.MAX_COST_USD  || '1.00');       // per-request cost circuit breaker
-const TOKEN_BUDGET  = parseInt(process.env.TOKEN_BUDGET    || '200000');     // input token circuit breaker — Sonnet 4.6 supports 200k; DeepSeek 128k
+const TOKEN_BUDGET  = parseInt(process.env.TOKEN_BUDGET    || '180000');     // input token circuit breaker — matches Sonnet 4.6 context
 const TASK_TIMEOUT_MS = parseInt(process.env.TASK_TIMEOUT_MS || String(5 * 60 * 1000)); // hard ceiling per message (default 5 min)
 
 // ── Authorized users — stored in DB (telegram_users table) + TG_ALLOWED_USER_IDS env ──
@@ -142,18 +142,6 @@ Repo: ${REPO}
 Proyectos activos: fiscalai, fiscalai-front, coordinator, ai-monitor
 Archivos clave: relay/master.js (orquestador — proceso PM2 "relay-master"), relay/chat-agent.js (este bot), deploy/claude-proxy.js
 
-ESTRUCTURA CRÍTICA — dos repos, no confundir:
-- vilarkptl-lang/agentic-repo  ← ESTE repo: relay, dashboard, financial/bot, chat-agent
-  Ruta servidor: ${REPO}
-  Archivos: relay/master.js, relay/chat-agent.js, financial/bot/agents/, backend/, frontend/
-- vilarkptl-lang/ryby.lease    ← Repo fiscalai (SAT/PHP/Claude Code del proyecto fiscal)
-  Ruta servidor: ${REPO}/relay/workspaces/fiscalai/
-  Solo usar ryby.lease para tareas de fiscalai (código SAT, facturas, PHP, Node fiscal)
-
-INICIO DE TAREA — OBLIGATORIO antes de cualquier cambio o plan:
-Ejecuta siempre este comando y muestra el output: bash: pwd && git -C "${REPO}" remote get-url origin && git -C "${REPO}" branch --show-current
-Si vas a crear un PR/issue/push: confirma primero a qué repo pertenece la tarea (agentic-repo vs ryby.lease).
-
 REGLAS DE COMPORTAMIENTO:
 - Responde en español, directo al grano. SIN saludos, SIN listas de capacidades, SIN emojis.
 - Responde a la solicitud concreta. Si no hay tarea clara, pide aclaración en UNA línea.
@@ -164,10 +152,6 @@ REGLAS DE COMPORTAMIENTO:
 - Commits: git add <archivos específicos>, NUNCA git add . ni add -A.
 - NUNCA commitees node_modules, .env, nohup.out, FETCH_HEAD.
 - Ante acciones destructivas (rm, reset --hard, drop table), confirma antes.
-- NUNCA afirmes que algo está implementado sin tener el output del tool call que lo confirma. Si no tienes confirmación, di "pendiente de verificar".
-- NUNCA afirmes que un branch "ya existe" o "ya tiene cambios" sin correr: git -C "${REPO}" log --oneline <branch> 2>&1
-- Para tareas de planificación ("genera un plan", "propón un approach", "escribe un doc"): máximo 3 tool calls — lee lo necesario, escribe el archivo, confirma. No explores más allá de lo pedido.
-- Antes de crear issues o PRs en GitHub, verifica el repo correcto ejecutando: bash: git -C "${REPO}" remote get-url origin
 
 --- CLAUDE.md ---
 ${CLAUDE_MD}`.trim();
@@ -301,25 +285,6 @@ async function callModel(modelKey, messages, ctx, onProgress, signal) {
   return callDeepSeek(m, messages, ctx, onProgress, signal);
 }
 
-// Estimate token count for a messages array (rough: 1 token ≈ 4 chars)
-function estimateTokens(messages) {
-  return messages.reduce((sum, m) => {
-    const content = typeof m.content === 'string' ? m.content
-      : Array.isArray(m.content) ? m.content.map(b => b.text || b.content || '').join('') : '';
-    return sum + Math.ceil(content.length / 4);
-  }, 0);
-}
-
-// Trim oldest messages (preserving the first user message) until estimated tokens < limit.
-// Always keeps at least the last 4 messages so there's enough context for a response.
-function trimHistory(messages, tokenLimit) {
-  let trimmed = [...messages];
-  while (trimmed.length > 4 && estimateTokens(trimmed) > tokenLimit) {
-    trimmed.splice(1, 1); // remove second message (keep first for context)
-  }
-  return trimmed;
-}
-
 // Strip Claude-specific fields that Groq/DeepSeek reject when messages are replayed
 // through LiteLLM fallback chains (top-level annotations, provider_specific_fields,
 // and per-block annotations inside content arrays).
@@ -347,13 +312,6 @@ async function callAnthropic(m, messages, ctx, onProgress, signal, anthropicClie
   const sessionDispatched = new Set(); // prevent double-dispatch within same session
 
   for (let i = 0; i < MAX_ITER; i++) {
-    // Trim history proactively so we never exceed the context window on send
-    const trimLimit = Math.floor(TOKEN_BUDGET * 0.75); // keep 25% headroom for output
-    if (estimateTokens(history) > trimLimit) {
-      const before = history.length;
-      while (history.length > 4 && estimateTokens(history) > trimLimit) history.splice(1, 1);
-      console.warn(`[callAnthropic] trimmed history ${before}→${history.length} messages to fit context`);
-    }
     const resp = await client.messages.create({
       model:      m.id,
       tools:      TOOLS_ANTHROPIC,
@@ -478,13 +436,6 @@ async function callDeepSeek(m, messages, ctx, onProgress, signal, oaiClient) { /
   const msgs = [{ role: 'system', content: buildSystemPrompt(ctx.chatId) }, ...history];
 
   for (let i = 0; i < MAX_ITER; i++) {
-    // Trim to 75% of budget to leave headroom for model output
-    const trimLimit = Math.floor(TOKEN_BUDGET * 0.75);
-    if (estimateTokens(msgs.slice(1)) > trimLimit) { // skip system msg
-      const before = msgs.length;
-      while (msgs.length > 5 && estimateTokens(msgs.slice(1)) > trimLimit) msgs.splice(2, 1);
-      console.warn(`[callDeepSeek] trimmed history ${before}→${msgs.length} messages to fit context`);
-    }
     const resp = await client.chat.completions.create({
       model: m.id, messages: msgs, tools: TOOLS_OPENAI, max_tokens: 8096,
     });
@@ -1789,21 +1740,6 @@ bot.on('message:text', async (ctx) => {
 //   Polling (default):   BOT_WEBHOOK_URL unset — grammY long-polls Telegram servers
 
 bot.catch(err => console.error('[grammy]', err.message));
-
-// Configure authenticated git remote so bot can push to the main repo
-(async () => {
-  const ghToken = process.env.GITHUB_TOKEN;
-  if (ghToken) {
-    try {
-      const { execSync } = require('child_process');
-      const remoteUrl = `https://${ghToken}@github.com/vilarkptl-lang/agentic-repo.git`;
-      execSync(`git -C "${REPO}" remote set-url origin "${remoteUrl}"`, { stdio: 'pipe' });
-      console.log('[chat-agent] Remote origin configurado con GITHUB_TOKEN');
-    } catch (e) {
-      console.warn('[chat-agent] No se pudo configurar remote con token:', e.message);
-    }
-  }
-})();
 
 console.log(`[chat-agent] Iniciando — usuarios se cargan desde DB (telegram_users table)`);
 console.log(`[chat-agent] Modelos: ${Object.keys(MODELS).join(', ')} (default: ${DEFAULT_MODEL})`);

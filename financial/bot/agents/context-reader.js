@@ -33,7 +33,7 @@ class ContextReader {
    */
   constructor(llmClient, opts = {}) {
     this.llm   = llmClient;
-    this.model = opts.model ?? 'deepseek-chat';
+    this.model = opts.model ?? process.env.DEEPSEEK_PRO_MODEL ?? 'deepseek-chat';
   }
 
   /**

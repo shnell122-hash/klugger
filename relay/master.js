@@ -27,7 +27,6 @@ const path    = require('path');
 const crypto  = require('crypto');
 const { execSync, exec, spawn } = require('child_process');
 const https   = require('https');
-const http    = require('http');
 
 // ─── Config ───────────────────────────────────────────────
 const PROJECTS_FILE   = path.join(__dirname, 'projects.json');
@@ -57,33 +56,7 @@ const GITHUB_TOKEN    = process.env.GITHUB_TOKEN;
 const CLAUDE_BIN      = process.env.CLAUDE_BIN || '/usr/local/bin/claude';
 const CLAUDE_USER     = process.env.CLAUDE_USER || 'claude-agent';
 const POLL_MS         = parseInt(process.env.POLL_MS || '15000');
-const CLAUDE_TIMEOUT_MS  = parseInt(process.env.CLAUDE_TIMEOUT_MS || String(25 * 60 * 1000)); // 25 min default
-
-// Kill-switch global — pausar todo el relay cuando el gasto diario supera umbrales
-let GLOBAL_KILLED   = false;
-let GLOBAL_KILL_TS  = null;
-let GLOBAL_KILL_MSG = '';
-const PROVIDER_LAST_ALERT = {};  // proveedor → timestamp última alerta (antispam)
-
-// ── Quiet hours (11pm–8am hora México UTC-6) ──────────────────────────────────
-function isQuietHour() {
-  const mxHour = (new Date().getUTCHours() - 6 + 24) % 24;
-  return mxHour >= 23 || mxHour < 8;
-}
-
-// ── Rate limiting por proyecto (máx 3 dispatches/hora) ────────────────────────
-const DISPATCH_TIMESTAMPS = new Map();
-const DISPATCH_RATE_LIMIT = parseInt(process.env.DISPATCH_RATE_LIMIT || '3');
-const DISPATCH_WINDOW_MS  = 60 * 60 * 1000;
-
-function isRateLimited(projectId) {
-  const now = Date.now();
-  const ts  = (DISPATCH_TIMESTAMPS.get(projectId) || []).filter(t => now - t < DISPATCH_WINDOW_MS);
-  DISPATCH_TIMESTAMPS.set(projectId, ts);
-  if (ts.length >= DISPATCH_RATE_LIMIT) return true;
-  ts.push(now);
-  return false;
-}
+const CLAUDE_TIMEOUT_MS = parseInt(process.env.CLAUDE_TIMEOUT_MS || String(25 * 60 * 1000)); // 25 min default
 
 // ─── Buzon IA (ia.vilarkptl.com → FiscalAI relay shared mailbox) ─────────────
 // When relay/buzon-ia.md in agentic-repo changes, relay-master mirrors it to
@@ -208,8 +181,6 @@ function registerBotCommands() {
     { command: 'activar',  description: 'Reactiva un agente detenido — /activar [id]' },
     { command: 'memoria',  description: 'Agrega nota a la memoria del agente — /memoria [id] [nota]' },
     { command: 'plan',     description: 'Ver plan activo del proyecto — /plan [id?]' },
-    { command: 'limite',   description: 'Cambiar límite de gasto — /limite [proveedor] [usd]' },
-    { command: 'reanudar', description: 'Reanudar relay si está pausado por kill-switch' },
     { command: 'comandos', description: 'Lista todos los comandos disponibles' },
     { command: 'ayuda',    description: 'Lista todos los comandos disponibles' },
   ];
@@ -334,47 +305,6 @@ async function handleTelegramCommand(text, imageContext) {
     if (!id) { tg('❓ Uso: /parar [project-id]'); return; }
     const j = loadJournal(id); j.state = 'stopped'; saveJournal(id, j);
     tg(`🛑 <b>${id}</b> detenido manualmente.\nUsa /activar ${id} para reanudar.`);
-    return;
-  }
-
-  // /limite [proveedor|total] [valor_usd]  — cambia umbral de kill-switch
-  if (lower.startsWith('/limite')) {
-    const parts    = raw.trim().split(/\s+/);
-    const provider = parts[1]?.toLowerCase();
-    const value    = parseFloat(parts[2]);
-    if (!provider || isNaN(value) || value < 0) {
-      tg('❓ Uso: <code>/limite [proveedor] [usd]</code>\nEjemplo: <code>/limite total 15</code> o <code>/limite anthropic 10</code>\nProveedores: total, anthropic, openai, deepseek, fal, elevenlabs');
-      return;
-    }
-    // Actualizar en DB via API del backend
-    const postData = JSON.stringify({ provider, threshold_usd: value, kill_enabled: 1 });
-    const req = http.request({
-      hostname: '127.0.0.1', port: 3010, path: '/api/apiAdmin/threshold',
-      method: 'PUT', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) },
-    }, (res) => {
-      res.resume();
-      // También limpiar kill si el nuevo límite es mayor al gasto actual
-      if (provider === 'total' || provider === 'anthropic') {
-        GLOBAL_KILLED = false; GLOBAL_KILL_TS = null; GLOBAL_KILL_MSG = '';
-        // Resetear en DB también
-        http.request({ hostname: '127.0.0.1', port: 3010, path: '/api/platform/resume', method: 'POST' }, r => r.resume()).end();
-        http.request({ hostname: '127.0.0.1', port: 3010, path: '/api/apiAdmin/resume', method: 'POST' }, r => r.resume()).end();
-      }
-      PROVIDER_LAST_ALERT[provider] = 0; // reset cooldown para este proveedor
-      tg(`✅ <b>Límite actualizado — ${provider}</b>\nNuevo umbral: <b>$${value.toFixed(2)}/día</b>${(provider === 'total' || provider === 'anthropic') ? '\nKill-switch reseteado.' : ''}`);
-    });
-    req.on('error', e => tg(`❌ Error actualizando límite: ${e.message}`));
-    req.write(postData);
-    req.end();
-    return;
-  }
-
-  // /reanudar — resume el relay si está pausado por kill-switch
-  if (lower === '/reanudar' || lower === '/resume') {
-    GLOBAL_KILLED = false; GLOBAL_KILL_TS = null; GLOBAL_KILL_MSG = '';
-    http.request({ hostname: '127.0.0.1', port: 3010, path: '/api/platform/resume', method: 'POST' }, r => r.resume()).end();
-    http.request({ hostname: '127.0.0.1', port: 3010, path: '/api/apiAdmin/resume', method: 'POST' }, r => r.resume()).end();
-    tg('✅ <b>Sistema reanudado</b> desde Telegram.\nEl relay procesará nuevas tareas normalmente.');
     return;
   }
 
@@ -730,119 +660,19 @@ function postAlert(alertType, projectId, severity, title, details, autoFixed = f
   postToMonitor('/api/alerts', { alert_type: alertType, project_id: projectId, severity, title, details, auto_fixed: autoFixed });
 }
 
-// ─── Per-project kill-switch (migrate-v12 project_monthly_budget) ────────────
-// Cache refreshed every 5 min by the kill-switch poller via /api/apiAdmin/projectBudgets.
-// Avoids a DB query on every 15-second poll cycle.
-const PROJECT_KILLED_CACHE = {};  // { projectId: { killed: bool, ts: number } }
-const PROJECT_KILLED_TTL   = 5 * 60 * 1000;
-
-function getProjectKilled(projectId) {
-  const cached = PROJECT_KILLED_CACHE[projectId];
-  if (cached && (Date.now() - cached.ts) < PROJECT_KILLED_TTL) return cached.killed;
-  return false;  // safe default; async refresh happens in kill-switch poller
-}
-
-// ─── Anthropic API directo (Opción B — buzon bidireccional) ──────────────────
-// Llama claude-haiku-4-5 via HTTPS nativo sin spawn Claude CLI.
-// Usada cuando buzon-fiscalai.md cambia para responder directamente.
-// Haiku es suficiente para ACKs/pre-responses del buzon; el trabajo real
-// lo hace el coordinator dispatch (paso 2 en responderBuzonFiscalai).
-// Prompt caching activo en system prompt para reducir costos en llamadas repetidas.
-//
-// CLI Proxy routing: if ANTHROPIC_PROXY_URL is set (and optionally restricted to a project via
-// ANTHROPIC_PROXY_PROJECT), requests go to a local claude-relay proxy instead of api.anthropic.com.
-// This routes through a Pro/Max subscription to avoid per-token billing on background tasks.
-const ANTHROPIC_PROXY_URL     = process.env.ANTHROPIC_PROXY_URL     || null;  // e.g. http://127.0.0.1:5001
-const ANTHROPIC_PROXY_PROJECT = process.env.ANTHROPIC_PROXY_PROJECT || '';   // restrict to this project id
-
-function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512, projectId = null) {
-  // Determine if this call should go through the local CLI proxy
-  const useProxy = ANTHROPIC_PROXY_URL &&
-    (!ANTHROPIC_PROXY_PROJECT || ANTHROPIC_PROXY_PROJECT === projectId);
-
-  const timeoutMs = 90000;
-  const apiCall = new Promise((resolve, reject) => {
-    if (!ANTHROPIC_KEY && !useProxy) { reject(new Error('ANTHROPIC_API_KEY no configurado')); return; }
-    const body = JSON.stringify({
-      model:      'claude-haiku-4-5-20251001',
-      max_tokens: maxTokens,
-      system:     [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
-      messages:   [{ role: 'user', content: userMessage }],
-    });
-
-    let hostname, port, isHttps;
-    if (useProxy) {
-      const parsed = new URL(ANTHROPIC_PROXY_URL);
-      hostname = parsed.hostname;
-      port     = parseInt(parsed.port || (parsed.protocol === 'https:' ? '443' : '80'));
-      isHttps  = parsed.protocol === 'https:';
-      log(projectId, `[anthropic-proxy] routing via ${ANTHROPIC_PROXY_URL}`);
-    } else {
-      hostname = 'api.anthropic.com';
-      port     = 443;
-      isHttps  = true;
-    }
-
-    const transport = isHttps ? https : http;
-    const req = transport.request({
-      hostname,
-      port,
-      path:    '/v1/messages',
-      method:  'POST',
-      headers: {
-        'x-api-key':         useProxy ? 'proxy-key' : ANTHROPIC_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-beta':    'prompt-caching-2024-07-31',
-        'content-type':      'application/json',
-        'content-length':    Buffer.byteLength(body),
-      },
-    }, (res) => {
-      let data = '';
-      res.on('data', c => data += c);
-      res.on('end', () => {
-        try {
-          const json = JSON.parse(data);
-          if (json.error) { reject(new Error(`API error ${json.error.type}: ${json.error.message}`)); return; }
-          if (!json.content || !json.content[0]) { reject(new Error('Respuesta API vacía')); return; }
-          resolve(json.content[0].text);
-        } catch (e) { reject(e); }
-      });
-    });
-    req.on('error', reject);
-    req.write(body);
-    req.end();
-  });
-
-  const timeout = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error(`Timeout ${timeoutMs/1000}s — anthropic${useProxy ? '-proxy' : ''} no respondió`)), timeoutMs)
-  );
-  return Promise.race([apiCall, timeout]);
-}
-
-// Calls DeepSeek V4 via OpenAI-compatible API — used for /tarea planning and summaries.
-// useComplex=true → V4-Pro (Sonnet-quality, 4-6x cheaper); false → V4-Flash (fast/cheap).
-// Falls back gracefully (returns null) if no API key is configured.
-//
-// Caching: DeepSeek V4 supports explicit prefix caching via cache_control on system content
-// blocks (same field name as Anthropic). The API also returns prompt_cache_hit_tokens so we
-// log savings. Caching is also automatic for repeated prefixes, but explicit markers improve
-// hit rate across different user prompts that share the same system context.
-function callDeepSeekDirect(systemPrompt, userMessage, maxTokens = 512, useComplex = false) {
-  const timeoutMs = 20000;
-  const model = useComplex
-    ? (process.env.DEEPSEEK_PRO_MODEL   || 'deepseek-v4-pro')
-    : (process.env.DEEPSEEK_FLASH_MODEL || 'deepseek-v4-flash');
+// ─── DeepSeek Flash API directo (buzon bidireccional) ────────────────────────
+// Reemplaza claude-sonnet-4-6. V4-Flash es ~200x más barato para respuestas de texto.
+function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512) {
+  const timeoutMs = 30000;
   const apiCall = new Promise((resolve, reject) => {
     if (!DEEPSEEK_KEY) { reject(new Error('DEEPSEEK_API_KEY no configurado')); return; }
+    const model = process.env.DEEPSEEK_CHAT_MODEL ?? 'deepseek-v4-flash';
     const body = JSON.stringify({
       model,
       max_tokens: maxTokens,
       messages: [
-        {
-          role:    'system',
-          content: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
-        },
-        { role: 'user', content: userMessage },
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: userMessage  },
       ],
     });
     const req = https.request({
@@ -853,8 +683,6 @@ function callDeepSeekDirect(systemPrompt, userMessage, maxTokens = 512, useCompl
         'Authorization':  `Bearer ${DEEPSEEK_KEY}`,
         'Content-Type':   'application/json',
         'Content-Length': Buffer.byteLength(body),
-        // Explicit prompt-caching beta header (mirrors Anthropic pattern; ignored if not supported)
-        'x-deepseek-cache-policy': 'ephemeral',
       },
     }, (res) => {
       let data = '';
@@ -863,14 +691,56 @@ function callDeepSeekDirect(systemPrompt, userMessage, maxTokens = 512, useCompl
         try {
           const json = JSON.parse(data);
           if (json.error) { reject(new Error(`DeepSeek error: ${json.error.message}`)); return; }
+          const text = json.choices?.[0]?.message?.content;
+          if (!text) { reject(new Error('Respuesta API vacía')); return; }
           const usage = json.usage ?? {};
-          const hitTok  = usage.prompt_cache_hit_tokens  ?? 0;
-          const missTok = usage.prompt_cache_miss_tokens ?? 0;
-          const totalIn = usage.prompt_tokens ?? 0;
-          log(null,
-            `[deepseek/${model}] in=${totalIn} out=${usage.completion_tokens ?? 0} ` +
-            `cache_hit=${hitTok} cache_miss=${missTok} (${hitTok ? Math.round(hitTok / totalIn * 100) : 0}% hit)`
-          );
+          if (usage.prompt_cache_hit_tokens) {
+            log(null, `[deepseek-flash] cache_hit=${usage.prompt_cache_hit_tokens}tok`);
+          }
+          resolve(text);
+        } catch (e) { reject(e); }
+      });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error(`Timeout ${timeoutMs/1000}s — api.deepseek.com`)), timeoutMs)
+  );
+  return Promise.race([apiCall, timeout]);
+}
+
+// Calls DeepSeek V3 via OpenAI-compatible API — used for /tarea planning and summaries.
+// Falls back gracefully (returns null) if no API key is configured.
+function callDeepSeekDirect(systemPrompt, userMessage, maxTokens = 512) {
+  const timeoutMs = 20000;
+  const apiCall = new Promise((resolve, reject) => {
+    if (!DEEPSEEK_KEY) { reject(new Error('DEEPSEEK_API_KEY no configurado')); return; }
+    const body = JSON.stringify({
+      model:      process.env.DEEPSEEK_CHAT_MODEL ?? 'deepseek-v4-flash',
+      max_tokens: maxTokens,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: userMessage  },
+      ],
+    });
+    const req = https.request({
+      hostname: 'api.deepseek.com',
+      path:     '/v1/chat/completions',
+      method:   'POST',
+      headers: {
+        'Authorization':  `Bearer ${DEEPSEEK_KEY}`,
+        'Content-Type':   'application/json',
+        'Content-Length': Buffer.byteLength(body),
+      },
+    }, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          if (json.error) { reject(new Error(`DeepSeek error: ${json.error.message}`)); return; }
           resolve(json.choices?.[0]?.message?.content || null);
         } catch (e) { reject(e); }
       });
@@ -952,10 +822,10 @@ async function responderBuzonFiscalai(buzonContent) {
     }
     if (relayContext) systemPrompt += '\n\n---\n\n## Estado actual del relay' + relayContext;
 
-    const respuesta = await callDeepSeekDirect(systemPrompt, buzonContent, 1024, true);
+    const respuesta = await callAnthropicDirect(systemPrompt, buzonContent, 4096);
     const richContent =
       `# Buzón IA — ia.vilarkptl.com → FiscalAI\n\n` +
-      `**[${timestamp} CST] — DeepSeek V4-Pro**\n\n---\n\n${respuesta}\n`;
+      `**[${timestamp} CST] — Anthropic API (claude-sonnet-4-6)**\n\n---\n\n${respuesta}\n`;
     fs.writeFileSync(BUZON_SRC, richContent);
     log(null, `buzon-ia: respuesta Anthropic API escrita (${respuesta.length} chars)`);
     tg(`📨 <b>FiscalAI respondido via Anthropic API</b>\n<code>${respuesta.slice(0, 400)}</code>`);
@@ -1283,8 +1153,8 @@ function updateJournal(projectId, { title, exitCode, resultSummary, durationSec,
   });
   journal.recent_tasks = journal.recent_tasks.slice(0, 10);
 
-  // Auto-stop: 3 consecutive failures (loop breaker — Phase 1.4)
-  if (journal.consecutive_failures >= 3 && journal.state === 'active') {
+  // Auto-stop: 2 consecutive failures (loop breaker — Phase 1.4)
+  if (journal.consecutive_failures >= 2 && journal.state === 'active') {
     journal.state = 'stopped';
     const errorSnippet = (fullResult || resultSummary || '').slice(-600)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -1427,12 +1297,7 @@ ${taskContent}`;
       HOME:               realHome,
       USER:               user,
       LOGNAME:            user,
-      // ANTHROPIC_API_KEY deliberately omitted — Claude CLI uses OAuth credentials ($0).
-      // use_cli_proxy: true routes through local claude-proxy (port 5001) for extra reliability.
-      ...(project.use_cli_proxy ? {
-        ANTHROPIC_BASE_URL: process.env.ANTHROPIC_PROXY_URL || 'http://127.0.0.1:5001',
-        ANTHROPIC_API_KEY:  'cli-proxy',  // dummy required by SDK when base_url is set
-      } : {}),
+      ANTHROPIC_API_KEY:  ANTHROPIC_KEY,
       CLAUDE_MONITOR_URL: MONITOR_API,
       CLAUDE_CHAT_SOURCE: `relay-${project.id}`,
       // Use user's own ~/.claude for auth — project hooks dir still passed separately
@@ -1444,7 +1309,6 @@ ${taskContent}`;
       TERM:               'dumb',
     };
     const exports = Object.entries(env)
-      .filter(([, v]) => v != null)
       .map(([k, v]) => `export ${k}='${String(v).replace(/'/g, "'\\''")}'`)
       .join('\n');
     return `${exports}\n${coreCmd}`;
@@ -1500,36 +1364,10 @@ ${taskContent}`;
     timedOut = true;
     clearInterval(heartbeat);
     clearInterval(filePoller);
-    clearInterval(watchdogInterval);
     try { execSync(`pkill -9 -P ${child.pid} 2>/dev/null || true`, { stdio: 'pipe' }); } catch (_) {}
     try { child.kill('SIGKILL'); } catch (_) {}
     setTimeout(() => safeCallback(1, `[TIMEOUT después de ${timeoutMs / 60000}min]\n${resultText.trim()}`), 10000);
   }, timeoutMs);
-
-  // Independent watchdog: hard 25min limit per process (fixes issue: session ran 6.9h)
-  // Checks every 60s if elapsed time exceeded MAX_PROCESS_DURATION
-  const MAX_PROCESS_DURATION = 25 * 60 * 1000;
-  const watchdogInterval = setInterval(() => {
-    const elapsed = Date.now() - runStart;
-    if (elapsed > MAX_PROCESS_DURATION) {
-      clearInterval(watchdogInterval);
-      const elapsedMin = Math.round(elapsed / 60000);
-      log(project.id, `⚠️ watchdog: proceso excedió 25 min (${elapsedMin}min) — enviando SIGTERM`);
-      tg(`⚠️ <b>Watchdog — ${project.name}</b>
-Proceso ha excedido 25 min (${elapsedMin}m). SIGTERM…`);
-
-      try { process.kill(child.pid, 'SIGTERM'); } catch (e) {}
-
-      // SIGKILL after 5s if SIGTERM doesn't work
-      setTimeout(() => {
-        try {
-          process.kill(child.pid, 0); // Test if still alive
-          log(project.id, `⚠️ watchdog: SIGTERM inefectivo — enviando SIGKILL`);
-          process.kill(child.pid, 'SIGKILL');
-        } catch (_) {} // Process already dead
-      }, 5000);
-    }
-  }, 60000);
 
   const heartbeat = setInterval(() => {
     const elapsedMin = Math.round((Date.now() - runStart) / 60000);
@@ -1673,7 +1511,6 @@ Timeout en ${remainMin} min`);
       clearTimeout(timer);
       clearInterval(heartbeat);
       clearInterval(filePoller);
-      clearInterval(watchdogInterval);
       if (timedOut) resultText = `[TIMEOUT después de ${CLAUDE_TIMEOUT_MS / 60000}min]\n` + resultText;
 
       // All attempts exhausted with quick failure → actionable Telegram msg
@@ -1692,7 +1529,6 @@ Timeout en ${remainMin} min`);
       clearTimeout(timer);
       clearInterval(heartbeat);
       clearInterval(filePoller);
-      clearInterval(watchdogInterval);
       log(project.id, `runClaude error: ${err.message}`);
       safeCallback(1, `Error lanzando claude: ${err.message}`);
     });
@@ -1875,8 +1711,6 @@ function saveDispatchQueue(q) {
 }
 
 async function processDispatchQueue(projects, hashes = null) {
-  if (GLOBAL_KILLED) { log(null, 'Kill-switch activo — dispatch queue pausada'); return; }
-  if (isQuietHour()) { log(null, 'Quiet hours — dispatch queue pausada'); return; }
   const queue = readDispatchQueue();
   const pending = queue.filter(d => d.status === 'pending');
   if (!pending.length) return;
@@ -1894,29 +1728,6 @@ async function processDispatchQueue(projects, hashes = null) {
 
     log(null, `Dispatch → ${target.name}: ${dispatch.task.slice(0, 80)}`);
 
-    // Max dispatch depth — block recursive coordinator chains beyond depth 3
-    const taskDepth = parseInt(dispatch.depth || 0);
-    const MAX_DISPATCH_DEPTH = parseInt(process.env.MAX_DISPATCH_DEPTH || '3');
-    if (taskDepth >= MAX_DISPATCH_DEPTH) {
-      log(null, `Dispatch ${dispatch.id}: depth ${taskDepth} >= max ${MAX_DISPATCH_DEPTH} — bloqueado`);
-      tg(`🚫 <b>Dispatch bloqueado — profundidad máxima</b>\nDepth ${taskDepth} en proyecto ${target.name}\n<code>${dispatch.task.slice(0, 200)}</code>`);
-      const idx = updated.findIndex(d => d.id === dispatch.id);
-      updated[idx] = { ...dispatch, status: 'error', dispatched_at: new Date().toISOString(), error: `max_depth:${MAX_DISPATCH_DEPTH}` };
-      continue;
-    }
-
-    // Inject budget_usd_max for sub-dispatches without one (coordinator → agent).
-    // Proportional: 40% of parent budget, min $0.50, max $5.00.
-    // Prevents a coordinator with $10 budget from spawning 5 × $2 tasks unchecked.
-    let inboxTask = dispatch.task;
-    if (!inboxTask.match(/budget_usd_max\s*[:=]/i) &&
-        (taskDepth >= 1 || dispatch.requester === 'coordinator')) {
-      const parentBudget = parseBudgetMax(dispatch.task);  // default $2.00
-      const BUDGET_SUB_FRACTION = parseFloat(process.env.BUDGET_SUB_FRACTION || '0.4');
-      const subBudget = Math.max(0.50, Math.min(+(parentBudget * BUDGET_SUB_FRACTION).toFixed(2), 5.00));
-      inboxTask = `budget_usd_max: ${subBudget}\n\n` + inboxTask;
-    }
-
     // Write task to target inbox (append outbox template so agent always fills it)
     const OUTBOX_TEMPLATE =
       '\n\n---\n## Outbox — [Rellenar después de completar]\n' +
@@ -1927,7 +1738,7 @@ async function processDispatchQueue(projects, hashes = null) {
       '**Usuario requerido**: [Sí/No]\n' +
       '\nDetalles: [describir qué se hizo]\n';
     try {
-      fs.writeFileSync(target.inbox, inboxTask + OUTBOX_TEMPLATE);
+      fs.writeFileSync(target.inbox, dispatch.task + OUTBOX_TEMPLATE);
     } catch (err) {
       log(null, `Dispatch ${dispatch.id}: no pudo escribir inbox: ${err.message}`);
       const idx = updated.findIndex(d => d.id === dispatch.id);
@@ -2021,9 +1832,6 @@ function checkOutboxWatchdog(projects) {
 // multiple times per cycle (coordinator + fiscalai + fiscalai-front share DeCabeceraTax)
 async function processProject(project, hashes, pulledRepos = new Set()) {
   if (!project.active || !project.inbox) return;
-  if (GLOBAL_KILLED) { log(project.id, `Kill-switch activo (${GLOBAL_KILL_MSG || 'gasto diario'}) — saltando`); return; }
-  if (getProjectKilled(project.id)) { log(project.id, `project_killed: presupuesto mensual agotado — saltando`); return; }
-  if (isQuietHour() && !project.ignore_quiet_hours) { log(project.id, 'Quiet hours (11pm–8am MX) — tarea diferida'); return; }
 
   // Git pull — deduplicated per repo path to avoid concurrent git lock conflicts
   if (project.repo && project.branch && !pulledRepos.has(project.repo)) {
@@ -2034,20 +1842,7 @@ async function processProject(project, hashes, pulledRepos = new Set()) {
 
   const currentHash = fileHash(project.inbox);
   if (!currentHash) return;
-  if (hashes[project.id] === currentHash) return;  // no change — check BEFORE rate limit
-
-  // Rate limit only counts when there's actually a new task to execute
-  if (isRateLimited(project.id)) {
-    log(project.id, `Rate limit: >${DISPATCH_RATE_LIMIT} dispatches/h — tarea diferida`);
-    // Notify Telegram at most once per project per hour (not every 15s)
-    const alertKey = `ratelimit_${project.id}`;
-    const lastAlert = PROVIDER_LAST_ALERT[alertKey] || 0;
-    if (Date.now() - lastAlert > DISPATCH_WINDOW_MS) {
-      PROVIDER_LAST_ALERT[alertKey] = Date.now();
-      tg(`⏸ Rate limit en ${project.id} — max ${DISPATCH_RATE_LIMIT} dispatches/h alcanzado`);
-    }
-    return;
-  }
+  if (hashes[project.id] === currentHash) return;  // no change
 
   // Changed! Try to acquire per-project lock (other projects run in parallel)
   if (!acquireLock(project.id)) {
@@ -2536,96 +2331,6 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
     }
   }, 60 * 1000);
 
-  // Kill-switch poller — consulta kill-check cada 60s (multi-proveedor, persiste en DB)
-  const killCheck = () => new Promise((resolve) => {
-    const req = http.get(`${MONITOR_API}/api/platform/kill-check`, (res) => {
-      let body = '';
-      res.on('data', c => body += c);
-      res.on('end', () => { try { resolve(JSON.parse(body)); } catch(_) { resolve(null); } });
-    });
-    req.setTimeout(8000, () => { req.destroy(); resolve(null); });
-    req.on('error', () => resolve(null));
-  });
-
-  // También verificar kill por proveedor individual
-  const killStatusCheck = () => new Promise((resolve) => {
-    const req = http.get(`${MONITOR_API}/api/apiAdmin/killStatus`, (res) => {
-      let body = '';
-      res.on('data', c => body += c);
-      res.on('end', () => { try { resolve(JSON.parse(body)); } catch(_) { resolve(null); } });
-    });
-    req.setTimeout(8000, () => { req.destroy(); resolve(null); });
-    req.on('error', () => resolve(null));
-  });
-
-  // Antispam: solo 1 alerta por hora por proveedor (PROVIDER_LAST_ALERT es global)
-  const ALERT_COOLDOWN_MS = 60 * 60 * 1000; // 1 hora
-
-  setInterval(async () => {
-    try {
-      // Auto-reset a medianoche
-      if (GLOBAL_KILLED && GLOBAL_KILL_TS) {
-        if (new Date().toDateString() !== GLOBAL_KILL_TS.toDateString()) {
-          GLOBAL_KILLED = false; GLOBAL_KILL_TS = null; GLOBAL_KILL_MSG = '';
-          log(null, 'Kill-switch: nuevo día — auto-reset');
-          tg('✅ <b>Kill-switch reseteado</b> — nuevo día, sistema reanudado automáticamente');
-        }
-      }
-
-      // Consultar estado global (total)
-      const status = await killCheck();
-      if (status?.killed && !GLOBAL_KILLED) {
-        GLOBAL_KILLED   = true;
-        GLOBAL_KILL_TS  = new Date();
-        GLOBAL_KILL_MSG = status.reason || `$${status.daily_cost_usd} ≥ $${status.threshold_usd}`;
-        log(null, `KILL-SWITCH TOTAL: ${GLOBAL_KILL_MSG}`);
-        tg(`🛑 <b>Sistema PAUSADO — Kill-switch total</b>\n${GLOBAL_KILL_MSG}\nNinguna tarea se ejecutará.\nUsa <code>/reanudar</code> o <code>/limite total 15</code> para ajustar.`);
-        for (const [, info] of ACTIVE_PIDS.entries()) {
-          if (info.forceTimeout) info.forceTimeout();
-        }
-      }
-      if (!status?.killed && GLOBAL_KILLED && GLOBAL_KILL_TS) {
-        GLOBAL_KILLED = false; GLOBAL_KILL_TS = null; GLOBAL_KILL_MSG = '';
-        log(null, 'Kill-switch: reanudado por dashboard');
-        tg('✅ <b>Sistema reanudado</b> desde dashboard');
-      }
-
-      // Consultar alertas por proveedor individual — con antispam (1 alerta/hora/proveedor)
-      if (!GLOBAL_KILLED) {
-        const provStatus = await killStatusCheck();
-        if (provStatus?.provider_status) {
-          const now = Date.now();
-          for (const p of provStatus.provider_status) {
-            if (!p.over || p.provider === 'total') continue;
-            const lastAlerted = PROVIDER_LAST_ALERT[p.provider] || 0;
-            if (now - lastAlerted < ALERT_COOLDOWN_MS) continue;
-            PROVIDER_LAST_ALERT[p.provider] = now;
-            tg(`⚠️ <b>Alerta de gasto — ${p.provider}</b>\n$${p.current_usd} de $${p.threshold_usd} (${p.pct}%)\nUsa <code>/limite ${p.provider} ${Math.ceil(p.current_usd * 1.5)}</code> para subir el límite.`);
-          }
-        }
-      }
-
-      // Refresh per-project kill flags from /api/apiAdmin/projectBudgets
-      try {
-        const budgetData = await new Promise((resolve) => {
-          const req = http.get(`${MONITOR_API}/api/apiAdmin/projectBudgets`, (res) => {
-            let body = '';
-            res.on('data', c => body += c);
-            res.on('end', () => { try { resolve(JSON.parse(body)); } catch (_) { resolve(null); } });
-          });
-          req.setTimeout(5000, () => { req.destroy(); resolve(null); });
-          req.on('error', () => resolve(null));
-        });
-        if (budgetData?.projects) {
-          const now = Date.now();
-          for (const b of budgetData.projects) {
-            PROJECT_KILLED_CACHE[b.project_name] = { killed: !!b.killed, ts: now };
-          }
-        }
-      } catch (_) {}
-    } catch (_) { /* no interrumpir por fallos de red */ }
-  }, 60 * 1000);
-
   const hashes = loadHashes();
 
   // Poll loop
@@ -2676,6 +2381,25 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
   const HEARTBEAT_MS = parseInt(process.env.HEARTBEAT_MS || String(6 * 3600 * 1000)); // default 6h
   const _startTime   = Date.now();
 
+  function getEngineStatus() {
+    try {
+      const envFile = '/var/www/html/vilarkptl.com/ai-monitor/financial/.env';
+      const envContent = fs.readFileSync(envFile, 'utf8');
+      const dbPass = (envContent.match(/^DB_PASS=(.+)$/m) || [])[1] || '';
+      const row = execSync(
+        `mysql -u root -p"${dbPass}" ai_monitoring -sN --default-character-set=utf8mb4 -e ` +
+        `"SELECT episode_num, complexity_tier, score_pct, passed_tests, total_tests FROM learning_episodes WHERE completed_at IS NOT NULL ORDER BY id DESC LIMIT 1"`,
+        { timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] }
+      ).toString().trim();
+      if (!row) return null;
+      const [ep, tier, score, passed, total] = row.split('\t');
+      const label = { 1: 'Básico', 2: 'Intermedio', 3: 'Avanzado', 4: 'Edge Cases' }[tier] || `T${tier}`;
+      return `🤖 conversation-engine: Ep.#${ep} | Tier ${tier} ${label} | Score: ${parseFloat(score).toFixed(1)}% (${passed}/${total})`;
+    } catch (_) {
+      return null;
+    }
+  }
+
   function sendHeartbeat() {
     const uptimeSec = Math.floor((Date.now() - _startTime) / 1000);
     const hours     = Math.floor(uptimeSec / 3600);
@@ -2690,10 +2414,11 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
       const model = (p.claude_model || 'sonnet').replace('claude-', '').replace(/-\d{8}$/, '');
       return `  • ${p.name} <i>(${model})</i>`;
     }).join('\n');
+    const engineLine = getEngineStatus();
     tg(`💓 <b>relay-master activo</b>
 ⏱ Uptime: ${hours}h ${mins}m
 ${taskLine}
-
+${engineLine ? `\n${engineLine}` : ''}
 <b>Agentes:</b>
 ${agentLine}
 🌐 <a href="http://ia.vilarkptl.com">Dashboard</a>`);

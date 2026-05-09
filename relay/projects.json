@@ -108,7 +108,7 @@
     "name": "FinBot — Tester Automatizado",
     "mode": "full-claude-code",
     "ignore_quiet_hours": false,
-    "claude_model": "claude-sonnet-4-6",
+    "claude_model": "claude-haiku-4-5-20251001",
     "use_cli_proxy": true,
     "inbox":  "/var/www/html/vilarkptl.com/ai-monitor/relay/inbox-finbot-tester.md",
     "outbox": "/var/www/html/vilarkptl.com/ai-monitor/relay/outbox-finbot-tester.md",
