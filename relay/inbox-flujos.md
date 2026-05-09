@@ -49,11 +49,11 @@ Los agentes del bot fueron migrados de Claude/DeepSeek V3 a modelos más baratos
 
 | Agente | Antes | Después |
 |--------|-------|----------|
-| TransactionOrchestrator | `claude-sonnet-4-6` | `DEEPSEEK_PRO_MODEL` (deepseek-v4-pro) |
-| VisionAgent | `claude-haiku-4-5` | Gemini Flash → DeepSeek Flash (fallback) |
-| InvoiceAgent | `deepseek-chat` (V3) | `DEEPSEEK_PRO_MODEL` (V4) |
-| ContextReader | `deepseek-chat` (V3) | `DEEPSEEK_PRO_MODEL` (V4) |
-| ResponseGen | `deepseek-chat` (V3) | `DEEPSEEK_PRO_MODEL` (V4) |
+| TransactionOrchestrator | `claude-sonnet-4-6` | `DEEPSEEK_PRO_MODEL` → `deepseek-chat` |
+| VisionAgent | `claude-haiku-4-5` | Gemini Flash → `deepseek-chat` (fallback) |
+| InvoiceAgent | `deepseek-chat` (V3) | `DEEPSEEK_PRO_MODEL` → `deepseek-chat` |
+| ContextReader | `deepseek-chat` (V3) | `DEEPSEEK_PRO_MODEL` → `deepseek-chat` |
+| ResponseGen | `deepseek-chat` (V3) | `DEEPSEEK_PRO_MODEL` → `deepseek-chat` |
 
 **Esta migración aún no está en `main`** — está en `migrate-llms-deepseek-gemini`.
 Para aplicarla al bot en producción:
@@ -66,8 +66,8 @@ pm2 restart financial-bot
 
 ```
 DEEPSEEK_API_KEY=...
-DEEPSEEK_PRO_MODEL=deepseek-v4-pro
-DEEPSEEK_FLASH_MODEL=deepseek-v4-flash
+DEEPSEEK_PRO_MODEL=deepseek-chat     # ⚠️ deepseek-v4-pro NO existe — usar deepseek-chat
+DEEPSEEK_FLASH_MODEL=deepseek-chat   # ⚠️ deepseek-v4-flash NO existe — usar deepseek-chat
 GOOGLE_API_KEY=...
 ```
 
