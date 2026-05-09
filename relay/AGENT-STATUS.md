@@ -8,13 +8,30 @@ _Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02 | Actualizado 20
 
 | Campo | Valor |
 |-------|-------|
-| Última sesión | 2026-05-03 12:15 CST |
+| Última sesión | 2026-05-09 |
 | Estado | ✅ Completo |
-| Rama | main |
-| Archivos | financial/bot/financial-bot.js |
-| Cambio | Agregada función cleanupStaleSessions() — auto-reset sesiones > 8h |
-| Commit | 2a8f0b5 |
-| Usuario requerido | No |
+| Rama trabajo | `claude/agent-monitoring-dashboard-4v8iq` |
+| Rama relay | `main` |
+| Commits principales | `4299fc8` (projects.json flujos+fiscalai-test), `f153a45` (telethon-bridge), `cc5f0aa` (AGENT-TREE.md migración) |
+| Usuario requerido | Sí — ver sección Pendiente |
+
+### Cambios sesión 2026-05-09
+
+| Archivo | Cambio | Branch |
+|---------|--------|--------|
+| `relay/projects.json` | +flujos, +fiscalai-test, deepseek_model en finbot-* | main |
+| `relay/inbox-flujos.md` | Briefing completo para agente flujos | main |
+| `relay/outbox-flujos.md` | Creado vacío | main |
+| `relay/BRIEFING-fiscalai.md` | Briefing para agente fiscalai (copiar a ryby.lease) | main |
+| `relay/chat-agent.js` | DeepSeek bypass LiteLLM + anti-alucinación + repo awareness | main |
+| `financial/telethon-bridge.py` | Bridge tests Telethon → relay (nuevo) | claude/agent-monitoring-dashboard-4v8iq |
+| `financial/run-telethon-tests.sh` | Runner con loop automático | claude/agent-monitoring-dashboard-4v8iq |
+| `financial/bot/AGENT-TREE.md` | Actualizado: DeepSeek V4 Pro + Gemini Flash | migrate-llms-deepseek-gemini |
+| `financial/bot/agents/TransactionOrchestrator.js` | Migrado Anthropic → DeepSeek OpenAI-compat | migrate-llms-deepseek-gemini |
+| `financial/bot/agents/vision-agent.js` | Migrado: Gemini Flash primario + DeepSeek Flash fallback | migrate-llms-deepseek-gemini |
+| `financial/bot/agents/invoice-agent.js` | deepseek-chat → DEEPSEEK_PRO_MODEL | migrate-llms-deepseek-gemini |
+| `financial/bot/agents/context-reader.js` | deepseek-chat → DEEPSEEK_PRO_MODEL | migrate-llms-deepseek-gemini |
+| `financial/bot/agents/response-gen.js` | deepseek-chat → DEEPSEEK_PRO_MODEL | migrate-llms-deepseek-gemini |
 
 ---
 
