@@ -14,15 +14,6 @@
 
 const DECIMALS = 4;
 
-/**
- * Calcula montos a partir de lo que el cliente solicitó.
- *
- * @param {object} params
- * @param {number}  params.monto       - Monto que el cliente indicó
- * @param {'neto'|'bruto'} params.tipo_monto - ¿El cliente pidió monto neto o bruto?
- * @param {number}  params.comision_pct - Comisión decimal (ej: 0.055)
- * @returns {{ monto_bruto: number, monto_neto: number, comision_pct: number, comision_mxn: number }}
- */
 function calcularMontos({ monto, tipo_monto, comision_pct }) {
   if (typeof monto !== 'number' || isNaN(monto) || monto <= 0) {
     throw new Error(`Monto inválido: ${monto}`);
@@ -34,11 +25,9 @@ function calcularMontos({ monto, tipo_monto, comision_pct }) {
   let monto_bruto, monto_neto;
 
   if (tipo_monto === 'neto') {
-    // Cliente quiere recibir/pagar exactamente este monto neto
     monto_neto  = round(monto);
     monto_bruto = round(monto / (1 - comision_pct));
   } else {
-    // Cliente indicó el monto bruto (total a operar)
     monto_bruto = round(monto);
     monto_neto  = round(monto * (1 - comision_pct));
   }
@@ -47,31 +36,18 @@ function calcularMontos({ monto, tipo_monto, comision_pct }) {
   return { monto_bruto, monto_neto, comision_pct, comision_mxn };
 }
 
-/**
- * Proyecta el saldo del cliente luego de la operación.
- *
- * @param {object} params
- * @param {number}  params.saldo_actual
- * @param {number}  params.monto_neto
- * @param {boolean} params.es_entrada   - true si el cliente pagó (entrada de dinero)
- * @param {boolean} params.retorno_ya_pagado - true si ya se entregó el retorno
- * @returns {{ saldo_nuevo: number, descripcion: string }}
- */
 function proyectarSaldo({ saldo_actual, monto_neto, es_entrada, retorno_ya_pagado = false }) {
   let saldo_nuevo;
   let descripcion;
 
   if (es_entrada) {
-    // El cliente nos pagó → su saldo sube
     saldo_nuevo = round(saldo_actual + monto_neto);
     descripcion = `Saldo anterior $${fmt(saldo_actual)} + $${fmt(monto_neto)} = $${fmt(saldo_nuevo)}`;
   } else {
-    // Nosotros le pagamos → primero saldo sube al confirmar, luego baja al pagar retorno
     if (retorno_ya_pagado) {
       saldo_nuevo = round(saldo_actual - monto_neto);
       descripcion = `Saldo anterior $${fmt(saldo_actual)} - $${fmt(monto_neto)} = $${fmt(saldo_nuevo)}`;
     } else {
-      // Pendiente de pago de retorno, saldo no cambia aún
       saldo_nuevo = saldo_actual;
       descripcion = `Retorno pendiente de pago ($${fmt(monto_neto)}). Saldo actual: $${fmt(saldo_actual)}`;
     }
@@ -80,10 +56,6 @@ function proyectarSaldo({ saldo_actual, monto_neto, es_entrada, retorno_ya_pagad
   return { saldo_nuevo, descripcion };
 }
 
-/**
- * Genera el texto de respuesta para el cliente.
- * Ejemplos exactos del spec del usuario.
- */
 function generarRespuestaCalculo({
   tipo_operacion,
   tipo_monto,
@@ -99,7 +71,6 @@ function generarRespuestaCalculo({
 }) {
   const partes = [];
 
-  // Línea de monto bruto
   if (tipo_monto === 'neto') {
     partes.push(
       `Correcto, el monto bruto a operar es de $${fmt(monto)}/(1-${pctStr(comision_pct)})` +
@@ -112,7 +83,6 @@ function generarRespuestaCalculo({
     );
   }
 
-  // Saldo o datos bancarios
   if (es_entrada) {
     if (saldo_actual !== undefined) {
       partes.push(
@@ -121,7 +91,6 @@ function generarRespuestaCalculo({
       );
     }
   } else {
-    // Salida: verificar saldo
     if (tiene_saldo_suficiente && saldo_actual !== undefined) {
       partes.push(
         `Su saldo anterior es $${fmt(saldo_actual)} y su saldo nuevo ` +
@@ -134,8 +103,6 @@ function generarRespuestaCalculo({
 
   return partes.join('\n');
 }
-
-// ── helpers ──────────────────────────────────────────────────────────────────
 
 function round(n) {
   return Math.round(n * 10 ** DECIMALS) / 10 ** DECIMALS;

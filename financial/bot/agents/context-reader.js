@@ -1,7 +1,6 @@
 'use strict';
 /**
  * Context Reader — Analiza el historial de conversación y determina qué acción tomar.
- * Evita respuestas repetitivas: solo propone respuesta si hay información accionable nueva.
  */
 
 const SYSTEM_PROMPT = `Eres el asistente de un sistema financiero multiagente (FinOps).
@@ -27,26 +26,15 @@ Reglas:
 - Si no hay nada que decir, responde con null.`;
 
 class ContextReader {
-  /**
-   * @param {import('openai').OpenAI} llmClient - cliente DeepSeek/OpenAI compatible
-   * @param {{ model: string }} opts
-   */
   constructor(llmClient, opts = {}) {
     this.llm   = llmClient;
-    this.model = opts.model ?? 'deepseek-chat';
+    this.model = opts.model ?? process.env.DEEPSEEK_PRO_MODEL ?? 'deepseek-chat';
   }
 
-  /**
-   * Analiza el contexto de conversación y decide qué responder.
-   * @param {Array<{es_bot:boolean, texto:string, tipo:string, created_at:string}>} mensajes
-   * @param {{ estado:string, saldo:number, nombre:string }} clienteInfo
-   * @param {string} nuevoMensaje - el mensaje/evento más reciente que disparó el análisis
-   * @returns {{ responder: boolean, mensaje: string | null, accion: string | null }}
-   */
   async analizar(mensajes, clienteInfo, nuevoMensaje) {
     try {
       const historial = mensajes
-        .slice(-25) // últimos 25 mensajes máximo
+        .slice(-25)
         .map(m => `[${m.es_bot ? 'BOT' : 'USUARIO'}] ${m.texto ?? `[${m.tipo}]`}`)
         .join('\n');
 

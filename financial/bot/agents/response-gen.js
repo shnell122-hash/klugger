@@ -1,54 +1,26 @@
 'use strict';
 /**
  * Response Generator Agent — Genera mensajes para el cliente.
- * Usa DeepSeek para respuestas en lenguaje natural solo cuando es necesario.
- * El 80% de las respuestas son templates (costo cero).
  */
 
 const { fmt } = require('./calculator');
 
 class ResponseGen {
-  /**
-   * @param {import('openai').OpenAI} llmClient - cliente DeepSeek/OpenAI compatible
-   * @param {object} opts
-   * @param {string} opts.model
-   * @param {Function} [opts.logUsage] - callback para registrar uso de tokens
-   */
   constructor(llmClient, opts = {}) {
     this.llm   = llmClient;
-    this.model = opts.model ?? 'deepseek-chat';
+    this.model = opts.model ?? process.env.DEEPSEEK_PRO_MODEL ?? 'deepseek-chat';
     this.logUsage = opts.logUsage ?? null;
   }
 
-  // ── Templates (sin LLM) ───────────────────────────────────────────────────
-
-  /**
-   * Resumen de la operación calculada para mostrar antes del poll.
-   */
   formatOperationSummary({
-    tipo_operacion,
-    tipo_monto,
-    monto_solicitado,
-    monto_bruto,
-    monto_neto,
-    comision_pct,
-    es_entrada,
-    saldo_actual,
-    saldo_nuevo,
-    tiene_saldo,
-    instrucciones_pago,
-    tipo_entrega,
-    direccion_entrega,
-    cuentas_bancarias,
-    tabla_pagos,
-    tabla_total,
-    monto_neto_original,
+    tipo_operacion, tipo_monto, monto_solicitado, monto_bruto, monto_neto, comision_pct,
+    es_entrada, saldo_actual, saldo_nuevo, tiene_saldo, instrucciones_pago, tipo_entrega,
+    direccion_entrega, cuentas_bancarias, tabla_pagos, tabla_total, monto_neto_original,
   }) {
     const partes = [];
     const esPagoTabla = tabla_total > 0 && tabla_pagos?.length > 0;
 
     if (esPagoTabla) {
-      // Modo pago parcial por tabla
       const restante = monto_neto_original && monto_neto_original > tabla_total
         ? Math.round((monto_neto_original - tabla_total) * 100) / 100
         : null;
@@ -61,20 +33,13 @@ class ResponseGen {
         partes.push(`Saldo restante de operación tras esta entrega: <b>$${fmt(restante)}</b>.`);
       }
       if (saldo_actual !== undefined) {
-        partes.push(
-          `Saldo cliente: <b>$${fmt(saldo_actual)}</b> → <b>$${fmt(saldo_nuevo)}</b>.`
-        );
+        partes.push(`Saldo cliente: <b>$${fmt(saldo_actual)}</b> → <b>$${fmt(saldo_nuevo)}</b>.`);
       }
     } else {
-      // Modo operación normal
       if (tipo_monto === 'neto') {
-        partes.push(
-          `Correcto, el monto bruto a operar es de <b>$${fmt(monto_bruto)}</b>.`
-        );
+        partes.push(`Correcto, el monto bruto a operar es de <b>$${fmt(monto_bruto)}</b>.`);
       } else {
-        partes.push(
-          `Correcto, el monto neto es de <b>$${fmt(monto_neto)}</b>.`
-        );
+        partes.push(`Correcto, el monto neto es de <b>$${fmt(monto_neto)}</b>.`);
       }
 
       if (es_entrada) {
@@ -82,9 +47,7 @@ class ResponseGen {
           partes.push(`\n📥 <b>Datos para tu depósito:</b>\n<code>${instrucciones_pago}</code>`);
         }
         if (saldo_actual !== undefined) {
-          partes.push(
-            `Tu saldo actual es <b>$${fmt(saldo_actual)}</b>. Al acreditarse quedará en <b>$${fmt(saldo_nuevo)}</b>.`
-          );
+          partes.push(`Tu saldo actual es <b>$${fmt(saldo_actual)}</b>. Al acreditarse quedará en <b>$${fmt(saldo_nuevo)}</b>.`);
         }
       } else {
         if (tiene_saldo && saldo_actual !== undefined) {
@@ -111,7 +74,6 @@ class ResponseGen {
       partes.push(`\n📤 <b>Pago a:</b>\n${lineas.join('\n\n')}`);
     }
 
-    // Tabla resumen
     if (esPagoTabla) {
       partes.push(
         `\n<b>━━━━ Resumen ━━━━</b>\n` +
@@ -132,9 +94,6 @@ class ResponseGen {
     return partes.join('\n');
   }
 
-  /**
-   * Mensaje de operación confirmada.
-   */
   formatConfirmed({ tipo_operacion, monto_neto, monto_bruto, saldo_nuevo, tabla_total, monto_neto_original, es_entrada, instrucciones_pago }) {
     const esPagoTabla = tabla_total > 0;
     const restante = (esPagoTabla && monto_neto_original && monto_neto_original > tabla_total)
@@ -158,23 +117,9 @@ class ResponseGen {
     return msg;
   }
 
-  /**
-   * Mensaje de operación cancelada.
-   */
-  formatCancelled() {
-    return '❌ Operación cancelada.';
-  }
+  formatCancelled() { return '❌ Operación cancelada.'; }
+  formatEditStart(field, label) { return `✏️ Editando <b>${label}</b>. Envía el nuevo valor:`; }
 
-  /**
-   * Mensaje cuando se inicia edición.
-   */
-  formatEditStart(field, label) {
-    return `✏️ Editando <b>${label}</b>. Envía el nuevo valor:`;
-  }
-
-  /**
-   * Mensaje cuando el cliente no tiene saldo suficiente y debe pagar.
-   */
   formatInsuficiente({ saldo_actual, monto_bruto, faltante, instrucciones_pago }) {
     const partes = [
       `⚠️ Su saldo actual es <b>$${fmt(saldo_actual)}</b>, ` +
@@ -187,17 +132,11 @@ class ResponseGen {
     return partes.join('\n');
   }
 
-  /**
-   * Respuesta cuando el bot pide el tipo de operación.
-   */
   formatAskTipo(tipos) {
     const lista = tipos.map(t => `• ${t.codigo} — ${t.nombre}`).join('\n');
     return `¿Qué tipo de operación deseas realizar?\n\n${lista}\n\nResponde con el código o usa:\n/operacion [tipo] [neto|bruto] [monto]`;
   }
 
-  /**
-   * Respuesta cuando el bot pide el monto.
-   */
   formatAskMonto(tipo_operacion) {
     return (
       `Operación <b>${tipo_operacion}</b>.\n` +
@@ -206,25 +145,11 @@ class ResponseGen {
     );
   }
 
-  /**
-   * Respuesta cuando el bot pide dirección de entrega (efectivo).
-   */
-  formatAskDireccion() {
-    return '📍 ¿Cuál es la dirección de entrega?';
-  }
+  formatAskDireccion() { return '📍 ¿Cuál es la dirección de entrega?'; }
 
-  // ── Respuestas LLM (solo para casos ambiguos) ─────────────────────────────
-
-  /**
-   * Genera una respuesta en lenguaje natural cuando el parser no pudo extraer
-   * la operación con suficiente confianza.
-   * Prompt ultra-corto para minimizar costo.
-   */
   async generateNaturalResponse(userMessage, context = {}) {
     const systemPrompt =
-      `Eres un asistente financiero profesional. Responde en español, breve y directo.
-Contexto del cliente: saldo=${fmt(context.saldo ?? 0)}, cliente=${context.nombre ?? 'desconocido'}
-Si falta información para procesar la operación, pide SOLO lo que falta (tipo, monto o entrega).`;
+      `Eres un asistente financiero profesional. Responde en español, breve y directo.\nContexto del cliente: saldo=${fmt(context.saldo ?? 0)}, cliente=${context.nombre ?? 'desconocido'}\nSi falta información para procesar la operación, pide SOLO lo que falta (tipo, monto o entrega).`;
 
     const start = Date.now();
     const response = await this.llm.chat.completions.create({
@@ -251,17 +176,9 @@ Si falta información para procesar la operación, pide SOLO lo que falta (tipo,
     return response.choices[0]?.message?.content ?? 'No pude procesar tu solicitud.';
   }
 
-  /**
-   * Usa LLM para parsear una operación de texto libre compleja.
-   * Solo cuando el parser rule-based falla.
-   */
   async parseFreeText(userMessage, context = {}) {
     const prompt =
-      `Extrae datos de la operación financiera. Solo JSON, sin explicaciones.
-Tipos: IAS(5.5%), TARJETAS(5.5%), SPEI(3%), EFECTIVO(3%), SINDICATO(5.5%)
-Saldo cliente: $${fmt(context.saldo ?? 0)}
-Mensaje: "${userMessage}"
-JSON: {"tipo":"","tipo_monto":"neto|bruto","monto":0,"es_entrada":true,"tipo_entrega":"","confianza":"alta|media|baja"}`;
+      `Extrae datos de la operación financiera. Solo JSON, sin explicaciones.\nTipos: IAS(5.5%), TARJETAS(5.5%), SPEI(3%), EFECTIVO(3%), SINDICATO(5.5%)\nSaldo cliente: $${fmt(context.saldo ?? 0)}\nMensaje: "${userMessage}"\nJSON: {"tipo":"","tipo_monto":"neto|bruto","monto":0,"es_entrada":true,"tipo_entrega":"","confianza":"alta|media|baja"}`;
 
     const start = Date.now();
     const response = await this.llm.chat.completions.create({
