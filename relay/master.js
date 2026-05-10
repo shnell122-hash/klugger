@@ -1993,7 +1993,34 @@ $${planCostSoFar.toFixed(4)} gastado de $${budgetMax.toFixed(2)}`);
     log(project.id, `adaptive timeout: ${Math.round(adaptiveTimeout / 60000)}min (${journal.consecutive_failures} fallos previos)`);
   }
 
-  runClaude(project, taskContent, (exitCode, resultRaw, costUsd = 0) => {
+  // Pre-diagnóstico V4-Pro para fix tasks de código (claude-code-suborq).
+  // Mejora la calidad del primer intento de fix al apuntar causa raíz antes de
+  // que Claude CLI empiece — reduce iteraciones fallidas.
+  let enrichedTaskContent = taskContent;
+  if (project.id === 'claude-code-suborq') {
+    try {
+      const diagPrompt =
+        'Eres un ingeniero senior de sistemas multi-agente financieros Node.js. ' +
+        'Analiza este fix task y produce en ≤6 líneas:\n' +
+        '1. Causa raíz más probable (1 línea)\n' +
+        '2. Archivo(s) y función(es) más probable donde está el bug\n' +
+        '3. Tipo de cambio mínimo (lógica/modelo/estado/regex/import)\n' +
+        '4. Riesgo de regresión (bajo/medio/alto) y por qué\n' +
+        'No repitas el task. Solo el diagnóstico.';
+      const diagnosis = await callDeepSeekDirect(diagPrompt, taskContent, 350, true); // V4-Pro
+      if (diagnosis && diagnosis.trim()) {
+        enrichedTaskContent =
+          taskContent +
+          '\n\n---\n## Pre-diagnóstico automático (DeepSeek V4-Pro)\n' +
+          diagnosis.trim() + '\n';
+        log(project.id, `[v4-pro] pre-diagnóstico generado (${diagnosis.length} chars)`);
+      }
+    } catch (diagErr) {
+      log(project.id, `[v4-pro] pre-diagnóstico falló (no crítico): ${diagErr.message?.slice(0, 80)}`);
+    }
+  }
+
+  runClaude(project, enrichedTaskContent, (exitCode, resultRaw, costUsd = 0) => {
     releaseLock(project.id);
     const duration  = Math.round((Date.now() - startTime) / 1000);
     const timestamp = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });

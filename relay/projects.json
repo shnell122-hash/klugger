@@ -75,6 +75,7 @@
     "id": "claude-code-suborq",
     "name": "Claude Code — Suborquestador Financiero",
     "claude_model": "claude-sonnet-4-6",
+    "deepseek_model": "pro",
     "inbox":  "/var/www/html/vilarkptl.com/ai-monitor/relay/claude-code-inbox.md",
     "outbox": "/var/www/html/vilarkptl.com/ai-monitor/relay/claude-code-outbox.md",
     "repo":   "/var/www/html/vilarkptl.com/ai-monitor",
