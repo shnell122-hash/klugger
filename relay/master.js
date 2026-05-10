@@ -828,10 +828,10 @@ async function responderBuzonFiscalai(buzonContent) {
     const respuesta = await callAnthropicDirect(systemPrompt, buzonContent, 4096);
     const richContent =
       `# Buzón IA — ia.vilarkptl.com → FiscalAI\n\n` +
-      `**[${timestamp} CST] — Anthropic API (claude-sonnet-4-6)**\n\n---\n\n${respuesta}\n`;
+      `**[${timestamp} CST] — DeepSeek Flash**\n\n---\n\n${respuesta}\n`;
     fs.writeFileSync(BUZON_SRC, richContent);
-    log(null, `buzon-ia: respuesta Anthropic API escrita (${respuesta.length} chars)`);
-    tg(`📨 <b>FiscalAI respondido via Anthropic API</b>\n<code>${respuesta.slice(0, 400)}</code>`);
+    log(null, `buzon-ia: respuesta DeepSeek Flash escrita (${respuesta.length} chars)`);
+    tg(`📨 <b>FiscalAI respondido via DeepSeek Flash</b>\n<code>${respuesta.slice(0, 400)}</code>`);
     journalEntryFile(BUZON_REPO, 'API → buzon-ia', `Respuesta rica a FiscalAI (${respuesta.length} chars)`);
   } catch (err) {
     log(null, `buzon-ia: API opcional falló — ${err.message?.slice(0, 150)} (ACK+dispatch ya enviados)`);

@@ -69,7 +69,7 @@
     "branch": "claude/financial-multiagent-system-YwtYQ",
     "github": "vilarkptl-lang/agentic-repo",
     "url":    "http://ia.vilarkptl.com",
-    "active": true
+    "active": false
   },
   {
     "id": "claude-code-suborq",

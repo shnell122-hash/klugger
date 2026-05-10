@@ -312,36 +312,46 @@ def dispatch_fix_if_needed(episode_id: int, results: list[dict], stats: dict):
 
     episode_num = db_one(f"SELECT episode_num FROM learning_episodes WHERE id={episode_id}")
 
-    # ── Nivel 1: finbot-verifier (revisión rápida) ────────────────────────────
-    task_lines = [
-        f"## Fix automático — Episodio #{episode_num}",
-        f"Score actual: {stats['score']:.1f}% — bajo el umbral del 80%",
-        "",
-        "### Patrones de falla recurrentes:",
-    ]
-    for p in critical:
-        key, test_id, desc, count = p[0], p[1], p[2], p[3]
-        prev_fix = recall_fix(test_id, desc)
-        task_lines.append(f"- **{key}** (×{count} episodios): {desc[:150]}")
-        if prev_fix:
-            task_lines.append(f"  Fix previo efectivo: `{prev_fix[:100]}`")
-
-    task_lines += [
-        "",
-        "### Acción requerida:",
-        "1. Revisar `pm2 logs financial-bot --nostream --lines 30` para el error exacto",
-        "2. Corregir el código del bot en `financial/bot/financial-bot.js`",
-        "3. Hacer commit + push a la rama activa",
-        "4. El servidor hará `pm2 restart financial-bot` automáticamente",
-        "5. Reportar resultado en outbox",
-    ]
-
-    inbox_path = Path("/var/www/html/vilarkptl.com/ai-monitor/relay/inbox-finbot-verifier.md")
-    try:
-        inbox_path.write_text("\n".join(task_lines) + "\n")
-        print(f"[learning] Fix task → finbot-verifier (ep#{episode_num})")
-    except Exception as e:
-        print(f"[learning] No se pudo escribir inbox verifier: {e}")
+    # ── Nivel 1: claude-code-suborq (revisión rápida, cooldown 15 min) ──────────
+    # Antes escribía a inbox-finbot-verifier (Anthropic Haiku). Ahora usa DeepSeek.
+    import time as _time
+    REPO_ROOT_L1 = Path(__file__).resolve().parents[4]
+    cooldown_l1  = REPO_ROOT_L1 / "relay" / ".verifier-dispatch-ts"
+    _now = _time.time()
+    _skip_l1 = False
+    if cooldown_l1.exists():
+        try:
+            if _now - float(cooldown_l1.read_text().strip() or "0") < 15 * 60:
+                _skip_l1 = True
+        except Exception:
+            pass
+    if not _skip_l1:
+        task_lines = [
+            f"## Revisión rápida — Episodio #{episode_num}",
+            f"Score actual: {stats['score']:.1f}% — bajo el umbral del 80%",
+            "",
+            "### Patrones de falla recurrentes:",
+        ]
+        for p in critical:
+            key, test_id, desc, count = p[0], p[1], p[2], p[3]
+            prev_fix = recall_fix(test_id, desc)
+            task_lines.append(f"- **{key}** (×{count} episodios): {desc[:150]}")
+            if prev_fix:
+                task_lines.append(f"  Fix previo efectivo: `{prev_fix[:100]}`")
+        task_lines += [
+            "",
+            "### Acción requerida:",
+            "1. Revisar `pm2 logs financial-bot --nostream --lines 30` para el error exacto",
+            "2. Corregir el código del bot en `financial/bot/financial-bot.js`",
+            "3. Hacer commit + push a la rama activa",
+        ]
+        inbox_l1 = REPO_ROOT_L1 / "relay" / "claude-code-inbox.md"
+        try:
+            inbox_l1.write_text("\n".join(task_lines) + "\n")
+            cooldown_l1.write_text(str(_now))
+            print(f"[learning] Fix task → claude-code-suborq/DeepSeek (ep#{episode_num})")
+        except Exception as e:
+            print(f"[learning] No se pudo escribir inbox suborq: {e}")
 
     # ── Nivel 2: claude-code (fix de código, solo patrones severos) ───────────
     severe = [p for p in critical if p[3] >= 5]
