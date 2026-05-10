@@ -787,7 +787,7 @@ bot.on('message:text', async (ctx, next) => {
   const _modoChat = await getChatModo(chatId);
   if (_modoChat === 'asistente') {
     // 1. Consulta de saldo — responder aunque sea modo asistente
-    if (/\b(saldo|cu[aá]nto (tengo|hay|queda)|mi saldo|saldo actual)\b/i.test(text)) {
+    if (/\b(saldo|cu[aá]nto (tengo|hay|queda|estamos|me|nos)|mi saldo|saldo actual|disponible)\b/i.test(text)) {
       const clientS = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
       await safeReply(ctx, `💰 Saldo actual: <b>$${fmt(clientS.saldo)}</b>`, { parse_mode: 'HTML' }).catch(() => {});
       return;
