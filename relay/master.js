@@ -713,12 +713,15 @@ function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512) {
 
 // Calls DeepSeek V3 via OpenAI-compatible API — used for /tarea planning and summaries.
 // Falls back gracefully (returns null) if no API key is configured.
-function callDeepSeekDirect(systemPrompt, userMessage, maxTokens = 512) {
-  const timeoutMs = 20000;
+function callDeepSeekDirect(systemPrompt, userMessage, maxTokens = 512, useComplex = false) {
+  const timeoutMs = useComplex ? 60000 : 20000;
   const apiCall = new Promise((resolve, reject) => {
     if (!DEEPSEEK_KEY) { reject(new Error('DEEPSEEK_API_KEY no configurado')); return; }
+    const model = useComplex
+      ? (process.env.DEEPSEEK_PRO_MODEL   ?? 'deepseek-reasoner')
+      : (process.env.DEEPSEEK_CHAT_MODEL  ?? 'deepseek-v4-flash');
     const body = JSON.stringify({
-      model:      process.env.DEEPSEEK_CHAT_MODEL ?? 'deepseek-v4-flash',
+      model,
       max_tokens: maxTokens,
       messages: [
         { role: 'system', content: systemPrompt },
@@ -1537,6 +1540,130 @@ Timeout en ${remainMin} min`);
   attachHandlers(child);
 }
 
+// ─── DeepSeek V4-Pro code-fix runner (replaces Claude CLI for claude-code-suborq) ───────
+// Calls V4-Pro API directly, applies the generated patch, commits and pushes.
+// No Claude CLI dependency — zero Anthropic cost for auto-fix tasks.
+async function runDeepSeekCodeFix(project, taskContent, callback) {
+  const startTime = Date.now();
+  const repoBase  = project.repo;
+
+  if (!repoBase) {
+    callback(1, '## Resultados\n❌ Fix fallido — project.repo no configurado', 0);
+    return;
+  }
+
+  // Extract file paths mentioned in taskContent
+  const pathRegex = /(?:financial\/bot|relay|backend|dashboard-financial)\/[^\s`'"\n)]+\.[jt]s(?:x)?|[^\s`'"\n)]+\.py(?=[^a-zA-Z]|$)/g;
+  const mentioned = [...new Set((taskContent.match(pathRegex) || []))].slice(0, 4);
+
+  const fileContexts = [];
+  for (const relPath of mentioned) {
+    const fullPath = relPath.startsWith('/') ? relPath : path.join(repoBase, relPath);
+    try {
+      const content = fs.readFileSync(fullPath, 'utf8');
+      const snippet = content.split('\n').slice(0, 150).join('\n');
+      fileContexts.push(`### ${relPath}\n\`\`\`\n${snippet}\n\`\`\``);
+    } catch (_) {}
+  }
+
+  const systemPrompt =
+    'Eres un ingeniero senior de Node.js/Python para sistemas financieros multi-agente.\n' +
+    'Genera un fix de código MÍNIMO. Responde SOLO con JSON válido (sin markdown):\n' +
+    '{\n' +
+    '  "commit_message": "fix(component): descripción",\n' +
+    '  "files": [\n' +
+    '    { "path": "ruta/relativa/repo", "search": "texto exacto único", "replace": "texto nuevo" }\n' +
+    '  ]\n' +
+    '}\n\n' +
+    'REGLAS: search debe ser texto EXACTO del archivo (con indentación). Solo JSON, sin explicaciones.';
+
+  const userMsg = `## Tarea\n${taskContent}` +
+    (fileContexts.length ? `\n\n## Archivos relevantes\n${fileContexts.join('\n\n')}` : '');
+
+  log(project.id, `[deepseek-pro] generando fix (${fileContexts.length} archivos)…`);
+
+  const raw = await callDeepSeekDirect(systemPrompt, userMsg, 2048, true);
+
+  if (!raw) {
+    callback(1, '## Resultados\n❌ Fix fallido — respuesta vacía de DeepSeek V4-Pro', 0);
+    return;
+  }
+
+  let fix;
+  try {
+    const cleaned = raw.replace(/^```(?:json)?\s*\n?/m, '').replace(/\n?```\s*$/m, '').trim();
+    fix = JSON.parse(cleaned);
+  } catch (parseErr) {
+    log(project.id, `[deepseek-pro] JSON parse error: ${parseErr.message}`);
+    callback(1,
+      `## Resultados\n❌ Fix fallido — JSON inválido: ${parseErr.message}\nRaw: ${raw.slice(0, 200)}`,
+      0);
+    return;
+  }
+
+  if (!fix?.files?.length) {
+    callback(1, '## Resultados\n❌ Fix fallido — sin archivos en respuesta V4-Pro', 0);
+    return;
+  }
+
+  const changed = [];
+  const errors  = [];
+  for (const change of fix.files) {
+    const fullPath = path.join(repoBase, change.path);
+    try {
+      let content = fs.readFileSync(fullPath, 'utf8');
+      if (!content.includes(change.search)) {
+        errors.push(`search text not found: ${change.path}`);
+        log(project.id, `[deepseek-pro] ⚠ search not found in ${change.path}`);
+        continue;
+      }
+      content = content.replace(change.search, change.replace);
+      fs.writeFileSync(fullPath, content, 'utf8');
+      changed.push(change.path);
+      log(project.id, `[deepseek-pro] ✓ patched ${change.path}`);
+    } catch (e) {
+      errors.push(`${change.path}: ${e.message}`);
+    }
+  }
+
+  if (!changed.length) {
+    callback(1, `## Resultados\n❌ Fix no aplicado — ${errors.join('; ') || 'sin cambios'}`, 0);
+    return;
+  }
+
+  const commitMsg = (fix.commit_message || 'fix: auto-fix DeepSeek V4-Pro').replace(/"/g, '\\"');
+  const branch = project.branch || 'main';
+  try {
+    const addArgs = changed.map(f => `"${f}"`).join(' ');
+    execSync(`cd "${repoBase}" && git add ${addArgs}`, { stdio: 'pipe', timeout: 15000 });
+    execSync(`cd "${repoBase}" && git commit -m "${commitMsg}"`, { stdio: 'pipe', timeout: 15000 });
+    execSync(`cd "${repoBase}" && git push origin ${branch}`, { stdio: 'pipe', timeout: 60000 });
+  } catch (gitErr) {
+    callback(1,
+      `## Resultados\n✅ Archivos modificados: ${changed.join(', ')}\n❌ Git error: ${gitErr.message?.slice(0, 200)}\n\n## Acceso\n- relay: ⚠️ git push fallido\n- api_keys: ✅ DEEPSEEK_API_KEY`,
+      0);
+    return;
+  }
+
+  const duration = Math.round((Date.now() - startTime) / 1000);
+  const resultText = [
+    '## Resultados',
+    `✅ [Fix aplicado] — ${changed.join(', ')}`,
+    `✅ [Commit] — ${commitMsg}`,
+    `✅ [Push] — rama ${branch}`,
+    ...(errors.length ? [`⚠️ [Parcial] — ${errors.join('; ')}`] : []),
+    '',
+    '## Issues',
+    '- Ninguno',
+    '',
+    '## Acceso',
+    `- relay: ✅ (deepseek-pro ${duration}s)`,
+    '- api_keys: ✅ (DEEPSEEK_API_KEY)',
+  ].join('\n');
+
+  callback(0, resultText, 0);
+}
+
 // ─── Pre-push commit safety validation ───────────────────
 const DANGEROUS_PATTERNS = [/^node_modules\//, /\.env$/, /\.env\./, /^nohup\.out$/, /^FETCH_HEAD$/];
 
@@ -2020,7 +2147,12 @@ $${planCostSoFar.toFixed(4)} gastado de $${budgetMax.toFixed(2)}`);
     }
   }
 
-  runClaude(project, enrichedTaskContent, (exitCode, resultRaw, costUsd = 0) => {
+  const _runTask = (cb) => project.id === 'claude-code-suborq'
+    ? runDeepSeekCodeFix(project, enrichedTaskContent, cb)
+        .catch(e => cb(1, `## Resultados\n❌ ${e.message}`, 0))
+    : runClaude(project, enrichedTaskContent, cb, dispatchMeta, adaptiveTimeout);
+
+  _runTask((exitCode, resultRaw, costUsd = 0) => {
     releaseLock(project.id);
     const duration  = Math.round((Date.now() - startTime) / 1000);
     const timestamp = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
@@ -2259,7 +2391,7 @@ La tarea se interrumpió por timeout (${Math.round(CLAUDE_TIMEOUT_MS / 60000)} m
     }
 
     log(project.id, `Completado (exit:${exitCode}, ${duration}s)`);
-  }, activeDM, adaptiveTimeout);
+  });
 }
 
 // ─── Connectivity diagnostic for buzon handler ───────────

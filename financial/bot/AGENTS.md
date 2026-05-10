@@ -1,8 +1,8 @@
 # AGENTS.md — FinBot Multi-Agent System
 
-**Última actualización:** 2026-05-05  
+**Última actualización:** 2026-05-10  
 **Rama:** `claude/financial-multiagent-system-YwtYQ`  
-**Estado:** LangGraph migración en progreso (Partes 1-5 completas) + optimización agresiva de costos
+**Estado:** LangGraph migración en progreso (Partes 1-5 completas) + zero-Sonnet auto-fix loop
 
 ## 1. Visión General
 
@@ -19,14 +19,15 @@ FinBot es un **sistema multi-agente híbrido** (regla-based + LLM) para operacio
 | Agente / Componente              | Modelo                          | Uso principal                          | Justificación |
 |----------------------------------|---------------------------------|----------------------------------------|-------------|
 | TransactionOrchestrator          | **DeepSeek V4-Pro**             | Routing crítico y decisiones           | Razonamiento complejo con tools |
-| Relay / Verifier / Coordinator   | **DeepSeek V4-Flash**           | Buzón, fixes automáticos, testing     | Muy barato y rápido |
+| **claude-code-suborq (auto-fix)**| **DeepSeek V4-Pro**             | Genera y commitea fixes de código      | V4-Pro directo — sin Claude CLI, zero Anthropic |
+| Relay / Verifier / Coordinator   | **DeepSeek V4-Flash**           | Buzón, pre-diagnóstico, testing        | Muy barato y rápido |
 | DocumentIntelligenceAgent / Vision | **Gemini 1.5 Flash**          | OCR de cuadros, PNG, PDF, facturas    | Mejor relación calidad/precio multimodal |
 | ContextReader / ResponseGen      | DeepSeek V4-Flash               | Análisis de contexto y respuestas      | Bajo costo |
 | InvoiceAgent                     | DeepSeek V4-Flash               | Procesamiento de CFDI y facturas       | Suficiente para texto estructurado |
 
 **Fallbacks seguros** configurados en `.env`:
 - `DEEPSEEK_CHAT_MODEL=deepseek-v4-flash`
-- `DEEPSEEK_PRO_MODEL=deepseek-v4-pro`
+- `DEEPSEEK_PRO_MODEL=deepseek-reasoner`
 
 ## 3. Agentes y Responsabilidades
 
@@ -75,6 +76,13 @@ FinBot es un **sistema multi-agente híbrido** (regla-based + LLM) para operacio
 - **Máquina de Estados** extendida (`fin_sessions.estado`):
   - `idle` → `esperando_tipo` → `esperando_monto` → `esperando_datos_bancarios` → `confirmando_cuentas` → `completado`
   - Estados adicionales: `esperando_cuadro_retornos`, `esperando_ingreso`, `cuadre_saldos`, etc.
+
+- **Loop de Auto-Fix (100% DeepSeek, zero Anthropic):**
+  1. `conversation_engine.py` detecta score bajo → `dispatch_fix_if_needed()` → escribe `relay/claude-code-inbox.md`
+  2. `relay/master.js:processProject('claude-code-suborq')` lee inbox
+  3. **Pre-diagnóstico** con DeepSeek V4-Pro (350 tokens, identifica archivo + causa raíz)
+  4. **`runDeepSeekCodeFix()`**: llama V4-Pro API → JSON `{files:[{path,search,replace}]}` → aplica patch → git commit + push
+  5. Todo sin Claude CLI — costo ~$0.003/fix vs ~$0.15 con Sonnet
 
 ## 5. Dos Modos de Operación
 

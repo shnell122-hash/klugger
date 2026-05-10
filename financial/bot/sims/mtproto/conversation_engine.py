@@ -47,6 +47,10 @@ ROUNDS_PER_REPORT       = 5    # cuántos rounds antes de publicar resumen en Te
 # ID de Flujos AI (financial-bot) — se auto-descubre al iniciar
 BOT_USER_ID: Optional[int] = None
 
+# Fallos consecutivos de send_message por cuenta — auto-excluye tras SEND_FAIL_THRESHOLD
+_send_failures: dict = {}
+SEND_FAIL_THRESHOLD = 5
+
 # ─── CLABEs y montos de prueba ────────────────────────────────────────────────
 
 # CLABEs internas (empresa) — usadas como cuentas de pago en operaciones
@@ -979,17 +983,21 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
                             try:
                                 await client.send_message(target, messages[0])
                             except Exception as retry_err:
-                                return {"test_id": test_id, "passed": False,
+                                _send_failures[account] = _send_failures.get(account, 0) + 1
+                                return {"test_id": test_id, "passed": False, "account": account,
                                         "detail": f"retry failed: {retry_err}", "bot_response": None}
                         else:
-                            return {"test_id": test_id, "passed": False,
+                            _send_failures[account] = _send_failures.get(account, 0) + 1
+                            return {"test_id": test_id, "passed": False, "account": account,
                                     "detail": "force reconnect failed", "bot_response": None}
                     else:
                         print(f"  WARNING: send_message failed ({account}): {send_err!r}")
                         if isinstance(target, int):
                             print(f"  WARNING: {account.upper()} not in group — add manually in Telegram")
-                        return {"test_id": test_id, "passed": False,
+                        _send_failures[account] = _send_failures.get(account, 0) + 1
+                        return {"test_id": test_id, "passed": False, "account": account,
                                 "detail": f"send_message failed: {send_err}", "bot_response": None}
+                _send_failures[account] = 0  # reset: send OK
                 # Primer mensaje: wait() estándar — avanzar cursor antes del siguiente send
                 bot_response = await col.wait(BOT_RESPONSE_TIMEOUT)
                 for i, msg in enumerate(messages[1:], 1):
@@ -1269,6 +1277,18 @@ async def run_engine(rounds: int = 0, force_tier: int = 0, dry_run: bool = False
             round_results.append(result)
             all_results.append(result)
             await asyncio.sleep(DELAY_BETWEEN_SCENARIOS)
+
+        # Auto-excluir cuentas con demasiados fallos consecutivos de envío
+        for acct in list(active_accounts):
+            if _send_failures.get(acct, 0) >= SEND_FAIL_THRESHOLD:
+                print(f"\n[engine] ⚠️  Auto-excluyendo {acct.upper()}: "
+                      f"{_send_failures[acct]} fallos consecutivos de send_message")
+                active_accounts.discard(acct)
+                _send_failures[acct] = 0  # reset para siguiente re-inclusión manual
+
+        if not active_accounts:
+            print("[engine] Sin cuentas activas — deteniendo engine")
+            break
 
         if episode_id and round_results:
             try:
