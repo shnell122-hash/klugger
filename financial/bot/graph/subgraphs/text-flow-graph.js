@@ -19,14 +19,14 @@ const bankingQueryNode   = require('../nodes/text-flow/banking-query-node');
 const confirmationNode   = require('../nodes/text-flow/confirmation-node');
 const applyOperationNode = require('../nodes/text-flow/apply-operation-node');
 
-// Router post-ParseNode: si falta tipo/monto → ask_fields; si hay datos → commission
+// Router post-ParseNode: si falta tipo/monto → ask_fields; si hay datos → get_commission
 function routeAfterParse(state) {
   if (state.error) return '__end__';
   const na = state.nextAction;
   if (na === 'ask_tipo' || na === 'ask_monto') {
     return 'ask_fields';
   }
-  return 'commission';
+  return 'get_commission';
 }
 
 // Router post-CommissionNode → calculator (Parte 3)
@@ -73,7 +73,7 @@ function routeAfterConfirmation(state) {
 
 const textFlowGraph = new StateGraph(FinBotStateAnnotation)
   .addNode('parse',           parseNode)
-  .addNode('commission',      commissionNode)
+  .addNode('get_commission',  commissionNode)
   .addNode('calculator',      calculatorNode)
   .addNode('verifier',        verifierNode)
   .addNode('ask_fields',      askFieldsNode)
@@ -82,11 +82,11 @@ const textFlowGraph = new StateGraph(FinBotStateAnnotation)
   .addNode('apply_operation', applyOperationNode)
   .addEdge('__start__', 'parse')
   .addConditionalEdges('parse', routeAfterParse, {
-    commission:  'commission',
-    ask_fields:  'ask_fields',
-    __end__:     '__end__',
+    get_commission: 'get_commission',
+    ask_fields:     'ask_fields',
+    __end__:        '__end__',
   })
-  .addConditionalEdges('commission', routeAfterCommission, {
+  .addConditionalEdges('get_commission', routeAfterCommission, {
     calculator: 'calculator',
     __end__:    '__end__',
   })

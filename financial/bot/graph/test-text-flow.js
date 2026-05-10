@@ -29,7 +29,7 @@ let passed = 0;
 let failed = 0;
 
 function assert(label, actual, expected, key) {
-  const val = key ? actual?.[key] : actual;
+  const val = key ? key.split('.').reduce((obj, k) => obj?.[k], actual) : actual;
   if (val === expected) {
     console.log(`  ✅ ${label} — ${key ?? ''}=${JSON.stringify(val)}`);
     passed++;
