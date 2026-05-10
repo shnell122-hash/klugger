@@ -35,7 +35,8 @@ const ContextManager  = require('./agents/context-manager');
 const DocumentIntelligenceAgent = require('./agents/DocumentIntelligenceAgent');
 const TransactionOrchestrator   = require('./agents/TransactionOrchestrator');
 
-// ── Config ──────────────────────────────────────────────────────────────────────────────
+// ── Config ────────────────────────────────────────────────────────────────────
+
 const BOT_TOKEN     = process.env.FIN_TELEGRAM_BOT_TOKEN;
 const ALLOWED_CHATS = (process.env.FIN_ALLOWED_CHAT_IDS ?? '').split(',').map(s => BigInt(s.trim())).filter(Boolean);
 // Set mutable: se carga desde .env + DB al arrancar
@@ -55,7 +56,8 @@ const LLM_KEYS_STATUS = {
 };
 console.log('[startup] LLM keys status:', LLM_KEYS_STATUS);
 
-// ── Init servicios ───────────────────────────────────────────────────────────────────────
+// ── Init servicios ────────────────────────────────────────────────────────────
+
 const pool = mysql.createPool({
   host:     process.env.DB_HOST     ?? '127.0.0.1',
   port:     process.env.DB_PORT     ?? 3306,
@@ -93,17 +95,17 @@ const responseGen      = new ResponseGen(llm,   { model: DEEPSEEK_MODEL, logUsag
 const invoiceAgent     = new InvoiceAgent(llm,   { model: DEEPSEEK_MODEL, logUsage: logUsageFn });
 const contextManager   = new ContextManager(pool);
 const contextReader    = new ContextReader(llm,   { model: DEEPSEEK_MODEL });
-const visionAgent      = process.env.ANTHROPIC_API_KEY
-  ? new VisionAgent(process.env.ANTHROPIC_API_KEY)
-  : null;
+const visionAgent = new VisionAgent(llm, { googleApiKey: process.env.GOOGLE_API_KEY });
 const docAgent = process.env.GOOGLE_API_KEY
   ? new DocumentIntelligenceAgent(process.env.GOOGLE_API_KEY)
   : null;
-const transactionOrchestrator = DEEPSEEK_KEY
-  ? new TransactionOrchestrator(llm, { model: process.env.DEEPSEEK_PRO_MODEL ?? 'deepseek-v4-pro' })
+const transactionOrchestrator = process.env.ANTHROPIC_API_KEY
+  ? new TransactionOrchestrator(process.env.ANTHROPIC_API_KEY)
   : null;
 
-// ── Transformer: log bot outgoing messages ────────────────────────────────────────────
+// ── Transformer: log bot outgoing messages ────────────────────────────────────
+// Intercepts sendMessage/sendPhoto calls to store bot replies in fin_messages
+// so admins can see the full conversation (including bot responses) in the dashboard.
 bot.api.config.use(async (prev, method, payload, signal) => {
   const result = await prev(method, payload, signal);
   if (result.ok && (method === 'sendMessage' || method === 'sendPhoto' || method === 'sendDocument')) {
@@ -124,7 +126,8 @@ bot.api.config.use(async (prev, method, payload, signal) => {
   return result;
 });
 
-// ── Helpers ──────────────────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 function isAllowedChat(ctx) {
   if (ALLOWED_CHATS.length === 0) return true;
   return ALLOWED_CHATS.includes(BigInt(ctx.chat?.id ?? 0));
@@ -186,6 +189,11 @@ async function handleCuadroRetorno(ctx, client, cuadro) {
 }
 
 // Modo asistente: maneja fotos/docs silenciosamente — registra comprobantes y cuentas
+// Lógica de comisiones:
+//   SPEI/EFECTIVO + saldo neto > 0  → sin comisión (crédito previo cubre la operación)
+//   SPEI/EFECTIVO + saldo neto ≤ 0  → comisión base r
+//   IAS (u op. con R > r)           → siempre aplica R total, con desglose:
+//     comisión base (r%) + ajuste adicional x% donde x = 1 - (1-R)/(1-r)
 async function handleAsistenteModo(ctx, client, fileInfo) {
   if (fileInfo.isLink) return;
   const chatId = ctx.chat?.id;
@@ -259,19 +267,22 @@ async function handleAsistenteModo(ctx, client, fileInfo) {
     if ((detected?.tipo === 'comprobante' || detected?.tipo === 'factura') && detected.monto_total > 0) {
       const monto = detected.monto_total;
 
+      // Leer mensajes recientes para inferir tipo de operación del contexto del chat
       const mensajesRecientes = await contextManager.getRecientes(chatId, 15);
       const textoContexto     = mensajesRecientes.filter(m => m.texto).map(m => m.texto).join(' ');
       const tipoOp = (detected.tipo_operacion || detectType(textoContexto) || null)?.toUpperCase() ?? null;
 
+      // Tasas de comisión
       const saldoNeto      = parseFloat(client.saldo ?? 0);
       const BASE_TIPOS     = ['SPEI', 'EFECTIVO'];
       const esBase         = !tipoOp || BASE_TIPOS.includes(tipoOp);
       const tieneCredito   = saldoNeto > 0;
 
       let pct = 0;
-      let pctBase = 0;
+      let pctBase = 0; // tasa de referencia (SPEI) para desglose IAS
 
       if (esBase && tieneCredito) {
+        // SPEI/EFECTIVO con saldo neto positivo → sin comisión (el crédito cubre la operación)
         pct = 0;
       } else {
         const comisionOp   = await getCommission(tipoOp ?? 'SPEI', pool, client.id);
@@ -297,10 +308,12 @@ async function handleAsistenteModo(ctx, client, fileInfo) {
       const saldo_bruto_despues = Math.round((saldo_bruto_antes + monto) * 100) / 100;
       const comisionTotal       = Math.round((monto - montoNeto) * 100) / 100;
 
+      // x% = 1 - (1-R)/(1-r) → ajuste adicional para operaciones tipo IAS
       const xPct = (!esBase && pct > pctBase)
         ? (1 - (1 - pct) / (1 - pctBase))
         : 0;
 
+      // Construir respuesta con desglose
       let msg = `✅ <b>Comprobante registrado`;
       if (tipoOp) msg += ` [${tipoOp}]`;
       msg += `</b>  $${fmt(monto)}\n\n`;
@@ -308,6 +321,7 @@ async function handleAsistenteModo(ctx, client, fileInfo) {
 
       if (comisionTotal > 0) {
         if (xPct > 0) {
+          // Desglose: comisión base + ajuste adicional (e.g. IAS)
           const comBaseAmt = Math.round(monto * pctBase * 100) / 100;
           const comXAmt    = Math.round(comisionTotal - comBaseAmt) * 100 / 100;
           const xDisplay   = (xPct * 100).toFixed(2).replace(/\.?0+$/, '');
@@ -346,6 +360,7 @@ function isAdmin(userId) {
   return ADMIN_USER_IDS.has(userId);
 }
 
+// Retorna las cuentas que NO pertenecen a nuestras empresas, y un flag si alguna sí era nuestra
 async function filtrarCuentasAjenas(cuentas) {
   try {
     const nuestras = await q.getNuestrasCLABEs(pool);
@@ -357,6 +372,7 @@ async function filtrarCuentasAjenas(cuentas) {
   }
 }
 
+// Detecta si un texto es un comprobante bancario (no datos de cuenta para entrega)
 function isComprobante(text) {
   const t = text ?? '';
   const hasSuccessLine = /transferencia exitosa|pago exitoso|operaci[oó]n exitosa|dep[oó]sito exitoso|transacci[oó]n exitosa/i.test(t);
@@ -367,15 +383,23 @@ function isComprobante(text) {
 }
 
 function calcLLMCost(tokensIn, tokensOut) {
+  // DeepSeek Chat: $0.07/1M input, $1.10/1M output (con cache puede ser ~10% del input)
   return ((tokensIn * 0.07) + (tokensOut * 1.10)) / 1_000_000;
 }
 
+/**
+ * Parsea el draft JSON de la sesión de forma defensiva.
+ * Si el valor es inválido (p. ej. "[object Object]") devuelve {}.
+ */
 function parseDraft(json) {
   if (!json) return {};
-  if (typeof json === 'object') return json;
+  if (typeof json === 'object') return json; // MySQL2 auto-parsea columnas JSON
   try { return JSON.parse(json); } catch { return {}; }
 }
 
+/**
+ * Obtiene o crea sesión financiera para el chat.
+ */
 async function getOrCreateSession(chatId, clientId) {
   const [rows] = await pool.query(
     `SELECT * FROM fin_sessions
@@ -395,6 +419,9 @@ async function getOrCreateSession(chatId, clientId) {
   return newRows[0];
 }
 
+/**
+ * Actualiza el estado de la sesión.
+ */
 async function updateSession(sessionId, estado, draftJson = null) {
   await pool.query(
     'UPDATE fin_sessions SET estado=?, operation_draft_json=?, updated_at=NOW(3) WHERE id=?',
@@ -402,6 +429,10 @@ async function updateSession(sessionId, estado, draftJson = null) {
   );
 }
 
+/**
+ * Guarda una operación confirmada en la base de datos.
+ * Envuelve todo en una transacción.
+ */
 async function saveConfirmedOperation(draft, clientId, chatId, _attempt = 0) {
   const conn = await pool.getConnection();
   let operationId, saldo_antes, saldo_despues;
@@ -428,11 +459,13 @@ async function saveConfirmedOperation(draft, clientId, chatId, _attempt = 0) {
     );
     operationId = result.insertId;
 
+    // Aplicar al saldo
     ({ saldo_antes, saldo_despues } = await balanceManager.aplicarOperacion(
       { operationId, clientId, monto_neto: draft.monto_neto, monto_bruto: draft.monto_bruto, es_entrada: draft.es_entrada },
       conn
     ));
 
+    // Marcar confirmada
     await conn.query(
       "UPDATE fin_operations SET estado='confirmada', updated_at=NOW(3) WHERE id=?",
       [operationId]
@@ -441,6 +474,7 @@ async function saveConfirmedOperation(draft, clientId, chatId, _attempt = 0) {
     await conn.commit();
   } catch (err) {
     await conn.rollback();
+    // Reintentar hasta 3 veces en lock wait timeout
     if ((err.code === 'ER_LOCK_WAIT_TIMEOUT' || err.errno === 1205) && _attempt < 3) {
       conn.release();
       const delay = (2 ** _attempt) * 500;
@@ -452,6 +486,7 @@ async function saveConfirmedOperation(draft, clientId, chatId, _attempt = 0) {
     conn.release();
   }
 
+  // Fuera de la transacción: cuentas bancarias y comisión (no críticas para atomicidad)
   if (draft.cuentas_bancarias?.length) {
     bankingManager.guardarCuentas(clientId, operationId, draft.cuentas_bancarias)
       .catch(err => console.error('[saveConfirmedOperation] guardarCuentas:', err.message));
@@ -468,15 +503,18 @@ async function saveConfirmedOperation(draft, clientId, chatId, _attempt = 0) {
   return { operationId, saldo_antes, saldo_despues };
 }
 
-// ── Handlers ──────────────────────────────────────────────────────────────────────────────
+// ── Handlers ──────────────────────────────────────────────────────────────────
 
+// Middleware de autenticación
 bot.use(async (ctx, next) => {
+  // /miid debe funcionar desde cualquier chat (incluido el privado del admin)
   const cmdText = ctx.message?.text ?? '';
   if (cmdText === '/miid' || cmdText.startsWith('/miid ')) { await next(); return; }
   if (!isAllowedChat(ctx)) return;
   await next();
 });
 
+// ── Middleware pasivo: log de todos los mensajes ──────────────────────────────
 bot.use(async (ctx, next) => {
   try {
     const msg      = ctx.message ?? ctx.channelPost;
@@ -489,8 +527,10 @@ bot.use(async (ctx, next) => {
       ? (ctx.chat?.title ?? null)
       : (from?.first_name ? `${from.first_name}${from.last_name ? ' ' + from.last_name : ''}` : null);
 
+    // Asegurar chat en DB (no esperamos para no bloquear)
     contextManager.upsertChat({ chatId, titulo, isGroup }).catch(() => {});
 
+    // Determinar tipo de mensaje
     let tipo = 'texto';
     let texto = msg.text ?? msg.caption ?? null;
     let fileName = null;
@@ -514,6 +554,7 @@ bot.use(async (ctx, next) => {
   await next();
 });
 
+// /start
 bot.command('start', async (ctx) => {
   await ctx.reply(
     '👋 Bienvenido al sistema de operaciones financieras.\n\n' +
@@ -526,6 +567,7 @@ bot.command('start', async (ctx) => {
   );
 });
 
+// /saldo (para clientes y admin)
 bot.command('saldo', async (ctx) => {
   try {
     const client = await balanceManager.getOrCreateClient(
@@ -540,6 +582,7 @@ bot.command('saldo', async (ctx) => {
   }
 });
 
+// /historial (últimas 10 ops)
 bot.command('historial', async (ctx) => {
   try {
     const client = await balanceManager.getOrCreateClient(ctx.from?.id, ctx.from?.username);
@@ -560,6 +603,9 @@ bot.command('historial', async (ctx) => {
   }
 });
 
+// /ajuste [nombre o username] nuevo_saldo [descripcion] (solo admin)
+// Busca el primer token numérico: todo lo anterior es el nombre, todo lo posterior es descripción.
+// Busca por nombre exacto (insensible a mayúsculas) o por telegram_username.
 bot.command('ajuste', async (ctx) => {
   if (!isAdmin(ctx.from?.id)) {
     await ctx.reply('⛔ Sin permisos.');
@@ -572,6 +618,7 @@ bot.command('ajuste', async (ctx) => {
   const firstNumIdx = args.findIndex(isNumeric);
 
   if (firstNumIdx > 0) {
+    // Nombre/username antes del número
     const nameQuery = args.slice(0, firstNumIdx).join(' ').replace(/^@/, '');
     nuevoSaldo = parseFloat(args[firstNumIdx]);
     desc       = args.slice(firstNumIdx + 1).join(' ') || 'Ajuste manual';
@@ -585,6 +632,7 @@ bot.command('ajuste', async (ctx) => {
     }
     client = rows[0];
   } else if (firstNumIdx === 0) {
+    // Solo número → reply mode
     const replyTo = ctx.message?.reply_to_message?.from?.id;
     if (!replyTo) {
       await ctx.reply('Uso: /ajuste [nombre o @username] nuevo_saldo [descripcion]\n     o responde al mensaje del cliente con /ajuste nuevo_saldo [descripcion]');
@@ -616,6 +664,8 @@ bot.command('ajuste', async (ctx) => {
   }
 });
 
+// Comando /operacion — punto de entrada principal
+// /reset — cancela cualquier sesión activa y limpia el estado
 bot.command('reset', async (ctx) => {
   try {
     const userId  = ctx.from?.id;
@@ -629,6 +679,7 @@ bot.command('reset', async (ctx) => {
   }
 });
 
+// Modo de prueba: acepta comprobantes de texto sin validación de imagen (solo admins)
 const testModeChats = new Set();
 bot.command('testmode', async (ctx) => {
   const userId = ctx.from?.id;
@@ -658,6 +709,7 @@ bot.command('operacion', async (ctx) => {
   const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
   const session = await getOrCreateSession(chatId, client.id);
 
+  // Sin argumentos → modo asistido
   if (!cmdArgs.trim()) {
     const tipos = listTypes();
     await ctx.reply(responseGen.formatAskTipo(tipos), { parse_mode: 'HTML' });
@@ -665,9 +717,11 @@ bot.command('operacion', async (ctx) => {
     return;
   }
 
+  // Con argumentos → parsear directamente
   await procesarOperacion(ctx, cmdArgs, client, session);
 });
 
+// /rol [cliente|proveedor|ambos] — admin clasifica al usuario del chat
 bot.command('rol', async (ctx) => {
   const ADMIN_IDS = (process.env.ADMIN_TELEGRAM_IDS ?? '').split(',').map(s => s.trim()).filter(Boolean);
   const fromId    = String(ctx.from?.id ?? '');
@@ -682,6 +736,7 @@ bot.command('rol', async (ctx) => {
     return;
   }
   const chatId = ctx.chat?.id;
+  // Buscar el client_id vinculado a este chat
   const [rows] = await pool.query(
     `SELECT client_id FROM fin_sessions WHERE chat_id=? AND client_id IS NOT NULL ORDER BY updated_at DESC LIMIT 1`,
     [chatId]
@@ -692,10 +747,11 @@ bot.command('rol', async (ctx) => {
   }
   const clientId = rows[0].client_id;
   await pool.query(`UPDATE fin_clients SET rol=? WHERE id=?`, [arg, clientId]);
-  const labels = { cliente: '🏢 Cliente', proveedor: '\ud83c� Proveedor', ambos: '🔄 Ambos' };
+  const labels = { cliente: '🏢 Cliente', proveedor: '🏭 Proveedor', ambos: '🔄 Ambos' };
   await ctx.reply(`✅ Rol actualizado: <b>${labels[arg]}</b>`, { parse_mode: 'HTML' });
 });
 
+// /modo [normal|asistente] — configura cómo se comporta el bot en este chat
 bot.command('modo', async (ctx) => {
   if (!isAdmin(ctx.from?.id)) { await ctx.reply('⛔ Sin permisos.'); return; }
   const arg = (ctx.match ?? '').trim().toLowerCase();
@@ -718,13 +774,16 @@ bot.command('modo', async (ctx) => {
   await ctx.reply(`✅ Modo actualizado: <b>${labels[arg]}</b>`, { parse_mode: 'HTML' });
 });
 
+// Mensajes de texto — detecta operaciones implícitas o responde a flujo activo
 bot.on('message:text', async (ctx, next) => {
   const userId  = ctx.from?.id;
   const chatId  = ctx.chat?.id;
   const text    = ctx.message.text;
 
+  // Ignorar comandos (pasar al siguiente handler en la cadena)
   if (text.startsWith('/')) return next();
 
+  // Modo asistente: solo procesa instrucciones de pago en texto (CLABEs/cuentas), silencio para todo lo demás
   const _modoChat = await getChatModo(chatId);
   if (_modoChat === 'asistente') {
     const rawCuentas = BankingManager.parsearTexto(text);
@@ -736,22 +795,25 @@ bot.on('message:text', async (ctx, next) => {
         await ctx.reply(`✅ Guardado · ${ajenas.length} cuenta(s) registrada(s)`);
       }
     }
-    return;
+    return; // silencio para todo lo demás
   }
 
   const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
   const session = await getOrCreateSession(chatId, client.id);
 
+  // Si hay edición pendiente (el usuario está enviando el nuevo valor)
   if (pollHandler.hasPendingEdit(chatId)) {
     const { ok, error, operationDraft } = pollHandler.applyEditValue(chatId, text);
     if (!ok) {
       await ctx.reply(`⚠️ ${error}`);
       return;
     }
+    // Recalcular con los nuevos datos
     await mostrarResumenYPoll(ctx, operationDraft, client, session);
     return;
   }
 
+  // Si la sesión espera un dato específico
   if (session.estado === 'esperando_tipo') {
     await procesarOperacion(ctx, text, client, session);
     return;
@@ -781,6 +843,7 @@ bot.on('message:text', async (ctx, next) => {
       await ctx.reply('No encontré ninguna CLABE, tarjeta ni cuenta. Envíame el número directamente.');
       return;
     }
+    // Si el número coincide con una de nuestras cuentas, es un comprobante de pago
     const { ajenas, eraVuelta } = await filtrarCuentasAjenas(rawCuentas);
     if (eraVuelta) {
       await ctx.reply(
@@ -803,6 +866,7 @@ bot.on('message:text', async (ctx, next) => {
   }
   if (session.estado === 'confirmando_cuentas') {
     const draft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
+    // Si el usuario envió una CLABE/cuenta directamente → guardarla como nueva cuenta
     const rawCuentasNew = BankingManager.parsearTexto(text);
     if (rawCuentasNew.length) {
       const { ajenas: nuevas, eraVuelta } = await filtrarCuentasAjenas(rawCuentasNew);
@@ -819,6 +883,7 @@ bot.on('message:text', async (ctx, next) => {
         return;
       }
     }
+    // El usuario escribió texto en vez de usar el botón → re-mostrar opciones
     const cuentas = draft.cuentas_disponibles ?? [];
     if (cuentas.length) {
       const kb = new InlineKeyboard();
@@ -831,13 +896,16 @@ bot.on('message:text', async (ctx, next) => {
     return;
   }
 
+  // ── Texto estructurado tipo comprobante bancario ─────────────────────────
+  // No re-detectar si ya hay una confirmación pendiente
   if (isComprobante(text) && session.estado !== 'confirmando_comprobante' && session.estado !== 'confirmando_factura') {
     const chatId_ = ctx.chat?.id;
-    const amtMatch = text.replace(/,/g, '').match(/(?:monto|importe|total|cantidad)\s*:?\s*\$?\s*([\d]+(?:\.\d{1,2})?)/);
+    const amtMatch = text.replace(/,/g, '').match(/(?:monto|importe|total|cantidad)\s*:?\s*\$?\s*([\d]+(?:\.\d{1,2})?)/i);
     const monto = amtMatch ? parseFloat(amtMatch[1]) : 0;
     const { saldo: saldoComp } = await balanceManager.getSaldo(client.id);
 
     if (testModeChats.has(chatId_) && monto > 0) {
+      // Modo prueba: aceptar directamente sin confirmación admin
       const pendingDraft = { tipo: 'texto', monto_bruto: monto, monto_neto: monto,
         tipo_operacion: 'COMPROBANTE', clientId: client.id, saldo_actual: saldoComp };
       await updateSession(session.id, 'confirmando_comprobante', pendingDraft);
@@ -860,7 +928,7 @@ bot.on('message:text', async (ctx, next) => {
         .text('✏️ Corregir monto', 'corregir_comprobante')
         .text('❌ Cancelar', 'cancelar_comprobante');
       await ctx.reply(
-        `🧧 Recibí un comprobante de <b>$${fmt(monto)}</b>.\n\n` +
+        `🧾 Recibí un comprobante de <b>$${fmt(monto)}</b>.\n\n` +
         `Saldo actual: <b>$${fmt(saldoComp)}</b>\n` +
         `Saldo después: <b>$${fmt(saldoComp + monto)}</b>`,
         { parse_mode: 'HTML', reply_markup: kb }
@@ -868,11 +936,16 @@ bot.on('message:text', async (ctx, next) => {
     } else {
       await updateSession(session.id, 'confirmando_comprobante',
         { tipo: 'comprobante', monto_bruto: 0, clientId: client.id, saldo_actual: saldoComp });
-      await ctx.reply('🧧 Recibí el comprobante. ¿Cuánto fue el monto del pago?');
+      await ctx.reply('🧾 Recibí el comprobante. ¿Cuánto fue el monto del pago?');
     }
     return;
   }
 
+  // ── Confirmación de pago por texto ───────────────────────────────────────
+  // EXPLICIT: frases que sin duda indican que el usuario está compartiendo un pago.
+  // Activan el flujo de pago SIEMPRE, independientemente del saldo.
+  // AMBIGUO: palabras sueltas que también aparecen en ENTRADA_KEYWORDS del parser.
+  // Solo activan el flujo si saldo < 0 (el cliente adeuda algo).
   const PAGO_EXPLICIT = [
     'comparto pago','comparto un pago','comparto el pago',
     'adjunto comprobante','adjunto el comprobante','adjunto pago','adjunto el pago',
@@ -894,6 +967,7 @@ bot.on('message:text', async (ctx, next) => {
   const esPagoTexto = esExplicitoPago ||
                       (saldoActualPago < 0 && PAGO_AMPLIO.test(text) && !isOperacionCommand(text));
 
+  // ── Detectar si es proveedor confirmando retorno ─────────────────────────
   const RETORNO_KEYWORDS = [
     'retorno pagado','ya entregué','ya entregue','entregué el efectivo','entregue el efectivo',
     'ya deposité al','ya deposite al','deposité el retorno','deposite el retorno',
@@ -904,6 +978,7 @@ bot.on('message:text', async (ctx, next) => {
   if (esPagoTexto) {
     const saldo = saldoActualPago;
 
+    // Si es proveedor confirmando que entregó → buscar op pendiente y marcar retorno
     if (esRetornoProveedor || client.rol === 'proveedor') {
       const [opsPendientes] = await pool.query(
         `SELECT id FROM fin_operations
@@ -918,365 +993,872 @@ bot.on('message:text', async (ctx, next) => {
         const bmInst = new (bm)(pool);
         const resultado = await bmInst.marcarRetornoPagado({
           operationId: opId, clientId: client.id,
-          monto_neto: 0,
+          monto_neto: 0, // se recalcula desde la BD
         }).catch(() => null);
         if (resultado) {
           await ctx.reply(
-            `✅ Retorno registrado.\n` +
-            `Saldo: $${fmt(resultado.saldo_antes)} → <b>$${fmt(resultado.saldo_despues)}</b>`,
+            `✅ <b>Retorno registrado como pagado.</b>\n` +
+            `Operación #${opId} marcada como entregada.`,
             { parse_mode: 'HTML' }
           );
           return;
         }
       }
+      // No hay operación pendiente → confirmar como pago normal
+      await ctx.reply(
+        '📩 Anotado. No encontré una operación de retorno pendiente — ¿me mandas el comprobante o el monto?'
+      );
+      return;
     }
 
-    const amtMatch2 = text.replace(/,/g, '').match(/\$?\s*(\d+(?:\.\d{1,2})?)/);
-    const monto2 = amtMatch2 ? parseFloat(amtMatch2[1]) : 0;
-    const { saldo: saldoActual2 } = await balanceManager.getSaldo(client.id);
+    // Intentar extraer monto del texto
+    const amtMatch = text.replace(/[,]/g, '').match(/\$?\s*(\d+(?:\.\d{1,2})?)/);
+    const monto    = amtMatch ? parseFloat(amtMatch[1]) : (saldo < 0 ? Math.abs(saldo) : 0);
 
-    if (monto2 > 0) {
-      const pendingDraft2 = { tipo: 'pago_texto', monto_bruto: monto2, clientId: client.id, saldo_actual: saldoActual2 };
-      await updateSession(session.id, 'confirmando_comprobante', pendingDraft2);
+    if (monto > 0) {
+      const pendingDraft = { tipo: 'texto', monto_bruto: monto, clientId: client.id, saldo_actual: saldo };
+      await updateSession(session.id, 'confirmando_comprobante', pendingDraft);
       const kb = new InlineKeyboard()
-        .text(`✅ Confirmar $${fmt(monto2)}`, 'confirmar_comprobante').row()
+        .text(`✅ Confirmar $${fmt(monto)}`, 'confirmar_comprobante')
+        .row()
         .text('✏️ Corregir monto', 'corregir_comprobante')
         .text('❌ Cancelar', 'cancelar_comprobante');
       await ctx.reply(
-        `💰 Pago de <b>$${fmt(monto2)}</b> registrado.\n` +
-        `Saldo actual: <b>$${fmt(saldoActual2)}</b>`,
+        `🧾 Entendido. ¿Confirmo un pago de <b>$${fmt(monto)}</b>?\n\n` +
+        `Saldo actual: <b>$${fmt(saldo)}</b>\n` +
+        `Saldo después: <b>$${fmt(saldo + monto)}</b>`,
         { parse_mode: 'HTML', reply_markup: kb }
       );
     } else {
+      // No encontramos monto — pedir comprobante o monto
       await updateSession(session.id, 'confirmando_comprobante',
-        { tipo: 'pago_texto', monto_bruto: 0, clientId: client.id, saldo_actual: saldoActualPago });
-      await ctx.reply('💰 Recibí el aviso de pago. ¿Cuánto fue el monto?');
+        { tipo: 'comprobante', monto_bruto: 0, clientId: client.id, saldo_actual: saldo });
+      await ctx.reply(
+        `🧾 Entendido, espero tu comprobante o escríbeme el monto del pago.` +
+        (saldo < 0 ? `\n\nSaldo pendiente: <b>$${fmt(Math.abs(saldo))}</b>` : ''),
+        { parse_mode: 'HTML' }
+      );
     }
     return;
   }
 
-  // ── Operación implícita o texto libre ─────────────────────────────────────────────────────────────────────────────────
-  if (isImplicitOperacion(text) || session.estado !== 'idle') {
+  // ── Corregir monto de factura/comprobante ─────────────────────────────────
+  if (session.estado === 'confirmando_factura' || session.estado === 'confirmando_comprobante') {
+    const draft    = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
+    const esFactura = session.estado === 'confirmando_factura';
+
+    // Respuesta afirmativa por texto → ejecutar confirmación directamente
+    const AFIRMATIVO = /^\s*(s[íi]|yes|ok|dale|correcto|confirm[ao]?|adelante|listo|va|sale|claro|exacto|as[íi] es)\s*$/i;
+    if (AFIRMATIVO.test(text)) {
+      if (!draft.monto_bruto || draft.monto_bruto <= 0) {
+        await ctx.reply('⚠️ No hay monto registrado. Escríbeme cuánto depositaste.');
+        return;
+      }
+      if (esFactura) {
+        // Factura: delegar al callback (lanzar como si hubiera presionado el botón)
+        const kb = new InlineKeyboard()
+          .text(`✅ Confirmar $${fmt(draft.monto_bruto)}`, 'confirmar_factura');
+        await ctx.reply('✅ Confirmando…', { reply_markup: kb });
+      } else {
+        try {
+          const { saldo_antes, saldo_despues } = await balanceManager.confirmarPago({
+            clientId:         client.id,
+            monto:            draft.monto_bruto,
+            montoNeto:        draft.monto_neto ?? draft.monto_bruto,
+            tipo:             draft.tipo ?? 'comprobante',
+            tipo_operacion:   draft.tipo_operacion ?? null,
+            telegram_file_id: draft.telegram_file_id ?? null,
+            notas:            'Comprobante confirmado por cliente (texto)',
+          });
+          await updateSession(session.id, 'completado', null);
+          await ctx.reply(
+            `✅ <b>Pago confirmado</b>\n` +
+            `Monto: $${fmt(draft.monto_bruto)}\n` +
+            `Saldo anterior: $${fmt(saldo_antes)}\n` +
+            `<b>Nuevo saldo: $${fmt(saldo_despues)}</b>`,
+            { parse_mode: 'HTML' }
+          );
+        } catch (err) {
+          console.error('[confirmarPago texto]', err.message);
+          await ctx.reply('⚠️ Error al confirmar el pago. Intenta de nuevo o usa el botón de confirmación.');
+        }
+      }
+      return;
+    }
+
+    const num = parseFloat(text.replace(/[^0-9.]/g, ''));
+    if (num > 0) {
+      draft.monto_bruto = num;
+      if (esFactura) {
+        draft.monto_neto = Math.round(num * (1 - (draft.comision_pct ?? 0)) * 100) / 100;
+      } else {
+        draft.monto_neto = num;
+      }
+      await updateSession(session.id, session.estado, draft);
+      const label = esFactura
+        ? `📋 Monto actualizado: $${fmt(num)}\nNeto: $${fmt(draft.monto_neto)}`
+        : `🧾 Monto actualizado: $${fmt(num)}`;
+      const kb = new InlineKeyboard()
+        .text('✅ Confirmar', esFactura ? 'confirmar_factura' : 'confirmar_comprobante')
+        .text('❌ Cancelar', esFactura ? 'cancelar_factura' : 'cancelar_comprobante');
+      await ctx.reply(label + '\n\n¿Correcto?', { parse_mode: 'HTML', reply_markup: kb });
+    } else {
+      // Texto no reconocido → recordar usar botones
+      const monto = draft.monto_bruto ?? 0;
+      const kb = new InlineKeyboard()
+        .text(`✅ Confirmar $${fmt(monto)}`, esFactura ? 'confirmar_factura' : 'confirmar_comprobante').row()
+        .text('✏️ Corregir monto', esFactura ? 'corregir_factura' : 'corregir_comprobante')
+        .text('❌ Cancelar', esFactura ? 'cancelar_factura' : 'cancelar_comprobante');
+      await ctx.reply(
+        `Ya tengo tu comprobante por <b>$${fmt(monto)}</b>. Usa los botones para confirmar.`,
+        { parse_mode: 'HTML', reply_markup: kb }
+      );
+    }
+    return;
+  }
+
+  // Detección implícita: ¿parece una solicitud de operación?
+  if (isImplicitOperacion(text)) {
     await procesarOperacion(ctx, text, client, session);
     return;
   }
 
-  // ── TransactionOrchestrator: detectar intención desde texto libre ────────────────────────────────────────
-  if (transactionOrchestrator) {
-    const mensajesRecientes = await contextManager.getRecientes(chatId, 10);
-    const { accion, params, confianza } = await transactionOrchestrator.rutear({
-      estado:           session.estado,
-      mensajesRecientes,
-      textoUsuario:     text,
-      saldo:            parseFloat(client.saldo ?? 0),
-      nombre:           client.nombre ?? client.telegram_username ?? 'Cliente',
-    });
+  // Fallback: decide si hay algo útil que responder
+  try {
+    const mensajesCtx = await contextManager.getRecientes(chatId, 25);
+    const { saldo: saldoCtx } = await balanceManager.getSaldo(client.id);
 
-    if (accion === 'iniciar_operacion' && confianza !== 'baja') {
-      const cmdStr = [
-        params.tipo_operacion,
-        params.tipo_monto,
-        params.monto,
-      ].filter(Boolean).join(' ');
-      await procesarOperacion(ctx, cmdStr || text, client, session);
-      return;
-    }
-    if (accion === 'responder_info' && params.mensaje_respuesta) {
-      await ctx.reply(params.mensaje_respuesta, { parse_mode: 'HTML' });
-      return;
-    }
-    if (accion !== 'ignorar') {
-      const mensajesCtx = await contextManager.getRecientes(chatId, 20);
+    if (transactionOrchestrator) {
+      const decision = await transactionOrchestrator.rutear({
+        estado:           session.estado,
+        mensajesRecientes: mensajesCtx,
+        textoUsuario:     text,
+        saldo:            saldoCtx,
+        nombre:           client.nombre,
+      });
+      if (decision.accion === 'responder_info' && decision.params?.mensaje_respuesta) {
+        await ctx.reply(decision.params.mensaje_respuesta);
+      } else if (decision.accion !== 'ignorar' && decision.accion !== 'responder_info') {
+        await procesarOperacion(ctx, text, client, session);
+      }
+    } else {
       const { responder, mensaje } = await contextReader.analizar(
-        mensajesCtx, { estado: session.estado, saldo: parseFloat(client.saldo ?? 0), nombre: client.nombre }, text
+        mensajesCtx,
+        { estado: session.estado, saldo: saldoCtx, nombre: client.nombre },
+        text
       );
       if (responder && mensaje) {
-        await ctx.reply(mensaje, { parse_mode: 'HTML' });
+        await ctx.reply(mensaje);
       }
     }
+  } catch (e) {
+    console.error('[context-reader fallback]', e.message);
   }
 });
 
-bot.on(['message:photo', 'message:document'], async (ctx) => {
+// Archivos (documentos, fotos)
+bot.on(['message:document', 'message:photo'], async (ctx) => {
   const userId = ctx.from?.id;
   const chatId = ctx.chat?.id;
-
-  const modoChat = await getChatModo(chatId);
-
-  const fileInfo = extractFileFromMessage(ctx.message);
-  if (!fileInfo) return;
-
-  if (modoChat === 'asistente') {
-    const clientAsist = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
-    await handleAsistenteModo(ctx, clientAsist, fileInfo);
-    return;
-  }
+  const msg    = ctx.message;
 
   const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
   const session = await getOrCreateSession(chatId, client.id);
 
-  // Si la sesión espera un comprobante de pago
-  if (session.estado === 'esperando_comprobante' || session.estado === 'esperando_pago') {
-    try {
-      const buffer   = await downloadTelegramFileAsBuffer(BOT_TOKEN, fileInfo.file.file_id);
-      const mimeType = fileInfo.mimeType ?? 'image/jpeg';
-      const draft    = parseDraft(session.operation_draft_json);
+  const fileInfo = extractFileFromMessage(msg);
+  if (!fileInfo) return;
 
-      let detected = null;
-      if (docAgent) {
-        detected = await docAgent.procesarBuffer(buffer, mimeType, fileInfo.fileName);
-      }
-      if (!detected) {
-        detected = await invoiceAgent.procesarBuffer(buffer, mimeType, fileInfo.fileName ?? '');
-      }
-      if (detected?.tipo === 'imagen_sin_ocr') {
-        if (docAgent) {
-          const { visionResult } = await docAgent.analizarImagenCompleta(buffer, mimeType);
-          if (visionResult?.monto_total) detected = { ...visionResult, tipo: 'comprobante' };
-        } else if (visionAgent) {
-          const vr = await visionAgent.analizarFactura(buffer, mimeType);
-          if (vr?.monto_total) detected = { ...vr, tipo: 'comprobante' };
+  // Modo asistente: bypass del flujo normal — registrar silenciosamente
+  const _modoFile = await getChatModo(chatId);
+  if (_modoFile === 'asistente') {
+    contextManager.logMessage({
+      chatId, clientId: client.id, telegramMsgId: msg.message_id,
+      fromUserId: ctx.from?.id, fromUsername: ctx.from?.username,
+      tipo: fileInfo.mimeType?.startsWith('image/') ? 'foto' : 'documento',
+      texto: msg.caption ?? fileInfo.fileName ?? null,
+      fileName: fileInfo.fileName ?? null,
+    }).catch(() => {});
+    return handleAsistenteModo(ctx, client, fileInfo);
+  }
+
+  let operationId = null;
+  if (session.operation_draft_json) {
+    const draft = parseDraft(session.operation_draft_json);
+    operationId = draft.operationId ?? null;
+  }
+
+  // Log del archivo al historial de mensajes
+  contextManager.logMessage({
+    chatId,
+    clientId: client.id,
+    telegramMsgId: msg.message_id,
+    fromUserId:    ctx.from?.id,
+    fromUsername:  ctx.from?.username,
+    tipo: fileInfo.isLink ? 'link' : (fileInfo.mimeType?.startsWith('image/') ? 'foto' : 'documento'),
+    texto: msg.caption ?? fileInfo.fileName ?? null,
+    fileName: fileInfo.fileName ?? null,
+  }).catch(() => {});
+
+  if (fileInfo.isLink) {
+    await handleIncomingLink({ pool, clientId: client.id, operationId, url: fileInfo.url });
+    await ctx.reply('🔗 Link registrado.');
+  } else {
+    // ── Intentar factura/comprobante ──────────────────────────────────────────
+    // PDFs y documentos: SIEMPRE intentar invoice (un PDF nunca es respuesta a
+    // "¿qué tipo de operación?" — siempre es factura o comprobante).
+    // Imágenes: bloquear si la sesión está en medio de un flujo de operación,
+    // salvo que el caption tenga intención de pago.
+    const ACTIVE_ESTADOS_BANKING = ['esperando_datos_bancarios','confirmando_cuentas'];
+    const ACTIVE_ESTADOS_BLOCK_IMG = [
+      'esperando_tipo','esperando_monto','esperando_entrega',
+      'esperando_confirmacion','esperando_edicion',
+    ];
+    const PAGO_CAPTION_RE = /comparto|comprobante|pago|deposito|deposité|transferencia|factura|retorno/i;
+    const captionEsPago   = !!(msg.caption && PAGO_CAPTION_RE.test(msg.caption));
+    const esPDF           = !!(fileInfo.mimeType?.includes('pdf') || fileInfo.fileName?.match(/\.pdf$/i));
+    // PDFs siempre pasan; imágenes se bloquean en flujos activos salvo caption de pago
+    const tryInvoice = !ACTIVE_ESTADOS_BANKING.includes(session.estado) &&
+                       (esPDF || captionEsPago || !ACTIVE_ESTADOS_BLOCK_IMG.includes(session.estado));
+    if (tryInvoice) {
+      try {
+        const buffer   = await downloadTelegramFileAsBuffer(BOT_TOKEN, fileInfo.file.file_id);
+        // docAgent (Gemini) is primary for non-image docs; images take the imagen_sin_ocr path below
+        const _docMime = fileInfo.mimeType?.toLowerCase() ?? '';
+        let detected = null;
+        if (docAgent && !_docMime.startsWith('image/')) {
+          detected = await docAgent.procesarBuffer(buffer, fileInfo.mimeType, fileInfo.fileName);
         }
-      }
+        if (!detected) {
+          detected = await invoiceAgent.procesarBuffer(buffer, fileInfo.mimeType, fileInfo.fileName);
+        }
 
-      if (detected && (detected.tipo === 'comprobante' || detected.tipo === 'factura') && detected.monto_total > 0) {
-        draft.comprobante_monto = detected.monto_total;
-        const saldoInfo = await balanceManager.getSaldo(client.id);
+        if (detected?.tipo === 'imagen_sin_ocr') {
+          // Reutilizar el buffer ya descargado arriba
+          const imgBuffer = buffer;
+          const mimeImg   = fileInfo.mimeType ?? 'image/jpeg';
+
+          const imgAgent = docAgent ?? visionAgent;
+          if (imgAgent) {
+            // docAgent uses a single Gemini call for both; visionAgent uses two parallel calls
+            let cuentas, visionResult;
+            if (docAgent) {
+              ({ cuentas, visionResult } = await docAgent.analizarImagenCompleta(imgBuffer, mimeImg));
+              // If Gemini failed (rate limit, quota, etc.) fall back to visionAgent
+              if (!cuentas.length && !visionResult && visionAgent) {
+                console.warn('[docAgent] Gemini sin resultado — fallback a visionAgent (Haiku)');
+                ([{ cuentas }, visionResult] = await Promise.all([
+                  visionAgent.extraerCuentasBancarias(imgBuffer, mimeImg),
+                  visionAgent.analizarFactura(imgBuffer, mimeImg),
+                ]));
+              }
+            } else {
+              ([{ cuentas }, visionResult] = await Promise.all([
+                imgAgent.extraerCuentasBancarias(imgBuffer, mimeImg),
+                imgAgent.analizarFactura(imgBuffer, mimeImg),
+              ]));
+            }
+
+            // Si también hay monto detectado, es un comprobante (no lista de cuentas para entrega)
+            // — en ese caso preferir la interpretación de comprobante para no guardar cuentas del receptor
+            if (cuentas.length && !visionResult?.monto_total) {
+              const { ajenas, eraVuelta } = await filtrarCuentasAjenas(cuentas);
+              if (eraVuelta && !ajenas.length) {
+                // Todas las cuentas detectadas son nuestras → es un comprobante de pago
+                // Intentar extraer monto del texto de la imagen via visionResult si lo tiene
+                detected = { tipo: 'comprobante', monto_total: visionResult?.monto_total ?? 0, datos_bancarios: [] };
+              } else if (ajenas.length) {
+                const hayBajaConfianza = ajenas.some(c => c.confianza === 'baja');
+                const aviso = hayBajaConfianza
+                  ? '\n\n⚠️ Algunos números pueden tener errores. Por favor verifica antes de confirmar.'
+                  : '';
+                await bankingManager.guardarCuentas(client.id, null, ajenas);
+                await ctx.reply(
+                  `📊 Detecté y guardé <b>${ajenas.length}</b> cuenta(s) bancarias:\n\n${BankingManager.formatearCuentas(ajenas)}${aviso}\n\n` +
+                  `Quedan registradas. Si son para una operación, iníciala con <code>/operacion</code>.`,
+                  { parse_mode: 'HTML' }
+                );
+                return;
+              }
+            }
+
+            if (visionResult?.monto_total > 0) {
+              detected = {
+                tipo:           visionResult.tipo === 'factura' ? 'factura' : 'comprobante',
+                monto_total:    visionResult.monto_total,
+                tipo_operacion: null,
+                confianza:      'media',
+                emisor:         visionResult.emisor_nombre,
+                emisor_rfc:     visionResult.emisor_rfc,
+                datos_bancarios: visionResult.datos_bancarios ?? [],
+              };
+            }
+          }
+
+          // 3. Sin visión o sin resultado → pedir monto si saldo negativo
+          if (detected?.tipo === 'imagen_sin_ocr') {
+            const { saldo } = await balanceManager.getSaldo(client.id);
+            if (saldo < 0) {
+              await updateSession(session.id, 'confirmando_comprobante',
+                { tipo: 'comprobante', monto_bruto: 0, clientId: client.id, saldo_actual: saldo });
+              await ctx.reply(
+                `📸 Recibí la imagen. Saldo actual: <b>$${fmt(saldo)}</b>.\n` +
+                `¿Cuánto fue el monto? Escríbeme el número.`,
+                { parse_mode: 'HTML' }
+              );
+            } else {
+              await ctx.reply('📸 Imagen registrada. Si es un comprobante o factura, escríbeme el monto.');
+            }
+            await handleIncomingFile({ pool, clientId: client.id, operationId, botToken: BOT_TOKEN,
+              telegramFileOrPhoto: fileInfo.file, mimeType: fileInfo.mimeType, fileName: fileInfo.fileName });
+            return;
+          }
+        }
+
+        if (detected?.tipo === 'factura' && detected.monto_total > 0) {
+          const tipoOp     = detected.tipo_operacion ?? 'IAS';
+          const commission = await getCommission(tipoOp, pool, client.id);
+          const pct        = commission?.pct ?? 0.055;
+          const mb         = detected.monto_total;
+          const mn         = Math.round(mb * (1 - pct) * 100) / 100;
+          const { saldo: saldoAntesFactura } = await balanceManager.getSaldo(client.id);
+          const draft      = { tipo: 'factura', monto_bruto: mb, monto_neto: mn, comision_pct: pct,
+                               tipo_operacion: tipoOp, clientId: client.id,
+                               telegram_file_id: fileInfo.file.file_id, confianza: detected.confianza,
+                               emisor: detected.emisor ?? null, emisor_rfc: detected.emisor_rfc ?? null };
+          await updateSession(session.id, 'confirmando_factura', draft);
+
+          // Guardar cuentas bancarias del emisor para futura referencia
+          if (detected.datos_bancarios?.length) {
+            bankingManager.guardarCuentas(client.id, null, detected.datos_bancarios).catch(() => {});
+          }
+
+          const emisorLine = detected.emisor ? `\nEmisor: <b>${detected.emisor}</b>` : '';
+          const kb = new InlineKeyboard()
+            .text(`✅ Confirmar $${fmt(mb)}`, 'confirmar_factura').row()
+            .text('✏️ Corregir monto', 'corregir_factura')
+            .text('❌ Cancelar', 'cancelar_factura');
+          await ctx.reply(
+            `📋 <b>Factura detectada</b>${emisorLine}\n\n` +
+            `Tipo: <b>${tipoOp}</b>\n` +
+            `Bruto: <b>$${fmt(mb)}</b>  →  Neto: <b>$${fmt(mn)}</b>\n` +
+            `Saldo actual: $${fmt(saldoAntesFactura)}  →  Nuevo: <b>$${fmt(saldoAntesFactura + mn)}</b>\n\n` +
+            `¿Confirmo y actualizo tu saldo?`,
+            { parse_mode: 'HTML', reply_markup: kb }
+          );
+          return;
+
+        } else if (detected?.tipo === 'comprobante') {
+          // Si ya hay confirmación pendiente, recordar usar los botones en lugar de crear otra
+          if (session.estado === 'confirmando_comprobante') {
+            const prevDraft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
+            const kb = new InlineKeyboard()
+              .text(`✅ Confirmar $${fmt(prevDraft.monto_bruto ?? detected.monto_total)}`, 'confirmar_comprobante').row()
+              .text('✏️ Corregir monto', 'corregir_comprobante')
+              .text('❌ Cancelar', 'cancelar_comprobante');
+            await ctx.reply(
+              `Ya tengo un comprobante pendiente por <b>$${fmt(prevDraft.monto_bruto ?? detected.monto_total)}</b>. ` +
+              `Usa los botones para confirmar o cancela para reemplazarlo.`,
+              { parse_mode: 'HTML', reply_markup: kb }
+            );
+            return;
+          }
+          const { saldo } = await balanceManager.getSaldo(client.id);
+          const mb = detected.monto_total ?? 0;
+          if (mb <= 0) {
+            // Comprobante detectado pero sin monto (ej. nuestra CLABE como receptor) → pedir monto
+            await updateSession(session.id, 'confirmando_comprobante',
+              { tipo: 'comprobante', monto_bruto: 0, clientId: client.id, saldo_actual: saldo,
+                telegram_file_id: fileInfo.file.file_id });
+            await ctx.reply(
+              `🧾 <b>Comprobante recibido.</b>\n` +
+              `Saldo actual: <b>$${fmt(saldo)}</b>\n\n` +
+              `¿Cuánto fue el monto del pago?`,
+              { parse_mode: 'HTML' }
+            );
+            return;
+          }
+          const draft = { tipo: 'comprobante', monto_bruto: mb, monto_neto: mb,
+                          clientId: client.id, saldo_actual: saldo,
+                          telegram_file_id: fileInfo.file.file_id };
+          await updateSession(session.id, 'confirmando_comprobante', draft);
+          const kb = new InlineKeyboard()
+            .text(`✅ Confirmar $${fmt(mb)}`, 'confirmar_comprobante').row()
+            .text('✏️ Corregir monto', 'corregir_comprobante')
+            .text('❌ Cancelar', 'cancelar_comprobante');
+          await ctx.reply(
+            `🧾 <b>Comprobante de pago detectado</b>\n\n` +
+            `Monto: <b>$${fmt(mb)}</b>\n` +
+            `Saldo actual: $${fmt(saldo)} → <b>$${fmt(saldo + mb)}</b>\n\n` +
+            `¿Confirmo y actualizo tu saldo?`,
+            { parse_mode: 'HTML', reply_markup: kb }
+          );
+          return;
+        }
+      } catch (err) {
+        console.error('[invoice-detect]', err.message);
+      }
+    }
+
+    // Si está esperando datos bancarios, intentar extraerlos del archivo o imagen
+    if (session.estado === 'esperando_datos_bancarios') {
+      // Fresh read para no usar session.operation_draft_json cacheado al inicio del handler
+      const [_bRows] = await pool.query('SELECT operation_draft_json FROM fin_sessions WHERE id=?', [session.id]);
+      const draft    = parseDraft(_bRows[0]?.operation_draft_json ?? session.operation_draft_json);
+      const esImagen = fileInfo.mimeType?.startsWith('image/');
+      const esXlsx   = fileInfo.mimeType?.includes('spreadsheet') ||
+                       fileInfo.mimeType?.includes('excel')       ||
+                       fileInfo.fileName?.match(/\.xlsx?$/i);
+      let cuentas = [];
+      try {
+        const buffer = await downloadTelegramFileAsBuffer(BOT_TOKEN, fileInfo.file.file_id);
+
+        const imgAgentBanking = docAgent ?? visionAgent;
+        if (esImagen && imgAgentBanking) {
+          const { cuentas: cs } = await imgAgentBanking.extraerCuentasBancarias(buffer, fileInfo.mimeType);
+          cuentas = cs;
+        } else if (esXlsx) {
+          cuentas = BankingManager.parsearXlsx(buffer);
+        } else {
+          cuentas = BankingManager.parsearCsv(buffer.toString('utf-8'));
+        }
+      } catch (e) { console.error('[banking-file]', e.message); }
+
+      if (cuentas.length) {
+        const hayBajaConfianza = cuentas.some(c => c.confianza === 'baja');
+        const aviso = hayBajaConfianza
+          ? '\n\n⚠️ Algunos números pueden tener errores. Por favor verifica antes de confirmar.'
+          : '';
+
+        // Calcular total de montos individuales si la tabla los incluye
+        const tabla_total = Math.round(
+          cuentas.reduce((sum, c) => sum + (parseFloat(c.monto) || 0), 0) * 100
+        ) / 100;
+
+        draft.cuentas_bancarias = cuentas;
+        draft.tabla_pagos       = cuentas;
+        draft.tabla_total       = tabla_total > 0 ? tabla_total : null;
+
+        // Guardar cuentas como empresa del cliente (fire-and-forget)
+        if (!draft.es_entrada && client?.id) {
+          q.saveEmpresaClienteFromChat(pool, client.id, cuentas)
+            .catch(err => console.error('[empresa-chat]', err.message));
+        }
+
+        // Si hay montos individuales y el draft tiene una operación mayor, ajustar el batch
+        if (tabla_total > 0 && draft.monto_neto && draft.monto_neto > tabla_total + 0.01) {
+          draft.monto_neto_original  = draft.monto_neto;
+          draft.monto_bruto_original = draft.monto_bruto;
+          // El batch solo procesa tabla_total (sin comisión adicional, ya fue descontada al inicio)
+          draft.monto_neto  = tabla_total;
+          draft.monto_bruto = tabla_total;
+          draft.comision_pct = 0;
+        }
+
+        const totalLine = tabla_total > 0
+          ? `\n💰 <b>Total detectado: $${tabla_total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</b>` +
+            (draft.monto_neto_original ? ` de $${draft.monto_neto_original.toLocaleString('es-MX', { minimumFractionDigits: 2 })} operación total` : '')
+          : '';
+
+        // Si falta tipo/monto, pedir la operación de inmediato (evita el guard al confirmar)
+        if (!draft.tipo_operacion || !draft.monto_bruto) {
+          await updateSession(session.id, 'esperando_tipo', draft);
+          const ejemplo = tabla_total > 0 ? fmt(tabla_total) : '9836';
+          await ctx.reply(
+            `📊 Encontré <b>${cuentas.length}</b> cuenta(s):\n\n${BankingManager.formatearCuentas(cuentas)}${aviso}${totalLine}\n\n` +
+            `✅ Cuentas listas. ¿Qué operación es?\n` +
+            `Escribe tipo y monto. Ejemplo: <code>IAS ${ejemplo}</code>`,
+            { parse_mode: 'HTML' }
+          );
+          return;
+        }
+
+        await updateSession(session.id, 'esperando_datos_bancarios', draft);
+
         const kb = new InlineKeyboard()
-          .text(`✅ Confirmar $${fmt(detected.monto_total)}`, 'confirmar_comprobante').row()
-          .text('❌ Cancelar', 'cancelar_comprobante');
-        await updateSession(session.id, 'confirmando_comprobante', draft);
+          .text('✅ Sí, continuar', 'confirmar_cuentas')
+          .text('✏️ Corregir', 'nueva_cuenta');
         await ctx.reply(
-          `🧧 Comprobante por <b>$${fmt(detected.monto_total)}</b>.\n` +
-          `Saldo actual: <b>$${fmt(saldoInfo.saldo)}</b>`,
+          `📊 Encontré <b>${cuentas.length}</b> cuenta(s):\n\n${BankingManager.formatearCuentas(cuentas)}${aviso}${totalLine}\n\n¿Es correcto?`,
           { parse_mode: 'HTML', reply_markup: kb }
         );
         return;
       }
-    } catch (e) {
-      console.error('[comprobante-handler]', e.message);
-    }
-    await ctx.reply('No pude leer el comprobante. ¿Cuánto fue el monto del pago?');
-    return;
-  }
-
-  // Modo normal: pasar por handleAsistenteModo para archivos no esperados
-  await handleAsistenteModo(ctx, client, fileInfo);
-});
-
-// Escuchar voice messages (transcripción)
-bot.on('message:voice', async (ctx) => {
-  const userId = ctx.from?.id;
-  const chatId = ctx.chat?.id;
-
-  if (!docAgent) {
-    // Sin Gemini no podemos transcribir
-    return;
-  }
-
-  try {
-    const voiceFile = ctx.message.voice;
-    const buffer = await downloadTelegramFileAsBuffer(BOT_TOKEN, voiceFile.file_id);
-    const mimeType = 'audio/ogg';
-
-    const transcripcion = await docAgent.transcribirAudio(buffer, mimeType);
-    if (!transcripcion) return;
-
-    // Loguear la transcripción como mensaje
-    contextManager.logMessage({
-      chatId, telegramMsgId: ctx.message.message_id,
-      fromUserId: ctx.from?.id, fromUsername: ctx.from?.username,
-      tipo: 'voz', texto: transcripcion, esBot: false,
-    }).catch(() => {});
-
-    // Procesar la transcripción como texto
-    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
-    const session = await getOrCreateSession(chatId, client.id);
-
-    // Usar TransactionOrchestrator para entender la intención
-    if (transactionOrchestrator) {
-      const mensajesRecientes = await contextManager.getRecientes(chatId, 10);
-      const { accion, params, confianza } = await transactionOrchestrator.rutear({
-        estado: session.estado, mensajesRecientes,
-        textoUsuario: transcripcion,
-        saldo: parseFloat(client.saldo ?? 0),
-        nombre: client.nombre ?? client.telegram_username ?? 'Cliente',
-      });
-
-      if (accion === 'iniciar_operacion' && confianza !== 'baja') {
-        const cmdStr = [params.tipo_operacion, params.tipo_monto, params.monto].filter(Boolean).join(' ');
-        await ctx.reply(`🎤 Transcripción: “${transcripcion}”`, { parse_mode: 'HTML' });
-        await procesarOperacion(ctx, cmdStr || transcripcion, client, session);
-        return;
+      if (esImagen) {
+        await ctx.reply(
+          '📷 No pude leer los números en la imagen.\n\nIntenta enviar el <b>archivo Excel (.xlsx)</b> directamente, o escríbeme los números.',
+          { parse_mode: 'HTML' }
+        );
+      } else {
+        await ctx.reply('No pude extraer cuentas del archivo. Por favor envíame los números directamente como texto.');
       }
     }
 
-    // Si no es operación, responder con la transcripción
-    await ctx.reply(`🎤 “${transcripcion}”`);
-  } catch (e) {
-    console.error('[voice-handler]', e.message);
+    await handleIncomingFile({
+      pool, clientId: client.id, operationId,
+      botToken: BOT_TOKEN,
+      telegramFileOrPhoto: fileInfo.file,
+      mimeType: fileInfo.mimeType,
+      fileName: fileInfo.fileName,
+    });
+    if (session.estado !== 'esperando_datos_bancarios') {
+      await ctx.reply('📎 Archivo registrado.');
+    }
   }
 });
 
-// ── Respuestas a polls ────────────────────────────────────────────────────────────────────────────
+// Respuesta a polls (confirmación/cancelación)
 bot.on('poll_answer', async (ctx) => {
-  const pollAnswer = ctx.pollAnswer;
-  const { action, operationDraft, chatId } = pollHandler.processPollAnswer(pollAnswer);
+  const { action, operationDraft, chatId } = pollHandler.processPollAnswer(ctx.pollAnswer);
 
-  if (!chatId || !operationDraft) return;
-
-  const client = await balanceManager.getOrCreateClient(
-    pollAnswer.user?.id, pollAnswer.user?.username
-  );
-  const session = await getOrCreateSession(chatId, client.id);
-
-  if (action === 'confirm') {
-    try {
-      const { operationId, saldo_antes, saldo_despues } =
-        await saveConfirmedOperation(operationDraft, client.id, chatId);
-
-      await updateSession(session.id, 'completado', null);
-
-      const confirmMsg = responseGen.formatConfirmed({
-        ...operationDraft,
-        saldo_nuevo: saldo_despues,
-      });
-      await bot.api.sendMessage(chatId, confirmMsg, { parse_mode: 'HTML' });
-    } catch (err) {
-      console.error('[confirm-op]', err.message);
-      await bot.api.sendMessage(chatId, `⚠️ Error al confirmar: ${err.message}`);
-    }
-    return;
-  }
-
-  if (action === 'edit') {
-    await pollHandler.sendEditMenu(chatId, operationDraft);
-    return;
-  }
+  if (action === 'unknown') return;
 
   if (action === 'cancel') {
+    const session = await getOrCreateSession(chatId);
     await updateSession(session.id, 'completado', null);
     await bot.api.sendMessage(chatId, responseGen.formatCancelled());
     return;
   }
+
+  if (action === 'edit') {
+    const session = await getOrCreateSession(chatId);
+    await pollHandler.sendEditMenu(chatId, operationDraft);
+    await updateSession(session.id, 'esperando_edicion', operationDraft);
+    return;
+  }
+
+  if (action === 'confirm') {
+    const session  = await getOrCreateSession(chatId);
+    const clientId = operationDraft.clientId ?? session.client_id;
+    if (!clientId) {
+      await bot.api.sendMessage(chatId, '❌ No se pudo identificar el cliente. Reinicia con /reset e intenta de nuevo.');
+      return;
+    }
+    try {
+      const { operationId, saldo_despues } = await saveConfirmedOperation(
+        operationDraft, clientId, chatId
+      );
+      await updateSession(session.id, 'completado', null);
+      await bot.api.sendMessage(
+        chatId,
+        responseGen.formatConfirmed({
+          tipo_operacion:    operationDraft.tipo_operacion,
+          monto_neto:        operationDraft.monto_neto,
+          monto_bruto:       operationDraft.monto_bruto,
+          saldo_nuevo:       saldo_despues,
+          es_entrada:        operationDraft.es_entrada,
+          instrucciones_pago: operationDraft.instrucciones_pago,
+        }),
+        { parse_mode: 'HTML' }
+      );
+    } catch (err) {
+      console.error('[confirm]', err);
+      await bot.api.sendMessage(chatId, `❌ Error al confirmar: ${err.message}`);
+    }
+    return;
+  }
 });
 
-// ── Callback queries (InlineKeyboard) ────────────────────────────────────────────────────────────
+// Callbacks de InlineKeyboard
 bot.on('callback_query:data', async (ctx) => {
-  const data    = ctx.callbackQuery.data;
-  const userId  = ctx.from?.id;
-  const chatId  = ctx.chat?.id ?? ctx.callbackQuery.message?.chat?.id;
+  const data   = ctx.callbackQuery.data;
+  const chatId = ctx.chat?.id ?? ctx.callbackQuery.message?.chat.id;
+  const userId = ctx.from?.id;
 
-  if (!chatId) { await ctx.answerCallbackQuery(); return; }
+  // ── Admin: guardarme como admin ──────────────────────────────────────────
+  if (data.startsWith('admin_self_')) {
+    await ctx.answerCallbackQuery();
+    const targetId = parseInt(data.replace('admin_self_', ''));
+    if (targetId !== userId && !ADMIN_USER_IDS.has(userId)) {
+      await ctx.reply('⛔ Solo tú puedes solicitar tu propio acceso.');
+      return;
+    }
+    if (ADMIN_USER_IDS.size > 0 && !ADMIN_USER_IDS.has(userId)) {
+      await ctx.reply('⛔ Ya hay administradores. Solo un admin existente puede añadir nuevos.');
+      return;
+    }
+    try {
+      await q.setClientAdmin(pool, targetId, true);
+      ADMIN_USER_IDS.add(targetId);
+      try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
+      // Actualizar menú de comandos para el nuevo admin
+      const comandosAdmin = [
+        { command: 'start',     description: 'Bienvenida / comenzar' },
+        { command: 'saldo',     description: 'Ver tu saldo actual' },
+        { command: 'historial', description: 'Ver historial de operaciones' },
+        { command: 'operacion', description: 'Iniciar una nueva operación' },
+        { command: 'reset',     description: 'Reiniciar sesión actual' },
+        { command: 'miid',      description: 'Ver tu Telegram ID' },
+        { command: 'ajuste',    description: '(Admin) Ajuste manual de saldo' },
+        { command: 'testmode',  description: '(Admin) Activar/desactivar modo prueba' },
+        { command: 'rol',       description: '(Admin) Cambiar rol del chat' },
+      ];
+      bot.api.setMyCommands(comandosAdmin, {
+        scope: { type: 'chat', chat_id: targetId },
+      }).catch(() => {});
+      await ctx.reply(
+        `✅ <b>Guardado como administrador.</b>\n` +
+        `ID <code>${targetId}</code> tiene acceso completo.\n\n` +
+        `Usa <code>/testmode</code> para activar el modo de prueba.`,
+        { parse_mode: 'HTML' }
+      );
+    } catch (err) {
+      await ctx.reply(`❌ Error al guardar: ${err.message}`);
+    }
+    return;
+  }
 
-  const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
-  const session = await getOrCreateSession(chatId, client.id);
-
-  // ── edit_field: callbacks ──────────────────────────────────────────────────────────────────────────────
+  // ── Edición de campos ────────────────────────────────────────────────────
   if (data.startsWith('edit_field:')) {
-    const field = data.split(':')[1];
-    const result = await pollHandler.processEditFieldSelection(chatId, field, ctx.callbackQuery.id);
+    const field = data.replace('edit_field:', '');
+    const result = await pollHandler.processEditFieldSelection(
+      chatId, field, ctx.callbackQuery.id
+    );
     if (result?.action === 'cancel') {
-      await updateSession(session.id, 'completado', null);
       await ctx.reply(responseGen.formatCancelled());
     }
     return;
   }
 
-  // ── confirmar_comprobante ───────────────────────────────────────────────────────────────────────────────
+  // ── Confirmar factura ─────────────────────────────────────────────────────
+  if (data === 'confirmar_factura') {
+    await ctx.answerCallbackQuery();
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const session = await getOrCreateSession(chatId, client.id);
+    const draft   = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
+    try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
+
+    const { operationId, saldo_despues } = await saveConfirmedOperation({
+      ...draft,
+      tipo_operacion:   draft.tipo_operacion,
+      monto_bruto:      draft.monto_bruto,
+      monto_neto:       draft.monto_neto,
+      comision_pct:     draft.comision_pct,
+      es_entrada:       true,
+      solicita_neto:    false,
+      tipo_monto:       'bruto',
+      monto_solicitado: draft.monto_bruto,
+      tipo_entrega:     'spei',
+      tiene_factura:    true,
+    }, client.id, chatId);
+    await updateSession(session.id, 'completado', null);
+    await ctx.reply(
+      `✅ <b>Factura registrada</b>\n` +
+      `Operación #${operationId} — ${draft.tipo_operacion}\n` +
+      `Bruto: $${fmt(draft.monto_bruto)} · Neto acreditado: <b>$${fmt(draft.monto_neto)}</b>\n` +
+      `<b>Nuevo saldo: $${fmt(saldo_despues)}</b>`,
+      { parse_mode: 'HTML' }
+    );
+    return;
+  }
+
+  if (data === 'corregir_factura') {
+    await ctx.answerCallbackQuery();
+    try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
+    await ctx.reply('✏️ Envíame el monto correcto de la factura:');
+    return;
+  }
+
+  if (data === 'cancelar_factura') {
+    await ctx.answerCallbackQuery();
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const session = await getOrCreateSession(chatId, client.id);
+    await updateSession(session.id, 'completado', null);
+    try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
+    await ctx.reply('❌ Registro cancelado.');
+    return;
+  }
+
+  // ── Confirmar comprobante de pago ─────────────────────────────────────────
   if (data === 'confirmar_comprobante') {
     await ctx.answerCallbackQuery();
-    const draft = parseDraft(session.operation_draft_json);
-    const monto = draft.monto_bruto ?? draft.comprobante_monto ?? 0;
-    if (!monto) {
-      await ctx.reply('⚠️ No hay monto registrado. Envíame el comprobante nuevamente.');
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const session = await getOrCreateSession(chatId, client.id);
+    const draft   = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
+    try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
+
+    if (!draft.monto_bruto || draft.monto_bruto <= 0) {
+      await ctx.reply('⚠️ No hay monto registrado. Escríbeme cuánto depositaste.');
       return;
     }
+    let saldo_antes, saldo_despues;
     try {
-      const { saldo_antes, saldo_despues } = await balanceManager.confirmarPago({
-        clientId: client.id,
-        monto,
-        tipo: 'comprobante',
-      });
-      await updateSession(session.id, 'completado', null);
-      await ctx.reply(
-        `✅ <b>Pago confirmado</b>\n` +
-        `Monto: <b>$${fmt(monto)}</b>\n` +
-        `Saldo: $${fmt(saldo_antes)} → <b>$${fmt(saldo_despues)}</b>`,
-        { parse_mode: 'HTML' }
-      );
+      ({ saldo_antes, saldo_despues } = await balanceManager.confirmarPago({
+        clientId:         client.id,
+        monto:            draft.monto_bruto,
+        montoNeto:        draft.monto_neto ?? draft.monto_bruto,
+        tipo:             draft.tipo ?? 'comprobante',
+        tipo_operacion:   draft.tipo_operacion ?? null,
+        telegram_file_id: draft.telegram_file_id ?? null,
+        notas:            'Comprobante confirmado por cliente',
+      }));
     } catch (err) {
-      await ctx.reply(`⚠️ Error: ${err.message}`);
+      console.error('[confirmar_comprobante callback]', err.message);
+      await ctx.reply(`⚠️ Error al confirmar: ${err.message}`);
+      return;
     }
+    await updateSession(session.id, 'completado', null);
+
+    // Si hay una distribución pendiente (entrega a terceros), procesarla ahora
+    if (draft.post_confirm_distribucion) {
+      const dist = { ...draft.post_confirm_distribucion, clientId: client.id };
+      try {
+        const { saldo_despues: saldoFinal } = await saveConfirmedOperation(dist, client.id, chatId);
+        const restante = dist.monto_neto_original && dist.monto_neto_original > dist.monto_neto + 0.01
+          ? Math.round((dist.monto_neto_original - dist.monto_neto) * 100) / 100
+          : null;
+        await ctx.reply(
+          `✅ <b>Pago recibido y entrega procesada</b>\n\n` +
+          `Comprobante: $${fmt(draft.monto_bruto)} → ${draft.tipo_operacion}\n` +
+          `Entrega: $${fmt(dist.tabla_total ?? dist.monto_neto)}` +
+          (dist.tabla_pagos?.length ? ` a ${dist.tabla_pagos.length} personas` : '') + `\n` +
+          (restante !== null ? `Restante de operación: <b>$${fmt(restante)}</b>\n` : '') +
+          `<b>Saldo actualizado: $${fmt(saldoFinal)}</b>`,
+          { parse_mode: 'HTML' }
+        );
+      } catch (e) {
+        console.error('[dist-post-confirm]', e.message);
+        await ctx.reply(
+          `✅ <b>Pago confirmado</b>\n` +
+          `Saldo: <b>$${fmt(saldo_despues)}</b>\n` +
+          `⚠️ La distribución requiere atención manual: ${e.message}`,
+          { parse_mode: 'HTML' }
+        );
+      }
+      return;
+    }
+
+    await ctx.reply(
+      `✅ <b>Pago confirmado</b>\n` +
+      `Monto: $${fmt(draft.monto_bruto)}\n` +
+      `Saldo anterior: $${fmt(saldo_antes)}\n` +
+      `<b>Nuevo saldo: $${fmt(saldo_despues)}</b>`,
+      { parse_mode: 'HTML' }
+    );
     return;
   }
 
   if (data === 'corregir_comprobante') {
     await ctx.answerCallbackQuery();
-    await ctx.reply('✏️ ¿Cuál es el monto correcto?');
+    try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
+    await ctx.reply('✏️ Envíame el monto correcto del pago:');
     return;
   }
 
   if (data === 'cancelar_comprobante') {
     await ctx.answerCallbackQuery();
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const session = await getOrCreateSession(chatId, client.id);
     await updateSession(session.id, 'completado', null);
-    await ctx.reply('❌ Cancelado.');
+    try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
+    await ctx.reply('❌ Confirmación cancelada.');
     return;
   }
 
-  // ── confirmar_cuentas / usar_cuenta_* / nueva_cuenta ──────────────────────────────────────────────
-  if (data === 'confirmar_cuentas') {
-    await ctx.answerCallbackQuery();
-    const draft = parseDraft(session.operation_draft_json);
-    const cuentas = draft.cuentas_bancarias ?? [];
-    if (!cuentas.length) {
-      await ctx.reply('No hay cuentas guardadas. Envíame los datos bancarios.');
-      await updateSession(session.id, 'esperando_datos_bancarios', draft);
-      return;
-    }
-    await mostrarResumenYPoll(ctx, draft, client, session);
-    return;
-  }
-
-  if (data === 'nueva_cuenta') {
-    await ctx.answerCallbackQuery();
-    const draft = parseDraft(session.operation_draft_json);
-    draft.cuentas_bancarias = [];
-    await updateSession(session.id, 'esperando_datos_bancarios', draft);
-    await ctx.reply('Envíame la CLABE, tarjeta o número de cuenta al que realizaremos el pago.');
-    return;
-  }
-
+  // ── Datos bancarios: usar cuenta existente ────────────────────────────────
   if (data.startsWith('usar_cuenta_')) {
     await ctx.answerCallbackQuery();
     const cuentaId = parseInt(data.replace('usar_cuenta_', ''));
-    const draft    = parseDraft(session.operation_draft_json);
-    const cuentasDisp = draft.cuentas_disponibles ?? [];
-    const elegida = cuentasDisp.find(c => c.id === cuentaId);
-    if (!elegida) {
-      await ctx.reply('Cuenta no encontrada. Envíame los datos nuevamente.');
-      return;
-    }
-    draft.cuentas_bancarias = [elegida];
+    const client   = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const session  = await getOrCreateSession(chatId, client.id);
+    const draft    = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
+    const cuenta   = (draft.cuentas_disponibles ?? []).find(c => c.id === cuentaId);
+    if (!cuenta) { await ctx.reply('Cuenta no encontrada, intenta de nuevo.'); return; }
+    draft.cuentas_bancarias = [cuenta];
+    try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
     await mostrarResumenYPoll(ctx, draft, client, session);
     return;
   }
 
-  // ── confirmar_factura ────────────────────────────────────────────────────────────────────────────────
-  if (data === 'confirmar_factura' || data === 'cancelar_factura') {
+  // ── Datos bancarios: ingresar nuevos ──────────────────────────────────────
+  if (data === 'nueva_cuenta') {
     await ctx.answerCallbackQuery();
-    if (data === 'cancelar_factura') {
-      await updateSession(session.id, 'completado', null);
-      await ctx.reply('❌ Factura cancelada.');
-      return;
-    }
-    const draft = parseDraft(session.operation_draft_json);
-    draft.tiene_factura = true;
-    // Verificar que tenemos todos los datos
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const session = await getOrCreateSession(chatId, client.id);
+    const draft   = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
+    delete draft.cuentas_bancarias;
+    try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
+    await ctx.reply(
+      '💳 Envíame la CLABE (18 dígitos), número de tarjeta o cuenta.\n' +
+      'También puedes subir un archivo Excel, CSV o TXT con varias cuentas.',
+    );
+    await updateSession(session.id, 'esperando_datos_bancarios', draft);
+    return;
+  }
+
+  // ── Datos bancarios: confirmar ────────────────────────────────────────────
+  if (data === 'confirmar_cuentas') {
+    await ctx.answerCallbackQuery();
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const session = await getOrCreateSession(chatId, client.id);
+    const draft   = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
+    try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
+
+    // Garantizar clientId siempre presente
+    draft.clientId = draft.clientId ?? client.id;
+
+    // Si falta tipo u monto, el draft llegó sin contexto de operación → pedirlos
     if (!draft.tipo_operacion || !draft.monto_bruto) {
-      await ctx.reply('⚠️ Faltan datos de la operación. Usa /operacion para iniciar.');
+      await updateSession(session.id, 'esperando_tipo', draft);
+      await ctx.reply(
+        '✅ Cuentas listas. Para procesarlas, ¿qué operación es?\n' +
+        'Escribe tipo y monto. Ejemplo: <code>IAS 9836</code>',
+        { parse_mode: 'HTML' }
+      );
       return;
     }
+
+    // Si es salida, verificar saldo antes de mostrar el poll
+    if (!draft.es_entrada) {
+      const { saldo } = await balanceManager.getSaldo(client.id);
+      const montoNeto      = draft.monto_neto  ?? draft.monto_bruto ?? 0;
+      const montoOrigNeto  = draft.monto_neto_original  ?? montoNeto;
+      const montoOrigBruto = draft.monto_bruto_original ?? draft.monto_bruto ?? montoNeto;
+
+      if (saldo < montoNeto - 0.01) {
+        const saldoFinalEstimado = Math.round((saldo + montoOrigNeto - montoNeto) * 100) / 100;
+        const esParcialpago = montoOrigNeto !== montoNeto;
+
+        await ctx.reply(
+          `💳 <b>Se requiere pago previo</b>\n\n` +
+          `Saldo neto anterior: <b>$${fmt(saldo)}</b>\n` +
+          (esParcialpago
+            ? `Operación total: $${fmt(montoOrigBruto)} bruto → <b>$${fmt(montoOrigNeto)} neto</b>\n`
+            : '') +
+          `Esta entrega: <b>$${fmt(montoNeto)}</b>` +
+          (draft.tabla_pagos?.length ? ` a ${draft.tabla_pagos.length} personas` : '') + `\n` +
+          `Saldo neto tras el pago y la entrega: <b>$${fmt(saldoFinalEstimado)}</b>\n\n` +
+          `¿Ya realizaste el pago de <b>$${fmt(montoOrigBruto)}</b>?\n` +
+          `Comparte el comprobante para confirmar y procesar la entrega.`,
+          { parse_mode: 'HTML' }
+        );
+
+        await updateSession(session.id, 'confirmando_comprobante', {
+          tipo:           'comprobante',
+          monto_bruto:    montoOrigBruto,
+          monto_neto:     montoOrigNeto,
+          tipo_operacion: draft.tipo_operacion,
+          clientId:       client.id,
+          saldo_actual:   saldo,
+          post_confirm_distribucion: {
+            tipo_operacion: draft.tipo_operacion,
+            monto_neto:     montoNeto,
+            monto_bruto:    montoNeto,
+            comision_pct:   0,
+            es_entrada:     false,
+            solicita_neto:  false,
+            tipo_entrega:   draft.tipo_entrega ?? 'spei',
+            tabla_pagos:    draft.tabla_pagos   ?? null,
+            tabla_total:    draft.tabla_total   ?? null,
+            monto_neto_original:  montoOrigNeto,
+            monto_bruto_original: montoOrigBruto,
+            cuentas_bancarias: draft.cuentas_bancarias ?? [],
+            clientId: client.id,
+          },
+        });
+        return;
+      }
+    }
+
     await mostrarResumenYPoll(ctx, draft, client, session);
     return;
   }
@@ -1284,208 +1866,460 @@ bot.on('callback_query:data', async (ctx) => {
   await ctx.answerCallbackQuery();
 });
 
-// ── procesarOperacion: core del flujo de operaciones ────────────────────────────────────────────────
-async function procesarOperacion(ctx, text, client, session) {
+// ── Lógica central de procesamiento de operación ──────────────────────────────
+
+async function procesarOperacion(ctx, input, client, session) {
   const chatId = ctx.chat?.id;
-  const draft  = parseDraft(session.operation_draft_json);
 
-  // Parseo estructurado del comando
-  const parsed = parseNaturalText(text);
-  if (parsed.tipo)       draft.tipo_operacion = parsed.tipo;
-  if (parsed.monto)      draft.monto_raw      = parsed.monto;
-  if (parsed.tipo_monto) draft.tipo_monto     = parsed.tipo_monto;
-  if (parsed.es_entrada !== null) draft.es_entrada = parsed.es_entrada;
+  // 1. Parsear
+  let parsed = parseCommand(input);
 
-  // Si falta tipo de operación
-  if (!draft.tipo_operacion) {
-    if (parsed.necesita_llm && transactionOrchestrator) {
-      const mensajesRecientes = await contextManager.getRecientes(chatId, 10);
-      const { accion, params } = await transactionOrchestrator.rutear({
-        estado:           session.estado,
-        mensajesRecientes,
-        textoUsuario:     text,
-        saldo:            parseFloat(client.saldo ?? 0),
-        nombre:           client.nombre ?? client.telegram_username ?? 'Cliente',
-      });
-      if (accion === 'iniciar_operacion' && params.tipo_operacion) {
-        draft.tipo_operacion = params.tipo_operacion;
-        if (params.monto)      draft.monto_raw  = params.monto;
-        if (params.tipo_monto) draft.tipo_monto = params.tipo_monto;
+  // Si falta información, intentar con texto natural
+  if (!parsed.tipo || !parsed.monto) {
+    const natural = parseNaturalText(input);
+    parsed = {
+      tipo:       parsed.tipo  ?? natural.tipo,
+      tipo_monto: parsed.tipo_monto ?? natural.tipo_monto,
+      monto:      parsed.monto ?? natural.monto,
+      es_entrada: natural.es_entrada,
+    };
+  }
+
+  // Si AÚN falta tipo → preguntar
+  if (!parsed.tipo) {
+    // Intentar con LLM para texto libre complejo
+    if (input.length > 10) {
+      const { saldo } = await balanceManager.getSaldo(client.id);
+      const llmResult = await responseGen.parseFreeText(input, { saldo, nombre: client.nombre });
+      if (llmResult?.tipo && llmResult.tipo !== 'null') {
+        parsed.tipo       = llmResult.tipo;
+        parsed.tipo_monto = llmResult.tipo_monto ?? parsed.tipo_monto;
+        parsed.monto      = llmResult.monto ?? parsed.monto;
+        parsed.es_entrada = llmResult.es_entrada ?? parsed.es_entrada;
       }
     }
-    if (!draft.tipo_operacion) {
+    if (!parsed.tipo) {
       const tipos = listTypes();
       await ctx.reply(responseGen.formatAskTipo(tipos), { parse_mode: 'HTML' });
-      await updateSession(session.id, 'esperando_tipo', draft);
+      const baseDraft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
+      await updateSession(session.id, 'esperando_tipo', { ...baseDraft, clientId: client.id });
       return;
     }
   }
 
-  // Obtener comisión
-  const commission = await getCommission(draft.tipo_operacion, pool, client.id);
-  draft.comision_pct = commission?.pct ?? 0.03;
-  draft.costo_pct    = commission?.costo_pct ?? null;
-
-  // Si falta monto
-  if (!draft.monto_raw) {
-    await ctx.reply(responseGen.formatAskMonto(draft.tipo_operacion), { parse_mode: 'HTML' });
-    await updateSession(session.id, 'esperando_monto', draft);
-    return;
-  }
-
-  // Calcular montos
-  try {
-    const { monto_bruto, monto_neto, comision_mxn } = calcularMontos({
-      monto:        draft.monto_raw,
-      tipo_monto:   draft.tipo_monto ?? 'neto',
-      comision_pct: draft.comision_pct,
-    });
-    draft.monto_bruto   = monto_bruto;
-    draft.monto_neto    = monto_neto;
-    draft.comision_mxn  = comision_mxn;
-    draft.solicita_neto = draft.tipo_monto === 'neto';
-  } catch (err) {
-    await ctx.reply(`⚠️ Error calculando montos: ${err.message}`);
-    return;
-  }
-
-  // Si es salida: verificar saldo o pedir cuentas bancarias
-  if (draft.es_entrada === false || draft.es_entrada === null) {
-    // Default: si no se especificó es_entrada, es una salida
-    draft.es_entrada = draft.es_entrada ?? false;
-
-    const { tiene, saldo } = await balanceManager.tieneSaldoSuficiente(client.id, draft.monto_bruto);
-    draft.saldo_actual = saldo;
-    draft.tiene_saldo  = tiene;
-
-    if (!tiene) {
-      // Obtener datos bancarios para el pago
-      const instrucciones = await q.getInstruccionesPago(pool);
-      draft.instrucciones_pago = instrucciones;
+  // Si falta monto → preguntar
+  if (!parsed.monto) {
+    const commission = await getCommission(parsed.tipo, pool, client.id);
+    if (!commission) {
+      await ctx.reply(`❌ El tipo de operación <b>${parsed.tipo}</b> no está disponible para tu cuenta.`, { parse_mode: 'HTML' });
+      await updateSession(session.id, 'idle', null);
+      return;
     }
+    await ctx.reply(responseGen.formatAskMonto(parsed.tipo), { parse_mode: 'HTML' });
+    const baseDraft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
+    await updateSession(session.id, 'esperando_monto', { ...baseDraft, tipo_operacion: parsed.tipo, clientId: client.id });
+    return;
+  }
 
-    // Pedir cuentas bancarias si no las tiene
-    if (!draft.cuentas_bancarias?.length) {
-      const cuentasRecientes = await bankingManager.getCuentasRecientes(client.id, 5);
-      if (cuentasRecientes.length) {
-        draft.cuentas_disponibles = cuentasRecientes;
-        const kb = new InlineKeyboard();
-        cuentasRecientes.forEach(c => {
-          kb.text(`${c.tipo} ···${c.numero.slice(-4)}${c.banco ? ' · ' + c.banco : ''}`, `usar_cuenta_${c.id}`).row();
-        });
-        kb.text('➕ Nuevos datos', 'nueva_cuenta');
-        await updateSession(session.id, 'confirmando_cuentas', draft);
-        await safeReply(ctx,
-          `💳 ¿A qué cuenta realizamos el pago de <b>$${fmt(draft.monto_neto)}</b>?\n\nCuentas registradas:`,
-          { parse_mode: 'HTML', reply_markup: kb }
-        );
-        return;
-      } else {
-        await ctx.reply('Envíame la CLABE, tarjeta o número de cuenta al que realizaremos el pago.');
-        await updateSession(session.id, 'esperando_datos_bancarios', draft);
-        return;
+  // 2. Calcular
+  const commission = await getCommission(parsed.tipo, pool, client.id);
+  if (!commission) {
+    await ctx.reply(`❌ El tipo de operación <b>${parsed.tipo}</b> no está disponible para tu cuenta.`, { parse_mode: 'HTML' });
+    await updateSession(session.id, 'idle', null);
+    return;
+  }
+
+  const tipo_monto = parsed.tipo_monto ?? 'neto';
+  const es_entrada = parsed.es_entrada ?? false;
+
+  const { monto_bruto, monto_neto, comision_pct, comision_mxn } = calcularMontos({
+    monto: parsed.monto,
+    tipo_monto,
+    comision_pct: commission.pct,
+  });
+
+  // 3. Verificar saldo para operaciones de salida
+  const { saldo } = await balanceManager.getSaldo(client.id);
+  let tiene_saldo  = true;
+  let saldo_nuevo  = saldo;
+  let faltante     = 0;
+
+  if (!es_entrada) {
+    const saldoCheck = verifier.verificarSaldo({ saldo_actual: saldo, monto_bruto, es_entrada });
+    tiene_saldo = saldoCheck.tiene_saldo;
+    faltante    = saldoCheck.faltante ?? 0;
+  }
+
+  const { saldo_nuevo: saldoProyectado } = proyectarSaldo({
+    saldo_actual: saldo, monto_neto, monto_bruto, es_entrada,
+  });
+  saldo_nuevo = saldoProyectado;
+
+  // 4. Construir draft
+  const draft = {
+    clientId:          client.id,
+    tipo_operacion:    parsed.tipo,
+    tipo_monto,
+    monto_solicitado:  parsed.monto,
+    monto_bruto,
+    monto_neto,
+    comision_pct,
+    es_entrada,
+    solicita_neto:     tipo_monto === 'neto',
+    tipo_entrega:      parsed.tipo?.toUpperCase() === 'TARJETAS' ? 'tarjeta'
+                     : parsed.tipo?.toUpperCase() === 'EFECTIVO' ? 'efectivo'
+                     : 'spei',
+    instrucciones_pago: null, // se configura por tipo de operación en fin_operation_types
+    tiene_saldo_suficiente: tiene_saldo,
+    tiene_factura:     false,
+  };
+
+  // 4.5 Recuperar tabla_pagos si el usuario envió la imagen antes de indicar tipo/monto
+  // Leer siempre directo de DB para evitar usar el objeto session cacheado al inicio del handler
+  const [_freshRows] = await pool.query('SELECT operation_draft_json FROM fin_sessions WHERE id=?', [session.id]);
+  const prevDraft = parseDraft(_freshRows[0]?.operation_draft_json ?? session.operation_draft_json);
+  if (prevDraft.tabla_pagos?.length && !draft.cuentas_bancarias?.length) {
+    draft.tabla_pagos       = prevDraft.tabla_pagos;
+    draft.tabla_total       = prevDraft.tabla_total ?? null;
+    draft.cuentas_bancarias = prevDraft.cuentas_bancarias ?? prevDraft.tabla_pagos;
+    if (draft.tabla_total && draft.monto_neto > draft.tabla_total + 0.01) {
+      draft.monto_neto_original  = draft.monto_neto;
+      draft.monto_bruto_original = draft.monto_bruto;
+      draft.monto_neto           = draft.tabla_total;
+      draft.monto_bruto          = draft.tabla_total;
+      draft.comision_pct         = 0;
+      const { saldo_nuevo: sAdj } = proyectarSaldo({
+        saldo_actual: saldo, monto_neto: draft.monto_neto, monto_bruto: draft.monto_bruto, es_entrada,
+      });
+      saldo_nuevo = sAdj;
+    }
+  }
+
+  // 4.6 Cargar instrucciones de pago desde nuestra empresa asignada al cliente
+  //     (aplica tanto para entrada como para salida con saldo insuficiente)
+  if (!draft.instrucciones_pago) {
+    try {
+      const empRow = await q.getEmpresaNuestraForClient(pool, client.id);
+      if (empRow) {
+        draft.instrucciones_pago = [
+          empRow.empresa_nombre,
+          `Banco: ${empRow.banco}`,
+          empRow.titular    ? `Titular: ${empRow.titular}`   : '',
+          empRow.clabe      ? `CLABE: ${empRow.clabe}`       : '',
+          empRow.num_cuenta ? `Cuenta: ${empRow.num_cuenta}` : '',
+          empRow.alias      ? `(${empRow.alias})`            : '',
+        ].filter(Boolean).join('\n');
       }
-    }
-  } else {
-    draft.es_entrada = true;
-    const { saldo } = await balanceManager.getSaldo(client.id);
-    draft.saldo_actual = saldo;
-    draft.tiene_saldo  = true;
-    const instrucciones = await q.getInstruccionesPago(pool);
-    draft.instrucciones_pago = instrucciones;
+    } catch (err) { console.error('[empresa-pago]', err.message); }
   }
 
-  await mostrarResumenYPoll(ctx, draft, client, session);
+  // 5. Verificar consistencia
+  const verification = verifier.verificarConsistencia(draft);
+  if (!verification.ok) {
+    const msg = verifier.formatVerificationResult(verification);
+    if (msg) await ctx.reply(msg, { parse_mode: 'HTML' });
+    // Aplicar correcciones automáticas
+    Object.assign(draft, verification.correcciones);
+  }
+
+  // 6. Pedir dirección solo para operaciones con entrega física
+  if (['efectivo', 'tarjeta'].includes(draft.tipo_entrega) && !draft.direccion_entrega && !es_entrada) {
+    await ctx.reply(responseGen.formatAskDireccion());
+    await updateSession(session.id, 'esperando_entrega', { ...draft, saldo_actual: saldo, saldo_nuevo });
+    return;
+  }
+
+  // 7. Pedir datos bancarios para transferencias salientes (IAS, SPEI, SINDICATO, TARJETAS)
+  const TIPOS_BANCARIOS = ['IAS', 'SPEI', 'SINDICATO', 'TARJETAS'];
+  if (TIPOS_BANCARIOS.includes(draft.tipo_operacion?.toUpperCase()) && !es_entrada && !draft.cuentas_bancarias?.length) {
+    const cuentas = await bankingManager.getCuentasRecientes(client.id, 3);
+
+    if (cuentas.length) {
+      const kb = new InlineKeyboard();
+      cuentas.forEach(c => {
+        const label = `${c.tipo} ···${c.numero.slice(-4)}${c.banco ? ' · ' + c.banco : ''}`;
+        kb.text(label, `usar_cuenta_${c.id}`).row();
+      });
+      kb.text('➕ Nuevos datos', 'nueva_cuenta');
+
+      await ctx.reply(
+        `💳 <b>Datos bancarios para el pago de $${fmt(draft.monto_neto)}</b>\n\n` +
+        `Cuentas registradas:\n\n${BankingManager.formatearCuentas(cuentas)}\n\n¿Cuál usar?`,
+        { parse_mode: 'HTML', reply_markup: kb }
+      );
+      await updateSession(session.id, 'confirmando_cuentas', { ...draft, cuentas_disponibles: cuentas, saldo_actual: saldo, saldo_nuevo });
+    } else {
+      await ctx.reply(
+        `💳 ¿A qué cuenta se realizará el pago de <b>$${fmt(draft.monto_neto)}</b>?\n\n` +
+        `Puedes enviarme:\n` +
+        `• CLABE (18 dígitos), número de tarjeta o cuenta\n` +
+        `• Archivo <b>Excel, CSV o TXT</b> con varias cuentas\n\n` +
+        `Incluye banco y nombre del titular si tienes.`,
+        { parse_mode: 'HTML' }
+      );
+      const savedDraft = { ...draft, saldo_actual: saldo, saldo_nuevo };
+      await updateSession(session.id, 'esperando_datos_bancarios', savedDraft);
+    }
+    return;
+  }
+
+  // Saldo check para cuentas ya cargadas que no pasaron por confirmar_cuentas
+  if (!es_entrada && draft.cuentas_bancarias?.length && saldo < (draft.monto_neto ?? 0) - 0.01) {
+    const montoNeto      = draft.monto_neto ?? draft.monto_bruto ?? 0;
+    const montoOrigNeto  = draft.monto_neto_original  ?? montoNeto;
+    const montoOrigBruto = draft.monto_bruto_original ?? draft.monto_bruto ?? montoNeto;
+    const saldoFinal     = Math.round((saldo + montoOrigNeto - montoNeto) * 100) / 100;
+    const esParcialpago  = montoOrigNeto !== montoNeto;
+
+    await ctx.reply(
+      `💳 <b>Se requiere pago previo</b>\n\n` +
+      `Saldo neto anterior: <b>$${fmt(saldo)}</b>\n` +
+      (esParcialpago ? `Operación total: $${fmt(montoOrigBruto)} bruto → <b>$${fmt(montoOrigNeto)} neto</b>\n` : '') +
+      `Esta entrega: <b>$${fmt(montoNeto)}</b>` +
+      (draft.tabla_pagos?.length ? ` a ${draft.tabla_pagos.length} personas` : '') + `\n` +
+      `Saldo neto tras el pago y la entrega: <b>$${fmt(saldoFinal)}</b>\n\n` +
+      `¿Ya realizaste el pago de <b>$${fmt(montoOrigBruto)}</b>?\n` +
+      `Comparte el comprobante para confirmar y procesar la entrega.`,
+      { parse_mode: 'HTML' }
+    );
+    await updateSession(session.id, 'confirmando_comprobante', {
+      tipo:           'comprobante',
+      monto_bruto:    montoOrigBruto,
+      monto_neto:     montoOrigNeto,
+      tipo_operacion: draft.tipo_operacion,
+      clientId:       client.id,
+      saldo_actual:   saldo,
+      post_confirm_distribucion: {
+        tipo_operacion: draft.tipo_operacion,
+        monto_neto:     montoNeto,
+        monto_bruto:    montoNeto,
+        comision_pct:   0,
+        es_entrada:     false,
+        solicita_neto:  false,
+        tipo_entrega:   draft.tipo_entrega ?? 'spei',
+        tabla_pagos:    draft.tabla_pagos   ?? null,
+        tabla_total:    draft.tabla_total   ?? null,
+        monto_neto_original:  montoOrigNeto,
+        monto_bruto_original: montoOrigBruto,
+        cuentas_bancarias: draft.cuentas_bancarias ?? [],
+        clientId: client.id,
+      },
+    });
+    return;
+  }
+
+  await mostrarResumenYPoll(ctx, { ...draft, saldo_actual: saldo, saldo_nuevo }, client, session);
 }
 
-// ── mostrarResumenYPoll ──────────────────────────────────────────────────────────────────────────────
 async function mostrarResumenYPoll(ctx, draft, client, session) {
-  // Verificar consistencia antes de mostrar
-  const verResult = verifier.verificarConsistencia(draft);
-  if (!verResult.ok) {
-    // Aplicar correcciones automáticas
-    Object.assign(draft, verResult.correcciones);
-  }
-
-  // Obtener saldo actualizado
-  const { saldo } = await balanceManager.getSaldo(client.id);
-  draft.saldo_actual = saldo;
-
-  const { saldo_nuevo } = proyectarSaldo({
-    saldo_actual: saldo,
-    monto_neto:   draft.monto_neto,
-    es_entrada:   draft.es_entrada,
-  });
-  draft.saldo_nuevo = saldo_nuevo;
-
-  // Determinar si tiene saldo suficiente
-  const { tiene_saldo } = verifier.verificarSaldo({
-    saldo_actual: saldo,
-    monto_bruto:  draft.monto_bruto,
-    es_entrada:   draft.es_entrada,
-  });
-  draft.tiene_saldo = tiene_saldo;
+  const chatId = ctx.chat?.id;
 
   const summaryText = responseGen.formatOperationSummary({
     ...draft,
-    saldo_actual: saldo,
-    saldo_nuevo,
-    tiene_saldo,
+    saldo_actual: draft.saldo_actual ?? 0,
+    saldo_nuevo:  draft.saldo_nuevo  ?? 0,
+    tiene_saldo:  draft.tiene_saldo_suficiente ?? true,
   });
 
-  // Verificaciones adicionales
-  const verMsg = verifier.formatVerificationResult(verResult);
-  if (verMsg) {
-    await safeReply(ctx, verMsg, { parse_mode: 'HTML' });
-  }
-
-  await updateSession(session.id, 'confirmando', draft);
-  await pollHandler.sendConfirmationPoll(ctx.chat?.id, draft, summaryText);
+  await pollHandler.sendConfirmationPoll(chatId, draft, summaryText);
+  await updateSession(session.id, 'esperando_confirmacion', draft);
 }
 
-// ── safeReply ────────────────────────────────────────────────────────────────────────────────────
-async function safeReply(ctx, text, opts = {}) {
-  // GrammY replíy si hay ctx.message, sendMessage si no (callback query)
+// ── /miid: muestra tu Telegram ID y ofrece guardarte como admin ──────────────
+
+bot.command('miid', async (ctx) => {
   try {
-    if (ctx.reply) {
-      await ctx.reply(text, opts);
-    } else {
-      await bot.api.sendMessage(ctx.chat?.id, text, opts);
+    const userId   = ctx.from?.id;
+    const username = ctx.from?.username ? `@${ctx.from.username}` : ctx.from?.first_name ?? 'Sin nombre';
+    const yaEsAdmin = ADMIN_USER_IDS.has(userId);
+    const hayAdmins = ADMIN_USER_IDS.size > 0;
+
+    let text = `ID: <code>${userId}</code>\nUsuario: ${username}`;
+    if (yaEsAdmin) {
+      text += `\n\n✅ Ya eres administrador.`;
+      await ctx.reply(text, { parse_mode: 'HTML' });
+      return;
+    }
+
+    text += hayAdmins
+      ? `\n\n🔒 Hay administradores configurados. Pídele a uno que te agregue.`
+      : `\n\n⚠️ No hay administradores aún. Puedes ser el primero.`;
+
+    const kb = new InlineKeyboard()
+      .text(
+        hayAdmins ? '✅ Solicitar acceso admin' : '✅ Guardarme como administrador',
+        `admin_self_${userId}`
+      );
+
+    await ctx.reply(text, { parse_mode: 'HTML', reply_markup: kb });
+  } catch (err) {
+    console.error('[/miid]', err.message);
+    await ctx.reply(`ID: <code>${ctx.from?.id}</code>`, { parse_mode: 'HTML' }).catch(() => {});
+  }
+});
+
+// ── Voice messages: transcribir vía Gemini Flash y procesar como texto ───────
+
+bot.on('message:voice', async (ctx) => {
+  if (!docAgent) return; // sin GOOGLE_API_KEY, ignorar
+  const chatId = ctx.chat?.id;
+  const from   = ctx.from;
+  if (!from?.id) return;
+
+  try {
+    const file   = await ctx.getFile();
+    const url    = `https://api.telegram.org/file/bot${BOT_TOKEN}/${file.file_path}`;
+    const resp   = await fetch(url);
+    if (!resp.ok) return;
+    const buffer = Buffer.from(await resp.arrayBuffer());
+
+    const transcripcion = await docAgent.transcribirAudio(buffer, 'audio/ogg');
+    if (!transcripcion) return;
+
+    // Actualizar el registro de fin_messages con la transcripción
+    await pool.query(
+      `UPDATE fin_messages SET texto=?
+       WHERE chat_id=? AND tipo='voz' AND es_bot=0
+       ORDER BY created_at DESC LIMIT 1`,
+      [transcripcion.slice(0, 4000), String(chatId)]
+    ).catch(() => {});
+
+    // En modo asistente: solo transcribir, no responder
+    const modoChat = await getChatModo(chatId);
+    if (modoChat === 'asistente') return;
+
+    // En modo normal: procesar la transcripción como si fuera un mensaje de texto
+    const client  = await balanceManager.getOrCreateClient(from.id, from.username);
+    const session = await getOrCreateSession(chatId, client.id);
+
+    // Inyectar en el flujo de texto reutilizando el handler
+    ctx.message.text = transcripcion;
+    await ctx.reply(`🎙 <i>"${transcripcion}"</i>`, { parse_mode: 'HTML' });
+
+    // Delegar a procesarOperacion si parece una operación
+    if (isImplicitOperacion(transcripcion) || isOperacionCommand(transcripcion)) {
+      await procesarOperacion(ctx, transcripcion, client, session);
     }
   } catch (e) {
-    // Si falla HTML, reintentar sin parse_mode
-    if (e.message?.includes('parse') && opts.parse_mode) {
-      await ctx.reply(text.replace(/<[^>]+>/g, ''), { ...opts, parse_mode: undefined });
+    console.error('[voice-handler]', e.message);
+  }
+});
+
+// Callback: guardar como admin
+
+// ── safeReply — reintentar ante desconexiones transitorias ───────────────────
+async function safeReply(ctx, text, options = {}) {
+  const maxRetries = 3;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await ctx.reply(text, options);
+    } catch (err) {
+      const msg = err?.message ?? '';
+      const isTransient = msg.includes('Cannot send requests while disconnected') ||
+                          msg.includes('Failed to fetch') ||
+                          msg.includes('ECONNRESET') ||
+                          msg.includes('ETIMEDOUT') ||
+                          msg.includes('timeout');
+      if (i < maxRetries - 1 && isTransient) {
+        await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+        continue;
+      }
+      throw err;
     }
   }
 }
 
-// /miid — devuelve el ID de Telegram del usuario (admin tool)
-bot.command('miid', async (ctx) => {
-  await ctx.reply(`Tu ID de Telegram es: <code>${ctx.from?.id}</code>`, { parse_mode: 'HTML' });
-});
+// ── Error handling ────────────────────────────────────────────────────────────
 
-// ── Error handling ─────────────────────────────────────────────────────────────────────────────
 bot.catch((err) => {
   const ctx = err.ctx;
-  const e   = err.error;
-  if (e instanceof GrammyError) {
-    console.error('[grammy]', e.message);
-  } else if (e instanceof HttpError) {
-    console.error('[http]', e);
-  } else {
-    console.error('[unknown]', e);
+  console.error(`[bot] Error en update ${ctx.update.update_id}:`, err.error);
+  if (err.error instanceof GrammyError) {
+    console.error('[grammy]', err.error.description);
+  } else if (err.error instanceof HttpError) {
+    console.error('[http]', err.error.error);
   }
 });
 
-// ── Start ─────────────────────────────────────────────────────────────────────────────────────
+// ── Limpieza de sesiones colgadas ─────────────────────────────────────────────
+
+const STALE_SESSION_HOURS = 8;
+const STALE_SESSION_CLEANUP_INTERVAL = 60 * 60 * 1000; // 1 hora
+
+async function cleanupStaleSessions() {
+  try {
+    const [result] = await pool.query(
+      `UPDATE fin_sessions
+       SET estado = 'idle', operation_draft_json = NULL, updated_at = NOW(3)
+       WHERE estado NOT IN ('idle', 'completado')
+         AND updated_at < DATE_SUB(NOW(), INTERVAL ? HOUR)`,
+      [STALE_SESSION_HOURS]
+    );
+    if (result.affectedRows > 0) {
+      console.log(`[session-cleanup] Reseteadas ${result.affectedRows} sesiones colgadas (>${STALE_SESSION_HOURS}h sin actualización)`);
+    }
+  } catch (err) {
+    console.error('[session-cleanup] Error:', err.message);
+  }
+}
+
+// Ejecutar al arrancar y luego cada hora
+cleanupStaleSessions();
+setInterval(cleanupStaleSessions, STALE_SESSION_CLEANUP_INTERVAL);
+
+// ── Start ─────────────────────────────────────────────────────────────────────
+
+// Cargar admins desde DB al arrancar (merge con los del .env)
+q.getAdminUserIds(pool)
+  .then(ids => ids.forEach(id => ADMIN_USER_IDS.add(id)))
+  .catch(err => console.error('[admin-load]', err.message));
+
 bot.start({
-  onStart: () => console.log('[financial-bot] Bot iniciado correctamente'),
-}).catch((err) => {
-  const msg = err instanceof Error ? err.message : String(err);
-  if (msg.includes('terminated by other') || msg.includes('conflict')) {
-    console.warn('[financial-bot] Instancia duplicada detectada, saliendo...');
-    process.exit(0);
+  onStart: async (info) => {
+    console.log(`[financial-bot] Bot @${info.username} iniciado`);
+
+    // Comandos visibles para todos los usuarios
+    const comandosUsuario = [
+      { command: 'start',     description: 'Bienvenida / comenzar' },
+      { command: 'saldo',     description: 'Ver tu saldo actual' },
+      { command: 'historial', description: 'Ver historial de operaciones' },
+      { command: 'operacion', description: 'Iniciar una nueva operación' },
+      { command: 'reset',     description: 'Reiniciar sesión actual' },
+      { command: 'miid',      description: 'Ver tu Telegram ID' },
+    ];
+
+    // Comandos adicionales de administrador
+    const comandosAdmin = [
+      ...comandosUsuario,
+      { command: 'ajuste',    description: '(Admin) Ajuste manual de saldo' },
+      { command: 'testmode',  description: '(Admin) Activar/desactivar modo prueba' },
+      { command: 'rol',       description: '(Admin) Cambiar rol del chat' },
+      { command: 'modo',      description: '(Admin) Cambiar modo del chat (normal/asistente)' },
+    ];
+
+    try {
+      await bot.api.setMyCommands(comandosUsuario);
+      // Registrar comandos admin para administradores de grupos (muestra /ajuste en grupos)
+      await bot.api.setMyCommands(comandosAdmin, {
+        scope: { type: 'all_chat_administrators' },
+      }).catch(() => {});
+      // Registrar comandos admin por cada admin conocido (chat privado)
+      for (const adminId of ADMIN_USER_IDS) {
+        await bot.api.setMyCommands(comandosAdmin, {
+          scope: { type: 'chat', chat_id: adminId },
+        }).catch(() => {});
+      }
+      console.log('[financial-bot] Menú de comandos registrado');
+    } catch (err) {
+      console.error('[setMyCommands]', err.message);
+    }
+  },
+}).catch(err => {
+  const msg = err?.message ?? '';
+  if (msg.includes('409') || msg.includes('Conflict') || msg.includes('terminated by other')) {
+    // Otra instancia activa — esperar 45s para darle estabilidad antes de que PM2 reinicie
+    console.error('[financial-bot] 409 Conflict: otra instancia activa. Saliendo en 45s...');
+    setTimeout(() => process.exit(1), 45000);
   } else {
     console.error('[financial-bot] Error fatal en bot.start():', msg);
     process.exit(1);
