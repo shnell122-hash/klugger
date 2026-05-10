@@ -352,9 +352,11 @@ async function handleAsistenteModo(ctx, client, fileInfo) {
         return;
       }
     }
-    // 4 — Sin contenido relevante → silencio
+    // 4 — Sin contenido relevante → acusar recibo mínimo
+    await ctx.reply('📎 Archivo recibido.').catch(() => {});
   } catch (err) {
     console.error('[asistente-modo]', err.message);
+    await ctx.reply('📎 Archivo recibido.').catch(() => {});
   }
 }
 

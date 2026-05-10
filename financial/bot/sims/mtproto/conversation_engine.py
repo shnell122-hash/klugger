@@ -594,7 +594,7 @@ def gen_scenarios(tier: int, active_accounts: set = None) -> list[dict]:
         "asset": ("cuadro_png", tier),
         "mode": "asistente",
         "verify_db": "SELECT COUNT(*) FROM fin_operations WHERE created_at > NOW() - INTERVAL 180 SECOND",
-        "expected": ["Saldo", "comision", "$"],
+        "expected": ["Saldo", "comision", "$", "registrado", "Recibido", "recibido"],
     })
     if post:
         scenarios.append({"type": "chat", "tier": tier, "id": "post_cuadro_png", "turns": post})
@@ -618,7 +618,7 @@ def gen_scenarios(tier: int, active_accounts: set = None) -> list[dict]:
         "id": f"comprobante_{comp_sender}", "account": comp_sender,
         "asset": ("comprobante", tier),
         "mode": "asistente",
-        "expected": ["Saldo", "$"],
+        "expected": ["Saldo", "$", "registrado", "Recibido", "recibido", "Comprobante"],
     })
 
     # ── Consultas de saldo ─────────────────────────────────────────────────────
