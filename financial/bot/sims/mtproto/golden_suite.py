@@ -67,7 +67,7 @@ def mysql_query(sql):
         raise AssertionError(f'MySQL: {res.stderr.strip()[:200]}')
     return res.stdout.strip()
 
-# ── G01-G04: Calculadora financiera (sin LLM) ──────────────────────────────────────────
+# ── G01-G04: Calculadora financiera (sin LLM) ────────────────────────────────
 
 def t_ias_bruto_desde_neto():
     neto, pct = 23000, 0.055
@@ -92,7 +92,7 @@ def t_comision_fuera_de_rango():
         fuera = pct < 0 or pct > 0.30
         assert fuera, f'comision {pct} debio ser rechazada'
 
-# ── G05-G06: Parsing y validación ───────────────────────────────────────────────────
+# ── G05-G06: Parsing y validación ────────────────────────────────────────────
 
 def t_clabe_18_digitos():
     validas   = ['058597000030773833', '021180040600000003', '058597000068994820']
@@ -110,7 +110,7 @@ def t_tipos_operacion_validos():
     assert 'TRANSFERENCIA' not in validos
     assert 'BITCOIN' not in validos
 
-# ── G07-G08: Base de datos ───────────────────────────────────────────────────────────────────
+# ── G07-G08: Base de datos ────────────────────────────────────────────────────
 
 def t_fin_operations_columnas():
     out = mysql_query('DESCRIBE fin_operations;')
@@ -121,7 +121,7 @@ def t_fin_clients_existe():
     out = mysql_query('SELECT COUNT(*) FROM fin_clients;')
     assert out.isdigit() or out.replace('\n','').isdigit(), f'Query fallida: {out}'
 
-# ── G09-G10: Imports de agentes ──────────────────────────────────────────────────────────
+# ── G09-G10: Imports de agentes ──────────────────────────────────────────────
 
 def t_transaction_orchestrator_importa():
     out = node_eval("const T=require('./agents/TransactionOrchestrator'); console.log(typeof T);")
@@ -131,7 +131,7 @@ def t_document_intelligence_importa():
     out = node_eval("const D=require('./agents/DocumentIntelligenceAgent'); console.log(typeof D);")
     assert 'function' in out, f'Esperaba function, got: {out}'
 
-# ── G11: TransactionOrchestrator usa DeepSeek (no Anthropic) ─────────────────────────
+# ── G11: TransactionOrchestrator usa DeepSeek (no Anthropic) ─────────────────
 
 def t_orchestrator_no_usa_anthropic():
     with open(os.path.join(BOT_ROOT, 'agents', 'TransactionOrchestrator.js')) as f:
@@ -140,7 +140,7 @@ def t_orchestrator_no_usa_anthropic():
     assert 'openai' in src.lower(), 'TransactionOrchestrator deberia usar openai client'
     assert 'deepseek' in src.lower(), 'TransactionOrchestrator deberia apuntar a deepseek'
 
-# ── G12: relay/master.js usa DeepSeek en callAnthropicDirect ─────────────────────────
+# ── G12: relay/master.js usa DeepSeek en callAnthropicDirect ─────────────────
 
 def t_relay_no_llama_anthropic_en_buzon():
     relay_path = os.path.join(BOT_ROOT, '..', '..', 'relay', 'master.js')
@@ -156,7 +156,7 @@ def t_relay_no_llama_anthropic_en_buzon():
     assert 'api.deepseek.com' in fn_src, 'callAnthropicDirect debe usar api.deepseek.com'
     assert 'api.anthropic.com' not in fn_src, 'callAnthropicDirect aun usa api.anthropic.com'
 
-# ── Registro y ejecución ─────────────────────────────────────────────────────────────────────────
+# ── Registro y ejecución ──────────────────────────────────────────────────────
 
 GOLDEN_TESTS = [
     ('G01', 'IAS bruto correcto desde neto+comision 5.5%',     t_ias_bruto_desde_neto),
