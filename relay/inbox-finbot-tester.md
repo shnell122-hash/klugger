@@ -1,124 +1,168 @@
-## Tarea: Ejecutar suite de pruebas T01-T10
+# Instrucciones — finbot-tester: Optimización y pruebas iterativas Telethon
 
-Ejecuta la suite completa de pruebas contra el financial-bot (Flujos AI) en el grupo Testing.
-Todos los valores necesarios ya están en `financial/.env`.
-Usa curl directo a la Telegram Bot API (sin grammy). Espera 6 segundos entre cada test para que el bot procese.
+> De: **flujos** (flujos.fiscalai.mx)
+> Para: **finbot-tester**
+> Fecha: 2026-05-10
+> Modo: **ITERATIVO SIN PARAR** — ejecutar ciclos continuos hasta nuevo aviso
 
-### Setup
+---
+
+## Contexto del sistema Telethon
+
+El sistema de simulación está en `financial/bot/sims/mtproto/`:
+
+```
+conversation_engine.py  — motor de simulación continua (Curriculum Learning)
+golden_suite.py         — suite de regresión (umbral 92%)
+learning.py             — episodios, scores, CBR fix dispatch
+client.py               — cliente Telethon MTProto
+suite.py                — runner de suites de escenarios
+assets.py               — datos de prueba (CLABEs, montos, escenarios)
+```
+
+El LangGraph ya compila correctamente (Partes 1-5 del TextFlowGraph + FileFlowGraph).
+Branch de feature: `claude/financial-multiagent-system-YwtYQ`
+
+---
+
+## Ciclo iterativo (ejecutar indefinidamente)
+
+### Paso A — Golden suite primero
 
 ```bash
-ENV=/var/www/html/vilarkptl.com/ai-monitor/financial/.env
-GV_TOKEN=$(grep -oP 'SIM_GV_BOT_TOKEN=\K.*' "$ENV")
-VBPP2_TOKEN=$(grep -oP 'SIM_VBPP2_BOT_TOKEN=\K.*' "$ENV")
-C2_TOKEN=$(grep -oP 'SIM_CHRISTIAN2_BOT_TOKEN=\K.*' "$ENV")
-CHAT_ID=$(grep -oP 'SIM_CHAT_ID=\K.*' "$ENV")
-RELAY_BOT=$(grep -oP 'TELEGRAM_BOT_TOKEN=\K.*' /var/www/html/vilarkptl.com/ai-monitor/relay/.env | head -1)
-REPORT_CHAT=$(grep -oP 'FINBOT_TEST_REPORT_CHAT_ID=\K.*' "$ENV")
-DB_PASS=$(grep -oP 'DB_PASS=\K.*' /var/www/html/vilarkptl.com/ai-monitor/backend/.env)
+cd /var/www/html/vilarkptl.com/ai-monitor/financial/bot/sims/mtproto
+source venv/bin/activate 2>/dev/null || python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt -q
 
-send_gv() { curl -s "https://api.telegram.org/bot${GV_TOKEN}/sendMessage" -d "chat_id=${CHAT_ID}&text=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$1'))")" | python3 -c "import json,sys; d=json.load(sys.stdin); print('OK:'+str(d.get('result',{}).get('message_id','?')) if d.get('ok') else 'FAIL:'+d.get('description','?'))"; }
-
-db() { mysql -u root -p"$DB_PASS" ai_monitoring -sN -e "$1" 2>/dev/null; }
-
-echo "CHAT_ID=$CHAT_ID"
-echo "Setup OK"
+python3 golden_suite.py
 ```
 
-### T01 — /saldo
+**Si score < 92%:**
+1. Identificar qué test falló
+2. Buscar la causa en el nodo correspondiente del grafo o agente
+3. Aplicar fix en el branch `claude/financial-multiagent-system-YwtYQ`
+4. Hacer commit + push
+5. Volver al Paso A
+
+**Si score ≥ 92%:** continuar al Paso B.
+
+---
+
+### Paso B — Conversation engine (20 rondas)
 
 ```bash
-echo "=== T01: /saldo ==="
-send_gv "/saldo"
-sleep 6
-# Verificar que el bot procesó el mensaje (fin_messages reciente)
-RECIENTE=$(db "SELECT COUNT(*) FROM fin_messages WHERE chat_id=${CHAT_ID} AND created_at > NOW() - INTERVAL 30 SECOND")
-echo "T01: mensajes recientes en DB=$RECIENTE"
-[ "$RECIENTE" -gt 0 ] && echo "T01 ✅ Bot procesó el mensaje" || echo "T01 ❌ Sin actividad en DB (bot puede no estar en este chat)"
+cd /var/www/html/vilarkptl.com/ai-monitor/financial/bot/sims/mtproto
+source venv/bin/activate
+
+# 20 rondas del tier actual (curriculum automático)
+python3 conversation_engine.py --rounds 20
 ```
 
-### T02 — /operacion IAS neto 10000
+Después de cada corrida:
+- Leer el reporte que publica en Telegram
+- Si hay fallas recurrentes (mismo escenario falla 3+ veces) → ir al Paso C
+- Si score global ≥ 85% en el tier actual → el motor avanza de tier automáticamente
+
+---
+
+### Paso C — Diagnóstico de fallas recurrentes
 
 ```bash
-echo "=== T02: /operacion IAS neto 10000 ==="
-send_gv "/operacion IAS neto 10000"
-sleep 6
-SESION=$(db "SELECT estado FROM fin_sessions WHERE chat_id=${CHAT_ID} ORDER BY updated_at DESC LIMIT 1")
-echo "T02: estado sesion=$SESION"
-[ -n "$SESION" ] && echo "T02 ✅ Sesión creada: $SESION" || echo "T02 ❌ Sin sesión en DB"
+# Ver los episodios más recientes
+cd /var/www/html/vilarkptl.com/ai-monitor/financial/bot/sims/mtproto
+source venv/bin/activate
+
+python3 -c "
+from learning import db_query
+rows = db_query('''
+  SELECT scenario_id, COUNT(*) as fails, GROUP_CONCAT(error_detail SEPARATOR \" | \") as errors
+  FROM learning_episodes
+  WHERE outcome = \"fail\"
+    AND created_at >= NOW() - INTERVAL 2 HOUR
+  GROUP BY scenario_id
+  ORDER BY fails DESC
+  LIMIT 10
+''')
+for r in rows: print(r)
+"
 ```
 
-### T03 — Enviar CLABE
+Para cada falla recurrente:
+1. Identificar si es un bug en el bot (LangGraph node) o en el escenario de prueba
+2. Si es bug del bot → fix en nodo correspondiente, commit, push, reiniciar conversation_engine
+3. Si es escenario mal calibrado → ajustar en `assets.py`
+
+---
+
+### Paso D — Verificar y mejorar escenarios
 
 ```bash
-echo "=== T03: CLABE Banregio ==="
-send_gv "058597000030773833"
-sleep 6
-DRAFT=$(db "SELECT operation_draft_json FROM fin_sessions WHERE chat_id=${CHAT_ID} ORDER BY updated_at DESC LIMIT 1")
-echo "T03: draft=$(echo $DRAFT | python3 -c "import json,sys; d=json.loads(sys.stdin.read() or '{}'); print('monto='+str(d.get('monto_bruto','?'))+' clabe='+str(d.get('instrucciones_pago',{}).get('clabe','?') if isinstance(d.get('instrucciones_pago'),dict) else '?'))" 2>/dev/null || echo "$DRAFT" | head -c 80)"
-echo "T03 verificado"
+# Correr solo suite básica para verificar cobertura
+python3 suite.py
 ```
 
-### T04 — Cancelar operación (no confirmar en producción real)
+Identificar escenarios con cobertura baja y agregar variantes en `assets.py`:
+- Montos en diferentes formatos (`100k`, `cien mil`, `$100,000`)
+- CLABEs con y sin espacios
+- Tipos de operación con typos comunes (`IAS`, `ias`, `Ias`)
+- Flujos de sesión interrumpidos y retomados
+
+---
+
+### Paso E — Volver al Paso A
+
+Ciclo infinito. Reportar progreso cada 5 ciclos en `relay/outbox-finbot-tester.md`:
+
+```
+CICLO: N
+GOLDEN_SUITE: X/Y tests ✅ (score Z%)
+CONVERSATION_ENGINE: N rondas, tier T, score S%
+FALLAS_CORREGIDAS: descripción de fixes
+PENDIENTE: descripción
+```
+
+---
+
+## Prioridades de optimización (en orden)
+
+1. **Parseo de montos** — asegurarse que `100k`, `cien mil`, `100,000` y `$100.000` todos parsean correctamente
+2. **Sesiones interrumpidas** — si el usuario no responde en 5 min y vuelve, la sesión se recupera correctamente
+3. **Flujo de confirmación** — poll de confirmación llega, usuario responde ✅ y la operación se aplica
+4. **Modo asistente + CLABEs** — en modo asistente, CLABEs enviadas se guardan silenciosamente
+5. **FileFlowGraph** — cuadro retorno IAS (XLSX) y comprobante (imagen) se procesan correctamente
+
+---
+
+## Archivos a modificar (solo si hay bugs)
+
+- `financial/bot/graph/nodes/text-flow/*.js` — nodos del TextFlowGraph
+- `financial/bot/graph/nodes/file-flow/*.js` — nodos del FileFlowGraph
+- `financial/bot/graph/subgraphs/*.js` — subgrafos
+- `financial/bot/sims/mtproto/assets.py` — escenarios de prueba
+- `financial/bot/sims/mtproto/golden_suite.py` — tests de regresión
+
+**NUNCA modificar:**
+- `relay/master.js`, `relay/chat-agent.js`, `relay/projects.json`
+- Archivos de producción de la API fiscal (ryby.lease)
+
+---
+
+## Cómo hacer commits
 
 ```bash
-echo "=== T04: Cancelar operación de prueba ==="
-send_gv "cancelar"
-sleep 4
-ESTADO=$(db "SELECT estado FROM fin_sessions WHERE chat_id=${CHAT_ID} ORDER BY updated_at DESC LIMIT 1")
-echo "T04: estado=$ESTADO"
-[ "$ESTADO" = "cancelado" ] || [ "$ESTADO" = "inicial" ] && echo "T04 ✅ Operación cancelada/reseteada" || echo "T04 ⚠️ Estado=$ESTADO (puede ser normal)"
+cd /var/www/html/vilarkptl.com/ai-monitor
+git checkout claude/financial-multiagent-system-YwtYQ
+git pull origin claude/financial-multiagent-system-YwtYQ
+
+# Modificar solo los archivos necesarios
+git add financial/bot/graph/... financial/bot/sims/...
+git commit -m "fix(langgraph): descripción del fix"
+git push origin claude/financial-multiagent-system-YwtYQ
 ```
 
-### T08 — Verificar saldo actual de un cliente de prueba
+---
 
-```bash
-echo "=== T08: Saldo clientes ==="
-CLIENTES=$(db "SELECT nombre, saldo FROM fin_clients ORDER BY updated_at DESC LIMIT 3")
-echo "T08: $CLIENTES"
-[ -n "$CLIENTES" ] && echo "T08 ✅ Tabla fin_clients accesible" || echo "T08 ❌ Sin clientes en DB"
-```
+## Reportar al terminar cada ciclo
 
-### T09 — Dashboard KPIs
-
-```bash
-echo "=== T09: Dashboard API ==="
-KPI=$(curl -s http://localhost:3020/api/financial/kpis 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print('operaciones='+str(d.get('total_operaciones','?'))+' saldo_total='+str(d.get('saldo_total','?')))" 2>/dev/null || echo "FAIL: dashboard no responde")
-echo "T09: $KPI"
-[[ "$KPI" == *"operaciones="* ]] && echo "T09 ✅ Dashboard responde" || echo "T09 ❌ Dashboard: $KPI"
-```
-
-### T10 — Verificar operaciones con margen (costo_pct)
-
-```bash
-echo "=== T10: Columna margen/costo_pct ==="
-MARGEN=$(db "SELECT COUNT(*) FROM fin_operations WHERE costo_pct IS NOT NULL")
-echo "T10: operaciones con costo_pct=$MARGEN"
-COL=$(db "SHOW COLUMNS FROM fin_operations LIKE 'costo_pct'")
-[ -n "$COL" ] && echo "T10 ✅ Columna costo_pct existe" || echo "T10 ❌ Columna costo_pct NO existe (falta migración v14)"
-```
-
-### Reporte final
-
-```bash
-echo ""
-echo "=== REPORTE FINAL ==="
-curl -s "https://api.telegram.org/bot${RELAY_BOT}/sendMessage" \
-  -d "chat_id=${REPORT_CHAT}&text=Suite T01-T10 ejecutada. Ver outbox para resultados completos." | python3 -c "import json,sys; d=json.load(sys.stdin); print('REPORT OK' if d.get('ok') else 'REPORT FAIL')"
-```
-
-### Formato de salida OBLIGATORIO
-
-```
-STATUS: done | partial | failed
-CHANGED: ninguno
-DEPLOYED: no
-PENDING: tests que necesitan assets binarios (T05/T06/T07)
-
-T01: ✅/❌ — descripción
-T02: ✅/❌ — descripción
-T03: ✅/❌ — descripción
-T04: ✅/❌ — descripción
-T08: ✅/❌ — descripción
-T09: ✅/❌ — descripción
-T10: ✅/❌ — descripción
-```
+Escribir en `relay/outbox-finbot-tester.md` con el formato del Paso E.
+El relay-master notificará a flujos automáticamente.
