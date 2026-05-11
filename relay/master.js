@@ -1290,11 +1290,17 @@ ${taskContent}`;
     || process.env.CLAUDE_DEFAULT_MODEL
     || 'claude-sonnet-4-6';
 
+  // use_cli_proxy: true → route Claude CLI through LiteLLM (→ DeepSeek V4-Pro) instead of Anthropic API
+  const proxyBase = (project.use_cli_proxy && process.env.LITELLM_BASE_URL)
+    ? process.env.LITELLM_BASE_URL
+    : null;
+  const proxyEnvPrefix = proxyBase ? `ANTHROPIC_BASE_URL=${proxyBase} ` : '';
+
   const coreCmd = [
     `cd ${project.repo || '/var/www/html'} 2>/dev/null || true`,
     // Diagnostic first — visible in resultText so Telegram shows it on task completion
     `echo "RELAY_DIAG user=$(id -un 2>/dev/null||echo '?') home=$HOME task=$(test -r ${taskFile} && echo ok || echo UNREADABLE)" > ${outFile} 2>&1`,
-    `${CLAUDE_BIN} --dangerously-skip-permissions --output-format stream-json --verbose --print --model ${claudeModel} < ${taskFile} >> ${outFile} 2>&1`,
+    `${proxyEnvPrefix}${CLAUDE_BIN} --dangerously-skip-permissions --output-format stream-json --verbose --print --model ${claudeModel} < ${taskFile} >> ${outFile} 2>&1`,
   ].join(' && ');
 
   function buildCmd(user) {
