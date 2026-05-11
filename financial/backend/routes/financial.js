@@ -508,7 +508,7 @@ module.exports = function financialRoutes(pool, io, express) {
          ORDER BY episode_count DESC
          LIMIT 20`
       );
-      res.json({ ok: true, episodes, total, latest: latest || null, patterns });
+      res.json({ ok: true, data: { episodes, total, latest: latest || null, patterns } });
     } catch (err) {
       res.status(500).json({ ok: false, error: err.message });
     }
