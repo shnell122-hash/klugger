@@ -502,10 +502,12 @@ module.exports = function financialRoutes(pool, io, express) {
          FROM learning_episodes ORDER BY episode_num DESC LIMIT 1`
       );
       const [patterns] = await pool.query(
-        `SELECT pattern_key, test_id, description, episode_count, last_seen
+        `SELECT pattern_key, test_id, description,
+                occurrence_count AS episode_count,
+                last_seen_episode AS last_seen
          FROM learning_patterns
-         WHERE resolved_at IS NULL
-         ORDER BY episode_count DESC
+         WHERE status = 'active'
+         ORDER BY occurrence_count DESC
          LIMIT 20`
       );
       res.json({ ok: true, data: { episodes, total, latest: latest || null, patterns } });
