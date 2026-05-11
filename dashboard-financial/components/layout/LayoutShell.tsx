@@ -15,6 +15,7 @@ const navItems = [
   { href: '/comisionistas',  label: 'Comisionistas', icon: '🤝' },
   { href: '/empresas',       label: 'Empresas',      icon: '🏢' },
   { href: '/comisiones',     label: 'Comisiones',    icon: '💰' },
+  { href: '/scores',         label: 'Scores',        icon: '📊' },
   { href: '/admin',          label: 'Admin',         icon: '⚙️' },
 ];
 

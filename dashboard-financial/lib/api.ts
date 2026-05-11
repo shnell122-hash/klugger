@@ -292,8 +292,39 @@ async function post<T>(path: string, body?: unknown): Promise<T> {
   return json.data as T;
 }
 
+export type LearningEpisode = {
+  id: number;
+  episode_num: number;
+  started_at: string;
+  completed_at: string | null;
+  total_tests: number;
+  passed_tests: number;
+  skipped_tests: number;
+  score_pct: number;
+  complexity_tier: 1 | 2 | 3 | 4;
+  git_sha: string | null;
+  triggered_by: string | null;
+  notes: string | null;
+};
+
+export type LearningPattern = {
+  pattern_key: string;
+  test_id: string;
+  description: string;
+  episode_count: number;
+  last_seen: string;
+};
+
+export type LearningEpisodesData = {
+  episodes: LearningEpisode[];
+  total: number;
+  latest: { score_pct: number; complexity_tier: number; episode_num: number } | null;
+  patterns: LearningPattern[];
+};
+
 export const api = {
-  getKPIs:          ()                   => get<KPIs>('/kpis'),
+  getKPIs:              ()                         => get<KPIs>('/kpis'),
+  getLearningEpisodes:  (limit = 300, offset = 0)  => get<LearningEpisodesData>(`/learning-episodes?limit=${limit}&offset=${offset}`),
   getClients:       (limit = 50)         => get<Client[]>(`/clients?limit=${limit}`),
   getBalanceHistory:(id: number)         => get<unknown[]>(`/clients/${id}/balance-history`),
   getOperations:    (params = '')        => get<Operation[]>(`/operations${params ? `?${params}` : ''}`),
