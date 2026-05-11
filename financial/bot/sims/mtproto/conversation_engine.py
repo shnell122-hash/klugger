@@ -420,7 +420,7 @@ def gen_op_scenario(acct: str, tipo: str, amount: int, tier: int) -> dict:
     Genera un escenario completo de operación para el tipo dado.
     Retorna un escenario type='bot' listo para ejecutar.
     """
-    clabe = pick(CLABES_OP)
+    clabe = pick(CLABES_TEST)  # Solo CLABEs de clientes externos (nunca empresa) para evitar eraVuelta
 
     # "selecciona" / "tipo" son fallback válidos: el bot pidió tipo porque el parser
     # no extrajo todo del texto natural — la conversación sigue, no es fallo total.
