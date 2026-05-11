@@ -481,5 +481,38 @@ module.exports = function financialRoutes(pool, io, express) {
     } catch (err) { res.status(500).json({ ok: false, error: err.message }); }
   });
 
+  // ── Learning Episodes (conversation-engine curriculum) ────────────────────
+
+  router.get('/learning-episodes', async (req, res) => {
+    try {
+      const limit  = Math.min(parseInt(req.query.limit  || '500'), 1000);
+      const offset = parseInt(req.query.offset || '0');
+      const [episodes] = await pool.query(
+        `SELECT id, episode_num, started_at, completed_at,
+                total_tests, passed_tests, skipped_tests, score_pct,
+                complexity_tier, git_sha, triggered_by, notes
+         FROM learning_episodes
+         ORDER BY episode_num DESC
+         LIMIT ? OFFSET ?`,
+        [limit, offset]
+      );
+      const [[{ total }]] = await pool.query('SELECT COUNT(*) AS total FROM learning_episodes');
+      const [[latest]]    = await pool.query(
+        `SELECT score_pct, complexity_tier, episode_num
+         FROM learning_episodes ORDER BY episode_num DESC LIMIT 1`
+      );
+      const [patterns] = await pool.query(
+        `SELECT pattern_key, test_id, description, episode_count, last_seen
+         FROM learning_patterns
+         WHERE resolved_at IS NULL
+         ORDER BY episode_count DESC
+         LIMIT 20`
+      );
+      res.json({ ok: true, episodes, total, latest: latest || null, patterns });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
   return router;
 };
