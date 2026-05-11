@@ -853,39 +853,47 @@ bot.on('message:text', async (ctx, next) => {
     return;
   }
   if (session.estado === 'esperando_datos_bancarios') {
-    const draft   = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
-    if (isComprobante(text)) {
+    // Nueva operación mientras esperando CLABE → cancelar y empezar de cero
+    if (isImplicitOperacion(text) || isOperacionCommand(text)) {
+      await updateSession(session.id, 'idle', {});
+      session.estado = 'idle';
+      session.operation_draft_json = null;
+      // fall through to normal processing
+    } else {
+      const draft   = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
+      if (isComprobante(text)) {
+        await ctx.reply(
+          '📝 Este texto parece un comprobante, no datos de cuenta para entrega.\n' +
+          'Envíame la CLABE, número de tarjeta o cuenta a la que debo enviar el dinero.'
+        );
+        return;
+      }
+      const rawCuentas = BankingManager.parsearTexto(text);
+      if (!rawCuentas.length) {
+        await ctx.reply('No encontré ninguna CLABE, tarjeta ni cuenta. Envíame el número directamente.');
+        return;
+      }
+      // Si el número coincide con una de nuestras cuentas, es un comprobante de pago
+      const { ajenas, eraVuelta } = await filtrarCuentasAjenas(rawCuentas);
+      if (eraVuelta) {
+        await ctx.reply(
+          '⚠️ El número que enviaste coincide con una de nuestras cuentas bancarias.\n' +
+          'Si ya realizaste la transferencia, comparte el comprobante completo o escribe el monto pagado.'
+        );
+        return;
+      }
+      const cuentas = ajenas;
+      draft.cuentas_bancarias = cuentas;
+      await updateSession(session.id, 'esperando_datos_bancarios', draft);
+      const kb = new InlineKeyboard()
+        .text('✅ Sí, continuar', 'confirmar_cuentas')
+        .text('✏️ Corregir', 'nueva_cuenta');
       await ctx.reply(
-        '📝 Este texto parece un comprobante, no datos de cuenta para entrega.\n' +
-        'Envíame la CLABE, número de tarjeta o cuenta a la que debo enviar el dinero.'
+        `✅ Datos encontrados:\n\n${BankingManager.formatearCuentas(cuentas)}\n\n¿Es correcto?`,
+        { parse_mode: 'HTML', reply_markup: kb }
       );
       return;
     }
-    const rawCuentas = BankingManager.parsearTexto(text);
-    if (!rawCuentas.length) {
-      await ctx.reply('No encontré ninguna CLABE, tarjeta ni cuenta. Envíame el número directamente.');
-      return;
-    }
-    // Si el número coincide con una de nuestras cuentas, es un comprobante de pago
-    const { ajenas, eraVuelta } = await filtrarCuentasAjenas(rawCuentas);
-    if (eraVuelta) {
-      await ctx.reply(
-        '⚠️ El número que enviaste coincide con una de nuestras cuentas bancarias.\n' +
-        'Si ya realizaste la transferencia, comparte el comprobante completo o escribe el monto pagado.'
-      );
-      return;
-    }
-    const cuentas = ajenas;
-    draft.cuentas_bancarias = cuentas;
-    await updateSession(session.id, 'esperando_datos_bancarios', draft);
-    const kb = new InlineKeyboard()
-      .text('✅ Sí, continuar', 'confirmar_cuentas')
-      .text('✏️ Corregir', 'nueva_cuenta');
-    await ctx.reply(
-      `✅ Datos encontrados:\n\n${BankingManager.formatearCuentas(cuentas)}\n\n¿Es correcto?`,
-      { parse_mode: 'HTML', reply_markup: kb }
-    );
-    return;
   }
   if (session.estado === 'confirmando_cuentas') {
     const draft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
