@@ -363,7 +363,7 @@ async function handleTelegramCommand(text, imageContext) {
     const planUserMsg = `Proyecto: ${namesList}\nTarea: ${description}`;
 
     // Generate plan via DeepSeek (fast, cheap); fall back to local template if unavailable
-    const dsResult = await callDeepSeekDirect(planSystemPrompt, planUserMsg, 300);
+    const dsResult = await callDeepSeekDirect(planSystemPrompt, planUserMsg, 300, true);
     const plan = (dsResult && dsResult.trim()) ? dsResult.trim() : localPlan;
 
     PROPOSALS.set(pid, {
