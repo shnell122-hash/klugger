@@ -807,6 +807,16 @@ bot.on('message:text', async (ctx, next) => {
                      _draftAsist.clientId === clientAsist.id;
 
     if (!_isOwner) {
+      // CLABE de no-dueño → guardar silenciosamente para su propia cuenta aunque haya sesión activa
+      const rawClabeCheck = BankingManager.parsearTexto(text);
+      if (rawClabeCheck.length) {
+        const { ajenas: ajenasCheck } = await filtrarCuentasAjenas(rawClabeCheck);
+        if (ajenasCheck.length) {
+          await bankingManager.guardarCuentas(clientAsist.id, null, ajenasCheck);
+          await ctx.reply(`✅ Guardado · ${ajenasCheck.length} cuenta(s) registrada(s)`);
+        }
+        return;
+      }
       // Silenciar solo mensajes casuales — permitir solicitudes de operación propias
       if (!isImplicitOperacion(text) && !isOperacionCommand(text)) {
         return;
