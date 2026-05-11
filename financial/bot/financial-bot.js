@@ -798,12 +798,17 @@ bot.on('message:text', async (ctx, next) => {
     const _hasActiveSession = _sessionAsist.estado && _sessionAsist.estado !== 'idle';
     // Solo el dueño de la sesión puede continuar una operación activa.
     // Otros usuarios del grupo son silenciados (charla ambiental).
+    // EXCEPCIÓN: si un usuario envía una solicitud de operación propia, se permite.
     const _isOwner = !_hasActiveSession ||
                      !_sessionAsist.client_id ||
                      _sessionAsist.client_id === clientAsist.id;
 
     if (!_isOwner) {
-      return; // mensaje de otro usuario mientras hay sesión activa — silencio
+      // Silenciar solo mensajes casuales — permitir solicitudes de operación propias
+      if (!isImplicitOperacion(text) && !isOperacionCommand(text)) {
+        return;
+      }
+      // fall through — usuario solicita su propia operación, se procesará desde cero
     }
     if (_hasActiveSession || isOperacionCommand(text) || isImplicitOperacion(text)) {
       // fall through to normal processing below
@@ -908,8 +913,9 @@ bot.on('message:text', async (ctx, next) => {
             .text('✏️ Corregir', 'nueva_cuenta');
           draft.cuentas_bancarias = ajenas;
           await updateSession(session.id, 'esperando_datos_bancarios', draft);
+          await bankingManager.guardarCuentas(client.id, null, ajenas);
           await ctx.reply(
-            `✅ Datos encontrados:\n\n${BankingManager.formatearCuentas(ajenas)}\n\n¿Es correcto?`,
+            `✅ Cuenta guardada y seleccionada:\n\n${BankingManager.formatearCuentas(ajenas)}\n\n¿Es correcta para esta operación?`,
             { parse_mode: 'HTML', reply_markup: kb }
           );
           return;
@@ -1949,6 +1955,17 @@ async function procesarOperacion(ctx, input, client, session) {
   const commission = await getCommission(parsed.tipo, pool, client.id);
   if (!commission) {
     await ctx.reply(`❌ El tipo de operación <b>${parsed.tipo}</b> no está disponible para tu cuenta.`, { parse_mode: 'HTML' });
+    await updateSession(session.id, 'idle', null);
+    return;
+  }
+
+  // Validar monto antes de calcular — rechazar negativos, cero y valores irrisorios
+  if (!parsed.monto || parsed.monto <= 0) {
+    await ctx.reply(
+      `❌ Monto inválido: <b>${parsed.monto ?? 0}</b>.\n` +
+      `El monto debe ser un número positivo mayor a cero.`,
+      { parse_mode: 'HTML' }
+    );
     await updateSession(session.id, 'idle', null);
     return;
   }
