@@ -1,6 +1,6 @@
 # CLAUDE.md — ai-monitor / agentic-repo
 
-> Archivo de referencia para agentes Claude Code. Actualizado 2026-04-30.
+> Archivo de referencia para agentes Claude Code. Actualizado 2026-05-02.
 
 ---
 
@@ -11,7 +11,6 @@
 | Host | `143.198.228.78` (vilar-desarrollo) |
 | Usuario SSH | `root` |
 | Contraseñas | Ver `/opt/kptl-secrets/server-credentials.txt` en el servidor (solo root) |
-| Contraseñas | Ver con el equipo directamente — no documentar aquí |
 | OS | Ubuntu / Debian (Apache + PM2) |
 
 ### Árbol del servidor (rutas críticas)
@@ -143,10 +142,12 @@ relay/master.js  (Node.js, PM2)
 | `coordinator` | claude-haiku-4-5 | main | Orquesta dispatches, no escribe código |
 | `fiscalai` | claude-sonnet-4-6 | main | Backend Node.js + SAT APIs + MySQL |
 | `fiscalai-front` | claude-sonnet-4-6 | main | Frontend HTML/CSS/JS vanilla |
-| `ai-monitor` | claude-haiku-4-5 | main | Este mismo dashboard |
+| `ai-monitor` | claude-haiku-4-5 | main | Dashboard de monitoreo — redesign + audit |
+| `finbot-tester` | claude-sonnet-4-6 | main | Tester automatizado de financial-bot |
+| `finbot-verifier` | claude-haiku-4-5 | main | Verificador continuo de financial-bot |
 
 > **Nota**: Haiku 4.5 mostró 0 tool calls en tareas de código (2026-04-20).
-> fiscalai-front revertido a Sonnet. Haiku solo para coordinator y ai-monitor.
+> fiscalai-front revertido a Sonnet. Haiku solo para coordinator, ai-monitor y finbot-verifier.
 
 ---
 
@@ -182,6 +183,52 @@ Tipos generados automáticamente por relay-master:
 - `deploy_verify_fail` — HTTP check post-deploy devolvió no-2xx
 
 Visibles en dashboard → tab **Alertas**.
+
+---
+
+## Estado del sistema (actualizado 2026-05-02)
+
+### Procesos PM2 activos
+
+| Proceso | Puerto | Notas |
+|---------|--------|-------|
+| `ai-monitor` | 3010 | Express + Socket.io — dashboard ia.vilarkptl.com |
+| `relay-master` | interno | Orquestador agentes |
+| `claude-chat-bot` | interno | Telegram bot directo |
+| `code-reviewer` | interno | DeepSeek V3 auto-review |
+| `cursor-worker` | interno | Cursor Cloud Agent worker |
+| `litellm` | 4000 | LLM proxy con fallback chains |
+
+### LiteLLM proxy
+
+Instalado en `/opt/litellm/`. Variables en `relay/.env`:
+```
+LITELLM_BASE_URL=http://localhost:4000
+LITELLM_MASTER_KEY=sk-litellm-11b2ccee224b47d82ba9b8e3677aa915
+```
+Chains: `kptl-chat` (Sonnet→DeepSeek→GPT4o), `kptl-chat-fast` (Haiku→GPT4o-mini→Gemini), `kptl-reasoning` (DeepSeek R1→Opus)
+
+### Auth dashboard (ia.vilarkptl.com)
+
+Login activado. Hash bcrypt en `/opt/kptl-secrets/api-keys.env`:
+```
+DASHBOARD_PASSWORD_HASH=$2a$10$D83YfbFBaxu0yCFtiOtPvuHFjcBisfep2xY9tAAMdSVLgUKdllGXu
+```
+Branch con el código de auth: `claude/onboard-ai-monitor-subproject-zXvki`
+
+Si el dashboard no carga o muestra "Cannot GET /login":
+```bash
+pm2 restart ai-monitor
+# Hard refresh en el browser (cerrar y reabrir pestaña)
+```
+
+### Swap crítico
+
+RAM: 3.8 GB total | Swap: ~96% usado. Si hay OOM:
+```bash
+# Agregar 1 GB swap temporal:
+fallocate -l 1G /swapfile2 && chmod 600 /swapfile2 && mkswap /swapfile2 && swapon /swapfile2
+```
 
 ---
 
@@ -297,6 +344,95 @@ ps aux | grep -E 'agent worker|cursor-agent'
 
 ---
 
+## Comunicación Multi-Agente vía GitHub
+
+> Regla fundamental: **ningún agente empieza a trabajar sin leer `relay/AGENT-STATUS.md`**.
+> Ningún agente termina sin actualizarlo.
+
+### Archivo de estado compartido: `relay/AGENT-STATUS.md`
+
+Cada agente lee este archivo al inicio de su sesión para saber:
+- Qué archivos están siendo modificados por otros agentes
+- Qué branches existen y qué contienen
+- Qué está pendiente de merge a main
+
+Al terminar su sesión, cada agente actualiza su sección con:
+- Archivos modificados (ruta exacta)
+- Branch usado
+- Estado: `done | in-progress | blocked`
+- SHA del último commit
+
+### Flujo de comunicación bidireccional
+
+```
+Agente A (escribe tarea) ──► relay/inbox-B.md (commit + push a main)
+                                      │
+                               relay-master detecta (15s)
+                                      │
+                              Agente B ejecuta tarea
+                                      │
+                         relay/outbox-B.md (commit + push a main)
+                                      │
+                               relay-master lee outbox
+                                      │
+                         Telegram notifica + si necesita respuesta:
+                         relay-master escribe en relay/inbox-A.md
+```
+
+**Para que Agente A dispache a Agente B directamente:**
+1. Editar `relay/inbox-[id-de-B].md` con la tarea
+2. `git add relay/inbox-[id-de-B].md && git commit -m "dispatch: A→B <descripción>" && git push origin main`
+3. El relay-master lo detecta en el próximo ciclo y lanza la tarea
+
+**Para urgencia** (sin esperar ciclo de 15s): POST al endpoint del relay-master:
+```bash
+curl -X POST http://localhost:3010/api/relay/dispatch \
+  -H 'Content-Type: application/json' \
+  -d '{"project":"finbot-tester","task":"<descripción>","requester":"ai-monitor"}'
+```
+
+### Convención de branches por agente
+
+| Branch | Agente | Archivos "propios" |
+|--------|--------|-------------------|
+| `claude/agent-monitoring-dashboard-4v8iq` | ai-monitor | `frontend/`, `backend/`, `relay/master.js`, `deploy/` |
+| `claude/financial-multiagent-system-YwtYQ` | finbot-tester/verifier | `financial/`, `relay/inbox-finbot-*.md` |
+| `cursor/financial-bot-env-review-8da7` | Cursor agent | `financial/bot/AGENTS.md`, `AGENT-TREE.md` |
+
+**Reglas de branch para evitar conflictos:**
+1. Cada agente trabaja en SU branch para cambios de código sustanciales
+2. Los cambios de relay (inbox/outbox/projects.json) van directo a `main`
+3. **Antes de mergear a main**: leer `relay/AGENT-STATUS.md` para ver si otro agente tiene archivos en conflicto
+4. Si hay conflicto potencial: despachar tarea de coordinación al `coordinator` vía inbox
+
+### Proceso de merge seguro a main
+
+```bash
+# 1. Leer AGENT-STATUS.md para conocer el estado actual
+cat relay/AGENT-STATUS.md
+
+# 2. Verificar qué branches tienen trabajo pendiente
+git fetch origin
+git log --oneline main..origin/<branch>
+
+# 3. Mergear en orden: primero el branch más antiguo
+git merge origin/<branch> --no-ff
+
+# 4. Si hay conflictos en frontend/: tomar la versión del branch de redesign
+# Si hay conflictos en relay/projects.json: fusionar manualmente (ambos pueden tener entradas válidas)
+
+# 5. Actualizar AGENT-STATUS.md tras el merge
+# 6. Push a main
+```
+
+### Reglas anti-degradación
+
+- **Nunca** hacer `git reset --hard origin/main` en el servidor sin antes mergear todos los branches activos
+- **Siempre** verificar `git log --oneline main..HEAD` antes de reset — si hay commits, mergearlos primero
+- Si el servidor tiene divergencia: `git fetch origin && git log --oneline HEAD..origin/main` para ver qué falta
+
+---
+
 ## Instrucciones de compactación de contexto
 
 Cuando el contexto se compacte automáticamente, el resumen debe seguir estas reglas para minimizar tokens:
@@ -331,3 +467,4 @@ Cuando el contexto se compacte automáticamente, el resumen debe seguir estas re
 ```
 
 **Objetivo: resumen ≤ 400 palabras. Si supera 600 palabras, está incluyendo demasiado.**
+9. **Branch de ai-monitor en projects.json es `main`** — no cambiar a branches de desarrollo

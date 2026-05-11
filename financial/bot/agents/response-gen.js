@@ -16,7 +16,7 @@ class ResponseGen {
    */
   constructor(llmClient, opts = {}) {
     this.llm   = llmClient;
-    this.model = opts.model ?? 'deepseek-chat';
+    this.model = opts.model ?? process.env.DEEPSEEK_PRO_MODEL ?? 'deepseek-chat';
     this.logUsage = opts.logUsage ?? null;
   }
 
@@ -222,9 +222,7 @@ class ResponseGen {
    */
   async generateNaturalResponse(userMessage, context = {}) {
     const systemPrompt =
-      `Eres un asistente financiero profesional. Responde en español, breve y directo.
-Contexto del cliente: saldo=${fmt(context.saldo ?? 0)}, cliente=${context.nombre ?? 'desconocido'}
-Si falta información para procesar la operación, pide SOLO lo que falta (tipo, monto o entrega).`;
+      `Eres un asistente financiero profesional. Responde en español, breve y directo.\nContexto del cliente: saldo=${fmt(context.saldo ?? 0)}, cliente=${context.nombre ?? 'desconocido'}\nSi falta información para procesar la operación, pide SOLO lo que falta (tipo, monto o entrega).`;
 
     const start = Date.now();
     const response = await this.llm.chat.completions.create({
@@ -257,11 +255,7 @@ Si falta información para procesar la operación, pide SOLO lo que falta (tipo,
    */
   async parseFreeText(userMessage, context = {}) {
     const prompt =
-      `Extrae datos de la operación financiera. Solo JSON, sin explicaciones.
-Tipos: IAS(5.5%), TARJETAS(5.5%), SPEI(3%), EFECTIVO(3%), SINDICATO(5.5%)
-Saldo cliente: $${fmt(context.saldo ?? 0)}
-Mensaje: "${userMessage}"
-JSON: {"tipo":"","tipo_monto":"neto|bruto","monto":0,"es_entrada":true,"tipo_entrega":"","confianza":"alta|media|baja"}`;
+      `Extrae datos de la operación financiera. Solo JSON, sin explicaciones.\nTipos: IAS(5.5%), TARJETAS(5.5%), SPEI(3%), EFECTIVO(3%), SINDICATO(5.5%)\nSaldo cliente: $${fmt(context.saldo ?? 0)}\nMensaje: "${userMessage}"\nJSON: {"tipo":"","tipo_monto":"neto|bruto","monto":0,"es_entrada":true,"tipo_entrega":"","confianza":"alta|media|baja"}`;
 
     const start = Date.now();
     const response = await this.llm.chat.completions.create({

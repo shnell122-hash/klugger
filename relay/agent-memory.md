@@ -1,101 +1,27 @@
 
-## [2/5/2026, 23:45:13 CST] Fix automático — Episodio #67
-- **Fix identific ado y pusheado exitosamente**
+## [2/5/2026, 13:00:09 CST] Inbox — FinBot Verifier
+- Sin tarea asignada — inbox-finbot-verifier.md vacío (2026-05-02 —:—)
+- ⚠️ Ninguno detectado
 
-## [2/5/2026, 23:45:28 CST] Inbox — FinBot Verifier
+## [2/5/2026, 13:02:19 CST] Tarea: Completar financial/.env con Chat ID del grupo Testing (re-run 2026-05-02)
+- financial/.env completado — grupo Testing encontrado via getUpdates (id=-5142407305, confirmado por 3 bots: GV, VBPP2, C2)
+- Ping al grupo Testing — sim-gv envió mensaje correctamente (message_id=8)
+- Report al relay bot — `FINBOT_TEST_REPORT_CHAT_ID=6801858273` confirmado
+- ⚠️ Ninguno. `sed -i` no funcionó (sin permisos de escritura en directorio), se usó Python write directo en su lugar.
 
-## [2/5/2026, 23:59:51 CST] Fix automático — Episodio #74
+## [2/5/2026, 13:18:12 CST] Tarea: Ejecutar suite de pruebas T01-T10
+- T01 /saldo — bot no responde. **Root cause**: Telegram no entrega mensajes de bots a otros bots en grupos.
+- T02-T04 — No ejecutados (misma causa que T01).
+- T08 Saldo clientes — `fin_clients` accesible: VILAR KPTL saldo=$12,490. Tabla operativa con 3 registros.
+- T09 Dashboard KPIs — HTTP 200 (UI funcional). `/api/financial/kpis` → 404: ruta no implementada.
+- T10 Columna costo_pct — existe en `fin_operations`, 0 operaciones asignadas (esperado en DB prueba).
+- ⚠️ T01-T04: Telegram no entrega msgs entre bots — requiere intervención humana para rediseño.
+- ⚠️ T09: Implementar `backend/routes/financial.js` con `/api/financial/kpis`.
+- ⚠️ Financial-bot saludable: Grammy polling activo, DB accesible.
 
-## [3/5/2026, 00:02:30 CST] Inbox — FinBot Verifier
-
-## [3/5/2026, 00:19:35 CST] Fix automático — Episodio #84
-
-## [3/5/2026, 00:20:58 CST] Inbox — FinBot Verifier
-- Build de financial-dashboard completado  
-- ️ PM2 restart falló (uid error en PM2 agent) — pero KPIs sigue respondiendo
-
-## [3/5/2026, 00:38:16 CST] Fix automático — Episodio #93
-
-## [3/5/2026, 00:38:37 CST] Inbox — FinBot Verifier
-
-## [3/5/2026, 01:31:26 CST] Fix automático — Episodio #119
-
-## [3/5/2026, 01:32:52 CST] Inbox — FinBot Verifier
-
-## [3/5/2026, 01:51:07 CST] Fix automático — Episodio #129
-
-## [3/5/2026, 01:52:30 CST] Inbox — FinBot Verifier
-- Logs del bot — sin errores críticos  
-- DB integridad operaciones — 0 transacciones incompletas  
-- ️ **Sesiones colgadas** — 9 sesiones (máximo 8 días sin actualización)  
-- ️ **Saldos negativos críticos** — VILAR KPTL: -3,641,180.73  
-- ️ **Dashboard /operations** — endpoint retorna 0 operaciones
-
-## [3/5/2026, 02:40:40 CST] Fix automático — Episodio #154
-
-## [3/5/2026, 02:41:01 CST] Inbox — FinBot Verifier
-
-## [3/5/2026, 03:10:55 CST] Fix automático — Episodio #169
-
-## [3/5/2026, 03:11:48 CST] Inbox — FinBot Verifier
-
-## [3/5/2026, 04:34:19 CST] Fix automático — Episodio #211
-
-## [3/5/2026, 04:36:06 CST] Inbox — FinBot Verifier
-
-## [3/5/2026, 04:43:41 CST] [URGENTE] Fijar sesiones colgadas y endpoint /operations
-
-## [3/5/2026, 04:46:07 CST] Fix automático — Episodio #215
-
-## [3/5/2026, 04:46:59 CST] Inbox — FinBot Verifier
-- Logs: sin errores críticos
-- Dashboard: KPIs respondiendo normalmente (5 clientes, 56 operaciones hoy)
-- DB: 0 operaciones incompletas
-- Sesiones: todas en estado idle o reciente
-- Bot: proceso activo (PID 57865)
-- Dashboard UI: sirviendo HTML correctamente
-- ️  Nota: Saldos negativos detectados (probablemente test accounts)
-
-## [3/5/2026, 05:59:01 CST] Fix automático — Episodio #253
-
-## [3/5/2026, 06:01:00 CST] Inbox — FinBot Verifier
-
-## [3/5/2026, 07:25:51 CST] Fix automático — Episodio #297
-
-## [3/5/2026, 07:26:09 CST] Inbox — FinBot Verifier
-
-## [3/5/2026, 07:31:25 CST] Fix automático — Episodio #300
-
-## [3/5/2026, 07:31:55 CST] Inbox — FinBot Verifier
-
-## [3/5/2026, 11:54:28 CST] Inbox — FinBot Verifier
-
-## [3/5/2026, 12:10:25 CST] Fix automático — Episodio #443
-
-## [3/5/2026, 12:11:24 CST] Inbox — FinBot Verifier
-- Operaciones incompletas (saldo NULL, estado confirmada):  0
-- Sesiones bloqueadas (> 2h sin actualización):            10 (idle, no crítico)
-- Clientes con saldo anómalo (< -100K):                   4 (test accounts)
-- Última operación:                                        ID 170, IAS, $375K, confirmada 12:10
-
-## [3/5/2026, 12:55:58 CST] Claude Code — Inbox
-- ️ Sin tarea — El archivo inbox.md no contiene ninguna tarea activa.
-- ⚠️ Ninguno
-
-## [3/5/2026, 12:57:32 CST] Inbox — FinBot Verifier
-
-## [3/5/2026, 14:21:19 CST] Fix automático — Episodio #496
-
-## [3/5/2026, 14:21:34 CST] Inbox — FinBot Verifier
-
-## [3/5/2026, 18:27:35 CST] Fix automático — Episodio #588
-
-## [3/5/2026, 18:28:20 CST] Inbox — FinBot Verifier
-
-## [4/5/2026, 22:43:59 CST] Claude Code — Inbox
-- ️ Sin tarea — El archivo inbox.md no contiene ninguna tarea activa.
-- ⚠️ Ninguno
-
-## [4/5/2026, 22:44:04 CST] [URGENTE] Fijar sesiones colgadas y endpoint /operations
-
-## [4/5/2026, 22:44:55 CST] Inbox — FinBot Verifier
+## [2/5/2026, 18:06:29 CST] Diagnóstico y limpieza de tarea frontend bloqueada
+- **Diagnóstico completado** — Sin tareas bloqueadas detectadas
+- **Inbox fiscalai-front** — Limpio y listo para nuevas tareas
+- **Bloqueador anterior (MySQL)** — Resuelto en sesión previa (zXvki)
+- **Pendiente de merge** — PR #21 y rama zXvki esperan merge a main
+- ⚠️ Ambas ramas (`4v8iq` y `zXvki`) deben mergearse a `main` para que gitPull automático sea permanente

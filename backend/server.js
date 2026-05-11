@@ -1,13 +1,12 @@
 'use strict';
 
-require('dotenv').config({ path: __dirname + '/.env', override: true });
+require('dotenv').config({ path: __dirname + '/.env' });
 
 const express   = require('express');
 const http      = require('http');
 const { Server }= require('socket.io');
 const cors      = require('cors');
 const path      = require('path');
-const session   = require('express-session');
 
 const eventsRouter    = require('./routes/events');
 const sessionsRouter  = require('./routes/sessions');
@@ -18,19 +17,12 @@ const dispatchRouter       = require('./routes/dispatch');
 const screenshotsRouter    = require('./routes/screenshots');
 const alertsRouter         = require('./routes/alerts');
 const conversationsRouter  = require('./routes/conversations');
-const financialRoutes      = require('../financial/backend/routes/financial');
-const authRouter           = require('./routes/auth');
-const keysRouter           = require('./routes/keys');
 const { router: platformRouter, fetchAndCacheUsage, checkBudgets } = require('./routes/platform');
-const tg = require('./telegram');
-const db = require('./db/mysql');
-
-// apiAdmin es opcional — sólo existe en main, no en todas las ramas
-let apiAdminRouter = null;
-let dailySnapshot  = null;
-try {
-  ({ router: apiAdminRouter, dailySnapshot } = require('./routes/apiAdmin'));
-} catch (_) { /* no disponible en este branch */ }
+const { router: apiAdminRouter, dailySnapshot } = require('./routes/apiAdmin');
+const telegramUsersRouter = require('./routes/telegramUsers');
+const proxyUsageRouter    = require('./routes/proxyUsage');
+const financialRoutes = require('../financial/backend/routes/financial');
+const pool            = require('./db/mysql');
 
 const PORT = process.env.PORT || 3010;
 
@@ -40,51 +32,18 @@ const io     = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] },
 });
 
-// Make io available to routes
+// Make io and pool available to routes
 app.set('io', io);
+app.locals.pool = require('./db/mysql');
 
-// ── Session ───────────────────────────────────────────────────────────────────
-const SESSION_SECRET = process.env.SESSION_SECRET || 'change-me-' + Math.random().toString(36).slice(2);
-if (!process.env.SESSION_SECRET) {
-  console.warn('[auth] SESSION_SECRET no definido — usar valor aleatorio (sesiones no persisten entre reinicios)');
-}
-
-app.use(session({
-  secret:            SESSION_SECRET,
-  resave:            false,
-  saveUninitialized: false,
-  cookie: {
-    httpOnly: true,
-    secure:   false,   // set to true if serving over HTTPS directly (not via Apache proxy)
-    maxAge:   8 * 60 * 60 * 1000,  // 8 hours
-  },
-}));
-
-// ── Middleware ────────────────────────────────────────────────────────────────
+// Middleware
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
-// ── Login page (always public) ────────────────────────────────────────────────
-app.use('/login', express.static(path.join(__dirname, '..', 'frontend', 'login')));
-app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'frontend', 'login', 'index.html'));
-});
-
-// ── Auth middleware for dashboard ─────────────────────────────────────────────
-// Only protects the root HTML page — /api/* internal routes stay open so
-// relay-master can POST events without a session cookie.
-app.get('/', (req, res, next) => {
-  if (req.session?.authenticated) return next();
-  res.redirect('/login');
-});
-
-// ── Static frontend (served after auth check for /) ───────────────────────────
+// Serve the frontend dashboard from /frontend
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
 
-// ── Auth routes ───────────────────────────────────────────────────────────────
-app.use('/api/auth',  authRouter);
-
-// ── API routes ────────────────────────────────────────────────────────────────
+// API routes
 app.use('/api/events',    eventsRouter);
 app.use('/api/sessions',  sessionsRouter);
 app.use('/api/costs',     costsRouter);
@@ -94,20 +53,22 @@ app.use('/api/relay',           dispatchRouter);
 app.use('/api/screenshots',     screenshotsRouter);
 app.use('/api/alerts',          alertsRouter);
 app.use('/api/conversations',   conversationsRouter);
-app.use('/api/financial',       financialRoutes(require('./db/mysql'), io, express));
 app.use('/api/platform',        platformRouter);
-if (apiAdminRouter) app.use('/api/apiAdmin', apiAdminRouter);
-app.use('/api/keys',            keysRouter);
+app.use('/api/apiAdmin',        apiAdminRouter);
+app.use('/api/telegram',        telegramUsersRouter);
+app.use('/api/proxy-usage',     proxyUsageRouter);
+app.use('/api/financial',      financialRoutes(pool, io, express));
 
-// Serve screenshots directory
-app.use('/screenshots', express.static(path.join(__dirname, '..', 'frontend', 'screenshots')));
+// Serve screenshots directory (already covered by express.static on /frontend,
+// but also serve under /screenshots for direct access)
+app.use('/screenshots', express.static(require('path').join(__dirname, '..', 'frontend', 'screenshots')));
 
-// Health check (always public — used by deploy_verify_fail alert)
+// Health check
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, ts: new Date().toISOString(), port: PORT });
 });
 
-// ── WebSocket ─────────────────────────────────────────────────────────────────
+// WebSocket connection log
 io.on('connection', (socket) => {
   console.log(`[ws] Client connected: ${socket.id}`);
   socket.on('disconnect', () => {
@@ -115,76 +76,9 @@ io.on('connection', (socket) => {
   });
 });
 
-// ── Cost alert monitoring (Phase 4) ──────────────────────────────────────────
-const COST_ALERT_DAILY_USD   = parseFloat(process.env.COST_ALERT_DAILY_USD   || '5');
-const COST_ALERT_MONTHLY_USD = parseFloat(process.env.COST_ALERT_MONTHLY_USD || '50');
-
-// Track which alerts were already sent today/this month to avoid spam
-const _sentAlerts = new Set();
-
-async function checkCostAlerts() {
-  if (!COST_ALERT_DAILY_USD && !COST_ALERT_MONTHLY_USD) return;
-  try {
-    // Daily cost by provider (from events table)
-    const [daily] = await db.query(
-      `SELECT api_provider, ROUND(SUM(cost_usd), 6) AS total
-       FROM agent_events
-       WHERE DATE(recorded_at) = CURDATE() AND cost_usd IS NOT NULL
-       GROUP BY api_provider`,
-    ).catch(() => [[]]);  // table name may vary — silent on schema mismatch
-
-    for (const { api_provider: prov, total } of daily) {
-      const key = `daily:${prov}:${new Date().toISOString().slice(0, 10)}`;
-      if (COST_ALERT_DAILY_USD > 0 && total >= COST_ALERT_DAILY_USD && !_sentAlerts.has(key)) {
-        _sentAlerts.add(key);
-        await tg.send(
-          `⚠️ <b>Alerta de gasto diario</b>\n` +
-          `Proveedor: <b>${prov}</b>\n` +
-          `Gasto hoy: <b>$${parseFloat(total).toFixed(4)}</b>\n` +
-          `Límite: $${COST_ALERT_DAILY_USD}\n` +
-          `Ver: <a href="https://ia.vilarkptl.com">ia.vilarkptl.com</a>`,
-        );
-        console.warn(`[cost-alert] daily ${prov} = $${total} — alerta enviada`);
-      }
-    }
-
-    // Monthly cost by provider
-    const [monthly] = await db.query(
-      `SELECT api_provider, ROUND(SUM(cost_usd), 6) AS total
-       FROM agent_events
-       WHERE YEAR(recorded_at) = YEAR(NOW()) AND MONTH(recorded_at) = MONTH(NOW()) AND cost_usd IS NOT NULL
-       GROUP BY api_provider`,
-    ).catch(() => [[]]);
-
-    for (const { api_provider: prov, total } of monthly) {
-      const month = new Date().toISOString().slice(0, 7);
-      const key = `monthly:${prov}:${month}`;
-      if (COST_ALERT_MONTHLY_USD > 0 && total >= COST_ALERT_MONTHLY_USD && !_sentAlerts.has(key)) {
-        _sentAlerts.add(key);
-        await tg.send(
-          `🚨 <b>Alerta de gasto mensual</b>\n` +
-          `Proveedor: <b>${prov}</b>\n` +
-          `Gasto este mes: <b>$${parseFloat(total).toFixed(4)}</b>\n` +
-          `Límite: $${COST_ALERT_MONTHLY_USD}\n` +
-          `Ver: <a href="https://ia.vilarkptl.com">ia.vilarkptl.com</a>`,
-        );
-        console.warn(`[cost-alert] monthly ${prov} = $${total} — alerta enviada`);
-      }
-    }
-  } catch (e) {
-    console.error('[cost-alert] error:', e.message);
-  }
-}
-
-// ── Boot ──────────────────────────────────────────────────────────────────────
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`[ai-monitor] Running on port ${PORT}`);
   console.log(`[ai-monitor] Dashboard: http://localhost:${PORT}`);
-
-  if (!process.env.DASHBOARD_PASSWORD_HASH) {
-    console.warn('[auth] DASHBOARD_PASSWORD_HASH no configurado — dashboard sin protección de contraseña');
-    console.warn('[auth] Generar hash: node -e "require(\'bcryptjs\').hash(\'MI_PASS\',10).then(console.log)"');
-  }
 
   // Platform poller — fetch Anthropic usage every 15 min
   const PLATFORM_POLL_MS = parseInt(process.env.PLATFORM_POLL_MS || String(15 * 60 * 1000));
@@ -198,14 +92,72 @@ server.listen(PORT, '0.0.0.0', () => {
         console.error('[platform] poll error:', e.message);
       }
     };
-    setTimeout(pollPlatform, 10000);
+    setTimeout(pollPlatform, 10000);  // first fetch 10s after startup
     setInterval(pollPlatform, PLATFORM_POLL_MS);
     console.log(`[platform] Poller activo cada ${PLATFORM_POLL_MS / 60000} min`);
   } else {
     console.warn('[platform] ANTHROPIC_ADMIN_KEY no configurado — tab Plataforma sin datos');
   }
 
-  // Cost alert poller — check every 5 minutes
-  setTimeout(checkCostAlerts, 30000);
-  setInterval(checkCostAlerts, 5 * 60 * 1000);
+  // Daily snapshot a las 23:55 — materializa agent_events en provider_daily_cost
+  setInterval(() => {
+    const n = new Date();
+    if (n.getHours() === 23 && n.getMinutes() === 55) {
+      dailySnapshot().catch(e => console.error('[apiAdmin] snapshot error:', e.message));
+    }
+  }, 60 * 1000);
+
+  // Project budget enforcer — check per-project monthly limits every 5 min
+  const db = require('./db/mysql');
+  setInterval(async () => {
+    try {
+      const [budgets] = await db.query(
+        'SELECT * FROM project_monthly_budget WHERE kill_enabled = 1'
+      ).catch(() => [[]]);
+      if (!budgets.length) return;
+
+      const billingStart = new Date();
+      billingStart.setDate(1); billingStart.setHours(0, 0, 0, 0);
+
+      const [spends] = await db.query(
+        `SELECT project_name, ROUND(SUM(estimated_cost_usd),4) AS cost
+         FROM agent_events
+         WHERE timestamp >= ? AND project_name IS NOT NULL
+         GROUP BY project_name`,
+        [billingStart.toISOString().slice(0, 10)]
+      ).catch(() => [[]]);
+
+      const spendMap = {};
+      spends.forEach(r => { spendMap[r.project_name] = parseFloat(r.cost || 0); });
+
+      for (const b of budgets) {
+        const spent = spendMap[b.project_name] || 0;
+        if (spent < parseFloat(b.budget_usd)) continue;
+
+        const killKey = `project_killed_${b.project_name}`;
+        const [[cur]] = await db.query(
+          "SELECT `value` FROM system_state WHERE `key`=?", [killKey]
+        ).catch(() => [[null]]);
+        if (cur?.value === '1') continue; // already killed
+
+        await db.query(
+          "INSERT INTO system_state(`key`,`value`) VALUES(?,1) ON DUPLICATE KEY UPDATE `value`='1', updated_at=NOW(3)",
+          [killKey]
+        );
+        await db.query(
+          'INSERT INTO project_budget_alerts (project_name, budget_usd, actual_usd) VALUES (?,?,?)',
+          [b.project_name, b.budget_usd, spent]
+        ).catch(() => {});
+        io.emit('project_budget_exceeded', {
+          project: b.project_name,
+          budget:  b.budget_usd,
+          spent,
+          msg:     `🛑 ${b.project_name} superó $${b.budget_usd}/mes (gastado: $${spent.toFixed(2)})`,
+        });
+        console.warn(`[budget] ${b.project_name} KILLED — spent $${spent} / budget $${b.budget_usd}`);
+      }
+    } catch (e) {
+      console.error('[budget] project enforcer error:', e.message);
+    }
+  }, 5 * 60 * 1000);
 });

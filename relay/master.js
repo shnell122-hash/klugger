@@ -660,6 +660,18 @@ function postAlert(alertType, projectId, severity, title, details, autoFixed = f
   postToMonitor('/api/alerts', { alert_type: alertType, project_id: projectId, severity, title, details, auto_fixed: autoFixed });
 }
 
+// ─── Per-project kill-switch (migrate-v12 project_monthly_budget) ────────────
+// Cache refreshed every 5 min by the kill-switch poller via /api/apiAdmin/projectBudgets.
+// Avoids a DB query on every 15-second poll cycle.
+const PROJECT_KILLED_CACHE = {};  // { projectId: { killed: bool, ts: number } }
+const PROJECT_KILLED_TTL   = 5 * 60 * 1000;
+
+function getProjectKilled(projectId) {
+  const cached = PROJECT_KILLED_CACHE[projectId];
+  if (cached && (Date.now() - cached.ts) < PROJECT_KILLED_TTL) return cached.killed;
+  return false;  // safe default; async refresh happens in kill-switch poller
+}
+
 // ─── DeepSeek Flash API directo (buzon bidireccional) ────────────────────────
 // Reemplaza claude-sonnet-4-6. V4-Flash es ~200x más barato para respuestas de texto.
 function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512) {

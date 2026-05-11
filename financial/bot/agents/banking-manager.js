@@ -22,8 +22,6 @@ class BankingManager {
     this.pool = pool;
   }
 
-  // ── DB ────────────────────────────────────────────────────────────────────
-
   async getCuentasRecientes(clientId, limit = 5) {
     const [rows] = await this.pool.query(
       `SELECT * FROM fin_banking_accounts
@@ -45,7 +43,6 @@ class BankingManager {
   async guardarCuentas(clientId, operationId, cuentas) {
     const ids = [];
     for (const c of cuentas) {
-      // Deduplicar: si ya existe el mismo número para este cliente, reutilizar
       const [existing] = await this.pool.query(
         `SELECT id FROM fin_banking_accounts WHERE client_id=? AND numero=? LIMIT 1`,
         [clientId, c.numero]
@@ -54,7 +51,7 @@ class BankingManager {
         ids.push(existing[0].id);
         if (operationId) {
           await this.pool.query(
-            `UPDATE fin_banking_accounts SET operation_id=?, updated_at=NOW(3) WHERE id=?`,
+            `UPDATE fin_banking_accounts SET operation_id=? WHERE id=?`,
             [operationId, existing[0].id]
           );
         }
@@ -93,21 +90,17 @@ class BankingManager {
     return rows;
   }
 
-  // ── Parsers (estáticos) ───────────────────────────────────────────────────
-
   static parsearTexto(texto) {
     if (!texto) return [];
     const t = texto.replace(/\r/g, '');
     const cuentas = [];
 
-    // CLABEs (18 dígitos)
     for (const m of t.matchAll(CLABE_RE)) {
       if (!cuentas.some(c => c.numero === m[1])) {
         cuentas.push({ tipo: 'CLABE', numero: m[1], titular: null, banco: null });
       }
     }
 
-    // Tarjetas (16 dígitos con posibles espacios/guiones)
     for (const m of t.matchAll(TARJETA_RE)) {
       const num = m[1].replace(/[\s\-]/g, '');
       if (num.length === 16 && !cuentas.some(c => c.numero === num || m[0].includes(c.numero))) {
@@ -115,7 +108,6 @@ class BankingManager {
       }
     }
 
-    // Cuentas 10-11 dígitos (solo si no encontramos CLABE ni tarjeta)
     if (!cuentas.length) {
       for (const m of t.matchAll(CUENTA_RE)) {
         if (!cuentas.some(c => c.numero === m[1])) {
@@ -126,7 +118,6 @@ class BankingManager {
 
     if (!cuentas.length) return [];
 
-    // Enriquecer con banco y titular
     const bancos  = [...t.matchAll(BANCO_RE)].map(m => m[1]);
     const nombres = [...t.matchAll(NOMBRE_RE)].map(m => m[1].trim());
 
@@ -134,7 +125,6 @@ class BankingManager {
       if (bancos.length)   cuentas[0].banco   = bancos[0];
       if (nombres.length)  cuentas[0].titular = nombres[0];
     } else {
-      // Múltiples cuentas: intentar parear por bloques de líneas
       const lineas = t.split('\n');
       cuentas.forEach(cuenta => {
         const lineaIdx = lineas.findIndex(l => l.includes(cuenta.numero.slice(-4)));
@@ -151,7 +141,6 @@ class BankingManager {
   }
 
   static parsearCsv(contenido) {
-    // CSV/TXT: parsear cada línea como texto
     return BankingManager.parsearTexto(contenido);
   }
 
@@ -163,11 +152,9 @@ class BankingManager {
 
       for (const sheetName of wb.SheetNames) {
         const ws   = wb.Sheets[sheetName];
-        // raw:false → números como strings, header:1 → array de arrays
         const filas = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
         if (!filas.length) continue;
 
-        // Detectar fila de encabezados (primera fila no vacía)
         let headerIdx = -1;
         let colNombre = -1, colCuenta = -1, colBanco = -1, colMonto = -1;
         let colNeto = -1, colBruto = -1, colPct = -1, colClabe = -1;
@@ -193,7 +180,6 @@ class BankingManager {
           }
         }
 
-        // ── Cuadro de retorno IAS: detectar por presencia de columnas NETO + BRUTO ──
         if (headerIdx >= 0 && colNeto >= 0 && colBruto >= 0) {
           const filas_cuadro = [];
           for (let i = headerIdx + 1; i < filas.length; i++) {
@@ -232,7 +218,6 @@ class BankingManager {
         }
 
         if (headerIdx >= 0) {
-          // Parseo estructurado fila a fila (formato normal de cuentas)
           for (let i = headerIdx + 1; i < filas.length; i++) {
             const fila = filas[i];
             const raw  = colCuenta >= 0 ? String(fila[colCuenta] ?? '').replace(/[\s\-]/g, '') : '';
@@ -243,7 +228,7 @@ class BankingManager {
             if (/^\d{18}$/.test(raw))   { tipo = 'CLABE'; }
             else if (/^\d{16}$/.test(raw)) { tipo = 'tarjeta'; }
             else if (/^\d{10,11}$/.test(raw)) { tipo = 'cuenta'; }
-            else { continue; } // no reconocida
+            else { continue; }
 
             const titular = colNombre >= 0 ? String(fila[colNombre] ?? '').trim() || null : null;
             const banco   = colBanco  >= 0 ? String(fila[colBanco]  ?? '').trim() || null : null;
@@ -254,7 +239,6 @@ class BankingManager {
             }
           }
         } else {
-          // Sin encabezados detectados — escanear celda a celda buscando CLABEs (quitar espacios)
           for (const fila of filas) {
             for (const celda of fila) {
               const raw = String(celda ?? '').replace(/[\s\-]/g, '');
@@ -271,8 +255,6 @@ class BankingManager {
       return [];
     }
   }
-
-  // ── Formateo ──────────────────────────────────────────────────────────────
 
   static maskNumero(numero, tipo) {
     if (!numero) return '—';

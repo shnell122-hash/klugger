@@ -95,7 +95,7 @@ const responseGen      = new ResponseGen(llm,   { model: DEEPSEEK_MODEL, logUsag
 const invoiceAgent     = new InvoiceAgent(llm,   { model: DEEPSEEK_MODEL, logUsage: logUsageFn });
 const contextManager   = new ContextManager(pool);
 const contextReader    = new ContextReader(llm,   { model: DEEPSEEK_MODEL });
-const visionAgent      = null; // DocIntelligenceAgent (Gemini) handles all OCR — zero Anthropic
+const visionAgent = new VisionAgent(llm, { googleApiKey: process.env.GOOGLE_API_KEY });
 const docAgent = process.env.GOOGLE_API_KEY
   ? new DocumentIntelligenceAgent(process.env.GOOGLE_API_KEY)
   : null;

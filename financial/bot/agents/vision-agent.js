@@ -1,12 +1,11 @@
 'use strict';
 /**
- * Vision Agent — OCR de imágenes con Claude Haiku.
- * Extrae cuentas bancarias de CUALQUIER tipo de imagen, y analiza facturas/comprobantes.
+ * Vision Agent — OCR de imágenes.
+ * Usa Gemini Flash cuando GOOGLE_API_KEY está disponible, DeepSeek Flash como fallback.
  */
 
-const Anthropic = require('@anthropic-ai/sdk');
-
-const VISION_MODEL = 'claude-haiku-4-5-20251001';
+const { OpenAI }             = require('openai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // Acepta tablas Excel, capturas de WhatsApp/Telegram, fotos de papel, listas en cualquier formato
 const BANKING_PROMPT = `Analiza esta imagen y extrae TODA la información de cuentas bancarias que aparezca.
@@ -73,28 +72,47 @@ Extrae la información de pago que aparezca y devuelve ÚNICAMENTE un JSON váli
 Devuelve SOLO el JSON, sin explicaciones adicionales.`;
 
 class VisionAgent {
-  constructor(apiKey) {
-    if (!apiKey) throw new Error('VisionAgent requiere ANTHROPIC_API_KEY');
-    this.client = new Anthropic({ apiKey });
+  constructor(llmClient, opts = {}) {
+    if (!llmClient) throw new Error('VisionAgent requiere llmClient (OpenAI-compatible)');
+    this.client     = llmClient;
+    this.model      = opts.model ?? process.env.DEEPSEEK_FLASH_MODEL ?? 'deepseek-chat';
+    // Gemini Flash preferred for vision — better OCR than DeepSeek Flash
+    const googleKey = opts.googleApiKey ?? process.env.GOOGLE_API_KEY;
+    this.gemini     = googleKey ? new GoogleGenerativeAI(googleKey) : null;
+    this.geminiModel = opts.geminiModel ?? process.env.GEMINI_FLASH_MODEL ?? 'gemini-1.5-flash';
   }
 
   async _callVision(imageBuffer, mimeType, prompt) {
     const base64    = imageBuffer.toString('base64');
     const mediaType = (mimeType && mimeType.startsWith('image/')) ? mimeType : 'image/jpeg';
 
-    const msg = await this.client.messages.create({
-      model:      VISION_MODEL,
+    // Prefer Gemini Flash (better multimodal OCR) when available
+    if (this.gemini) {
+      const model = this.gemini.getGenerativeModel({ model: this.geminiModel });
+      const result = await model.generateContent([
+        prompt,
+        { inlineData: { mimeType: mediaType, data: base64 } },
+      ]);
+      const raw   = result.response.text() ?? '';
+      const match = raw.match(/\{[\s\S]*\}/);
+      if (!match) return null;
+      return JSON.parse(match[0]);
+    }
+
+    // Fallback: DeepSeek Flash via OpenAI-compatible API
+    const resp = await this.client.chat.completions.create({
+      model:      this.model,
       max_tokens: 2048,
       messages: [{
         role: 'user',
         content: [
-          { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+          { type: 'image_url', image_url: { url: `data:${mediaType};base64,${base64}` } },
           { type: 'text', text: prompt },
         ],
       }],
     });
 
-    const raw   = msg.content[0]?.text ?? '';
+    const raw   = resp.choices[0]?.message?.content ?? '';
     const match = raw.match(/\{[\s\S]*\}/);
     if (!match) return null;
     return JSON.parse(match[0]);

@@ -2,17 +2,17 @@
 /**
  * pagos.php — Módulo de gestión de pagos (Vianey / admin)
  * Muestra calendario del mes, lista de pagos, permite registrar pago
- * y subir comprobante. Usa N_DB_SALDOS como fuente en Notion.
+ * y subir comprobante. Usa la BD "Pagos Operaciones" en Notion.
  *
  * DESPLEGAR en: /var/www/catalogos/tareas/pagos.php
  *
- * CAMPOS necesarios en N_DB_SALDOS (crearlos en Notion si no existen):
+ * Campos en N_DB_PAGOS (Pagos Operaciones — ID: 352224e4...):
  *   Concepto           title
  *   Monto              number
  *   Fecha programada   date
- *   Estado             select  → opciones: Pendiente | Pagado | Vencido
+ *   Estado             select  → Pendiente | Pagado | Vencido
  *   Comprobante URL    url
- *   Responsable        people
+ *   Responsable        person
  *   Mes                select  → e.g. "2026-05"
  */
 
@@ -21,8 +21,11 @@ requireLogin();
 
 require_once __DIR__ . '/notion_helper.php';
 
-// VERIFICAR: cómo auth.php expone el usuario activo.
-// Posibles variables: $_SESSION['usuario'], $_SESSION['nombre'], $_SESSION['user']
+// BD de Pagos Operaciones — fallback al ID si N_DB_PAGOS no está en .env
+if (!getenv('N_DB_PAGOS')) {
+    putenv('N_DB_PAGOS=352224e4d4dd809eaad8f24a32c9f080');
+}
+
 $usuario_actual = $_SESSION['usuario'] ?? $_SESSION['nombre'] ?? '';
 
 // Acceso: solo admin (German Villar) y el responsable de pagos (ajustar)
@@ -58,9 +61,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
             $mensaje = "Pago actualizado correctamente.";
         } else {
-            // Crear nueva página en N_DB_SALDOS
+            // Crear nueva página en N_DB_PAGOS (Pagos Operaciones)
             $resp = nReq('POST', '/pages', [
-                'parent'     => ['database_id' => getenv('N_DB_SALDOS')],
+                'parent'     => ['database_id' => getenv('N_DB_PAGOS')],
                 'properties' => [
                     'Concepto'          => ['title'  => [['text' => ['content' => $concepto]]]],
                     'Monto'             => ['number' => $monto],
@@ -159,8 +162,8 @@ $primer_dia = $mes_sel . '-01';
 $ultimo_dia = $mes_sel . '-' . date('t', strtotime($primer_dia));
 
 // Query a Notion filtrando por Mes o por rango de Fecha programada
-// VERIFICAR: nombre exacto del campo 'Mes' en N_DB_SALDOS (puede ser select o rich_text)
-$pagos_raw = nQuery('N_DB_SALDOS', [
+// Cargar pagos del mes desde N_DB_PAGOS (Pagos Operaciones)
+$pagos_raw = nQuery('N_DB_PAGOS', [
     'filter' => [
         'or' => [
             [
@@ -183,7 +186,7 @@ $pagos_raw = nQuery('N_DB_SALDOS', [
 $pagos = [];
 foreach ($pagos_raw as $p) {
     $pr = $p['properties'] ?? [];
-    // nNum / nDate / nSel — VERIFICAR helpers en notion_helper.php
+    // Acceder a propiedades según el tipo devuelto por la API de Notion
     // Si no existen, acceder directamente: $pr['Monto']['number'], etc.
     $pagos[] = [
         'id'       => $p['id'],

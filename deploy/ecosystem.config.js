@@ -51,42 +51,42 @@ module.exports = {
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
     },
     {
-      // Financial multi-agent Telegram bot
-      // Requires: financial/.env → FIN_TELEGRAM_BOT_TOKEN, DEEPSEEK_API_KEY, DB_PASS
-      // Setup:    cd financial/bot && npm install
-      // Migrate:  mysql ai_monitoring < financial/db/migrate-financial-v1.sql
-      name:        'financial-bot',
-      script:      'financial/bot/financial-bot.js',
+      // Cursor Cloud Agent self-hosted worker
+      // Setup: obtener CURSOR_WORKER_TOKEN en cursor.com/dashboard/cloud-agents
+      // Agregar CURSOR_WORKER_TOKEN a relay/.env antes de arrancar
+      name:        'cursor-worker',
+      script:      'relay/cursor-worker.js',
       cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
       exec_mode:   'fork',
       instances:   1,
       autorestart: true,
       watch:       false,
       max_memory_restart: '128M',
-      env_file:    '/var/www/html/vilarkptl.com/ai-monitor/financial/.env',
-      error_file:  '/var/log/ai-monitor/financial-bot-error.log',
-      out_file:    '/var/log/ai-monitor/financial-bot-out.log',
+      env_file:    '/var/www/html/vilarkptl.com/ai-monitor/relay/.env',
+      error_file:  '/var/log/ai-monitor/cursor-worker-error.log',
+      out_file:    '/var/log/ai-monitor/cursor-worker-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
     },
     {
-      // Financial Dashboard — Next.js 15 (flujos.fiscalai.mx → localhost:3020)
-      // Setup:  cd dashboard-financial && npm install && npm run build
-      // Apache: deploy/apache/flujos.fiscalai.mx.conf
-      name:        'financial-dashboard',
-      script:      'node_modules/.bin/next',
-      args:        'start -p 3020',
-      cwd:         '/var/www/html/vilarkptl.com/ai-monitor/dashboard-financial',
+      // Claude CLI proxy — serves POST /v1/messages using local claude --print
+      // Routes Anthropic API calls through your Pro/Max subscription ($0 per call)
+      // Requires: claude CLI installed and authenticated (claude auth login)
+      // Configure: ANTHROPIC_PROXY_URL=http://127.0.0.1:5001 in relay/.env
+      name:        'claude-proxy',
+      script:      'deploy/claude-proxy.js',
+      args:        '--port 5001',
+      cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
       exec_mode:   'fork',
       instances:   1,
       autorestart: true,
       watch:       false,
-      max_memory_restart: '512M',
+      max_memory_restart: '128M',
       env: {
-        NODE_ENV:             'production',
-        BACKEND_INTERNAL_URL: 'http://localhost:3010',
+        CLAUDE_BIN: process.env.CLAUDE_BIN || '/usr/local/bin/claude',
+        HOME:       '/root',   // needed to read ~/.claude/credentials
       },
-      error_file:  '/var/log/ai-monitor/financial-dashboard-error.log',
-      out_file:    '/var/log/ai-monitor/financial-dashboard-out.log',
+      error_file:  '/var/log/ai-monitor/claude-proxy-error.log',
+      out_file:    '/var/log/ai-monitor/claude-proxy-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
     },
     {

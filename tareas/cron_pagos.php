@@ -16,7 +16,7 @@
  *   3. Envía alerta Telegram con resumen de pagos pendientes del mes
  *
  * VARIABLES DE ENTORNO necesarias (en .env o en el entorno del sistema):
- *   N_DB_SALDOS, N_DB_REPETICION, NOTION_TOKEN
+ *   N_DB_PAGOS (o fallback a 352224e4d4dd809eaad8f24a32c9f080), N_DB_REPETICION, NOTION_TOKEN
  *   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID_PAGOS  (chat o grupo de Vianey)
  */
 
@@ -27,6 +27,11 @@ if (isset($_SERVER['HTTP_HOST'])) {
 }
 
 require_once __DIR__ . '/notion_helper.php';
+
+// Fallback al ID directo si N_DB_PAGOS no está en .env
+if (!getenv('N_DB_PAGOS')) {
+    putenv('N_DB_PAGOS=352224e4d4dd809eaad8f24a32c9f080');
+}
 
 $log_prefix = '[' . date('Y-m-d H:i:s') . '] cron_pagos.php — ';
 $hoy        = new DateTimeImmutable();
@@ -41,7 +46,7 @@ $ultimo_ant  = $mes_ant . '-' . cal_days_in_month(CAL_GREGORIAN,
 
 echo $log_prefix . "Buscando pagos pendientes en $mes_ant...\n";
 
-$pendientes_ant = nQuery('N_DB_SALDOS', [
+$pendientes_ant = nQuery('N_DB_PAGOS', [
     'filter' => [
         'and' => [
             ['property' => 'Estado', 'select' => ['equals' => 'Pendiente']],
@@ -99,7 +104,7 @@ foreach ($plantillas_pago as $tmpl) {
     $fecha_pago = $mes_actual . '-' . str_pad((int)$dia_mes, 2, '0', STR_PAD_LEFT);
 
     // Verificar si ya existe un pago para este mes con este concepto
-    $existentes = nQuery('N_DB_SALDOS', [
+    $existentes = nQuery('N_DB_PAGOS', [
         'filter' => [
             'and' => [
                 ['property' => 'Concepto', 'title'  => ['equals' => $concepto]],
@@ -115,7 +120,7 @@ foreach ($plantillas_pago as $tmpl) {
     }
 
     $resp = nReq('POST', '/pages', [
-        'parent'     => ['database_id' => getenv('N_DB_SALDOS')],
+        'parent'     => ['database_id' => getenv('N_DB_PAGOS')],
         'properties' => [
             'Concepto'         => ['title'  => [['text' => ['content' => $concepto]]]],
             'Monto'            => ['number' => (float)$monto],
@@ -135,7 +140,7 @@ foreach ($plantillas_pago as $tmpl) {
 echo $log_prefix . "$creados_count pagos recurrentes creados para $mes_actual.\n";
 
 // ─── PASO 3: Resumen de pendientes del mes actual → Telegram ─────────────
-$pendientes_mes = nQuery('N_DB_SALDOS', [
+$pendientes_mes = nQuery('N_DB_PAGOS', [
     'filter' => [
         'and' => [
             ['property' => 'Estado', 'select' => ['equals' => 'Pendiente']],

@@ -156,6 +156,7 @@ FRASES_SALDO = [
     "¿cuánto queda en el saldo?",
     "¿cómo vamos con el saldo?",
     "cuánto queda en mi cuenta?",
+    "a cuánto estamos?",
 ]
 
 FRASES_CONFIRMAR = ["confirmar", "sí confirmo", "ok dale", "sí", "confirmo", "va"]

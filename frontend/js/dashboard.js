@@ -533,13 +533,7 @@ function initTabs() {
         document.getElementById('feed-panel').classList.add('mobile-active');
       } else {
         document.getElementById('right-panel').classList.add('mobile-active');
-        // Activate the right sub-panel
-        switchRightTab(panel === 'agents'        ? 'agents'        :
-                       panel === 'screenshots' ? 'screenshots'   :
-                       panel === 'sessions'    ? 'sessions'      :
-                       panel === 'costs'       ? 'costs'         :
-                       panel === 'projects'    ? 'projects'      :
-                       panel === 'conversations'? 'conversations' : 'providers');
+        switchRightTab(panel);
       }
     });
   });
@@ -555,7 +549,7 @@ function initTabs() {
 }
 
 function switchRightTab(tab) {
-  ['agents','screenshots','sessions','costs','providers','projects','alerts','conversations','platform'].forEach(t => {
+  ['agents','screenshots','sessions','costs','providers','projects','alerts','conversations','tg-users','platform','api-admin'].forEach(t => {
     const el = document.getElementById(t + '-panel');
     if (el) el.classList.toggle('visible', t === tab);
   });
@@ -566,7 +560,9 @@ function switchRightTab(tab) {
   if (tab === 'screenshots')   loadScreenshots();
   if (tab === 'alerts')        loadAlerts();
   if (tab === 'conversations') loadConversaciones();
-  if (tab === 'platform')      loadPlatform();
+  if (tab === 'tg-users')      tgUsersRefresh();
+  if (tab === 'platform')      { loadPlatform(); loadProxyQuota(); }
+  if (tab === 'api-admin')     loadApiAdmin();
 }
 
 // ─── Screenshots panel ────────────────────────────────────
@@ -1220,7 +1216,13 @@ function renderConvUsers(users) {
     const cacheBadge = hitRate > 0
       ? `<span class="conv-cache-badge">${hitRate}% cache</span>` : '';
     return `<div class="conv-user-item" onclick="convLoadMessages('${u.telegram_user_id}','${escHtml(u.username)}')">
-      <div class="conv-user-name">@${escHtml(u.username)}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div class="conv-user-name">@${escHtml(u.username)}</div>
+        <a href="https://t.me/iaVilarBot" target="_blank" class="conv-user-tg" onclick="event.stopPropagation()" title="Abrir en Telegram">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-2.026 9.54c-.148.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.48 14.49l-2.95-.924c-.642-.2-.654-.642.136-.953l11.532-4.448c.535-.194 1.003.13.364.083z"/></svg>
+          chat
+        </a>
+      </div>
       <div class="conv-user-meta">
         <span>${u.user_turns || 0} turnos</span>
         <span class="conv-cost">$${cost}</span>
@@ -1290,11 +1292,98 @@ function escHtml(str) {
 // ─── Platform (Anthropic Admin API spend) ─────────────────
 let platformHourlyChart = null;
 
+async function loadProxyQuota() {
+  const el = document.getElementById('proxy-quota-widget');
+  if (!el) return;
+  try {
+    const s = await fetch(`${API}/api/proxy-usage/stats`).then(r => r.json());
+    if (s.error) throw new Error(s.error);
+
+    const fmt = n => n >= 1_000_000 ? (n/1_000_000).toFixed(2)+'M' : n >= 1_000 ? (n/1_000).toFixed(1)+'K' : n;
+    const pct  = s.pct_used;
+    const barColor = pct >= 90 ? 'var(--red)' : pct >= 70 ? 'var(--warn,#f59e0b)' : 'var(--green)';
+    const weekTok  = s.week.total_tokens;
+    const todayTok = s.today.total_tokens;
+    const limit    = s.limit_weekly;
+
+    el.innerHTML = `
+      <div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">
+          <span style="color:var(--text)"><strong>${fmt(weekTok)}</strong> tokens esta semana</span>
+          <span style="color:var(--text-muted)">límite: ${fmt(limit)}</span>
+        </div>
+        <div style="background:var(--border);border-radius:6px;height:8px;overflow:hidden">
+          <div style="width:${pct}%;height:100%;background:${barColor};border-radius:6px;transition:width .4s"></div>
+        </div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:3px">${pct}% usado · Reinicia el domingo</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px">
+          <div style="font-size:9px;color:var(--text-muted);margin-bottom:2px">Hoy</div>
+          <div style="font-size:16px;font-weight:700;color:var(--accent)">${fmt(todayTok)}</div>
+          <div style="font-size:9px;color:var(--text-muted)">tokens totales</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px">
+          <div style="font-size:9px;color:var(--text-muted);margin-bottom:2px">Costo equivalente ahorrado</div>
+          <div style="font-size:16px;font-weight:700;color:var(--green)">$${(weekTok / 1_000_000 * 3).toFixed(3)}</div>
+          <div style="font-size:9px;color:var(--text-muted)">vs Sonnet 4.6 directo</div>
+        </div>
+      </div>
+
+      <table style="width:100%;border-collapse:collapse;font-size:11px">
+        <thead><tr style="font-size:10px;color:var(--text-muted)">
+          <th style="text-align:left;padding:2px 0">Fuente</th>
+          <th style="text-align:right;padding:2px 0">Hoy</th>
+          <th style="text-align:right;padding:2px 0">Esta semana</th>
+        </tr></thead>
+        <tbody>
+          <tr style="border-top:1px solid var(--border)">
+            <td style="padding:4px 0;color:var(--text)">🤖 Bot /claude (proxy)</td>
+            <td style="text-align:right;color:var(--text-muted)">${s.today.bot_proxy.calls} llamadas · ${fmt(s.today.bot_proxy.tokens_in + s.today.bot_proxy.tokens_out)} tok</td>
+            <td style="text-align:right;color:var(--text-muted)">${s.week.bot_proxy.calls} · ${fmt(s.week.bot_proxy.tokens_in + s.week.bot_proxy.tokens_out)} tok</td>
+          </tr>
+          <tr style="border-top:1px solid var(--border)">
+            <td style="padding:4px 0;color:var(--text)">⚙️ Relay OAuth (tareas)</td>
+            <td style="text-align:right;color:var(--text-muted)">${s.today.relay_oauth.sessions} sesiones · ${fmt(s.today.relay_oauth.tokens_in + s.today.relay_oauth.tokens_out)} tok</td>
+            <td style="text-align:right;color:var(--text-muted)">${s.week.relay_oauth.sessions} · ${fmt(s.week.relay_oauth.tokens_in + s.week.relay_oauth.tokens_out)} tok</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="margin-top:10px;display:flex;align-items:center;gap:8px">
+        <span style="font-size:10px;color:var(--text-muted)">Límite semanal configurado:</span>
+        <input id="proxy-limit-input" type="number" value="${limit}" min="100000" step="100000"
+          style="width:100px;padding:3px 6px;border:1px solid var(--border);border-radius:5px;background:var(--input-bg);color:var(--text);font-size:11px;font-family:var(--font)">
+        <button class="btn-sm" style="font-size:10px" onclick="saveProxyLimit()">Guardar</button>
+      </div>
+      <div style="font-size:9px;color:var(--text-muted);margin-top:4px">
+        ⚠️ Tokens de bot son estimados (longitud/4). Relay usa conteo real del stream-json.
+      </div>`;
+  } catch (e) {
+    if (el) el.innerHTML = `<p style="font-size:11px;color:var(--text-muted)">Error cargando quota: ${escHtml(e.message)}</p>`;
+  }
+}
+
+async function saveProxyLimit() {
+  const v = parseInt(document.getElementById('proxy-limit-input')?.value);
+  if (!v || v < 0) return;
+  try {
+    await fetch(`${API}/api/proxy-usage/limit`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ limit: v }),
+    });
+    loadProxyQuota();
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
 async function loadPlatform() {
   try {
-    const [summary, hourly] = await Promise.all([
+    const [summary, hourly, accounts] = await Promise.all([
       fetch(`${API}/api/platform/summary`).then(r => r.json()),
       fetch(`${API}/api/platform/hourly`).then(r => r.json()),
+      fetch(`${API}/api/platform/accounts`).then(r => r.json()).catch(() => null),
     ]);
 
     if (summary.error) throw new Error(summary.error);
@@ -1397,12 +1486,35 @@ async function loadPlatform() {
       ).join('');
     }
 
+    // Multi-account summary
+    renderPlatformAccounts(accounts);
+
     document.getElementById('platform-error').style.display = 'none';
+
+    // Kill-switch banner
+    try {
+      const ks = await fetch(`${API}/api/platform/kill-check`).then(r => r.json());
+      const kb = document.getElementById('platform-kill-banner');
+      if (ks.killed) {
+        kb.style.display = '';
+        kb.innerHTML = `🛑 <b>Sistema PAUSADO</b> — ${escHtml(ks.reason || '')}
+          &nbsp;<button onclick="resumeRelay()" class="btn-sm" style="margin-left:8px">▶ Reanudar</button>`;
+      } else { kb.style.display = 'none'; }
+    } catch (_) {}
   } catch (err) {
     const errDiv = document.getElementById('platform-error');
     errDiv.style.display = '';
     errDiv.textContent = `Error: ${err.message}`;
   }
+}
+
+async function resumeRelay() {
+  await Promise.all([
+    fetch(`${API}/api/platform/resume`,   { method: 'POST' }),
+    fetch(`${API}/api/apiAdmin/resume`,   { method: 'POST' }),
+  ]);
+  loadPlatform();
+  loadApiAdmin();
 }
 
 async function refreshPlatform() {
@@ -1433,6 +1545,444 @@ async function saveBudget(period, value) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ period, threshold_usd: parseFloat(value) }),
   });
+}
+
+// ─── API Admin Dashboard ──────────────────────────────────
+function provColor(p) { return PROVIDER_COLORS[p] || PROVIDER_COLORS.default; }
+
+let apiDonutChart, apiBarChart, apiLineChart;
+
+async function loadApiAdmin() {
+  const days = document.getElementById('api-admin-range')?.value || 30;
+  try {
+    const [summary, ts, byProj, byKey, killStatus, killAlerts, projBudgets, historical] = await Promise.all([
+      fetch(`${API}/api/apiAdmin/summary`).then(r => r.json()),
+      fetch(`${API}/api/apiAdmin/timeseries?days=${days}`).then(r => r.json()),
+      fetch(`${API}/api/apiAdmin/byProject?days=${days}`).then(r => r.json()),
+      fetch(`${API}/api/apiAdmin/byKey`).then(r => r.json()),
+      fetch(`${API}/api/apiAdmin/killStatus`).then(r => r.json()),
+      fetch(`${API}/api/apiAdmin/alerts`).then(r => r.json()),
+      fetch(`${API}/api/apiAdmin/projectBudgets`).then(r => r.json()).catch(() => null),
+      fetch(`${API}/api/apiAdmin/historical`).then(r => r.json()).catch(() => null),
+    ]);
+
+    renderApiAdminPills(summary);
+    renderApiKillBanner(killStatus);
+    renderApiDonut(summary.today?.by_provider || []);
+    renderApiBar(byProj);
+    renderApiLine(ts);
+    renderApiByKey(byKey);
+    renderApiProjectBudgets(projBudgets);
+    renderApiHistorical(historical);
+    renderApiThresholds(killStatus);
+    renderApiKillAlerts(killAlerts);
+  } catch (e) {
+    console.error('loadApiAdmin:', e);
+  }
+}
+
+function renderApiAdminPills(summary) {
+  const el = document.getElementById('api-admin-pills');
+  if (!el) return;
+  const fmt = v => `$${Number(v || 0).toFixed(4)}`;
+  el.innerHTML = `
+    <div class="platform-pill"><div class="pp-label">Hoy</div>
+      <div class="pp-value ${(summary.today?.cost||0)>5?'warn':''}">${fmt(summary.today?.cost)}</div></div>
+    <div class="platform-pill"><div class="pp-label">Semana</div>
+      <div class="pp-value">${fmt(summary.week?.cost)}</div></div>
+    <div class="platform-pill"><div class="pp-label">Mes</div>
+      <div class="pp-value">${fmt(summary.month?.cost)}</div></div>
+    <div class="platform-pill"><div class="pp-label">Real Anthropic</div>
+      <div class="pp-value" style="color:var(--accent)">${fmt(summary.anthropic_real?.cost)}</div></div>`;
+}
+
+function renderApiKillBanner(ks) {
+  const el = document.getElementById('api-kill-banner');
+  if (!el) return;
+  if (ks?.killed) {
+    el.style.display = '';
+    el.innerHTML = `🛑 <b>Sistema PAUSADO</b> — ${escHtml(ks.kill_reason || '')}
+      &nbsp;<button onclick="resumeRelay()" class="btn-sm" style="margin-left:8px">▶ Reanudar</button>`;
+  } else { el.style.display = 'none'; }
+}
+
+function renderApiDonut(byProvider) {
+  if (apiDonutChart) { apiDonutChart.destroy(); apiDonutChart = null; }
+  const ctx = document.getElementById('api-donut-chart');
+  if (!ctx || !byProvider.length) return;
+  apiDonutChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: byProvider.map(d => d.provider),
+      datasets: [{ data: byProvider.map(d => parseFloat(d.cost)),
+        backgroundColor: byProvider.map(d => provColor(d.provider)),
+        borderWidth: 0, hoverOffset: 6 }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '62%',
+      plugins: {
+        legend: { position: 'right', labels: { color: '#e6edf3', font: { size: 10 }, boxWidth: 10 } },
+        tooltip: { callbacks: { label: c => ` $${c.parsed.toFixed(4)}` } },
+      },
+    },
+  });
+}
+
+function renderApiBar(rows) {
+  if (apiBarChart) { apiBarChart.destroy(); apiBarChart = null; }
+  const ctx = document.getElementById('api-bar-chart');
+  if (!ctx || !rows.length) return;
+  const projects  = [...new Set(rows.map(r => r.project_name || '(sin proyecto)'))].slice(0, 10);
+  const providers = [...new Set(rows.map(r => r.provider))];
+  const datasets  = providers.map(p => ({
+    label: p,
+    data: projects.map(proj => {
+      const found = rows.find(r => r.project_name === proj && r.provider === p);
+      return found ? parseFloat(found.cost) : 0;
+    }),
+    backgroundColor: provColor(p) + 'cc',
+    borderColor: provColor(p),
+    borderWidth: 1,
+  }));
+  apiBarChart = new Chart(ctx, {
+    type: 'bar', data: { labels: projects, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { stacked: true, ticks: { color: '#8b949e', font: { size: 9 }, maxRotation: 30 }, grid: { color: '#21262d' } },
+        y: { stacked: true, ticks: { color: '#8b949e', font: { size: 9 }, callback: v => `$${v.toFixed(2)}` }, grid: { color: '#21262d' } },
+      },
+      plugins: { legend: { labels: { color: '#e6edf3', font: { size: 10 } } } },
+    },
+  });
+}
+
+function renderApiLine(rows) {
+  if (apiLineChart) { apiLineChart.destroy(); apiLineChart = null; }
+  const ctx = document.getElementById('api-line-chart');
+  if (!ctx || !rows.length) return;
+  const providers = [...new Set(rows.map(r => r.provider))];
+  const dates     = [...new Set(rows.map(r => {
+    const d = r.date_bucket;
+    return typeof d === 'string' ? d.slice(0, 10) : new Date(d).toISOString().slice(0, 10);
+  }))].sort();
+  const datasets = providers.map(p => ({
+    label: p,
+    data: dates.map(d => {
+      const found = rows.find(r => {
+        const rd = typeof r.date_bucket === 'string' ? r.date_bucket.slice(0,10) : new Date(r.date_bucket).toISOString().slice(0,10);
+        return rd === d && r.provider === p;
+      });
+      return found ? parseFloat(found.cost) : 0;
+    }),
+    borderColor: provColor(p), backgroundColor: provColor(p) + '22',
+    tension: 0.3, fill: false, pointRadius: 2,
+  }));
+  apiLineChart = new Chart(ctx, {
+    type: 'line', data: { labels: dates, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { ticks: { color: '#8b949e', font: { size: 9 }, maxRotation: 30 }, grid: { color: '#21262d' } },
+        y: { ticks: { color: '#8b949e', font: { size: 9 }, callback: v => `$${v.toFixed(3)}` }, grid: { color: '#21262d' } },
+      },
+      plugins: { legend: { labels: { color: '#e6edf3', font: { size: 10 } } } },
+    },
+  });
+}
+
+function renderApiByKey(rows) {
+  const el = document.getElementById('api-by-key');
+  if (!el) return;
+  if (!rows.length) { el.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:4px">Sin keys registradas</div>'; return; }
+  el.innerHTML = rows.map(r => {
+    const pct = r.monthly_limit_usd > 0 ? Math.min(100, r.cost_month / r.monthly_limit_usd * 100) : 0;
+    const fillClass = pct > 90 ? 'over' : pct > 70 ? 'warn' : '';
+    return `<div class="api-key-row">
+      <span class="provider-badge provider-${r.provider}">${r.provider}</span>
+      <span class="api-key-badge">${escHtml(r.api_key_masked || '—')}</span>
+      <span style="color:var(--text-muted);font-size:10px;flex:1;margin:0 6px">${escHtml(r.project_name || '')}</span>
+      <div style="text-align:right">
+        <div style="color:var(--yellow);font-size:11px">$${Number(r.cost_month||0).toFixed(4)}</div>
+        ${r.monthly_limit_usd > 0 ? `
+        <div class="api-limit-bar" style="width:80px;margin-left:auto">
+          <div class="api-limit-fill ${fillClass}" style="width:${pct.toFixed(0)}%"></div>
+        </div>
+        <div style="font-size:9px;color:var(--text-muted)">${pct.toFixed(0)}% de $${Number(r.monthly_limit_usd).toFixed(0)}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderApiThresholds(ks) {
+  const el = document.getElementById('api-thresholds');
+  if (!el || !ks?.provider_status) return;
+  el.innerHTML = ks.provider_status.map(p => {
+    const pct = parseFloat(p.pct);
+    const fillClass = pct >= 100 ? 'over' : pct >= 80 ? 'warn' : '';
+    return `<div class="budget-row">
+      <span class="b-period" style="width:72px">${p.provider}</span>
+      <div class="api-limit-bar" style="flex:1;height:4px;margin:0 8px">
+        <div class="api-limit-fill ${fillClass}" style="width:${Math.min(100,pct).toFixed(0)}%"></div>
+      </div>
+      <span style="font-size:10px;color:${pct>=100?'var(--red)':pct>=80?'var(--orange)':'var(--text-muted)'}">
+        $${p.current_usd}/$${p.threshold_usd}</span>
+      <input type="number" step="0.5" min="0" value="${p.threshold_usd}"
+        class="b-input" style="width:60px;margin-left:6px"
+        onchange="saveProviderThreshold('${p.provider}',this.value)">
+      <button class="b-save" onclick="saveProviderThreshold('${p.provider}',this.previousElementSibling.value)">✓</button>
+    </div>`;
+  }).join('');
+}
+
+function renderApiKillAlerts(alerts) {
+  const el = document.getElementById('api-kill-alerts');
+  if (!el) return;
+  if (!alerts?.length) { el.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:4px">Sin alertas activas</div>'; return; }
+  el.innerHTML = alerts.map(a =>
+    `<div class="platform-alert-row">
+       <span class="pa-text">⚠️ <b>${escHtml(a.provider)}</b> — $${Number(a.actual_usd).toFixed(4)} (límite $${Number(a.threshold_usd).toFixed(2)})</span>
+       <button class="pa-ack" onclick="ackKillAlert(${a.id})">OK</button>
+     </div>`
+  ).join('');
+}
+
+async function saveProviderThreshold(provider, value) {
+  await fetch(`${API}/api/apiAdmin/threshold`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider, threshold_usd: parseFloat(value), kill_enabled: 1 }),
+  });
+  loadApiAdmin();
+}
+
+async function ackKillAlert(id) {
+  await fetch(`${API}/api/apiAdmin/alerts/${id}/ack`, { method: 'POST' });
+  loadApiAdmin();
+}
+
+async function snapshotNow() {
+  await fetch(`${API}/api/apiAdmin/snapshot`, { method: 'POST' });
+  loadApiAdmin();
+}
+
+// ─── Platform accounts ────────────────────────────────────
+function renderPlatformAccounts(data) {
+  const el = document.getElementById('platform-accounts');
+  if (!el) return;
+  if (!data?.accounts?.length) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:4px">Configure las Admin API keys en relay/.env para ver el desglose por cuenta</div>';
+    return;
+  }
+  const grandTotal = data.grand_total_real || 0;
+  el.innerHTML = data.accounts.map(acc => {
+    const pct = grandTotal > 0 ? Math.min(100, acc.cost_month / Math.max(grandTotal, 1) * 100) : 0;
+    const hasKey = acc.has_key;
+    const statusDot = hasKey
+      ? '<span style="color:var(--green);font-size:9px">●</span>'
+      : '<span style="color:var(--red);font-size:9px" title="Key no configurada">●</span>';
+    return `<div class="cost-row" style="flex-direction:column;align-items:stretch;gap:3px;padding:6px 14px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="display:flex;align-items:center;gap:5px">
+          ${statusDot}
+          <span style="font-size:11px;color:var(--text)">${escHtml(acc.email)}</span>
+          ${acc.notes ? `<span style="font-size:9px;color:var(--text-muted)">(${escHtml(acc.notes)})</span>` : ''}
+        </div>
+        <div style="text-align:right">
+          <span style="font-size:12px;font-weight:600;color:${acc.cost_month>50?'var(--red)':acc.cost_month>20?'var(--orange)':'var(--green)'}">$${acc.cost_month.toFixed(2)}</span>
+          <span style="font-size:9px;color:var(--text-muted)"> este mes</span>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted)">
+        <span>Total histórico: <b style="color:var(--text)">$${(acc.cost_total||0).toFixed(2)}</b></span>
+        <span>Corte: día ${acc.billing_day} | ${escHtml(acc.billing_start)}</span>
+      </div>
+    </div>`;
+  }).join('') + `<div style="padding:6px 14px;font-size:11px;border-top:1px solid var(--border);display:flex;justify-content:space-between">
+    <span style="color:var(--text-muted)">Total real histórico (todas las cuentas)</span>
+    <span style="font-weight:700;color:var(--accent)">$${grandTotal.toFixed(2)}</span>
+  </div>`;
+}
+
+// ─── API Admin — project budgets ──────────────────────────
+function renderApiProjectBudgets(data) {
+  const el = document.getElementById('api-project-budgets');
+  if (!el) return;
+  if (!data?.projects?.length) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:4px">Sin datos de proyectos este mes</div>';
+    return;
+  }
+  el.innerHTML = data.projects.map(p => {
+    const pct = p.pct;
+    const fillClass = pct >= 100 ? 'over' : pct >= 75 ? 'warn' : '';
+    const killBadge = p.killed
+      ? '<span style="font-size:9px;color:var(--red);margin-left:4px">PAUSADO</span>'
+      : (p.over_budget ? '<span style="font-size:9px;color:var(--orange);margin-left:4px">LÍMITE</span>' : '');
+    return `<div style="padding:6px 14px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+        <div style="display:flex;align-items:center;gap:4px">
+          <span style="font-size:11px;color:var(--text)">${escHtml(p.project_name)}</span>
+          ${killBadge}
+          ${p.unconfigured ? '<span style="font-size:9px;color:var(--text-muted)">(sin config)</span>' : ''}
+        </div>
+        <div style="text-align:right;font-size:10px">
+          <span style="color:${pct>=100?'var(--red)':pct>=75?'var(--orange)':'var(--text)'}">$${p.cost_month.toFixed(3)}</span>
+          <span style="color:var(--text-muted)"> / $${p.budget_usd.toFixed(0)}</span>
+        </div>
+      </div>
+      <div class="api-limit-bar">
+        <div class="api-limit-fill ${fillClass}" style="width:${pct.toFixed(0)}%"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:2px;font-size:9px;color:var(--text-muted)">
+        <span>${pct.toFixed(1)}% del presupuesto</span>
+        ${p.killed
+          ? `<button class="btn-sm" style="font-size:9px;padding:1px 6px" onclick="resumeProject('${escHtml(p.project_name)}')">▶ Reanudar</button>`
+          : `<span>${p.events_month} eventos</span>`}
+      </div>
+    </div>`;
+  }).join('') + `<div style="padding:6px 14px;font-size:10px;color:var(--text-muted)">
+    Ciclo: desde ${escHtml(data.billing_start || '')} · Límite: $100/proyecto/mes
+  </div>`;
+}
+
+async function resumeProject(projectName) {
+  await fetch(`${API}/api/apiAdmin/projectBudgets/${encodeURIComponent(projectName)}/resume`, { method: 'POST' });
+  loadApiAdmin();
+}
+
+// ─── API Admin — historical ───────────────────────────────
+function renderApiHistorical(data) {
+  const el = document.getElementById('api-historical');
+  if (!el) return;
+  if (!data) { el.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:4px">Cargando…</div>'; return; }
+  const real = data.real || {};
+  const est  = data.estimated || {};
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px 14px">
+      <div style="background:var(--bg3);border-radius:6px;padding:8px">
+        <div style="font-size:9px;color:var(--text-muted);margin-bottom:2px">Real Anthropic (Admin API)</div>
+        <div style="font-size:18px;font-weight:700;color:var(--green)">$${(real.total||0).toFixed(2)}</div>
+        <div style="font-size:9px;color:var(--text-muted)">todas las cuentas</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:6px;padding:8px">
+        <div style="font-size:9px;color:var(--text-muted);margin-bottom:2px">Estimado (todos los providers)</div>
+        <div style="font-size:18px;font-weight:700;color:var(--accent)">$${(est.total||0).toFixed(2)}</div>
+        <div style="font-size:9px;color:var(--text-muted)">${est.days_active||0} días de actividad</div>
+      </div>
+    </div>
+    ${real.by_account?.length ? `
+    <div style="padding:4px 14px 8px">
+      <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Por cuenta (histórico):</div>
+      ${real.by_account.map(a => `
+        <div style="display:flex;justify-content:space-between;font-size:10px;padding:2px 0">
+          <span style="color:var(--text)">${escHtml(a.account)}</span>
+          <span style="color:var(--text-muted)">${a.first_record ? escHtml(String(a.first_record).slice(0,10)) : '—'} → ${a.last_record ? escHtml(String(a.last_record).slice(0,10)) : '—'}</span>
+          <span style="font-weight:600;color:var(--green)">$${(a.cost||0).toFixed(2)}</span>
+        </div>`).join('')}
+    </div>` : ''}
+    ${est.by_project?.length ? `
+    <div style="padding:4px 14px 8px">
+      <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Por proyecto (estimado histórico):</div>
+      ${est.by_project.slice(0,8).map(p => `
+        <div style="display:flex;justify-content:space-between;font-size:10px;padding:2px 0">
+          <span style="color:var(--text)">${escHtml(p.project)}</span>
+          <span style="color:var(--text-muted)">${p.events} eventos</span>
+          <span style="font-weight:600;color:var(--accent)">$${(p.cost||0).toFixed(4)}</span>
+        </div>`).join('')}
+    </div>` : ''}`;
+}
+
+// ─── Telegram Users panel ─────────────────────────────────
+async function tgUsersRefresh() {
+  const el = document.getElementById('tg-users-table');
+  if (!el) return;
+  try {
+    const users = await fetch('/api/telegram/users').then(r => r.json());
+    if (!users.length) {
+      el.innerHTML = '<p style="color:var(--text-muted);font-size:11px;padding:4px 0">Sin usuarios registrados. Agrega el primero arriba.</p>';
+      return;
+    }
+    const roleColor = { admin: 'var(--blue)', dev: 'var(--green)', viewer: 'var(--text-muted)' };
+    el.innerHTML = `
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="font-size:10px;color:var(--text-muted);text-align:left">
+            <th style="padding:4px 8px 4px 0">Nombre</th>
+            <th style="padding:4px 8px">ID Telegram</th>
+            <th style="padding:4px 8px">Rol</th>
+            <th style="padding:4px 8px">Estado</th>
+            <th style="padding:4px 0;text-align:right">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${users.map(u => `
+            <tr style="border-top:1px solid var(--border);font-size:11px">
+              <td style="padding:6px 8px 6px 0;font-weight:600;color:var(--text)">${escHtml(u.name)}</td>
+              <td style="padding:6px 8px;font-family:monospace;color:var(--text-muted)">${escHtml(String(u.id))}</td>
+              <td style="padding:6px 8px">
+                <span style="background:color-mix(in srgb,${roleColor[u.role]||'var(--text-muted)'} 15%,transparent);color:${roleColor[u.role]||'var(--text-muted)'};padding:1px 6px;border-radius:10px;font-size:10px">${escHtml(u.role||'dev')}</span>
+              </td>
+              <td style="padding:6px 8px">
+                <span style="color:${u.active ? 'var(--green)' : 'var(--text-muted)'}">
+                  ${u.active ? '● activo' : '○ inactivo'}
+                </span>
+              </td>
+              <td style="padding:6px 0;text-align:right;white-space:nowrap">
+                <button class="btn-sm" style="font-size:10px;margin-right:4px"
+                  onclick="tgUsersToggle('${escHtml(String(u.id))}', this)">
+                  ${u.active ? 'Desactivar' : 'Activar'}
+                </button>
+                <button class="btn-sm" style="font-size:10px;color:var(--red);border-color:var(--red)"
+                  onclick="tgUsersDelete('${escHtml(String(u.id))}')">
+                  Eliminar
+                </button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      <p style="font-size:10px;color:var(--text-muted);margin-top:8px">
+        Los cambios surten efecto en &lt;60 segundos sin reiniciar el bot.
+      </p>`;
+  } catch (e) {
+    el.innerHTML = `<p style="color:var(--red);font-size:11px">Error: ${escHtml(e.message)}</p>`;
+  }
+}
+
+async function tgUsersAdd() {
+  const id   = document.getElementById('tg-new-id')?.value.trim();
+  const name = document.getElementById('tg-new-name')?.value.trim();
+  const role = document.getElementById('tg-new-role')?.value || 'dev';
+  if (!id || !name) return alert('ID y Nombre son obligatorios');
+  if (!/^\d+$/.test(id)) return alert('El ID debe ser un número entero (ej. 123456789)');
+  try {
+    const r = await fetch('/api/telegram/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, name, role, active: true }),
+    }).then(r => r.json());
+    if (!r.ok) throw new Error(r.error);
+    document.getElementById('tg-new-id').value  = '';
+    document.getElementById('tg-new-name').value = '';
+    tgUsersRefresh();
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+async function tgUsersToggle(id, btn) {
+  try {
+    const r = await fetch(`/api/telegram/users/${id}/toggle`, { method: 'PATCH' }).then(r => r.json());
+    if (!r.ok) throw new Error(r.error);
+    tgUsersRefresh();
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+async function tgUsersDelete(id) {
+  if (!confirm('¿Eliminar este usuario?')) return;
+  try {
+    const r = await fetch(`/api/telegram/users/${id}`, { method: 'DELETE' }).then(r => r.json());
+    if (!r.ok) throw new Error(r.error);
+    tgUsersRefresh();
+  } catch (e) { alert('Error: ' + e.message); }
 }
 
 // ─── Init ─────────────────────────────────────────────────

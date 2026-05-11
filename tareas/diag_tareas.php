@@ -39,11 +39,12 @@ function mostrarPropiedades(array $page): void {
     }
 }
 
-// ── N_DB_SALDOS ───────────────────────────────────────────────────────────
-echo "$sep\n  N_DB_SALDOS\n$sep\n";
-$saldos = nQuery('N_DB_SALDOS', ['page_size' => 5]);
+// ── N_DB_PAGOS (Pagos Operaciones) ────────────────────────────────────────
+if (!getenv('N_DB_PAGOS')) putenv('N_DB_PAGOS=352224e4d4dd809eaad8f24a32c9f080');
+echo "$sep\n  N_DB_PAGOS (Pagos Operaciones)\n$sep\n";
+$saldos = nQuery('N_DB_PAGOS', ['page_size' => 5]);
 if (empty($saldos)) {
-    echo "  ❌ Vacía, error de acceso o variable N_DB_SALDOS no configurada\n\n";
+    echo "  ❌ Vacía, error de acceso. ID en uso: 352224e4d4dd809eaad8f24a32c9f080\n\n";
 } else {
     echo "  Estructura de propiedades:\n";
     foreach ($saldos[0]['properties'] ?? [] as $k => $v) {
@@ -118,7 +119,7 @@ if (empty($usuarios)) {
 
 // ── ENV VARS ──────────────────────────────────────────────────────────────
 echo "\n$sep\n  Variables de entorno\n$sep\n";
-$vars = ['N_DB_TAREAS','N_DB_REPETICION','N_DB_USUARIOS','N_DB_SALDOS','N_DB_RESUMEN','NOTION_TOKEN','NOTION_API_KEY'];
+$vars = ['N_DB_TAREAS','N_DB_REPETICION','N_DB_USUARIOS','N_DB_PAGOS','N_DB_SALDOS','N_DB_RESUMEN','NOTION_TOKEN','NOTION_API_KEY'];
 foreach ($vars as $v) {
     $val = getenv($v) ?: ($_ENV[$v] ?? null);
     if ($val) {
