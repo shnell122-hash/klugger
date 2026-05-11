@@ -798,10 +798,13 @@ bot.on('message:text', async (ctx, next) => {
     const _hasActiveSession = _sessionAsist.estado && _sessionAsist.estado !== 'idle';
     // Solo el dueño de la sesión puede continuar una operación activa.
     // Otros usuarios del grupo son silenciados (charla ambiental).
-    // EXCEPCIÓN: si un usuario envía una solicitud de operación propia, se permite.
+    // EXCEPCIÓN 1: si un usuario envía una solicitud de operación propia, se permite.
+    // EXCEPCIÓN 2: si el draft pertenece al usuario actual (clientId en draft), puede enviar sus datos.
+    const _draftAsist = _sessionAsist.operation_draft_json ? parseDraft(_sessionAsist.operation_draft_json) : {};
     const _isOwner = !_hasActiveSession ||
                      !_sessionAsist.client_id ||
-                     _sessionAsist.client_id === clientAsist.id;
+                     _sessionAsist.client_id === clientAsist.id ||
+                     _draftAsist.clientId === clientAsist.id;
 
     if (!_isOwner) {
       // Silenciar solo mensajes casuales — permitir solicitudes de operación propias
@@ -906,7 +909,14 @@ bot.on('message:text', async (ctx, next) => {
       // CLABE/cuenta enviada directamente → aceptarla como nueva cuenta
       const rawCuentas = BankingManager.parsearTexto(text);
       if (rawCuentas.length) {
-        const { ajenas } = await filtrarCuentasAjenas(rawCuentas);
+        const { ajenas, eraVuelta } = await filtrarCuentasAjenas(rawCuentas);
+        if (eraVuelta) {
+          await ctx.reply(
+            '⚠️ El número que enviaste coincide con una de nuestras cuentas bancarias.\n' +
+            'Envía la CLABE del destinatario (a quien vamos a pagar).'
+          );
+          return;
+        }
         if (ajenas.length) {
           const kb = new InlineKeyboard()
             .text('✅ Sí, continuar', 'confirmar_cuentas')
@@ -1960,7 +1970,7 @@ async function procesarOperacion(ctx, input, client, session) {
   }
 
   // Validar monto antes de calcular — rechazar negativos, cero y valores irrisorios
-  if (!parsed.monto || parsed.monto <= 0) {
+  if (!parsed.monto || parsed.monto < 1) {
     await ctx.reply(
       `❌ Monto inválido: <b>${parsed.monto ?? 0}</b>.\n` +
       `El monto debe ser un número positivo mayor a cero.`,
