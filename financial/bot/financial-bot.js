@@ -888,18 +888,36 @@ bot.on('message:text', async (ctx, next) => {
     return;
   }
   if (session.estado === 'confirmando_cuentas') {
-    // El usuario escribió texto en vez de usar el botón → re-mostrar opciones
-    const draft   = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
-    const cuentas = draft.cuentas_disponibles ?? [];
-    if (cuentas.length) {
-      const kb = new InlineKeyboard();
-      cuentas.forEach(c => {
-        kb.text(`${c.tipo} ···${c.numero.slice(-4)}${c.banco ? ' · ' + c.banco : ''}`, `usar_cuenta_${c.id}`).row();
-      });
-      kb.text('➕ Nuevos datos', 'nueva_cuenta');
-      await ctx.reply('Por favor selecciona una opción 👇', { reply_markup: kb });
+    const draft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
+
+    // Nueva operación solicitada → cancelar la actual y procesar desde cero
+    if (isImplicitOperacion(text) || isOperacionCommand(text)) {
+      await updateSession(session.id, 'idle', {});
+      // Limpiar estado local para evitar arrastrar draft obsoleto al nuevo flujo
+      session.estado = 'idle';
+      session.operation_draft_json = null;
+      // fall through to normal processing below
+    } else {
+      // CLABE/cuenta enviada directamente → aceptarla como nueva cuenta
+      const rawCuentas = BankingManager.parsearTexto(text);
+      if (rawCuentas.length) {
+        const { ajenas } = await filtrarCuentasAjenas(rawCuentas);
+        if (ajenas.length) {
+          const kb = new InlineKeyboard()
+            .text('✅ Sí, continuar', 'confirmar_cuentas')
+            .text('✏️ Corregir', 'nueva_cuenta');
+          draft.cuentas_bancarias = ajenas;
+          await updateSession(session.id, 'esperando_datos_bancarios', draft);
+          await ctx.reply(
+            `✅ Datos encontrados:\n\n${BankingManager.formatearCuentas(ajenas)}\n\n¿Es correcto?`,
+            { parse_mode: 'HTML', reply_markup: kb }
+          );
+          return;
+        }
+      }
+      // Mensaje casual de grupo — silencio, no re-mostrar menú
+      return;
     }
-    return;
   }
 
   // ── Texto estructurado tipo comprobante bancario ─────────────────────────
