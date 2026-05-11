@@ -24,7 +24,7 @@ const routerNode = require('./nodes/router');
 const { textFlowGraph } = require('./subgraphs/text-flow-graph');
 const { fileFlowGraph } = require('./subgraphs/file-flow-graph');
 
-// ── Función de routing (condicional desde RouterNode) ──────────────────────────────────────
+// ── Función de routing (condicional desde RouterNode) ─────────────────────────
 function routeFromRouter(state) {
   const action = state.nextAction;
   if (action === 'text_flow') return 'text_flow';
@@ -33,7 +33,7 @@ function routeFromRouter(state) {
   return '__end__';
 }
 
-// ── Construcción del grafo ────────────────────────────────────────────────────────────
+// ── Construcción del grafo ────────────────────────────────────────────────────
 function buildMainGraph(checkpointer) {
   const graph = new StateGraph(FinBotStateAnnotation)
     .addNode('router', routerNode)
@@ -51,7 +51,7 @@ function buildMainGraph(checkpointer) {
   return graph.compile({ checkpointer });
 }
 
-// ── Clase principal ────────────────────────────────────────────────────────────────────
+// ── Clase principal ───────────────────────────────────────────────────────────
 class FinBotGraph {
   /**
    * @param {object} opts

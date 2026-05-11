@@ -90,6 +90,23 @@ module.exports = {
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
     },
     {
+      // FinBot conversation engine — MTProto simulator (Telethon) + curriculum learning
+      // Requires: financial/bot/sims/mtproto/venv + financial/.env (DB_PASS, TELEGRAM_API_ID, etc.)
+      name:        'conversation-engine',
+      script:      'conversation_engine.py',
+      interpreter: '/var/www/html/vilarkptl.com/ai-monitor/financial/bot/sims/mtproto/venv/bin/python',
+      cwd:         '/var/www/html/vilarkptl.com/ai-monitor/financial/bot/sims/mtproto',
+      exec_mode:   'fork',
+      instances:   1,
+      autorestart: true,
+      watch:       false,
+      max_memory_restart: '128M',
+      env_file:    '/var/www/html/vilarkptl.com/ai-monitor/financial/.env',
+      error_file:  '/root/.pm2/logs/conversation-engine-error.log',
+      out_file:    '/root/.pm2/logs/conversation-engine-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss',
+    },
+    {
       name:        'ai-monitor',
       script:      'backend/server.js',
       cwd:         '/var/www/html/vilarkptl.com/ai-monitor',

@@ -5,7 +5,7 @@
 -- margen = comision_pct - costo_pct (ej. 0.010)
 
 ALTER TABLE fin_operations
-  ADD COLUMN IF NOT EXISTS costo_pct DECIMAL(6,4) NULL AFTER comision_pct;
+  ADD COLUMN costo_pct DECIMAL(6,4) NULL AFTER comision_pct;
 
 ALTER TABLE fin_client_models
-  ADD COLUMN IF NOT EXISTS costo_pct DECIMAL(6,4) NULL AFTER comision_pct;
+  ADD COLUMN costo_pct DECIMAL(6,4) NULL AFTER comision_pct;

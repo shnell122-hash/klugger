@@ -8,17 +8,17 @@ const last = (a, b) => (b !== undefined && b !== null ? b : a);
 const merge = (a, b) => (b && typeof b === 'object' ? { ...(a ?? {}), ...b } : a ?? {});
 
 const FinBotStateAnnotation = Annotation.Root({
-  // ── Contexto Telegram ─────────────────────────────────────────────────────────────────────
+  // ── Contexto Telegram ─────────────────────────────────────────────────────
   chatId:   Annotation({ reducer: last, default: () => null }),
   userId:   Annotation({ reducer: last, default: () => null }),
   username: Annotation({ reducer: last, default: () => null }),
 
-  // ── Sesión ────────────────────────────────────────────────────────────────────────────
+  // ── Sesión ────────────────────────────────────────────────────────────────
   sessionId:     Annotation({ reducer: last, default: () => null }),
   sessionEstado: Annotation({ reducer: last, default: () => 'idle' }),
   modoChat:      Annotation({ reducer: last, default: () => 'normal' }),
 
-  // ── Mensaje entrante ──────────────────────────────────────────────────────────────────
+  // ── Mensaje entrante ──────────────────────────────────────────────────────
   // 'text' | 'photo' | 'document' | 'voice' | 'callback' | 'unknown'
   messageType:       Annotation({ reducer: last, default: () => 'unknown' }),
   inputText:         Annotation({ reducer: last, default: () => null }),
@@ -29,40 +29,40 @@ const FinBotStateAnnotation = Annotation.Root({
   inputCallbackData: Annotation({ reducer: last, default: () => null }),
   inputCallbackMsgId:Annotation({ reducer: last, default: () => null }),
 
-  // ── Cliente (fin_clients row) ─────────────────────────────────────────────────────────────
+  // ── Cliente (fin_clients row) ─────────────────────────────────────────────
   client: Annotation({ reducer: last, default: () => null }),
 
-  // ── Draft de la operación ─────────────────────────────────────────────────────────────
+  // ── Draft de la operación ─────────────────────────────────────────────────
   // Espejo de fin_sessions.operation_draft_json — fusionado incrementalmente
   draft: Annotation({
     reducer: merge,
     default: () => ({}),
   }),
 
-  // ── Comisión (resultado de getCommission) ───────────────────────────────────────────────
+  // ── Comisión (resultado de getCommission) ─────────────────────────────────
   commission: Annotation({ reducer: last, default: () => null }),
 
-  // ── Cuentas bancarias ──────────────────────────────────────────────────────────────────
+  // ── Cuentas bancarias ─────────────────────────────────────────────────────
   bankingAccounts: Annotation({ reducer: last, default: () => [] }),
 
-  // ── Análisis de archivo ─────────────────────────────────────────────────────────────────
+  // ── Análisis de archivo ───────────────────────────────────────────────────
   detectedFile:  Annotation({ reducer: last, default: () => null }),
   cuadroRetorno: Annotation({ reducer: last, default: () => null }),
 
-  // ── Audio ──────────────────────────────────────────────────────────────────────────────
+  // ── Audio ─────────────────────────────────────────────────────────────────
   transcripcion: Annotation({ reducer: last, default: () => null }),
 
-  // ── Verificación ────────────────────────────────────────────────────────────────────
+  // ── Verificación ──────────────────────────────────────────────────────────
   verificationResult: Annotation({ reducer: last, default: () => null }),
 
-  // ── Respuestas a enviar ────────────────────────────────────────────────────────────
+  // ── Respuestas a enviar ───────────────────────────────────────────────────
   // Cada elemento: { text, opts } o { photo, opts } etc.
   replyMessages: Annotation({
     reducer: (a, b) => (Array.isArray(b) ? b : (a ?? [])),
     default: () => [],
   }),
 
-  // ── Control de flujo ─────────────────────────────────────────────────────────────────
+  // ── Control de flujo ─────────────────────────────────────────────────────
   nextAction: Annotation({ reducer: last, default: () => null }),
   error:      Annotation({ reducer: last, default: () => null }),
 });

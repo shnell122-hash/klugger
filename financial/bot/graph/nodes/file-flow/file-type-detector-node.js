@@ -42,7 +42,7 @@ async function fileTypeDetectorNode(state) {
   const fileName = inputFileName ?? '';
   const ext      = fileName.split('.').pop()?.toLowerCase() ?? '';
 
-  // ── 1. XLSX/XLS: cuadro de retorno IAS ───────────────────────────────────────────────
+  // ── 1. XLSX/XLS: cuadro de retorno IAS ────────────────────────────────────
   if (ext === 'xlsx' || ext === 'xls' || mimeType.includes('spreadsheet') || mimeType.includes('excel')) {
     try {
       const xlsxResult = BankingManager.parsearXlsx(buffer);
@@ -58,7 +58,7 @@ async function fileTypeDetectorNode(state) {
     }
   }
 
-  // ── 2. Imagen: intentar cuadro de retorno primero ───────────────────────────────────────
+  // ── 2. Imagen: intentar cuadro de retorno primero ─────────────────────────
   if (mimeType.startsWith('image/') && process.env.GOOGLE_API_KEY) {
     const docAgent = new DocumentIntelligenceAgent(process.env.GOOGLE_API_KEY);
     try {
@@ -75,7 +75,7 @@ async function fileTypeDetectorNode(state) {
     }
   }
 
-  // ── 3. Documento/imagen: detectar tipo genérico ───────────────────────────────────────
+  // ── 3. Documento/imagen: detectar tipo genérico ───────────────────────────
   let detected = null;
   if (process.env.GOOGLE_API_KEY) {
     const docAgent = new DocumentIntelligenceAgent(process.env.GOOGLE_API_KEY);

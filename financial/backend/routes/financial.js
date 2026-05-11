@@ -10,12 +10,15 @@
 const q    = require('../../db/financial-queries');
 const path = require('path');
 
-// Lee FIN_TELEGRAM_BOT_TOKEN de financial/.env si no está en el proceso actual
+// Lee FIN_TELEGRAM_BOT_TOKEN de financial/.env — dotenv no funciona cross-process, leer directo
 function getTelegramToken() {
   if (process.env.FIN_TELEGRAM_BOT_TOKEN) return process.env.FIN_TELEGRAM_BOT_TOKEN;
   try {
-    const env = require('dotenv').config({ path: path.resolve(__dirname, '../../.env') }).parsed;
-    return env?.FIN_TELEGRAM_BOT_TOKEN ?? null;
+    const fs = require('fs');
+    const envPath = path.resolve(__dirname, '../../.env');
+    const raw = fs.readFileSync(envPath, 'utf8');
+    const match = raw.match(/^FIN_TELEGRAM_BOT_TOKEN=(.+)$/m);
+    return match ? match[1].trim() : null;
   } catch { return null; }
 }
 

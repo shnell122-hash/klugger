@@ -19,16 +19,22 @@ class BalanceManager {
     this.pool = pool;
   }
 
-  async getOrCreateClient(telegramUserId, username = null) {
+  /**
+   * Obtiene o crea un cliente por (telegram_user_id, chat_id).
+   * chatId=0 → cliente "universal" / legacy (sin grupo específico)
+   * chatId=-X → cliente específico de ese grupo de Telegram
+   */
+  async getOrCreateClient(telegramUserId, username = null, chatId = 0) {
+    const cid = Number(chatId) || 0;
     const [rows] = await this.pool.query(
-      'SELECT * FROM fin_clients WHERE telegram_user_id = ?',
-      [telegramUserId]
+      'SELECT * FROM fin_clients WHERE telegram_user_id = ? AND chat_id = ?',
+      [telegramUserId, cid]
     );
     if (rows.length > 0) return rows[0];
 
     const [result] = await this.pool.query(
-      'INSERT INTO fin_clients (telegram_user_id, telegram_username, saldo) VALUES (?,?,0)',
-      [telegramUserId, username]
+      'INSERT INTO fin_clients (telegram_user_id, chat_id, telegram_username, saldo) VALUES (?,?,?,0)',
+      [telegramUserId, cid, username]
     );
     const [newRows] = await this.pool.query(
       'SELECT * FROM fin_clients WHERE id = ?',
@@ -37,6 +43,9 @@ class BalanceManager {
     return newRows[0];
   }
 
+  /**
+   * Retorna el saldo actual del cliente.
+   */
   async getSaldo(clientId) {
     const [rows] = await this.pool.query(
       'SELECT saldo, saldo_bruto, saldo_neto, saldo_pendiente FROM fin_clients WHERE id = ?',
@@ -51,14 +60,30 @@ class BalanceManager {
     };
   }
 
+  /**
+   * Verifica si el cliente tiene saldo suficiente para una operación de salida.
+   */
   async tieneSaldoSuficiente(clientId, monto_bruto) {
     const { saldo } = await this.getSaldo(clientId);
     return { tiene: saldo >= monto_bruto, saldo };
   }
 
+  /**
+   * Aplica una operación confirmada al saldo del cliente.
+   * Registra en fin_balance_history para auditoría completa.
+   *
+   * @param {object} params
+   * @param {number}  params.operationId
+   * @param {number}  params.clientId
+   * @param {number}  params.monto_neto
+   * @param {number}  params.monto_bruto
+   * @param {boolean} params.es_entrada
+   * @param {import('mysql2/promise').PoolConnection} [conn] - Para usar dentro de transacción
+   */
   async aplicarOperacion({ operationId, clientId, monto_neto, monto_bruto, es_entrada }, conn) {
     const db = conn ?? this.pool;
 
+    // Saldo actual
     const [rows] = await db.query(
       'SELECT saldo, saldo_bruto FROM fin_clients WHERE id = ? FOR UPDATE',
       [clientId]
@@ -78,11 +103,13 @@ class BalanceManager {
       tipo_movimiento = 'salida';
     }
 
+    // Actualizar saldo (saldo = saldo_neto para compatibilidad con código existente)
     await db.query(
       'UPDATE fin_clients SET saldo=?, saldo_bruto=?, saldo_neto=?, updated_at=NOW(3) WHERE id=?',
       [saldo_despues, saldo_bruto_despues, saldo_despues, clientId]
     );
 
+    // Registrar en historial
     await db.query(
       `INSERT INTO fin_balance_history
          (client_id, operation_id, tipo_movimiento, monto, saldo_antes, saldo_despues, descripcion)
@@ -95,6 +122,7 @@ class BalanceManager {
       ]
     );
 
+    // Actualizar saldo en la operación (para auditoría)
     await db.query(
       'UPDATE fin_operations SET saldo_antes=?, saldo_despues=? WHERE id=?',
       [saldo_antes, saldo_despues, operationId]
@@ -103,6 +131,10 @@ class BalanceManager {
     return { saldo_antes, saldo_despues };
   }
 
+  /**
+   * Marca el retorno como pagado y ajusta saldo para operaciones de entrada.
+   * Cuando el retorno se paga, el monto_neto sale del saldo del cliente.
+   */
   async marcarRetornoPagado({ operationId, clientId, monto_neto }) {
     const conn = await this.pool.getConnection();
     try {
@@ -148,6 +180,9 @@ class BalanceManager {
     }
   }
 
+  /**
+   * Ajuste manual de saldo (admin).
+   */
   async ajusteManual({ clientId, monto, descripcion, adminId }) {
     const conn = await this.pool.getConnection();
     try {
@@ -184,6 +219,21 @@ class BalanceManager {
     }
   }
 
+  /**
+   * Confirma un pago recibido del cliente (comprobante, factura, o ajuste manual).
+   * Incrementa saldo + saldo_bruto + registra en historial y fin_payment_confirmations.
+   *
+   * @param {object} params
+   * @param {number}  params.clientId
+   * @param {number}  params.monto           - monto bruto recibido
+   * @param {number}  [params.montoNeto]     - monto neto acreditado (si hay comisión; default = monto)
+   * @param {number}  [params.operationId]
+   * @param {string}  [params.tipo]          - 'factura'|'comprobante'|'texto'|'manual'
+   * @param {string}  [params.tipo_operacion]
+   * @param {number}  [params.comision_pct]
+   * @param {string}  [params.notas]
+   * @param {string}  [params.telegram_file_id]
+   */
   async confirmarPago({ clientId, monto, montoNeto, operationId = null, tipo = 'manual',
                         tipo_operacion = null, comision_pct = 0, notas = null, telegram_file_id = null }) {
     const monto_neto_real = montoNeto ?? monto;
@@ -232,6 +282,9 @@ class BalanceManager {
     }
   }
 
+  /**
+   * Historial de movimientos del cliente (paginado).
+   */
   async getHistorial(clientId, limit = 20, offset = 0) {
     const [rows] = await this.pool.query(
       `SELECT bh.*, o.tipo_operacion, o.monto_bruto

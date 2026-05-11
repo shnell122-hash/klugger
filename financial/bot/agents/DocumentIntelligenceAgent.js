@@ -207,7 +207,7 @@ class DocumentIntelligenceAgent {
       '{"tipo":"cuadro_retorno","filas":[{"clave":1,"nombre":"GERMAN VILAR ARGUETA","neto":23000,"pct":0.055,"bruto":24338.62,"banco":"Banregio","clabe":"058597000030773833"}],' +
       '"total_neto":0,"total_bruto":0}\n\n' +
       'Reglas:\n' +
-      '- pct: dividir entre 100 si viene como "5.50%" → 0.055\n' +
+      '- pct: dividir entre 100 si viene como "5.50%" -> 0.055\n' +
       '- Si no hay CLABE en la tabla, dejar clabe: null\n' +
       '- Si el BRUTO no aparece, calcularlo: bruto = neto / (1 - pct)\n' +
       '- total_neto y total_bruto: suma de todas las filas\n' +
@@ -231,7 +231,7 @@ class DocumentIntelligenceAgent {
     }
   }
 
-  // Transcribe un mensaje de audio (OGG/MP3/M4A) via Gemini 1.5 Flash nativo
+  // Transcribe un mensaje de audio (OGG/MP3/M4A) via Gemini nativo
   async transcribirAudio(audioBuffer, mimeType = 'audio/ogg') {
     const base64 = audioBuffer.toString('base64');
     const prompt =

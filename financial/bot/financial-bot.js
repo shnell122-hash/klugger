@@ -99,8 +99,8 @@ const visionAgent = new VisionAgent(llm, { googleApiKey: process.env.GOOGLE_API_
 const docAgent = process.env.GOOGLE_API_KEY
   ? new DocumentIntelligenceAgent(process.env.GOOGLE_API_KEY)
   : null;
-const transactionOrchestrator = process.env.ANTHROPIC_API_KEY
-  ? new TransactionOrchestrator(process.env.ANTHROPIC_API_KEY)
+const transactionOrchestrator = process.env.DEEPSEEK_API_KEY
+  ? new TransactionOrchestrator(process.env.DEEPSEEK_API_KEY)
   : null;
 
 // ── Transformer: log bot outgoing messages ────────────────────────────────────
@@ -350,9 +350,11 @@ async function handleAsistenteModo(ctx, client, fileInfo) {
         return;
       }
     }
-    // 4 — Sin contenido relevante → silencio
+    // 4 — Sin contenido relevante → acusar recibo mínimo
+    await ctx.reply('📎 Archivo recibido.').catch(() => {});
   } catch (err) {
     console.error('[asistente-modo]', err.message);
+    await ctx.reply('📎 Archivo recibido.').catch(() => {});
   }
 }
 
@@ -570,36 +572,34 @@ bot.command('start', async (ctx) => {
 // /saldo (para clientes y admin)
 bot.command('saldo', async (ctx) => {
   try {
-    const client = await balanceManager.getOrCreateClient(
-      ctx.from?.id, ctx.from?.username
-    );
-    await ctx.reply(
+    const client = await balanceManager.getOrCreateClient(ctx.from?.id, ctx.from?.username, ctx.chat?.id);
+    await safeReply(ctx,
       `💰 Saldo actual: <b>$${fmt(client.saldo)}</b>`,
       { parse_mode: 'HTML' }
     );
   } catch (err) {
-    await ctx.reply('Error consultando saldo.');
+    await safeReply(ctx, 'Error consultando saldo.').catch(() => {});
   }
 });
 
 // /historial (últimas 10 ops)
 bot.command('historial', async (ctx) => {
   try {
-    const client = await balanceManager.getOrCreateClient(ctx.from?.id, ctx.from?.username);
+    const client = await balanceManager.getOrCreateClient(ctx.from?.id, ctx.from?.username, ctx.chat?.id);
     const hist   = await balanceManager.getHistorial(client.id, 10, 0);
     if (!hist.length) {
-      await ctx.reply('Sin movimientos registrados.');
+      await safeReply(ctx, 'Sin movimientos registrados.');
       return;
     }
     const lineas = hist.map(h =>
       `• ${h.tipo_movimiento.padEnd(15)} $${fmt(h.monto).padStart(12)} → $${fmt(h.saldo_despues)}`
     );
-    await ctx.reply(
+    await safeReply(ctx,
       `📋 <b>Últimos movimientos:</b>\n<pre>${lineas.join('\n')}</pre>`,
       { parse_mode: 'HTML' }
     );
   } catch (err) {
-    await ctx.reply('Error consultando historial.');
+    await safeReply(ctx, 'Error consultando historial.').catch(() => {});
   }
 });
 
@@ -608,7 +608,7 @@ bot.command('historial', async (ctx) => {
 // Busca por nombre exacto (insensible a mayúsculas) o por telegram_username.
 bot.command('ajuste', async (ctx) => {
   if (!isAdmin(ctx.from?.id)) {
-    await ctx.reply('⛔ Sin permisos.');
+    await safeReply(ctx, '⛔ Sin permisos.').catch(() => {});
     return;
   }
   const args = (ctx.match ?? '').trim().split(/\s+/).filter(Boolean);
@@ -627,7 +627,7 @@ bot.command('ajuste', async (ctx) => {
       [nameQuery, nameQuery]
     );
     if (!rows.length) {
-      await ctx.reply(`❌ Cliente "${nameQuery}" no encontrado.`);
+      await safeReply(ctx, `❌ Cliente "${nameQuery}" no encontrado.`).catch(() => {});
       return;
     }
     client = rows[0];
@@ -635,14 +635,14 @@ bot.command('ajuste', async (ctx) => {
     // Solo número → reply mode
     const replyTo = ctx.message?.reply_to_message?.from?.id;
     if (!replyTo) {
-      await ctx.reply('Uso: /ajuste [nombre o @username] nuevo_saldo [descripcion]\n     o responde al mensaje del cliente con /ajuste nuevo_saldo [descripcion]');
+      await safeReply(ctx, 'Uso: /ajuste [nombre o @username] nuevo_saldo [descripcion]\n     o responde al mensaje del cliente con /ajuste nuevo_saldo [descripcion]').catch(() => {});
       return;
     }
-    client     = await balanceManager.getOrCreateClient(replyTo);
+    client     = await balanceManager.getOrCreateClient(replyTo, null, ctx.chat?.id);
     nuevoSaldo = parseFloat(args[0]);
     desc       = args.slice(1).join(' ') || 'Ajuste manual';
   } else {
-    await ctx.reply('Uso: /ajuste [nombre o @username] nuevo_saldo [descripcion]');
+    await safeReply(ctx, 'Uso: /ajuste [nombre o @username] nuevo_saldo [descripcion]').catch(() => {});
     return;
   }
 
@@ -653,14 +653,14 @@ bot.command('ajuste', async (ctx) => {
     const { saldo_antes, saldo_despues } = await balanceManager.ajusteManual({
       clientId: client.id, monto: delta, descripcion: desc, adminId: ctx.from?.id,
     });
-    await ctx.reply(
+    await safeReply(ctx,
       `✅ Ajuste aplicado a <b>${client.nombre ?? client.telegram_username}</b>.\n` +
       `Saldo: $${fmt(saldo_antes)} → <b>$${fmt(saldo_despues)}</b>\n` +
       `Movimiento: ${signo}${fmt(delta)}`,
       { parse_mode: 'HTML' }
     );
   } catch (err) {
-    await ctx.reply(`Error: ${err.message}`);
+    await safeReply(ctx, `Error: ${err.message}`).catch(() => {});
   }
 });
 
@@ -670,12 +670,12 @@ bot.command('reset', async (ctx) => {
   try {
     const userId  = ctx.from?.id;
     const chatId  = ctx.chat?.id;
-    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
     const session = await getOrCreateSession(chatId, client.id);
     await updateSession(session.id, 'completado', null);
-    await ctx.reply('🔄 Sesión reiniciada. Puedes empezar de nuevo.');
+    await safeReply(ctx, '🔄 Sesión reiniciada. Puedes empezar de nuevo.').catch(() => {});
   } catch (err) {
-    await ctx.reply('⚠️ No pude reiniciar la sesión. Intenta de nuevo.').catch(() => {});
+    await safeReply(ctx, '⚠️ No pude reiniciar la sesión. Intenta de nuevo.').catch(() => {});
   }
 });
 
@@ -684,20 +684,20 @@ const testModeChats = new Set();
 bot.command('testmode', async (ctx) => {
   const userId = ctx.from?.id;
   if (!ADMIN_USER_IDS.has(userId)) {
-    await ctx.reply('⛔ Solo administradores pueden usar este comando.');
+    await safeReply(ctx, '⛔ Solo administradores pueden usar este comando.').catch(() => {});
     return;
   }
   const chatId = ctx.chat?.id;
   if (testModeChats.has(chatId)) {
     testModeChats.delete(chatId);
-    await ctx.reply('🧪 Modo prueba <b>desactivado</b>.', { parse_mode: 'HTML' });
+    await safeReply(ctx, '🧪 Modo prueba <b>desactivado</b>.', { parse_mode: 'HTML' }).catch(() => {});
   } else {
     testModeChats.add(chatId);
-    await ctx.reply(
+    await safeReply(ctx,
       '🧪 Modo prueba <b>activado</b>.\n' +
       'Los comprobantes de texto serán aceptados como pagos válidos sin validación de imagen.',
       { parse_mode: 'HTML' }
-    );
+    ).catch(() => {});
   }
 });
 
@@ -706,13 +706,13 @@ bot.command('operacion', async (ctx) => {
   const chatId  = ctx.chat?.id;
   const cmdArgs = ctx.match ?? '';
 
-  const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+  const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
   const session = await getOrCreateSession(chatId, client.id);
 
   // Sin argumentos → modo asistido
   if (!cmdArgs.trim()) {
     const tipos = listTypes();
-    await ctx.reply(responseGen.formatAskTipo(tipos), { parse_mode: 'HTML' });
+    await safeReply(ctx, responseGen.formatAskTipo(tipos), { parse_mode: 'HTML' }).catch(() => {});
     await updateSession(session.id, 'esperando_tipo', { clientId: client.id });
     return;
   }
@@ -726,13 +726,13 @@ bot.command('rol', async (ctx) => {
   const ADMIN_IDS = (process.env.ADMIN_TELEGRAM_IDS ?? '').split(',').map(s => s.trim()).filter(Boolean);
   const fromId    = String(ctx.from?.id ?? '');
   if (!ADMIN_IDS.includes(fromId)) {
-    await ctx.reply('⛔ Solo los administradores pueden usar este comando.');
+    await safeReply(ctx, '⛔ Solo los administradores pueden usar este comando.').catch(() => {});
     return;
   }
   const arg = (ctx.match ?? '').trim().toLowerCase();
   const roles = ['cliente', 'proveedor', 'ambos'];
   if (!roles.includes(arg)) {
-    await ctx.reply(`Uso: /rol <b>${roles.join(' | ')}</b>\nEjemplo: /rol proveedor`, { parse_mode: 'HTML' });
+    await safeReply(ctx, `Uso: /rol <b>${roles.join(' | ')}</b>\nEjemplo: /rol proveedor`, { parse_mode: 'HTML' }).catch(() => {});
     return;
   }
   const chatId = ctx.chat?.id;
@@ -742,26 +742,26 @@ bot.command('rol', async (ctx) => {
     [chatId]
   );
   if (!rows.length) {
-    await ctx.reply('No encontré un cliente vinculado a este chat. El usuario debe haber interactuado antes.');
+    await safeReply(ctx, 'No encontré un cliente vinculado a este chat. El usuario debe haber interactuado antes.').catch(() => {});
     return;
   }
   const clientId = rows[0].client_id;
   await pool.query(`UPDATE fin_clients SET rol=? WHERE id=?`, [arg, clientId]);
   const labels = { cliente: '🏢 Cliente', proveedor: '🏭 Proveedor', ambos: '🔄 Ambos' };
-  await ctx.reply(`✅ Rol actualizado: <b>${labels[arg]}</b>`, { parse_mode: 'HTML' });
+  await safeReply(ctx, `✅ Rol actualizado: <b>${labels[arg]}</b>`, { parse_mode: 'HTML' }).catch(() => {});
 });
 
 // /modo [normal|asistente] — configura cómo se comporta el bot en este chat
 bot.command('modo', async (ctx) => {
-  if (!isAdmin(ctx.from?.id)) { await ctx.reply('⛔ Sin permisos.'); return; }
+  if (!isAdmin(ctx.from?.id)) { await safeReply(ctx, '⛔ Sin permisos.').catch(() => {}); return; }
   const arg = (ctx.match ?? '').trim().toLowerCase();
   if (!['normal', 'asistente'].includes(arg)) {
-    await ctx.reply(
+    await safeReply(ctx,
       'Uso: /modo <b>normal</b> | <b>asistente</b>\n\n' +
       '<b>normal</b> → modo interactivo para clientes (confirmaciones, flujos)\n' +
       '<b>asistente</b> → silencioso para grupos internos: solo registra comprobantes y cuentas',
       { parse_mode: 'HTML' }
-    );
+    ).catch(() => {});
     return;
   }
   await pool.query(
@@ -771,7 +771,7 @@ bot.command('modo', async (ctx) => {
     [ctx.chat?.id, arg]
   );
   const labels = { normal: '🔄 Normal (modo cliente)', asistente: '🤫 Asistente silencioso' };
-  await ctx.reply(`✅ Modo actualizado: <b>${labels[arg]}</b>`, { parse_mode: 'HTML' });
+  await safeReply(ctx, `✅ Modo actualizado: <b>${labels[arg]}</b>`, { parse_mode: 'HTML' }).catch(() => {});
 });
 
 // Mensajes de texto — detecta operaciones implícitas o responde a flujo activo
@@ -783,22 +783,45 @@ bot.on('message:text', async (ctx, next) => {
   // Ignorar comandos (pasar al siguiente handler en la cadena)
   if (text.startsWith('/')) return next();
 
-  // Modo asistente: solo procesa instrucciones de pago en texto (CLABEs/cuentas), silencio para todo lo demás
+  // Modo asistente: procesa CLABEs, consultas de saldo y operaciones; silencio para todo lo demás
   const _modoChat = await getChatModo(chatId);
   if (_modoChat === 'asistente') {
-    const rawCuentas = BankingManager.parsearTexto(text);
-    if (rawCuentas.length) {
-      const clientAsist = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
-      const { ajenas }  = await filtrarCuentasAjenas(rawCuentas);
-      if (ajenas.length) {
-        await bankingManager.guardarCuentas(clientAsist.id, null, ajenas);
-        await ctx.reply(`✅ Guardado · ${ajenas.length} cuenta(s) registrada(s)`);
-      }
+    // 1. Consulta de saldo — responder aunque sea modo asistente
+    if (/\b(saldo|cu[aá]nto (tengo|hay|queda|estamos|me|nos)|mi saldo|saldo actual|disponible)\b/i.test(text)) {
+      const clientS = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
+      await safeReply(ctx, `💰 Saldo actual: <b>$${fmt(clientS.saldo)}</b>`, { parse_mode: 'HTML' }).catch(() => {});
+      return;
     }
-    return; // silencio para todo lo demás
+    // 2. Operación o sesión activa esperando datos — caer al flujo normal
+    const clientAsist    = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
+    const _sessionAsist  = await getOrCreateSession(chatId, clientAsist.id);
+    const _hasActiveSession = _sessionAsist.estado && _sessionAsist.estado !== 'idle';
+    // Solo el dueño de la sesión puede continuar una operación activa.
+    // Otros usuarios del grupo son silenciados (charla ambiental).
+    const _isOwner = !_hasActiveSession ||
+                     !_sessionAsist.client_id ||
+                     _sessionAsist.client_id === clientAsist.id;
+
+    if (!_isOwner) {
+      return; // mensaje de otro usuario mientras hay sesión activa — silencio
+    }
+    if (_hasActiveSession || isOperacionCommand(text) || isImplicitOperacion(text)) {
+      // fall through to normal processing below
+    } else {
+      // 3. CLABEs/cuentas — guardar silenciosamente
+      const rawCuentas = BankingManager.parsearTexto(text);
+      if (rawCuentas.length) {
+        const { ajenas } = await filtrarCuentasAjenas(rawCuentas);
+        if (ajenas.length) {
+          await bankingManager.guardarCuentas(clientAsist.id, null, ajenas);
+          await ctx.reply(`✅ Guardado · ${ajenas.length} cuenta(s) registrada(s)`);
+        }
+      }
+      return; // silencio para todo lo demás
+    }
   }
 
-  const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+  const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
   const session = await getOrCreateSession(chatId, client.id);
 
   // Si hay edición pendiente (el usuario está enviando el nuevo valor)
@@ -858,32 +881,15 @@ bot.on('message:text', async (ctx, next) => {
     const kb = new InlineKeyboard()
       .text('✅ Sí, continuar', 'confirmar_cuentas')
       .text('✏️ Corregir', 'nueva_cuenta');
-    await safeReply(ctx,
-      `✅ Cuenta guardada:\n\n${BankingManager.formatearCuentas(cuentas)}\n\n¿Es correcto?`,
+    await ctx.reply(
+      `✅ Datos encontrados:\n\n${BankingManager.formatearCuentas(cuentas)}\n\n¿Es correcto?`,
       { parse_mode: 'HTML', reply_markup: kb }
     );
     return;
   }
   if (session.estado === 'confirmando_cuentas') {
-    const draft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
-    // Si el usuario envió una CLABE/cuenta directamente → guardarla como nueva cuenta
-    const rawCuentasNew = BankingManager.parsearTexto(text);
-    if (rawCuentasNew.length) {
-      const { ajenas: nuevas, eraVuelta } = await filtrarCuentasAjenas(rawCuentasNew);
-      if (!eraVuelta && nuevas.length) {
-        draft.cuentas_bancarias = nuevas;
-        await updateSession(session.id, 'esperando_datos_bancarios', draft);
-        const kb2 = new InlineKeyboard()
-          .text('✅ Sí, continuar', 'confirmar_cuentas')
-          .text('✏️ Corregir', 'nueva_cuenta');
-        await safeReply(ctx,
-          `✅ Cuenta guardada:\n\n${BankingManager.formatearCuentas(nuevas)}\n\n¿Es correcto?`,
-          { parse_mode: 'HTML', reply_markup: kb2 }
-        );
-        return;
-      }
-    }
     // El usuario escribió texto en vez de usar el botón → re-mostrar opciones
+    const draft   = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     const cuentas = draft.cuentas_disponibles ?? [];
     if (cuentas.length) {
       const kb = new InlineKeyboard();
@@ -891,7 +897,7 @@ bot.on('message:text', async (ctx, next) => {
         kb.text(`${c.tipo} ···${c.numero.slice(-4)}${c.banco ? ' · ' + c.banco : ''}`, `usar_cuenta_${c.id}`).row();
       });
       kb.text('➕ Nuevos datos', 'nueva_cuenta');
-      await safeReply(ctx, '✅ Cuenta guardada. Selecciona una opción 👇', { reply_markup: kb });
+      await ctx.reply('Por favor selecciona una opción 👇', { reply_markup: kb });
     }
     return;
   }
@@ -1162,7 +1168,7 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
   const chatId = ctx.chat?.id;
   const msg    = ctx.message;
 
-  const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+  const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
   const session = await getOrCreateSession(chatId, client.id);
 
   const fileInfo = extractFileFromMessage(msg);
@@ -1622,7 +1628,7 @@ bot.on('callback_query:data', async (ctx) => {
   // ── Confirmar factura ─────────────────────────────────────────────────────
   if (data === 'confirmar_factura') {
     await ctx.answerCallbackQuery();
-    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
     const session = await getOrCreateSession(chatId, client.id);
     const draft   = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
@@ -1660,7 +1666,7 @@ bot.on('callback_query:data', async (ctx) => {
 
   if (data === 'cancelar_factura') {
     await ctx.answerCallbackQuery();
-    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
     const session = await getOrCreateSession(chatId, client.id);
     await updateSession(session.id, 'completado', null);
     try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
@@ -1671,7 +1677,7 @@ bot.on('callback_query:data', async (ctx) => {
   // ── Confirmar comprobante de pago ─────────────────────────────────────────
   if (data === 'confirmar_comprobante') {
     await ctx.answerCallbackQuery();
-    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
     const session = await getOrCreateSession(chatId, client.id);
     const draft   = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
@@ -1746,7 +1752,7 @@ bot.on('callback_query:data', async (ctx) => {
 
   if (data === 'cancelar_comprobante') {
     await ctx.answerCallbackQuery();
-    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
     const session = await getOrCreateSession(chatId, client.id);
     await updateSession(session.id, 'completado', null);
     try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
@@ -1758,7 +1764,7 @@ bot.on('callback_query:data', async (ctx) => {
   if (data.startsWith('usar_cuenta_')) {
     await ctx.answerCallbackQuery();
     const cuentaId = parseInt(data.replace('usar_cuenta_', ''));
-    const client   = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const client   = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
     const session  = await getOrCreateSession(chatId, client.id);
     const draft    = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     const cuenta   = (draft.cuentas_disponibles ?? []).find(c => c.id === cuentaId);
@@ -1772,7 +1778,7 @@ bot.on('callback_query:data', async (ctx) => {
   // ── Datos bancarios: ingresar nuevos ──────────────────────────────────────
   if (data === 'nueva_cuenta') {
     await ctx.answerCallbackQuery();
-    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
     const session = await getOrCreateSession(chatId, client.id);
     const draft   = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     delete draft.cuentas_bancarias;
@@ -1788,7 +1794,7 @@ bot.on('callback_query:data', async (ctx) => {
   // ── Datos bancarios: confirmar ────────────────────────────────────────────
   if (data === 'confirmar_cuentas') {
     await ctx.answerCallbackQuery();
-    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
+    const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username, chatId);
     const session = await getOrCreateSession(chatId, client.id);
     const draft   = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     try { await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } }); } catch (_) {}
@@ -2189,7 +2195,7 @@ bot.on('message:voice', async (ctx) => {
     if (modoChat === 'asistente') return;
 
     // En modo normal: procesar la transcripción como si fuera un mensaje de texto
-    const client  = await balanceManager.getOrCreateClient(from.id, from.username);
+    const client  = await balanceManager.getOrCreateClient(from.id, from.username, chatId);
     const session = await getOrCreateSession(chatId, client.id);
 
     // Inyectar en el flujo de texto reutilizando el handler
@@ -2206,40 +2212,223 @@ bot.on('message:voice', async (ctx) => {
 });
 
 // Callback: guardar como admin
+// ── Error handling ────────────────────────────────────────────────────────────
 
-// ── safeReply — reintentar ante desconexiones transitorias ───────────────────
+// Función segura para enviar replies con manejo de desconexiones y reintentos
 async function safeReply(ctx, text, options = {}) {
-  const maxRetries = 3;
-  for (let i = 0; i < maxRetries; i++) {
+  const maxRetries = 4;
+  const retryDelay = 800; // 800ms entre reintentos (más rápido)
+  const maxWaitTime = 10000; // 10s timeout total (reducido)
+  const perReplyTimeout = 6000; // 6s timeout por intento individual
+
+  let lastError = null;
+  const startTime = Date.now();
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      return await ctx.reply(text, options);
+      // Aplicar timeout por sendMessage para evitar bloqueos largos
+      const replyPromise = ctx.reply(text, options);
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Reply timeout exceeded')), perReplyTimeout)
+      );
+      return await Promise.race([replyPromise, timeoutPromise]);
     } catch (err) {
-      const msg = err?.message ?? '';
-      const isTransient = msg.includes('Cannot send requests while disconnected') ||
-                          msg.includes('Failed to fetch') ||
-                          msg.includes('ECONNRESET') ||
-                          msg.includes('ETIMEDOUT') ||
-                          msg.includes('timeout');
-      if (i < maxRetries - 1 && isTransient) {
-        await new Promise(r => setTimeout(r, 1000 * (i + 1)));
-        continue;
+      lastError = err;
+      const errMsg = err?.message || String(err);
+
+      // Si es error de desconexión Telegram, NO reintentar — dejar que health check maneje
+      if (errMsg?.includes('Cannot send requests while disconnected')) {
+        // Marcar bot como offline y disparar reinicio si aún no está restarting
+        if (!botIsRestarting && botStarted) {
+          botStarted = false;
+          console.error(`[safeReply] ❌ Desconexión detectada: ${errMsg}, marcando para reinicio`);
+          botIsRestarting = true;
+          // Reinicio rápido sin esperar a health check
+          setTimeout(() => {
+            botIsRestarting = false;
+            botStartAttempts = 0;
+            startBotWithRetry();
+          }, 500);
+        }
+        // No reintentar — dejar que la próxima operación use el nuevo bot iniciado
+        throw err;
       }
+      
+      // Otros errores de red/timeout: reintentar
+      if ((errMsg?.includes('Failed to fetch') ||
+           errMsg?.includes('ECONNREFUSED') ||
+           errMsg?.includes('timeout') ||
+           errMsg?.includes('Timeout')) && attempt < maxRetries - 1) {
+        const elapsed = Date.now() - startTime;
+        if (elapsed < maxWaitTime) {
+          console.warn(`[safeReply] Error de conexión/timeout (intento ${attempt + 1}/${maxRetries}): ${errMsg}, reintentando en ${retryDelay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          continue;
+        }
+      }
+
+      // Si no es desconexión/timeout o ya agotamos reintentos, lanzar error
       throw err;
     }
   }
+
+  // Si llegamos aquí, todos los reintentos fallaron
+  console.error('[safeReply] ❌ Falló después de', maxRetries, 'intentos:', lastError?.message);
+  throw lastError;
 }
 
-// ── Error handling ────────────────────────────────────────────────────────────
+// Middleware: bloquear updates si el bot está desconectado
+bot.use(async (ctx, next) => {
+  if (!botStarted) {
+    console.warn(`[bot-middleware] Update ${ctx.update.update_id} rechazado: bot no started`);
+    return; // No procesar updates si el bot no está listo
+  }
+  await next();
+});
 
 bot.catch((err) => {
   const ctx = err.ctx;
-  console.error(`[bot] Error en update ${ctx.update.update_id}:`, err.error);
+  const errMsg = err.error?.message || String(err.error);
+  console.error(`[bot] Error en update ${ctx?.update?.update_id}:`, errMsg);
+
+  // Detectar desconexión y marcar bot como offline
+  if (errMsg?.includes('Cannot send requests while disconnected') ||
+      errMsg?.includes('Failed to fetch') ||
+      errMsg?.includes('ECONNREFUSED')) {
+    console.error('[bot.catch] Desconexión detectada, marcando bot como offline');
+    botStarted = false;
+  }
+
   if (err.error instanceof GrammyError) {
     console.error('[grammy]', err.error.description);
   } else if (err.error instanceof HttpError) {
     console.error('[http]', err.error.error);
   }
 });
+
+// ── Start con reconexión automática ──────────────────────────────────────────
+
+// Cargar admins desde DB al arrancar (merge con los del .env)
+q.getAdminUserIds(pool)
+  .then(ids => ids.forEach(id => ADMIN_USER_IDS.add(id)))
+  .catch(err => console.error('[admin-load]', err.message));
+
+let botStarted = false;
+let botHealthCheckInterval = null;
+let botStartAttempts = 0;
+let botIsRestarting = false; // Guard para prevenir múltiples reintentos simultáneos
+const MAX_START_ATTEMPTS = 10;
+const START_RETRY_DELAY = 3000; // 3s
+const HEALTH_CHECK_INTERVAL = 2000; // 2s (optimizado para detectar desconexiones inmediatas)
+const HEALTH_CHECK_TIMEOUT = 3000; // 3s timeout para getMe() (reducido para failover rápido)
+
+async function startBotWithRetry() {
+  if (botIsRestarting) {
+    console.warn('[startBotWithRetry] Ya hay un reinicio en progreso, ignorando nueva solicitud');
+    return;
+  }
+  botIsRestarting = true;
+  botStartAttempts++;
+  try {
+    console.log(`[financial-bot] Intentando iniciar bot (intento ${botStartAttempts}/${MAX_START_ATTEMPTS})...`);
+
+    bot.start({
+      onStart: async (info) => {
+        console.log(`[financial-bot] Bot @${info.username} iniciado correctamente`);
+        botIsRestarting = false;
+        botStarted = true;
+        botStartAttempts = 0;
+
+        // Comandos visibles para todos los usuarios
+        const comandosUsuario = [
+          { command: 'start',     description: 'Bienvenida / comenzar' },
+          { command: 'saldo',     description: 'Ver tu saldo actual' },
+          { command: 'historial', description: 'Ver historial de operaciones' },
+          { command: 'operacion', description: 'Iniciar una nueva operación' },
+          { command: 'reset',     description: 'Reiniciar sesión actual' },
+          { command: 'miid',      description: 'Ver tu Telegram ID' },
+        ];
+
+        // Comandos adicionales de administrador
+        const comandosAdmin = [
+          ...comandosUsuario,
+          { command: 'ajuste',    description: '(Admin) Ajuste manual de saldo' },
+          { command: 'testmode',  description: '(Admin) Activar/desactivar modo prueba' },
+          { command: 'rol',       description: '(Admin) Cambiar rol del chat' },
+          { command: 'modo',      description: '(Admin) Cambiar modo del chat (normal/asistente)' },
+        ];
+
+        try {
+          await bot.api.setMyCommands(comandosUsuario);
+          // Registrar comandos admin para administradores de grupos (muestra /ajuste en grupos)
+          await bot.api.setMyCommands(comandosAdmin, {
+            scope: { type: 'all_chat_administrators' },
+          }).catch(() => {});
+          // Registrar comandos admin por cada admin conocido (chat privado)
+          for (const adminId of ADMIN_USER_IDS) {
+            await bot.api.setMyCommands(comandosAdmin, {
+              scope: { type: 'chat', chat_id: adminId },
+            }).catch(() => {});
+          }
+          console.log('[financial-bot] Menú de comandos registrado');
+        } catch (err) {
+          console.error('[setMyCommands]', err.message);
+        }
+
+        // Inicia health check para detectar desconexiones
+        startHealthCheck();
+      },
+    }).catch(err => {
+      console.error(`[financial-bot] Error en bot.start():`, err.message);
+      botStarted = false;
+      botIsRestarting = false;
+      if (botStartAttempts < MAX_START_ATTEMPTS) {
+        setTimeout(() => startBotWithRetry(), START_RETRY_DELAY);
+      } else {
+        console.error('[financial-bot] ❌ No se pudo iniciar el bot después de', MAX_START_ATTEMPTS, 'intentos');
+        process.exit(1);
+      }
+    });
+  } catch (err) {
+    console.error(`[financial-bot] Error al iniciar bot (intento ${botStartAttempts}):`, err.message);
+    if (botStartAttempts < MAX_START_ATTEMPTS) {
+      botIsRestarting = false;
+      setTimeout(() => startBotWithRetry(), START_RETRY_DELAY);
+    } else {
+      console.error('[financial-bot] ❌ No se pudo iniciar el bot después de', MAX_START_ATTEMPTS, 'intentos');
+      process.exit(1);
+    }
+  }
+}
+
+function startHealthCheck() {
+  if (botHealthCheckInterval) clearInterval(botHealthCheckInterval);
+
+  // Health check cada 2s: verifica si el bot puede hacer una llamada a la API
+  botHealthCheckInterval = setInterval(async () => {
+    try {
+      // Timeout agresivo para detectar desconexiones en < 3s
+      const mePromise = bot.api.getMe();
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Health check timeout')), HEALTH_CHECK_TIMEOUT)
+      );
+
+      const me = await Promise.race([mePromise, timeoutPromise]);
+      if (!me) throw new Error('getMe retornó undefined');
+      // console.log('[health-check] ✅ Bot respondiendo');
+    } catch (err) {
+      console.error('[health-check] ❌ Bot no responde:', err.message);
+      botStarted = false;
+      if (botHealthCheckInterval) clearInterval(botHealthCheckInterval);
+      // Reintentar iniciar el bot después de 1s (más rápido)
+      setTimeout(() => {
+        console.log('[health-check] Reiniciando bot después de detección de desconexión...');
+        botStartAttempts = 0;
+        startBotWithRetry();
+      }, 1000);
+    }
+  }, HEALTH_CHECK_INTERVAL);
+}
 
 // ── Limpieza de sesiones colgadas ─────────────────────────────────────────────
 
@@ -2267,63 +2456,7 @@ async function cleanupStaleSessions() {
 cleanupStaleSessions();
 setInterval(cleanupStaleSessions, STALE_SESSION_CLEANUP_INTERVAL);
 
-// ── Start ─────────────────────────────────────────────────────────────────────
-
-// Cargar admins desde DB al arrancar (merge con los del .env)
-q.getAdminUserIds(pool)
-  .then(ids => ids.forEach(id => ADMIN_USER_IDS.add(id)))
-  .catch(err => console.error('[admin-load]', err.message));
-
-bot.start({
-  onStart: async (info) => {
-    console.log(`[financial-bot] Bot @${info.username} iniciado`);
-
-    // Comandos visibles para todos los usuarios
-    const comandosUsuario = [
-      { command: 'start',     description: 'Bienvenida / comenzar' },
-      { command: 'saldo',     description: 'Ver tu saldo actual' },
-      { command: 'historial', description: 'Ver historial de operaciones' },
-      { command: 'operacion', description: 'Iniciar una nueva operación' },
-      { command: 'reset',     description: 'Reiniciar sesión actual' },
-      { command: 'miid',      description: 'Ver tu Telegram ID' },
-    ];
-
-    // Comandos adicionales de administrador
-    const comandosAdmin = [
-      ...comandosUsuario,
-      { command: 'ajuste',    description: '(Admin) Ajuste manual de saldo' },
-      { command: 'testmode',  description: '(Admin) Activar/desactivar modo prueba' },
-      { command: 'rol',       description: '(Admin) Cambiar rol del chat' },
-      { command: 'modo',      description: '(Admin) Cambiar modo del chat (normal/asistente)' },
-    ];
-
-    try {
-      await bot.api.setMyCommands(comandosUsuario);
-      // Registrar comandos admin para administradores de grupos (muestra /ajuste en grupos)
-      await bot.api.setMyCommands(comandosAdmin, {
-        scope: { type: 'all_chat_administrators' },
-      }).catch(() => {});
-      // Registrar comandos admin por cada admin conocido (chat privado)
-      for (const adminId of ADMIN_USER_IDS) {
-        await bot.api.setMyCommands(comandosAdmin, {
-          scope: { type: 'chat', chat_id: adminId },
-        }).catch(() => {});
-      }
-      console.log('[financial-bot] Menú de comandos registrado');
-    } catch (err) {
-      console.error('[setMyCommands]', err.message);
-    }
-  },
-}).catch(err => {
-  const msg = err?.message ?? '';
-  if (msg.includes('409') || msg.includes('Conflict') || msg.includes('terminated by other')) {
-    // Otra instancia activa — esperar 45s para darle estabilidad antes de que PM2 reinicie
-    console.error('[financial-bot] 409 Conflict: otra instancia activa. Saliendo en 45s...');
-    setTimeout(() => process.exit(1), 45000);
-  } else {
-    console.error('[financial-bot] Error fatal en bot.start():', msg);
-    process.exit(1);
-  }
-});
+// Inicia el bot con reintentos
+startBotWithRetry();
 
 module.exports = { bot, pool };

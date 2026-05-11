@@ -110,7 +110,8 @@ function isImplicitOperacion(text) {
   return (
     SALIDA_KEYWORDS.test(lower) ||
     ENTRADA_KEYWORDS.test(lower) ||
-    (extractMontoFromText(lower) && detectType(lower))
+    (extractMontoFromText(lower) && detectType(lower)) ||
+    /\b(ias|spei|sindicato|efectivo|tarjetas)\b/i.test(text)
   );
 }
 
