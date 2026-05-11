@@ -805,6 +805,7 @@ bot.on('message:text', async (ctx, next) => {
                      !_sessionAsist.client_id ||
                      _sessionAsist.client_id === clientAsist.id ||
                      _draftAsist.clientId === clientAsist.id;
+    console.log(`[diag:asistente] isOwner=${_isOwner} hasActive=${_hasActiveSession} sesClient=${_sessionAsist.client_id} curClient=${clientAsist.id} estado=${_sessionAsist.estado} text="${text.slice(0,40)}"`);
 
     if (!_isOwner) {
       // CLABE de no-dueño → guardar silenciosamente para su propia cuenta aunque haya sesión activa
@@ -872,7 +873,9 @@ bot.on('message:text', async (ctx, next) => {
   }
   if (session.estado === 'esperando_datos_bancarios') {
     // Nueva operación mientras esperando CLABE → cancelar y empezar de cero
-    if (isImplicitOperacion(text) || isOperacionCommand(text)) {
+    const _isImpl = isImplicitOperacion(text);
+    console.log(`[diag:esperando_bancarios] isImplicit=${_isImpl} text="${text.slice(0,60)}"`);
+    if (_isImpl || isOperacionCommand(text)) {
       await updateSession(session.id, 'idle', {});
       session.estado = 'idle';
       session.operation_draft_json = null;
@@ -1969,6 +1972,7 @@ async function procesarOperacion(ctx, input, client, session) {
   if (!parsed.monto) {
     const commission = await getCommission(parsed.tipo, pool, client.id);
     if (!commission) {
+      console.log(`[diag:commission] NULL tipo=${parsed.tipo} client=${client.id} (monto faltaba)`);
       await ctx.reply(`❌ El tipo de operación <b>${parsed.tipo}</b> no está disponible para tu cuenta.`, { parse_mode: 'HTML' });
       await updateSession(session.id, 'idle', null);
       return;
@@ -1982,6 +1986,7 @@ async function procesarOperacion(ctx, input, client, session) {
   // 2. Calcular
   const commission = await getCommission(parsed.tipo, pool, client.id);
   if (!commission) {
+    console.log(`[diag:commission] NULL tipo=${parsed.tipo} client=${client.id} monto=${parsed.monto}`);
     await ctx.reply(`❌ El tipo de operación <b>${parsed.tipo}</b> no está disponible para tu cuenta.`, { parse_mode: 'HTML' });
     await updateSession(session.id, 'idle', null);
     return;
