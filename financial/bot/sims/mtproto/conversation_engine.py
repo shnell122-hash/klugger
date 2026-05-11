@@ -22,10 +22,14 @@ import json
 import random
 import re
 import sys
+import os
 import time
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+
+# Ensure imports resolve from this script's directory regardless of PM2 cwd
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import io
 from telethon import events
