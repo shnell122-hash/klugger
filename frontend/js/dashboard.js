@@ -549,7 +549,7 @@ function initTabs() {
 }
 
 function switchRightTab(tab) {
-  ['agents','screenshots','sessions','costs','providers','projects','alerts','conversations','tg-users','platform','api-admin'].forEach(t => {
+  ['agents','screenshots','sessions','costs','providers','projects','alerts','conversations','tg-users','platform','api-admin','scores'].forEach(t => {
     const el = document.getElementById(t + '-panel');
     if (el) el.classList.toggle('visible', t === tab);
   });
@@ -563,6 +563,7 @@ function switchRightTab(tab) {
   if (tab === 'tg-users')      tgUsersRefresh();
   if (tab === 'platform')      { loadPlatform(); loadProxyQuota(); }
   if (tab === 'api-admin')     loadApiAdmin();
+  if (tab === 'scores')        loadScores();
 }
 
 // ─── Screenshots panel ────────────────────────────────────
@@ -2004,3 +2005,162 @@ document.addEventListener('DOMContentLoaded', () => {
     if (lineChart) lineChart.resize();
   });
 });
+
+// ─── Scores — Curriculum Learning History ──────────────────────────────────
+
+const TIER_COLOR = { 1: '#0EA5E9', 2: '#F59E0B', 3: '#F97316', 4: '#8B5CF6' };
+const TIER_LABEL = { 1: 'Básico', 2: 'Intermedio', 3: 'Avanzado', 4: 'Edge' };
+let scoresData = { episodes: [], total: 0, offset: 0 };
+
+async function loadScores(append = false) {
+  if (!append) scoresData.offset = 0;
+  try {
+    const res  = await fetch(`${API}/api/financial/learning-episodes?limit=200&offset=${scoresData.offset}`);
+    const json = await res.json();
+    if (!json.ok) return;
+
+    if (!append) {
+      scoresData.episodes = json.episodes;
+    } else {
+      scoresData.episodes = scoresData.episodes.concat(json.episodes);
+    }
+    scoresData.total = json.total;
+    scoresData.offset = scoresData.episodes.length;
+
+    renderScoresPills(json);
+    renderScoresChart(json.episodes);
+    renderScoresPatterns(json.patterns || []);
+    renderScoresTable(scoresData.episodes);
+
+    const loadMore = document.getElementById('scores-load-more');
+    if (loadMore) loadMore.style.display = scoresData.episodes.length < scoresData.total ? '' : 'none';
+  } catch (_) {}
+}
+
+function loadMoreScores() { loadScores(true); }
+
+function renderScoresPills(json) {
+  const el = document.getElementById('scores-pills');
+  if (!el) return;
+  const latest = json.latest;
+  const total  = json.total;
+  const avg    = json.episodes.length
+    ? (json.episodes.reduce((s, e) => s + parseFloat(e.score_pct || 0), 0) / json.episodes.length).toFixed(1)
+    : '—';
+
+  const scoreColor = latest
+    ? (latest.score_pct >= 80 ? 'var(--green)' : latest.score_pct >= 60 ? 'var(--yellow)' : 'var(--red)')
+    : 'var(--text-muted)';
+
+  const badge = document.getElementById('scores-latest-badge');
+  if (badge && latest) {
+    badge.textContent = `${parseFloat(latest.score_pct).toFixed(1)}% Ep#${latest.episode_num}`;
+    badge.style.color = scoreColor;
+    badge.style.borderColor = scoreColor;
+  }
+
+  el.innerHTML = [
+    `<span style="padding:3px 10px;border-radius:20px;background:var(--glass);border:1px solid var(--border)">📊 <b>${total}</b> episodios</span>`,
+    latest ? `<span style="padding:3px 10px;border-radius:20px;background:var(--glass);border:1px solid var(--border)">Último: <b style="color:${scoreColor}">${parseFloat(latest.score_pct).toFixed(1)}%</b></span>` : '',
+    latest ? `<span style="padding:3px 10px;border-radius:20px;background:var(--glass);border:1px solid var(--border)">Tier <b style="color:${TIER_COLOR[latest.complexity_tier]}">${latest.complexity_tier} — ${TIER_LABEL[latest.complexity_tier] || ''}</b></span>` : '',
+    `<span style="padding:3px 10px;border-radius:20px;background:var(--glass);border:1px solid var(--border)">Promedio (200): <b>${avg}%</b></span>`,
+  ].join('');
+}
+
+function renderScoresChart(episodes) {
+  const svg = document.getElementById('scores-chart');
+  if (!svg || !episodes.length) return;
+
+  const pts = [...episodes].reverse().slice(-200);
+  const W = 800, H = 140, PAD = { top: 10, bottom: 20, left: 30, right: 10 };
+  const cW = W - PAD.left - PAD.right;
+  const cH = H - PAD.top - PAD.bottom;
+
+  const x = (i) => PAD.left + (i / (pts.length - 1 || 1)) * cW;
+  const y = (v) => PAD.top + cH - (parseFloat(v) / 100) * cH;
+
+  // Grid lines at 20%, 40%, 60%, 80%, 100%
+  let gridLines = '';
+  [20, 40, 60, 80, 100].forEach(v => {
+    const yy = y(v);
+    const isThreshold = v === 80;
+    gridLines += `<line x1="${PAD.left}" y1="${yy}" x2="${W - PAD.right}" y2="${yy}"
+      stroke="${isThreshold ? '#EF4444' : 'rgba(148,163,184,0.2)'}"
+      stroke-width="${isThreshold ? 1.5 : 0.7}"
+      stroke-dasharray="${isThreshold ? '4,3' : ''}" />`;
+    gridLines += `<text x="${PAD.left - 3}" y="${yy + 3}" text-anchor="end" font-size="8" fill="rgba(100,116,139,0.7)">${v}%</text>`;
+  });
+
+  // Area fill + line
+  let linePath = '', areaPath = '';
+  pts.forEach((ep, i) => {
+    const xi = x(i), yi = y(ep.score_pct);
+    linePath  += (i === 0 ? `M${xi},${yi}` : ` L${xi},${yi}`);
+    areaPath  += (i === 0 ? `M${xi},${y(0)}` : '') + ` L${xi},${yi}`;
+  });
+  areaPath += ` L${x(pts.length - 1)},${y(0)} Z`;
+
+  // Dots colored by tier
+  let dots = '';
+  pts.forEach((ep, i) => {
+    const col = TIER_COLOR[ep.complexity_tier] || '#94A3B8';
+    dots += `<circle cx="${x(i)}" cy="${y(ep.score_pct)}" r="2.5" fill="${col}" opacity="0.85">
+      <title>Ep#${ep.episode_num} Tier${ep.complexity_tier}: ${parseFloat(ep.score_pct).toFixed(1)}%</title></circle>`;
+  });
+
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="score-area-grad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"   stop-color="#0EA5E9" stop-opacity="0.25"/>
+        <stop offset="100%" stop-color="#0EA5E9" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    ${gridLines}
+    <path d="${areaPath}" fill="url(#score-area-grad)" />
+    <path d="${linePath}" fill="none" stroke="#0EA5E9" stroke-width="1.5" stroke-linejoin="round"/>
+    ${dots}
+  `;
+}
+
+function renderScoresPatterns(patterns) {
+  const el = document.getElementById('scores-patterns');
+  const section = document.getElementById('scores-patterns-section');
+  if (!el) return;
+  if (!patterns.length) { if (section) section.style.display = 'none'; return; }
+  if (section) section.style.display = '';
+  el.innerHTML = patterns.slice(0, 10).map(p => `
+    <div style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:var(--glass-deep);border:1px solid var(--border);border-radius:6px">
+      <span style="min-width:28px;text-align:center;font-size:10px;font-weight:700;color:var(--red);background:color-mix(in srgb,var(--red) 12%,transparent);padding:2px 5px;border-radius:4px">×${p.episode_count}</span>
+      <span style="flex:1;font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.description}">${p.description || p.test_id}</span>
+      <span style="font-size:10px;color:var(--text-muted);white-space:nowrap">${p.test_id}</span>
+    </div>
+  `).join('');
+}
+
+function renderScoresTable(episodes) {
+  const tbody = document.getElementById('scores-tbody');
+  if (!tbody) return;
+  const scoreStyle = (pct) => {
+    const v = parseFloat(pct);
+    if (v >= 80) return 'color:var(--green);font-weight:700';
+    if (v >= 60) return 'color:var(--yellow);font-weight:700';
+    return 'color:var(--red);font-weight:700';
+  };
+  const fmtDate = (d) => {
+    if (!d) return '—';
+    const dt = new Date(d);
+    return `${dt.toLocaleDateString('es-MX',{month:'short',day:'numeric'})} ${dt.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}`;
+  };
+  tbody.innerHTML = episodes.map(ep => `
+    <tr style="border-bottom:1px solid var(--border);transition:background .15s" onmouseover="this.style.background='var(--glass-deep)'" onmouseout="this.style.background=''">
+      <td style="padding:5px 14px;color:var(--text-muted)">#${ep.episode_num}</td>
+      <td style="padding:5px 8px;text-align:center">
+        <span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:4px;color:${TIER_COLOR[ep.complexity_tier] || '#94A3B8'};background:color-mix(in srgb,${TIER_COLOR[ep.complexity_tier] || '#94A3B8'} 15%,transparent)">T${ep.complexity_tier}</span>
+      </td>
+      <td style="padding:5px 8px;text-align:center;${scoreStyle(ep.score_pct)}">${parseFloat(ep.score_pct || 0).toFixed(1)}%</td>
+      <td style="padding:5px 8px;text-align:center;color:var(--text-muted)">${ep.passed_tests}/${ep.total_tests}</td>
+      <td style="padding:5px 8px;color:var(--text-muted);white-space:nowrap">${fmtDate(ep.completed_at || ep.started_at)}</td>
+      <td style="padding:5px 8px;color:var(--text-muted);font-family:monospace;font-size:10px">${ep.git_sha ? ep.git_sha.slice(0, 7) : '—'}</td>
+    </tr>
+  `).join('');
+}
