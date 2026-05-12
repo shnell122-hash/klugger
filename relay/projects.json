@@ -113,7 +113,7 @@
     "inbox":  "/var/www/html/vilarkptl.com/ai-monitor/relay/inbox-finbot-tester.md",
     "outbox": "/var/www/html/vilarkptl.com/ai-monitor/relay/outbox-finbot-tester.md",
     "repo":   "/var/www/html/vilarkptl.com/ai-monitor",
-    "branch": "main",
+    "branch": "relay/finbot-fixes",
     "github": "vilarkptl-lang/agentic-repo",
     "url":    "http://ia.vilarkptl.com",
     "active": true
@@ -128,7 +128,7 @@
     "inbox":  "/var/www/html/vilarkptl.com/ai-monitor/relay/inbox-finbot-verifier.md",
     "outbox": "/var/www/html/vilarkptl.com/ai-monitor/relay/outbox-finbot-verifier.md",
     "repo":   "/var/www/html/vilarkptl.com/ai-monitor",
-    "branch": "main",
+    "branch": "relay/finbot-fixes",
     "github": "vilarkptl-lang/agentic-repo",
     "url":    "http://ia.vilarkptl.com",
     "active": true
