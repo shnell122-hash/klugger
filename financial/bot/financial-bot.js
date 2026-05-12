@@ -425,10 +425,18 @@ async function getOrCreateSession(chatId, clientId) {
  * Actualiza el estado de la sesión.
  */
 async function updateSession(sessionId, estado, draftJson = null) {
-  await pool.query(
-    'UPDATE fin_sessions SET estado=?, operation_draft_json=?, updated_at=NOW(3) WHERE id=?',
-    [estado, draftJson ? JSON.stringify(draftJson) : null, sessionId]
-  );
+  const newClientId = draftJson?.clientId ?? null;
+  if (newClientId) {
+    await pool.query(
+      'UPDATE fin_sessions SET estado=?, operation_draft_json=?, client_id=?, updated_at=NOW(3) WHERE id=?',
+      [estado, JSON.stringify(draftJson), newClientId, sessionId]
+    );
+  } else {
+    await pool.query(
+      'UPDATE fin_sessions SET estado=?, operation_draft_json=?, updated_at=NOW(3) WHERE id=?',
+      [estado, draftJson ? JSON.stringify(draftJson) : null, sessionId]
+    );
+  }
 }
 
 /**
@@ -866,10 +874,17 @@ bot.on('message:text', async (ctx, next) => {
     return;
   }
   if (session.estado === 'esperando_entrega') {
-    const draft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
-    draft.direccion_entrega = text;
-    await mostrarResumenYPoll(ctx, draft, client, session);
-    return;
+    if (isImplicitOperacion(text) || isOperacionCommand(text)) {
+      await updateSession(session.id, 'idle', null);
+      session.estado = 'idle';
+      session.operation_draft_json = null;
+      // fall through to normal processing
+    } else {
+      const draft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
+      draft.direccion_entrega = text;
+      await mostrarResumenYPoll(ctx, draft, client, session);
+      return;
+    }
   }
   if (session.estado === 'esperando_datos_bancarios') {
     // Nueva operación mientras esperando CLABE → cancelar y empezar de cero
@@ -1105,8 +1120,26 @@ bot.on('message:text', async (ctx, next) => {
 
   // ── Corregir monto de factura/comprobante ─────────────────────────────────
   if (session.estado === 'confirmando_factura' || session.estado === 'confirmando_comprobante') {
+    // Nueva operación mientras esperando confirmación → cancelar y empezar de cero
+    if (isImplicitOperacion(text) || isOperacionCommand(text)) {
+      await updateSession(session.id, 'idle', null);
+      session.estado = 'idle';
+      session.operation_draft_json = null;
+      // fall through to normal processing
+    } else {
     const draft    = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     const esFactura = session.estado === 'confirmando_factura';
+
+    // CLABE recibida → guardar como cuenta bancaria, no parsear como monto
+    const rawCuentasComp = BankingManager.parsearTexto(text);
+    if (rawCuentasComp.length) {
+      const { ajenas: ajenasComp } = await filtrarCuentasAjenas(rawCuentasComp);
+      if (ajenasComp.length) {
+        await bankingManager.guardarCuentas(client.id, null, ajenasComp);
+        await ctx.reply(`✅ Guardado · ${ajenasComp.length} cuenta(s) registrada(s)`);
+      }
+      return;
+    }
 
     // Respuesta afirmativa por texto → ejecutar confirmación directamente
     const AFIRMATIVO = /^\s*(s[íi]|yes|ok|dale|correcto|confirm[ao]?|adelante|listo|va|sale|claro|exacto|as[íi] es)\s*$/i;
@@ -1176,6 +1209,7 @@ bot.on('message:text', async (ctx, next) => {
       );
     }
     return;
+    } // end else (no implicit operation)
   }
 
   // Detección implícita: ¿parece una solicitud de operación?
