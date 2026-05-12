@@ -3,7 +3,7 @@
  * RouterNode — Determina el flujo del grafo según el tipo de mensaje y modo del chat.
  *
  * Lee: state.messageType, state.modoChat, state.inputText, state.draft.sessionEstado,
- *      state._transactionOrchestrator (opcional, inyectado por FinBotGraph)
+ *      state._to (TransactionOrchestrator, inyectado por FinBotGraph)
  * Escribe: state.nextAction, state.draft.toDecision (decisión semántica del TO)
  *
  * Estrategia de routing para texto en idle:
@@ -17,7 +17,7 @@ const { isOperacionCommand, isImplicitOperacion } = require('../../agents/parser
 async function routerNode(state) {
   const { messageType, modoChat, inputText, draft } = state;
   const sessionEstado = draft?.sessionEstado ?? state.sessionEstado ?? 'idle';
-  const to            = state._transactionOrchestrator ?? null;
+  const to            = state._to ?? null;
 
   // ── Callbacks (Parte 7) ───────────────────────────────────────────────────
   if (messageType === 'callback') {
