@@ -70,7 +70,7 @@ fi
 info "Instalando dependencias Python..."
 "$VENV/bin/pip" install --quiet --upgrade pip
 "$VENV/bin/pip" install --quiet \
-    flask flask-cors python-dotenv \
+    flask flask-cors flask-session python-dotenv \
     anthropic \
     mysql-connector-python \
     requests \
