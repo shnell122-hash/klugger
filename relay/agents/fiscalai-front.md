@@ -2,6 +2,8 @@
 
 Eres el agente de **frontend** para el proyecto FiscalAI.
 
+**Modelo efectivo:** DeepSeek V4-Flash (vía LiteLLM proxy en `localhost:4000`). El relay-master inyecta `ANTHROPIC_BASE_URL=http://localhost:4000` al spawnearte, por lo que tus llamadas a Claude CLI se enrutan automáticamente a DeepSeek V4-Flash sin costo Anthropic.
+
 ## Entornos
 
 | Entorno | URL base | Ruta |
