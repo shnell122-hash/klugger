@@ -43,6 +43,7 @@ _Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02 | Actualizado 20
 | Claude Code (`claude/agent-monitoring-dashboard-4v8iq`) | 2026-05-03 | Multi-account spending, $100/proyecto/mes kill-switch, gasto histórico, migrate-v12 | ✅ Pusheado |
 | Claude Code (`claude/agent-monitoring-dashboard-4v8iq`) | 2026-05-02 12:43 | Redesign, toggle tema, SYSTEM.md, audit, Cursor integration, AGENT-STATUS.md, PR #21 → mergeado a main | ✅ En main |
 | Claude Code (`claude/onboard-ai-monitor-subproject-zXvki`) | 2026-05-02 11:35 | LiteLLM activado, auth login, kptl-credito fix | ✅ Pusheado |
+| Claude Code (`claude/financial-multiagent-system-YwtYQ`) | 2026-05-12 | LangGraph Parts 5+9: FileFlowGraph wired, SupervisorNode, semantic routing, context compaction, session drift fix — commit fe3a633 | ✅ Pusheado — pendiente deploy |
 | Claude Code (`claude/financial-multiagent-system-YwtYQ`) | 2026-05-03 | financial-bot bugs: timeout /saldo + CLABE/asistente, race condition, reconnect, keywords clabegv | ✅ En producción |
 | relay-master / claude-code-suborq | 2026-05-03 | Nuevo proyecto activo — comunicación bidireccional confirmada | ✅ Funcionando |
 
