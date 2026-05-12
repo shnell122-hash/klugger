@@ -1,7 +1,9 @@
 'use strict';
 const { OpenAI } = require('openai');
 
-const MODEL = process.env.DEEPSEEK_PRO_MODEL ?? 'deepseek-v4-pro';
+// deepseek-reasoner (R1) no soporta tool_choice — siempre usar deepseek-chat para TO
+const _configuredModel = process.env.DEEPSEEK_PRO_MODEL ?? 'deepseek-chat';
+const MODEL = _configuredModel === 'deepseek-reasoner' ? 'deepseek-chat' : _configuredModel;
 
 const SYSTEM_PROMPT =
   'Eres el orquestador de transacciones de un sistema financiero de cobro en México.\n' +
