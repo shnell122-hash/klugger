@@ -15,7 +15,7 @@ GOOGLE_REDIRECT_URI  = os.getenv('GOOGLE_REDIRECT_URI', 'https://ocr.ruby.lease/
 _OAUTH_STATES: dict = {}
 _STATE_TTL = 600
 
-ADMIN_EMAILS = {'vilarkptl@gmail.com'}
+ADMIN_EMAILS = {'vilarkptl@gmail.com', 'german@vilarkptl.com'}
 
 
 def init_tables():

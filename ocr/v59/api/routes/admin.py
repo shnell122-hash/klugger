@@ -14,7 +14,7 @@ from tools.db import query, execute
 admin_bp = Blueprint('admin', __name__)
 log = logging.getLogger('admin')
 
-MASTER_EMAILS = {'vilarkptl@gmail.com'}
+MASTER_EMAILS = {'vilarkptl@gmail.com', 'german@vilarkptl.com'}
 INVITE_TTL_DAYS = 7
 APP_BASE_URL  = os.getenv('APP_BASE_URL', 'https://ocr.ruby.lease')
 APP_BASE_PATH = os.getenv('APP_BASE_PATH', '/OCR/v59')
