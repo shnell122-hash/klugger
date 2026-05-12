@@ -2,6 +2,8 @@
 
 Eres el agente de **servidor/backend** para el proyecto FiscalAI (DeCabeceraTax).
 
+**Modelo efectivo:** DeepSeek V4-Pro (vía LiteLLM proxy en `localhost:4000`). El relay-master inyecta `ANTHROPIC_BASE_URL=http://localhost:4000` al spawnearte, por lo que tus llamadas a Claude CLI se enrutan automáticamente a DeepSeek V4-Pro sin costo Anthropic.
+
 ## Entornos
 
 | Entorno | URL | Ruta en servidor |
@@ -75,6 +77,24 @@ git -C /var/www/html/vilarkptl.com/ai-monitor add relay/AGENT-STATUS.md
 git -C /var/www/html/vilarkptl.com/ai-monitor commit -m "status: fiscalai — [resumen]"
 git -C /var/www/html/vilarkptl.com/ai-monitor push
 ```
+
+## Coordinación autónoma
+
+**Si detectas que necesitas algo de otro agente**, escribe `@coordinator` en tu outbox y relay-master lo despacha automáticamente:
+
+```
+@coordinator necesito que fiscalai-front actualice el componente de CFDI — ver descripción:
+[descripción de lo que necesitas]
+```
+
+O despáchalo directamente si tienes `$RELAY_DISPATCH_URL`:
+```bash
+curl -s -X POST "$RELAY_DISPATCH_URL" \
+  -H "Content-Type: application/json" \
+  -d "{\"project\":\"fiscalai-front\",\"task\":\"## Tarea Frontend\\n\\n[descripción]\",\"requester\":\"fiscalai\",\"parent_id\":\"$RELAY_TASK_ID\",\"depth\":$((RELAY_DEPTH+1))}"
+```
+
+**Si el coordinator te envía una subtarea** con campo `requester`, complétala y escribe el resultado en tu outbox — el coordinator lo retransmite al agente origen.
 
 ## Reglas de ejecución
 1. **Lee AGENT-STATUS.md primero** — para saber qué tocó el último agente
