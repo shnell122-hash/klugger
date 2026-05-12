@@ -34,6 +34,7 @@ const ContextReader   = require('./agents/context-reader');
 const ContextManager  = require('./agents/context-manager');
 const DocumentIntelligenceAgent = require('./agents/DocumentIntelligenceAgent');
 const TransactionOrchestrator   = require('./agents/TransactionOrchestrator');
+const ContextCompactor          = require('./agents/context-compactor');
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -101,6 +102,9 @@ const docAgent = process.env.GOOGLE_API_KEY
   : null;
 const transactionOrchestrator = process.env.DEEPSEEK_API_KEY
   ? new TransactionOrchestrator(process.env.DEEPSEEK_API_KEY)
+  : null;
+const contextCompactor = process.env.DEEPSEEK_API_KEY
+  ? new ContextCompactor(process.env.DEEPSEEK_API_KEY)
   : null;
 
 // ── Transformer: log bot outgoing messages ────────────────────────────────────
@@ -1212,42 +1216,66 @@ bot.on('message:text', async (ctx, next) => {
     } // end else (no implicit operation)
   }
 
-  // Detección implícita: ¿parece una solicitud de operación?
-  if (isImplicitOperacion(text)) {
+  // Comando explícito → procesar directamente sin LLM
+  if (isOperacionCommand(text)) {
     await procesarOperacion(ctx, text, client, session);
     return;
   }
 
-  // Fallback: decide si hay algo útil que responder
+  // ── Routing semántico: TransactionOrchestrator como decisor primario ────────
+  // El TO recibe contexto compactado cuando la conversación es larga, evitando
+  // que el bot "olvide" intención expresada muchos mensajes atrás.
   try {
-    const mensajesCtx = await contextManager.getRecientes(chatId, 25);
+    const mensajesCtx = await contextManager.getRecientes(chatId, 15);
     const { saldo: saldoCtx } = await balanceManager.getSaldo(client.id);
+
+    // Compactación semántica: si hay >12 mensajes, resumir el contexto
+    const compactado = await contextCompactor?.compact(chatId, mensajesCtx) ?? null;
 
     if (transactionOrchestrator) {
       const decision = await transactionOrchestrator.rutear({
-        estado:           session.estado,
-        mensajesRecientes: mensajesCtx,
-        textoUsuario:     text,
-        saldo:            saldoCtx,
-        nombre:           client.nombre,
+        estado:             session.estado,
+        mensajesRecientes:  mensajesCtx,
+        textoUsuario:       text,
+        saldo:              saldoCtx,
+        nombre:             client.nombre,
+        contextoCompactado: compactado,
       });
+
+      if (['iniciar_operacion', 'confirmar', 'pedir_monto', 'pedir_cuenta_bancaria'].includes(decision.accion)) {
+        await procesarOperacion(ctx, text, client, session);
+        return;
+      }
       if (decision.accion === 'responder_info' && decision.params?.mensaje_respuesta) {
         await ctx.reply(decision.params.mensaje_respuesta);
-      } else if (decision.accion !== 'ignorar' && decision.accion !== 'responder_info') {
-        await procesarOperacion(ctx, text, client, session);
+        return;
       }
-    } else {
-      const { responder, mensaje } = await contextReader.analizar(
-        mensajesCtx,
-        { estado: session.estado, saldo: saldoCtx, nombre: client.nombre },
-        text
-      );
-      if (responder && mensaje) {
-        await ctx.reply(mensaje);
+      if (decision.accion === 'cancelar') {
+        await updateSession(session.id, 'idle', null);
+        await ctx.reply('Operación cancelada.');
+        return;
       }
+      // 'ignorar' → no responder
+      return;
     }
+
+    // Sin TO: fallback regex + context reader
+    if (isImplicitOperacion(text)) {
+      await procesarOperacion(ctx, text, client, session);
+      return;
+    }
+    const { responder, mensaje } = await contextReader.analizar(
+      mensajesCtx,
+      { estado: session.estado, saldo: saldoCtx, nombre: client.nombre },
+      text
+    );
+    if (responder && mensaje) await ctx.reply(mensaje);
   } catch (e) {
-    console.error('[context-reader fallback]', e.message);
+    console.error('[semantic-router]', e.message);
+    // Red de seguridad: si el routing semántico falla, intentar regex
+    if (isImplicitOperacion(text)) {
+      await procesarOperacion(ctx, text, client, session);
+    }
   }
 });
 

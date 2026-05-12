@@ -134,6 +134,25 @@
     "active": true
   },
   {
+    "id": "finbot-coordinator",
+    "name": "FinBot — Coordinador de Diagnóstico",
+    "mode": "full-claude-code",
+    "ignore_quiet_hours": false,
+    "claude_model": "claude-sonnet-4-6",
+    "claude_model_fast": "claude-haiku-4-5-20251001",
+    "deepseek_model": "pro",
+    "use_cli_proxy": true,
+    "post_deploy_cmd": "pm2 restart financial-bot",
+    "working_dir": "financial/bot",
+    "inbox":  "/var/www/html/vilarkptl.com/ai-monitor/relay/inbox-finbot-coordinator.md",
+    "outbox": "/var/www/html/vilarkptl.com/ai-monitor/relay/outbox-finbot-coordinator.md",
+    "repo":   "/var/www/html/vilarkptl.com/ai-monitor",
+    "branch": "claude/financial-multiagent-system-YwtYQ",
+    "github": "vilarkptl-lang/agentic-repo",
+    "url":    "http://ia.vilarkptl.com",
+    "active": true
+  },
+  {
     "id": "credito",
     "name": "credito.vilarkptl.com",
     "mode": "full-claude-code",
