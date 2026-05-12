@@ -35,6 +35,7 @@ const ContextManager  = require('./agents/context-manager');
 const DocumentIntelligenceAgent = require('./agents/DocumentIntelligenceAgent');
 const TransactionOrchestrator   = require('./agents/TransactionOrchestrator');
 const ContextCompactor          = require('./agents/context-compactor');
+const { FinBotGraph }           = require('./graph/finbot-graph');
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -106,6 +107,10 @@ const transactionOrchestrator = process.env.DEEPSEEK_API_KEY
 const contextCompactor = process.env.DEEPSEEK_API_KEY
   ? new ContextCompactor(process.env.DEEPSEEK_API_KEY)
   : null;
+
+// FinBotGraph (LangGraph) — se inicializa después de pool, bot, agents
+// Se usa para manejo de archivos en modo asistente (Parte 5 activa)
+let finBotGraph = null;  // inicializado en startBot() cuando pool está listo
 
 // ── Transformer: log bot outgoing messages ────────────────────────────────────
 // Intercepts sendMessage/sendPhoto calls to store bot replies in fin_messages
@@ -1291,7 +1296,7 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
   const fileInfo = extractFileFromMessage(msg);
   if (!fileInfo) return;
 
-  // Modo asistente: bypass del flujo normal — registrar silenciosamente
+  // Modo asistente: bypass del flujo normal — procesar vía FileFlowGraph
   const _modoFile = await getChatModo(chatId);
   if (_modoFile === 'asistente') {
     contextManager.logMessage({
@@ -1301,6 +1306,39 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
       texto: msg.caption ?? fileInfo.fileName ?? null,
       fileName: fileInfo.fileName ?? null,
     }).catch(() => {});
+
+    if (finBotGraph) {
+      try {
+        const mensajesCtxFile = await contextManager.getRecientes(chatId, 15);
+        const { saldo: saldoCtxFile } = await balanceManager.getSaldo(client.id);
+        const compactadoFile = await contextCompactor?.compact(chatId, mensajesCtxFile) ?? null;
+
+        const graphResult = await finBotGraph.invoke(ctx, {
+          _pool:               pool,
+          _to:                 transactionOrchestrator,
+          _mensajesRecientes:  mensajesCtxFile,
+          _saldo:              saldoCtxFile,
+          _contextoCompactado: compactadoFile,
+          modoChat:    'asistente',
+          client,
+          sessionEstado: session.estado,
+          draft: session.operation_draft_json ? parseDraft(session.operation_draft_json) : {},
+        });
+
+        for (const reply of (graphResult.replyMessages ?? [])) {
+          await ctx.reply(reply.text, reply.opts ?? {}).catch(() => {});
+        }
+        // Si el grafo no produjo respuesta, fallback silencioso
+        if (!graphResult.replyMessages?.length) {
+          await ctx.reply('📎 Archivo recibido.').catch(() => {});
+        }
+        return;
+      } catch (e) {
+        console.error('[file-handler/asistente/graph]', e.message);
+        dispatchAutoFix('graph/subgraphs/file-flow-graph.js', `FileFlowGraph falló en modo asistente: ${e.message}`, { chatId, mimeType: fileInfo.mimeType });
+        // Fallback al handler legacy
+      }
+    }
     return handleAsistenteModo(ctx, client, fileInfo);
   }
 
@@ -2452,6 +2490,46 @@ const START_RETRY_DELAY = 3000; // 3s
 const HEALTH_CHECK_INTERVAL = 2000; // 2s (optimizado para detectar desconexiones inmediatas)
 const HEALTH_CHECK_TIMEOUT = 3000; // 3s timeout para getMe() (reducido para failover rápido)
 
+// ── Inicializar FinBotGraph ───────────────────────────────────────────────────
+function initFinBotGraph() {
+  try {
+    finBotGraph = new FinBotGraph({
+      pool,
+      bot,
+      agents: { transactionOrchestrator, contextCompactor, contextManager, balanceManager, bankingManager },
+    });
+    console.log('[financial-bot] FinBotGraph inicializado (Partes 5+9 activas)');
+  } catch (e) {
+    console.error('[financial-bot] FinBotGraph init error:', e.message);
+  }
+}
+
+// ── Auto-fix dispatch ─────────────────────────────────────────────────────────
+// Cuando el bot detecta un problema en runtime, escribe una tarea al coordinator
+// para que lo diagnostique y fixee en el siguiente ciclo del relay.
+const path  = require('path');
+const fsSync = require('fs');
+
+function dispatchAutoFix(modulo, problema, contexto = {}) {
+  try {
+    const repoRoot = path.resolve(__dirname, '..', '..', '..');
+    const inboxPath = path.join(repoRoot, 'relay', 'inbox-finbot-coordinator.md');
+    const ts = new Date().toISOString();
+    const ctxTxt = Object.keys(contexto).length
+      ? '\n```\n' + JSON.stringify(contexto, null, 2) + '\n```'
+      : '';
+    const contenido =
+      `## Auto-fix request — ${ts}\n\n` +
+      `@coordinator Necesito fix en \`${modulo}\` porque ${problema}${ctxTxt}\n\n` +
+      `**Generado automáticamente por financial-bot en runtime.**\n` +
+      `Revisa \`financial/bot/${modulo}\` y aplica el fix necesario.\n`;
+    fsSync.writeFileSync(inboxPath, contenido, 'utf8');
+    console.log(`[dispatchAutoFix] → ${modulo}: ${problema}`);
+  } catch (e) {
+    console.error('[dispatchAutoFix] error al escribir inbox:', e.message);
+  }
+}
+
 async function startBotWithRetry() {
   if (botIsRestarting) {
     console.warn('[startBotWithRetry] Ya hay un reinicio en progreso, ignorando nueva solicitud');
@@ -2459,6 +2537,7 @@ async function startBotWithRetry() {
   }
   botIsRestarting = true;
   botStartAttempts++;
+  initFinBotGraph();
   try {
     console.log(`[financial-bot] Intentando iniciar bot (intento ${botStartAttempts}/${MAX_START_ATTEMPTS})...`);
 
