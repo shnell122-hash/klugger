@@ -1133,6 +1133,100 @@ async def resolve_group_entity(client, chat_id: int):
     return chat_id
 
 
+# ─── Coordinator auto-dispatch ────────────────────────────────────────────────
+
+COORDINATOR_SCORE_THRESHOLD = 78.0   # % mínimo aceptable
+COORDINATOR_CONSEC_ROUNDS   = 2      # rounds consecutivos bajo umbral para disparar
+_coordinator_low_rounds: int = 0     # contador de rounds consecutivos bajo umbral
+
+
+def _dispatch_coordinator_if_needed(episode_id: int, results: list, stats: dict) -> None:
+    """
+    Si el score cae bajo COORDINATOR_SCORE_THRESHOLD por COORDINATOR_CONSEC_ROUNDS
+    consecutivos, escribe un reporte estructurado en relay/inbox-finbot-coordinator.md
+    y hace commit+push para que el relay-master lo detecte y active el coordinador.
+    """
+    global _coordinator_low_rounds
+    score = stats.get('score', 0)
+
+    if score >= COORDINATOR_SCORE_THRESHOLD:
+        _coordinator_low_rounds = 0
+        return
+
+    _coordinator_low_rounds += 1
+    print(f"[coordinator] Score bajo ({score:.1f}%) — ronda consecutiva #{_coordinator_low_rounds}")
+
+    if _coordinator_low_rounds < COORDINATOR_CONSEC_ROUNDS:
+        return
+
+    # Resetear para no volver a disparar hasta que suba y vuelva a bajar
+    _coordinator_low_rounds = 0
+
+    REPO_ROOT = Path(__file__).resolve().parents[4]
+
+    # Recolectar top fallos
+    failed = [r for r in results if not r.get('passed', True)]
+    # Agrupar por patrón (prefijo del test_id antes del primer _)
+    from collections import Counter
+    patterns: Counter = Counter()
+    for r in failed:
+        tid = r.get('test_id', '?')
+        patterns[tid.split('_')[0]] += 1
+
+    fallos_txt = '\n'.join(
+        f"- {r.get('test_id','?')}: esperado keywords, recibió \"{(r.get('bot_response') or 'sin respuesta')[:80]}\""
+        for r in failed[:8]
+    )
+    patrones_txt = '\n'.join(
+        f"- {pat}: ×{cnt} tests"
+        for pat, cnt in patterns.most_common(5)
+    )
+
+    # Obtener sha del archivo principal
+    import subprocess
+    sha = ''
+    try:
+        sha = subprocess.check_output(
+            ['git', 'log', '-1', '--format=%h', '--', 'financial/bot/financial-bot.js'],
+            cwd=REPO_ROOT, timeout=5, text=True
+        ).strip()
+    except Exception:
+        pass
+
+    inbox_path = REPO_ROOT / 'relay' / 'inbox-finbot-coordinator.md'
+    content = (
+        f"## Diagnóstico Requerido — Regresión Detectada\n\n"
+        f"**Episodio**: #{episode_id}\n"
+        f"**Score**: {score:.1f}% ({stats.get('passed',0)}/{stats.get('total',0)})\n"
+        f"**Trigger**: {COORDINATOR_CONSEC_ROUNDS} rounds consecutivos bajo {COORDINATOR_SCORE_THRESHOLD}%\n"
+        f"**financial-bot.js SHA**: {sha}\n\n"
+        f"### Fallos detectados ({len(failed)} tests)\n"
+        f"{fallos_txt}\n\n"
+        f"### Patrones recurrentes\n"
+        f"{patrones_txt}\n\n"
+        f"### Instrucciones\n"
+        f"1. Lee `relay/episode-results.jsonl` (últimas 20 líneas) para ver el historial\n"
+        f"2. Identifica la causa raíz leyendo el código en `financial/bot/financial-bot.js`\n"
+        f"3. Aplica un fix quirúrgico (no rewrites)\n"
+        f"4. `node --check financial/bot/financial-bot.js` antes de commit\n"
+        f"5. `git add financial/bot/financial-bot.js && git commit && git push`\n"
+        f"6. Reporta en `## Resultados` al terminar\n"
+    )
+
+    try:
+        inbox_path.write_text(content, encoding='utf-8')
+        subprocess.run(['git', 'add', str(inbox_path.relative_to(REPO_ROOT))],
+                       cwd=REPO_ROOT, capture_output=True, timeout=10)
+        subprocess.run(['git', 'commit', '--no-gpg-sign', '-m',
+                        f'dispatch: coordinator ep#{episode_id} score={score:.0f}%'],
+                       cwd=REPO_ROOT, capture_output=True, timeout=15)
+        subprocess.run(['git', 'push', 'origin', 'claude/financial-multiagent-system-YwtYQ'],
+                       cwd=REPO_ROOT, capture_output=True, timeout=30)
+        print(f"[coordinator] Dispatched — ep#{episode_id} score={score:.1f}% → inbox-finbot-coordinator.md")
+    except Exception as e:
+        print(f"[coordinator] dispatch failed: {e}")
+
+
 # ─── Relay: push de episodios para lectura en tiempo real ─────────────────────
 
 def _push_episode_to_relay(episode_id: int, results: list, stats: dict, round_num: int):
@@ -1306,6 +1400,7 @@ async def run_engine(rounds: int = 0, force_tier: int = 0, dry_run: bool = False
                     post_to_telegram(report)
 
                 dispatch_fix_if_needed(episode_id, round_results, stats)
+                _dispatch_coordinator_if_needed(episode_id, round_results, stats)
                 _push_episode_to_relay(episode_id, round_results, stats, round_num)
             except Exception as e:
                 print(f"[learning] Error completando episodio: {e}")

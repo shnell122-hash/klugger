@@ -63,17 +63,30 @@ class TransactionOrchestrator {
     });
   }
 
-  async rutear({ estado, mensajesRecientes, textoUsuario, saldo, nombre }) {
+  async rutear({ estado, mensajesRecientes, textoUsuario, saldo, nombre, contextoCompactado }) {
     const historial = (mensajesRecientes ?? [])
-      .slice(-10)
-      .map(m => `[${m.es_bot ? 'BOT' : 'USUARIO'}] ${m.texto ?? m.content ?? ''}`)
+      .slice(-8)
+      .map(m => `[${m.es_bot ? 'BOT' : (m.from_username ? `@${m.from_username}` : 'USUARIO')}] ${m.texto ?? m.content ?? ''}`)
       .join('\n');
+
+    const ctxExtra = contextoCompactado
+      ? `\nContexto compactado de la conversación:\n` +
+        `  Intención: ${contextoCompactado.intent ?? '?'}\n` +
+        (contextoCompactado.operacion_activa
+          ? `  Operación activa: ${JSON.stringify(contextoCompactado.operacion_activa)}\n`
+          : '') +
+        (contextoCompactado.pendiente
+          ? `  Pendiente: ${contextoCompactado.pendiente}\n`
+          : '') +
+        `  Resumen: ${contextoCompactado.resumen ?? ''}\n`
+      : '';
 
     const userMsg =
       `Estado de sesión: ${estado}\n` +
       `Saldo del cliente: $${saldo ?? 0}\n` +
-      `Nombre del cliente: ${nombre ?? 'Desconocido'}\n\n` +
-      `Historial reciente:\n${historial}\n\n` +
+      `Nombre del cliente: ${nombre ?? 'Desconocido'}\n` +
+      ctxExtra +
+      `\nHistorial reciente (últimos 8 mensajes):\n${historial}\n\n` +
       `Mensaje actual del usuario: "${textoUsuario}"`;
 
     const start = Date.now();
