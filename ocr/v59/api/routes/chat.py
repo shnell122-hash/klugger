@@ -570,13 +570,37 @@ def _get_specific_context(case_id: str, artifact_ids: list) -> str:
 
 def _make_system(soul: str, dynamic: str) -> list:
     """
-    Dos bloques: SOUL con prompt caching (estático, se reutiliza entre llamadas)
-    + contexto dinámico sin cache (inventario, documentos, etc.)
+    Dos bloques con cache_control: SOUL (siempre estático) + contexto dinámico del caso.
+    Ambos se cachean: el SOUL se reutiliza entre todos los casos;
+    el bloque dinámico se reutiliza entre turnos del mismo caso dentro de 5 min.
     """
     return [
-        {"type": "text", "text": soul, "cache_control": {"type": "ephemeral"}},
-        {"type": "text", "text": dynamic},
+        {"type": "text", "text": soul,    "cache_control": {"type": "ephemeral"}},
+        {"type": "text", "text": dynamic, "cache_control": {"type": "ephemeral"}},
     ]
+
+
+def _cache_last_msg(messages: list) -> None:
+    """Añade cache_control al último mensaje del historial (in-place).
+    Cachea todo el historial de conversación antes del turno actual."""
+    if not messages:
+        return
+    last = messages[-1]
+    content = last['content']
+    if isinstance(content, str) and content:
+        messages[-1] = {
+            'role': last['role'],
+            'content': [{'type': 'text', 'text': content,
+                         'cache_control': {'type': 'ephemeral'}}],
+        }
+    elif isinstance(content, list):
+        new_content = list(content)
+        for i in range(len(new_content) - 1, -1, -1):
+            blk = new_content[i]
+            if isinstance(blk, dict) and blk.get('type') == 'text':
+                new_content[i] = {**blk, 'cache_control': {'type': 'ephemeral'}}
+                break
+        messages[-1] = {'role': last['role'], 'content': new_content}
 
 
 def _get_case_inventory(case_id: str) -> str:
@@ -845,6 +869,7 @@ def chat():
         if role not in ('user', 'assistant'):
             continue
         messages.append({"role": role, "content": h.get('content', '')})
+    _cache_last_msg(messages)   # cachea historial completo antes del turno actual
     messages.append({"role": "user", "content": message})
 
     client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
@@ -964,6 +989,7 @@ def chat_stream():
         if role not in ('user', 'assistant'):
             continue
         messages.append({"role": role, "content": h.get('content', '')})
+    _cache_last_msg(messages)   # cachea historial completo antes del turno actual
     messages.append({"role": "user", "content": message})
 
     client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))

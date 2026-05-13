@@ -37,6 +37,49 @@ def _is_zip(raw: bytes, filename: str, mime: str) -> bool:
         return False  # Documento Office — procesar como un solo archivo
     return raw[:4] == b'PK\x03\x04' or filename.lower().endswith('.zip')
 
+
+def _should_skip_zip_entry(name: str) -> bool:
+    """Descarta entradas de directorio, metadatos macOS y archivos de sistema."""
+    base = os.path.basename(name)
+    if not base or name.endswith('/'):
+        return True
+    if name.startswith('__MACOSX') or base.startswith('._') or base.startswith('.'):
+        return True
+    if base in ('Thumbs.db', 'desktop.ini', 'ehthumbs.db', '.gitkeep'):
+        return True
+    return False
+
+
+def _extract_zip_entries(raw: bytes, *, _top=True) -> list:
+    """
+    Extrae recursivamente todos los archivos de un ZIP (incluidos ZIPs anidados).
+    Retorna lista de (filename, raw_bytes, mime_type).
+    Lanza zipfile.BadZipFile si _top=True y el ZIP está corrupto.
+    """
+    entries = []
+    try:
+        with zipfile.ZipFile(io.BytesIO(raw)) as zf:
+            for zname in zf.namelist():
+                if _should_skip_zip_entry(zname):
+                    continue
+                try:
+                    zraw = zf.read(zname)
+                except Exception:
+                    continue
+                if not zraw:
+                    continue
+                base  = os.path.basename(zname)
+                zmime = mimetypes.guess_type(zname)[0] or 'application/octet-stream'
+                if _is_zip(zraw, base, zmime):
+                    entries.extend(_extract_zip_entries(zraw, _top=False))
+                else:
+                    entries.append((base, zraw, zmime))
+    except zipfile.BadZipFile:
+        if _top:
+            raise
+    return entries
+
+
 def _process_file(case_id, filename, raw, mime):
     """Procesa un archivo (bytes) y lo guarda. Retorna dict resultado."""
     sha  = hashlib.sha256(raw).hexdigest()
@@ -117,22 +160,22 @@ def upload():
                 if guessed:
                     mime = guessed
 
-            # ── ZIP: extraer y procesar cada archivo interno ──────────────
+            # ── ZIP: extraer recursivamente (incluye ZIPs anidados y carpetas) ──
             is_zip = _is_zip(raw, f.filename, mime)
             if is_zip:
                 try:
-                    with zipfile.ZipFile(io.BytesIO(raw)) as zf:
-                        for zname in zf.namelist():
-                            if zname.endswith('/') or zname.startswith('__MACOSX'):
-                                continue
-                            zraw  = zf.read(zname)
-                            zmime = mimetypes.guess_type(zname)[0] or 'application/octet-stream'
-                            if zmime not in ALLOWED_MIME:
-                                results.append({"filename": zname, "error": f"Tipo no permitido: {zmime}"})
-                                continue
-                            results.append(_safe_process(case_id, os.path.basename(zname), zraw, zmime))
+                    entries = _extract_zip_entries(raw, _top=True)
                 except zipfile.BadZipFile:
                     results.append({"filename": f.filename, "error": "ZIP inválido o corrupto"})
+                    continue
+                if not entries:
+                    results.append({"filename": f.filename, "error": "ZIP vacío o sin archivos procesables"})
+                    continue
+                for fname, fraw, fmime in entries:
+                    if fmime not in ALLOWED_MIME:
+                        results.append({"filename": fname, "error": f"Tipo no permitido: {fmime}"})
+                        continue
+                    results.append(_safe_process(case_id, fname, fraw, fmime))
                 continue
 
             # ── Archivo normal ────────────────────────────────────────────
