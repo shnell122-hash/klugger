@@ -540,7 +540,6 @@ def _add_para_with_inline(doc, text, style=None):
 @artifacts_bp.route('/api/artifacts/<case_id>/zip', methods=['GET'])
 def download_case_zip(case_id):
     """Descarga todos los artefactos generados del expediente en un ZIP."""
-    fmt = request.args.get('fmt', 'md')
     buf = io.BytesIO()
     used_names = {}
 
@@ -551,6 +550,14 @@ def download_case_zip(case_id):
         used_names[name] += 1
         base, ext = os.path.splitext(name)
         return f"{base}_{used_names[name]}{ext}"
+
+    def fmt_for_type(artifact_type, content, is_html):
+        """Elige el formato de descarga según el tipo de artefacto."""
+        if is_html or artifact_type == 'html':
+            return 'html'
+        if artifact_type in ('contract', 'brief'):
+            return 'docx'
+        return 'md'
 
     with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
         # Artefactos de texto generados por Claude
@@ -566,6 +573,7 @@ def download_case_zip(case_id):
             content_r = r.get('content') or ''
             is_html_r = (r.get('artifact_type') == 'html' or
                          (content_r.lstrip().startswith('<') and '</html>' in content_r.lower()))
+            fmt = fmt_for_type(r.get('artifact_type', ''), content_r, is_html_r)
             try:
                 data, ext = _content_to_bytes(content_r, safe, fmt, is_html=is_html_r)
             except Exception:
@@ -587,7 +595,7 @@ def download_case_zip(case_id):
     buf.seek(0)
     case_row = query("SELECT case_name FROM cases WHERE case_id=%s", (case_id,))
     case_name = (case_row or {}).get('case_name', case_id)
-    zip_name = f"{case_name.replace(' ', '_')}_{fmt}.zip"
+    zip_name = f"{case_name.replace(' ', '_')}.zip"
     return send_file(buf, mimetype='application/zip', as_attachment=True, download_name=zip_name)
 
 
