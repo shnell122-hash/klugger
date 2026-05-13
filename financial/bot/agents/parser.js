@@ -93,7 +93,8 @@ function extractMonto(str) {
 
 function extractMontoFromText(text) {
   // Negative amounts (e.g. "-1000") — return as-is so validation rejects them
-  const neg = text.match(/-\s*(\d{1,3}(?:[,]\d{3})*(?:\.\d{1,4})?|\d{4,}(?:\.\d{1,4})?)/);
+  // \d{4,} must come first to prevent \d{1,3} from greedily matching "100" in "1000"
+  const neg = text.match(/-\s*(\d{4,}(?:\.\d{1,4})?|\d{1,3}(?:[,]\d{3})*(?:\.\d{1,4})?)/);
   if (neg) return -parseFloat(neg[1].replace(/,/g, ''));
   const mil = text.match(MONTO_MIL_REGEX);
   if (mil) return parseFloat(mil[1]) * 1000;
