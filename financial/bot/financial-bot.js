@@ -1260,7 +1260,12 @@ bot.on('message:text', async (ctx, next) => {
         await ctx.reply('Operación cancelada.');
         return;
       }
-      // 'ignorar' → no responder
+      // 'ignorar': red de seguridad — si el regex detecta keyword de operación,
+      // procesar igual (el TO puede ignorar frases con "IAS"/"SPEI" en contexto casual)
+      if (isImplicitOperacion(text)) {
+        await procesarOperacion(ctx, text, client, session);
+        return;
+      }
       return;
     }
 
