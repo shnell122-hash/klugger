@@ -1049,8 +1049,10 @@ bot.on('message:text', async (ctx, next) => {
   const PAGO_AMPLIO = /\b(?:pago|deposito|deposité|deposite|factura|cobro)\b/i;
   const { saldo: saldoActualPago } = await balanceManager.getSaldo(client.id);
   const esExplicitoPago = PAGO_EXPLICIT.some(k => text.toLowerCase().includes(k));
+  // isImplicitOperacion excluye frases tipo "efectivo para el pago de proveedores"
+  // donde "pago" es parte de la operación, no un comprobante de pago al bot
   const esPagoTexto = esExplicitoPago ||
-                      (saldoActualPago < 0 && PAGO_AMPLIO.test(text) && !isOperacionCommand(text));
+                      (saldoActualPago < 0 && PAGO_AMPLIO.test(text) && !isOperacionCommand(text) && !isImplicitOperacion(text));
 
   // ── Detectar si es proveedor confirmando retorno ─────────────────────────
   const RETORNO_KEYWORDS = [

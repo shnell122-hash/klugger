@@ -102,7 +102,7 @@ class TransactionOrchestrator {
         ],
         tools:       [TOOL_SCHEMA],
         tool_choice: 'required',
-      });
+      }, { timeout: 10000 }); // 10s: fall back to regex before 18s test timeout
 
       const toolCall = response.choices?.[0]?.message?.tool_calls?.[0];
       const result   = toolCall
