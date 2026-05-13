@@ -2073,8 +2073,8 @@ async function procesarOperacion(ctx, input, client, session) {
     }
   }
 
-  // Si falta monto → preguntar
-  if (!parsed.monto) {
+  // Si falta monto → preguntar (null = no encontrado; 0 o negativo cae a validación abajo)
+  if (parsed.monto == null) {
     const commission = await getCommission(parsed.tipo, pool, client.id);
     if (!commission) {
       console.log(`[diag:commission] NULL tipo=${parsed.tipo} client=${client.id} (monto faltaba)`);
@@ -2097,8 +2097,8 @@ async function procesarOperacion(ctx, input, client, session) {
     return;
   }
 
-  // Validar monto antes de calcular — rechazar negativos, cero y valores irrisorios
-  if (!parsed.monto || parsed.monto < 1) {
+  // Validar monto antes de calcular — rechazar nulo, negativos, cero y valores irrisorios
+  if (parsed.monto == null || parsed.monto < 1) {
     await ctx.reply(
       `❌ Monto inválido: <b>${parsed.monto ?? 0}</b>.\n` +
       `El monto debe ser un número positivo mayor a cero.`,
