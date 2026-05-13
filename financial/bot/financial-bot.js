@@ -1335,9 +1335,9 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
         for (const reply of (graphResult.replyMessages ?? [])) {
           await ctx.reply(reply.text, reply.opts ?? {}).catch(() => {});
         }
-        // Si el grafo no produjo respuesta, fallback silencioso
+        // Si el grafo no produjo respuesta → fallback al handler legacy con detección completa
         if (!graphResult.replyMessages?.length) {
-          await ctx.reply('📎 Archivo recibido.').catch(() => {});
+          return handleAsistenteModo(ctx, client, fileInfo);
         }
         return;
       } catch (e) {
@@ -2147,8 +2147,7 @@ async function procesarOperacion(ctx, input, client, session) {
     comision_pct,
     es_entrada,
     solicita_neto:     tipo_monto === 'neto',
-    tipo_entrega:      parsed.tipo?.toUpperCase() === 'TARJETAS' ? 'tarjeta'
-                     : parsed.tipo?.toUpperCase() === 'EFECTIVO' ? 'efectivo'
+    tipo_entrega:      parsed.tipo?.toUpperCase() === 'EFECTIVO' ? 'efectivo'
                      : 'spei',
     instrucciones_pago: null, // se configura por tipo de operación en fin_operation_types
     tiene_saldo_suficiente: tiene_saldo,
