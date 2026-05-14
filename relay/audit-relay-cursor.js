@@ -35,7 +35,6 @@ const { execSync } = require('child_process');
 })(path.join(__dirname, '.env'));
 
 const DEEPSEEK_KEY   = process.env.DEEPSEEK_API_KEY;
-const ANTHROPIC_KEY  = process.env.ANTHROPIC_API_KEY;
 const BOT_TOKEN      = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT_ID        = process.env.TELEGRAM_CHAT_ID;
 const MONITOR_API    = process.env.MONITOR_API_URL || 'http://127.0.0.1:3010';
@@ -188,42 +187,6 @@ async function callDeepSeek(prompt) {
   });
 }
 
-// ─── Fallback: Anthropic Haiku ────────────────────────────────────────────────
-async function callHaiku(prompt) {
-  const body = JSON.stringify({
-    model:      'claude-haiku-4-5-20251001',
-    max_tokens: 1024,
-    system:     [{ type: 'text', text: 'Eres un experto en sistemas Node.js y DevOps. Analiza el estado de un relay de agentes AI y reporta SOLO problemas reales con severidad CRÍTICA, ALTA o MEDIA. Si todo está bien, di que el sistema está saludable.', cache_control: { type: 'ephemeral' } }],
-    messages:   [{ role: 'user', content: prompt }],
-  });
-
-  return new Promise((resolve, reject) => {
-    const req = https.request({
-      hostname: 'api.anthropic.com',
-      path:     '/v1/messages',
-      method:   'POST',
-      headers: {
-        'Content-Type':      'application/json',
-        'x-api-key':         ANTHROPIC_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-beta':    'prompt-caching-2024-07-31',
-      },
-    }, res => {
-      let data = '';
-      res.on('data', c => data += c);
-      res.on('end', () => {
-        try {
-          const r = JSON.parse(data);
-          resolve(r.content?.[0]?.text || data);
-        } catch (_) { resolve(data); }
-      });
-    });
-    req.setTimeout(30_000, () => { req.destroy(); reject(new Error('Haiku timeout')); });
-    req.on('error', reject);
-    req.write(body);
-    req.end();
-  });
-}
 
 // ─── Enviar alerta por Telegram ───────────────────────────────────────────────
 function sendTelegram(text) {
@@ -324,16 +287,14 @@ Sé conciso — máximo 400 palabras.`;
     return;
   }
 
-  // 3. Llamar al modelo AI
-  log(`Analizando con ${DEEPSEEK_KEY ? 'DeepSeek V3' : 'Haiku 4.5'}...`);
+  // 3. Llamar al modelo AI — solo DeepSeek, nunca Anthropic API directa
+  log(`Analizando con ${DEEPSEEK_KEY ? 'DeepSeek V4' : 'reglas básicas'}...`);
   let analysis = '';
   try {
-    analysis = DEEPSEEK_KEY
-      ? await callDeepSeek(prompt)
-      : await callHaiku(prompt);
+    if (!DEEPSEEK_KEY) throw new Error('DEEPSEEK_API_KEY no configurada');
+    analysis = await callDeepSeek(prompt);
   } catch (err) {
-    log(`Error al llamar AI: ${err.message}`);
-    // Fallback: análisis de reglas básicas
+    log(`Error al llamar DeepSeek: ${err.message} — usando análisis de reglas básicas`);
     analysis = generateRuleBasedReport(state, costs);
   }
 

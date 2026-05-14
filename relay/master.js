@@ -2692,8 +2692,7 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
   // Register command list with Telegram so they autocomplete in the chat
   registerBotCommands();
 
-  // Connectivity diagnostic — logs API key + tests api.anthropic.com reachability
-  setTimeout(diagBuzonConnectivity, 5000);
+  // diagBuzonConnectivity eliminado — ANTHROPIC_API_KEY no se usa, Claude corre via Max subscription
 
   // Independent session watchdog — hard cap regardless of CLAUDE_TIMEOUT_MS env var
   const WATCHDOG_MAX_MS = parseInt(process.env.WATCHDOG_MAX_MS || String(25 * 60 * 1000));
