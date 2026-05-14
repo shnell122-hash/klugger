@@ -1,10 +1,6 @@
 'use strict';
 const { OpenAI } = require('openai');
 
-// deepseek-reasoner (R1) no soporta tool_choice — siempre usar deepseek-chat para TO
-const _configuredModel = process.env.DEEPSEEK_PRO_MODEL ?? 'deepseek-chat';
-const MODEL = _configuredModel === 'deepseek-reasoner' ? 'deepseek-chat' : _configuredModel;
-
 const SYSTEM_PROMPT =
   'Eres el orquestador de transacciones de un sistema financiero de cobro en México.\n' +
   'Tu tarea es analizar el contexto de una conversación y decidir qué acción tomar.\n\n' +
@@ -25,8 +21,7 @@ const SYSTEM_PROMPT =
   '- "ignorar" si el mensaje es saludo casual, off-topic o ruido\n' +
   '- Sé conservador: ante la duda, "ignorar"';
 
-// Tool schema en formato OpenAI-compatible (DeepSeek): "parameters" en vez de "input_schema"
-const TOOL_SCHEMA = {
+const TOOL = {
   type: 'function',
   function: {
     name: 'decidir_accion',
@@ -57,64 +52,48 @@ const TOOL_SCHEMA = {
 };
 
 class TransactionOrchestrator {
-  constructor(apiKey) {
-    if (!apiKey) throw new Error('TransactionOrchestrator requiere DEEPSEEK_API_KEY');
-    this.client = new OpenAI({
-      apiKey,
-      baseURL: 'https://api.deepseek.com/v1',
-    });
+  constructor(llmClient, opts = {}) {
+    if (!llmClient) throw new Error('TransactionOrchestrator requiere llmClient (OpenAI-compatible)');
+    this.client = llmClient;
+    const _raw  = opts.model ?? process.env.DEEPSEEK_PRO_MODEL ?? 'deepseek-chat';
+    this.model  = _raw === 'deepseek-reasoner' ? 'deepseek-chat' : _raw;
   }
 
-  async rutear({ estado, mensajesRecientes, textoUsuario, saldo, nombre, contextoCompactado }) {
+  async rutear({ estado, mensajesRecientes, textoUsuario, saldo, nombre }) {
     const historial = (mensajesRecientes ?? [])
-      .slice(-8)
-      .map(m => `[${m.es_bot ? 'BOT' : (m.from_username ? `@${m.from_username}` : 'USUARIO')}] ${m.texto ?? m.content ?? ''}`)
+      .slice(-10)
+      .map(m => `[${m.es_bot ? 'BOT' : 'USUARIO'}] ${m.texto ?? m.content ?? ''}`)
       .join('\n');
-
-    const ctxExtra = contextoCompactado
-      ? `\nContexto compactado de la conversación:\n` +
-        `  Intención: ${contextoCompactado.intent ?? '?'}\n` +
-        (contextoCompactado.operacion_activa
-          ? `  Operación activa: ${JSON.stringify(contextoCompactado.operacion_activa)}\n`
-          : '') +
-        (contextoCompactado.pendiente
-          ? `  Pendiente: ${contextoCompactado.pendiente}\n`
-          : '') +
-        `  Resumen: ${contextoCompactado.resumen ?? ''}\n`
-      : '';
 
     const userMsg =
       `Estado de sesión: ${estado}\n` +
       `Saldo del cliente: $${saldo ?? 0}\n` +
-      `Nombre del cliente: ${nombre ?? 'Desconocido'}\n` +
-      ctxExtra +
-      `\nHistorial reciente (últimos 8 mensajes):\n${historial}\n\n` +
+      `Nombre del cliente: ${nombre ?? 'Desconocido'}\n\n` +
+      `Historial reciente:\n${historial}\n\n` +
       `Mensaje actual del usuario: "${textoUsuario}"`;
 
     const start = Date.now();
     try {
       const response = await this.client.chat.completions.create({
-        model:       MODEL,
+        model:       this.model,
         max_tokens:  256,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user',   content: userMsg },
         ],
-        tools:       [TOOL_SCHEMA],
-        tool_choice: 'required',
-      }, { timeout: 10000 }); // 10s: fall back to regex before 18s test timeout
+        tools:       [TOOL],
+        tool_choice: { type: 'function', function: { name: 'decidir_accion' } },
+      });
 
-      const toolCall = response.choices?.[0]?.message?.tool_calls?.[0];
+      const toolCall = response.choices[0]?.message?.tool_calls?.[0];
       const result   = toolCall
         ? JSON.parse(toolCall.function.arguments)
         : { accion: 'ignorar', confianza: 'baja', razon: 'no tool call', params: {} };
 
       const usage = response.usage ?? {};
       console.log(
-        `[TransactionOrchestrator/deepseek-pro] accion=${result.accion} confianza=${result.confianza} ` +
-        `tokens=${usage.prompt_tokens ?? 0}+${usage.completion_tokens ?? 0}` +
-        (usage.prompt_cache_hit_tokens ? ` cache_hit=${usage.prompt_cache_hit_tokens}` : '') +
-        ` ${Date.now() - start}ms`
+        `[TransactionOrchestrator/${this.model}] accion=${result.accion} confianza=${result.confianza} ` +
+        `tokens=${usage.prompt_tokens ?? 0}+${usage.completion_tokens ?? 0} ${Date.now() - start}ms`
       );
 
       return { params: {}, ...result };
