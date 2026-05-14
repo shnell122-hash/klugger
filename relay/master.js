@@ -51,6 +51,10 @@ const OUTBOX_TIMEOUT_MS = parseInt(process.env.OUTBOX_TIMEOUT_MS || '2100000'); 
 const MONITOR_API     = process.env.MONITOR_API_URL || 'http://127.0.0.1:3010';
 const BOT_TOKEN       = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT_ID         = process.env.TELEGRAM_CHAT_ID;
+// Extra devs that receive broadcast notifications (read-only — no commands).
+// Set TELEGRAM_EXTRA_CHAT_IDS=id1,id2,id3 in relay/.env
+const EXTRA_CHAT_IDS  = (process.env.TELEGRAM_EXTRA_CHAT_IDS || '')
+  .split(',').map(s => s.trim()).filter(Boolean);
 const ANTHROPIC_KEY   = process.env.ANTHROPIC_API_KEY;
 const DEEPSEEK_KEY    = process.env.DEEPSEEK_API_KEY;
 const GITHUB_TOKEN    = process.env.GITHUB_TOKEN;
@@ -124,20 +128,19 @@ function log(project, msg) {
 // ─── Telegram ─────────────────────────────────────────────
 function tg(text) {
   if (!BOT_TOKEN || !CHAT_ID) return;
-  const body = JSON.stringify({
-    chat_id:    CHAT_ID,
-    text:       String(text).slice(0, 4096),
-    parse_mode: 'HTML',
-  });
-  const req = https.request({
-    hostname: 'api.telegram.org',
-    path:     `/bot${BOT_TOKEN}/sendMessage`,
-    method:   'POST',
-    headers:  { 'Content-Type': 'application/json' },
-  });
-  req.on('error', () => {});
-  req.write(body);
-  req.end();
+  const payload = String(text).slice(0, 4096);
+  for (const chatId of [CHAT_ID, ...EXTRA_CHAT_IDS]) {
+    const body = JSON.stringify({ chat_id: chatId, text: payload, parse_mode: 'HTML' });
+    const req = https.request({
+      hostname: 'api.telegram.org',
+      path:     `/bot${BOT_TOKEN}/sendMessage`,
+      method:   'POST',
+      headers:  { 'Content-Type': 'application/json' },
+    });
+    req.on('error', () => {});
+    req.write(body);
+    req.end();
+  }
 }
 
 // ─── Proposals store (Telegram /tarea workflow) ───────────
