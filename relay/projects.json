@@ -7,7 +7,7 @@
     "claude_model": "claude-haiku-4-5-20251001",
     "claude_model_fast": "claude-haiku-4-5-20251001",
     "deepseek_model": "flash",
-    "use_cli_proxy": true,
+    "use_cli_proxy": false,
     "inbox":  "/var/www/html/vilarkptl.com/DeCabeceraTax/relay/coordinator-inbox.md",
     "outbox": "/var/www/html/vilarkptl.com/DeCabeceraTax/relay/coordinator-outbox.md",
     "repo":   "/var/www/html/vilarkptl.com/DeCabeceraTax",
