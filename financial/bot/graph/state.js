@@ -65,14 +65,6 @@ const FinBotStateAnnotation = Annotation.Root({
   // ── Control de flujo ─────────────────────────────────────────────────────
   nextAction: Annotation({ reducer: last, default: () => null }),
   error:      Annotation({ reducer: last, default: () => null }),
-
-  // ── Runtime (transient — no se persisten en checkpoint) ──────────────────
-  // Inyectados por FinBotGraph.invoke() vía extras; cada nodo los lee de state.
-  _pool:                Annotation({ reducer: last, default: () => null }),
-  _to:                  Annotation({ reducer: last, default: () => null }),  // TransactionOrchestrator
-  _mensajesRecientes:   Annotation({ reducer: last, default: () => [] }),
-  _saldo:               Annotation({ reducer: last, default: () => 0 }),
-  _contextoCompactado:  Annotation({ reducer: last, default: () => null }),
 });
 
 module.exports = { FinBotStateAnnotation };

@@ -12,7 +12,7 @@ const FACTURA_KEYWORDS    = ['factura', 'cfdi', 'uuid', 'rfc', 'subtotal', 'iva'
 const COMPROBANTE_KEYWORDS = ['comprobante', 'clave de rastreo', 'referencia', 'fecha de operación', 'spei enviado', 'transferencia enviada', 'monto transferido', 'operación exitosa'];
 const TIPO_OP_RE = /(IAS|SPEI|SINDICATO|TARJETAS|EFECTIVO)/gi;
 // Matches amounts like $350,000.00 or 350000 or 350,000
-const AMOUNT_RE  = /\$?\s*([\d]{1,3}(?:[,.][\s\d]{3})*(?:[.,]\d{1,2})?|\d+(?:\.\d{1,2})?)\b/g;
+const AMOUNT_RE  = /\$?\s*([\d]{1,3}(?:[,.][ \d]{3})*(?:[.,]\d{1,2})?|\d+(?:\.\d{1,2})?)\b/g;
 
 function parseAmount(raw) {
   // Normalize: remove thousands separators, handle comma decimal

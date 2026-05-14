@@ -1,7 +1,9 @@
 'use strict';
 /**
- * BankingExtractionNode — Extrae y guarda cuentas bancarias de una imagen/PDF.
- * LangGraph Parte 5.
+ * BankingExtractionNode — Extrae y guarda cuentas bancarias de una imagen/PDF (LangGraph Parte 5).
+ *
+ * Reutiliza docAgent.extraerCuentasBancarias() — DocumentIntelligenceAgent:150
+ * y filtrarCuentasAjenas() — financial-bot.js:366.
  *
  * Lee:   state.detectedFile, state.inputBuffer, state.inputMimeType, state.client, state._pool
  * Escribe: state.bankingAccounts, state.replyMessages, state.nextAction
@@ -12,8 +14,8 @@ const DocumentIntelligenceAgent = require('../../../agents/DocumentIntelligenceA
 
 // Cuentas propias del sistema (no guardar como cuentas de clientes)
 const CUENTAS_PROPIAS = new Set([
-  '058597000030773833',
-  '058597000068994820',
+  '058597000030773833', // GV Banregio
+  '058597000068994820', // Noela Banregio
 ]);
 
 function filtrarCuentasAjenas(cuentas) {
@@ -30,6 +32,7 @@ async function bankingExtractionNode(state) {
 
   let cuentas = detectedFile?.datos_bancarios ?? [];
 
+  // Si no hay cuentas en detectedFile pero tenemos buffer, intentar extracción directa
   if (!cuentas.length && inputBuffer && process.env.GOOGLE_API_KEY) {
     try {
       const docAgent = new DocumentIntelligenceAgent(process.env.GOOGLE_API_KEY);
@@ -43,7 +46,7 @@ async function bankingExtractionNode(state) {
 
   if (!cuentasAjenas.length) {
     return {
-      replyMessages: [{ text: 'No encontré cuentas bancarias nuevas en el archivo.', opts: {} }],
+      replyMessages: [{ text: 'ℹ️ No encontré cuentas bancarias nuevas en el archivo.', opts: {} }],
       nextAction: null,
     };
   }
@@ -53,11 +56,10 @@ async function bankingExtractionNode(state) {
     .catch(e => console.error('[BankingExtractionNode] guardarCuentas:', e.message));
 
   const lista = cuentasAjenas
-    .map(c => `• ${c.tipo} <code>${c.numero}</code>${c.titular ? ` — ${c.titular}` : ''}`)
+    .map(c => `• ${c.tipo} ${c.numero}${c.titular ? ` (${c.titular})` : ''}`)
     .join('\n');
 
-  const n   = cuentasAjenas.length;
-  const msg = `Guardé ${n} cuenta${n === 1 ? '' : 's'} bancaria${n === 1 ? '' : 's'} 💳\n\n${lista}`;
+  const msg = `💳 <b>${cuentasAjenas.length} cuenta(s) guardada(s)</b>\n${lista}`;
 
   return {
     bankingAccounts: cuentasAjenas,

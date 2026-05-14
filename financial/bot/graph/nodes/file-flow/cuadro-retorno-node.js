@@ -1,7 +1,8 @@
 'use strict';
 /**
- * CuadroRetornoNode — Registra un cuadro IAS de beneficiarios.
- * LangGraph Parte 5.
+ * CuadroRetornoNode — Registra un cuadro IAS de beneficiarios (LangGraph Parte 5).
+ *
+ * Extrae lógica de handleCuadroRetorno() — financial-bot.js:146-191.
  *
  * Lee:   state.cuadroRetorno, state.client, state.chatId, state._pool
  * Escribe: state.replyMessages, state.sessionEstado, state.nextAction
@@ -57,16 +58,10 @@ async function cuadroRetornoNode(state) {
       .catch(e => console.error('[CuadroRetornoNode] guardarCuentas:', e.message));
   }
 
-  const n = cuadroRetorno.filas.length;
-  const cuentaMsg = cuentasDetectadas.length
-    ? ` También guardé ${cuentasDetectadas.length} CLABE(s) de los beneficiarios.`
-    : '';
-
-  const msg =
-    `Listo, recibí el cuadro IAS ✅\n\n` +
-    `${n} beneficiari${n === 1 ? 'o' : 'os'} · Neto <b>$${fmt(totalNeto)}</b> · Bruto <b>$${fmt(totalBruto)}</b>\n` +
-    `Tu saldo quedó en <b>$${fmt(saldo_despues)}</b> (antes $${fmt(saldo_antes)}).` +
-    cuentaMsg;
+  let msg = `📋 <b>Cuadro IAS registrado</b>\n`;
+  msg += `${cuadroRetorno.filas.length} beneficiarios · Neto: <b>$${fmt(totalNeto)}</b> · Bruto: <b>$${fmt(totalBruto)}</b>\n`;
+  msg += `Saldo: $${fmt(saldo_antes)} → <b>$${fmt(saldo_despues)}</b>`;
+  if (cuentasDetectadas.length) msg += `\n💳 ${cuentasDetectadas.length} CLABE(s) guardada(s)`;
 
   return {
     replyMessages: [{ text: msg, opts: { parse_mode: 'HTML' } }],
