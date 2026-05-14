@@ -879,9 +879,20 @@ bot.on('message:text', async (ctx, next) => {
     return;
   }
   if (session.estado === 'esperando_monto') {
-    const draft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
-    await procesarOperacion(ctx, `${draft.tipo_operacion} ${text}`, client, session);
-    return;
+    if (isImplicitOperacion(text) || isOperacionCommand(text)) {
+      // Nueva operación solicitada mientras esperaba monto → cancelar y procesar desde cero.
+      // Sin reset, el handler prepende el tipo anterior (ej "EFECTIVO") al texto SPEI,
+      // haciendo que detectType devuelva EFECTIVO (orden de chequeo > SPEI) y construya
+      // un draft incorrecto con tipo_entrega='efectivo', provocando pedir dirección de entrega.
+      await updateSession(session.id, 'idle', null);
+      session.estado = 'idle';
+      session.operation_draft_json = null;
+      // fall through to normal processing
+    } else {
+      const draft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
+      await procesarOperacion(ctx, `${draft.tipo_operacion} ${text}`, client, session);
+      return;
+    }
   }
   if (session.estado === 'esperando_entrega') {
     if (isImplicitOperacion(text) || isOperacionCommand(text)) {
