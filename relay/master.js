@@ -934,35 +934,8 @@ async function responderBuzonFiscalai(buzonContent) {
   tg(`📨 <b>FiscalAI — mensaje despachado al coordinador</b>\n<code>${buzonContent.slice(0, 300)}</code>`);
   journalEntryFile(BUZON_REPO, 'buzon-fiscalai → coordinator', `${buzonContent.length} chars despachados`);
 
-  // 3. Try Anthropic API for richer response (optional / best-effort)
-  // If unreachable (firewall/DNS), fall through silently — ACK+dispatch already sent.
-  try {
-    let systemPrompt = 'Eres el agente IA de ia.vilarkptl.com respondiendo al buzón de FiscalAI.';
-    const claudeMdPath = path.join(BUZON_REPO, 'CLAUDE.md');
-    if (fs.existsSync(claudeMdPath)) {
-      systemPrompt = fs.readFileSync(claudeMdPath, 'utf8');
-    }
-    const contextFiles = ['coordinator-inbox.md', 'coordinator-outbox.md', 'journal.md'];
-    let relayContext = '';
-    for (const f of contextFiles) {
-      const fp = path.join(BUZON_REPO, 'relay', f);
-      if (fs.existsSync(fp)) {
-        relayContext += `\n\n### relay/${f}:\n${fs.readFileSync(fp, 'utf8')}`;
-      }
-    }
-    if (relayContext) systemPrompt += '\n\n---\n\n## Estado actual del relay' + relayContext;
-
-    const respuesta = await callAnthropicDirect(systemPrompt, buzonContent, 1024);
-    const richContent =
-      `# Buzón IA — ia.vilarkptl.com → FiscalAI\n\n` +
-      `**[${timestamp} CST] — Anthropic API (claude-haiku-4-5)**\n\n---\n\n${respuesta}\n`;
-    fs.writeFileSync(BUZON_SRC, richContent);
-    log(null, `buzon-ia: respuesta Anthropic API escrita (${respuesta.length} chars)`);
-    tg(`📨 <b>FiscalAI respondido via Anthropic API</b>\n<code>${respuesta.slice(0, 400)}</code>`);
-    journalEntryFile(BUZON_REPO, 'API → buzon-ia', `Respuesta rica a FiscalAI (${respuesta.length} chars)`);
-  } catch (err) {
-    log(null, `buzon-ia: API opcional falló — ${err.message?.slice(0, 150)} (ACK+dispatch ya enviados)`);
-  }
+  // 3. Anthropic API directa eliminada — ACK + dispatch al coordinator es suficiente.
+  // API key nunca se usa. Claude corre solo via Claude CLI (Max subscription, $0).
 }
 
 // ─── Buzon IA sync ────────────────────────────────────────

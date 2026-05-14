@@ -297,7 +297,11 @@ async function callModel(modelKey, messages, ctx, onProgress, signal) {
   const m = MODELS[modelKey] || MODELS[DEFAULT_MODEL];
   if (m.provider === 'gemini') return callDeepSeek(m, messages, ctx, onProgress, signal, geminiClient);
   if (litellmProxy && m.proxyModel) return callLiteLLMProxy(m, messages, ctx, onProgress, signal);
-  if (m.provider === 'anthropic') return callAnthropic(m, messages, ctx, onProgress, signal);
+  if (m.provider === 'anthropic') {
+    // Never use ANTHROPIC_API_KEY directly — always route through claude-proxy (Max subscription, $0)
+    if (!anthropicProxy) throw new Error('claude-proxy no disponible. Verifica ANTHROPIC_PROXY_URL en relay/.env');
+    return callAnthropic(m, messages, ctx, onProgress, signal, anthropicProxy);
+  }
   return callDeepSeek(m, messages, ctx, onProgress, signal);
 }
 
