@@ -233,7 +233,7 @@ async function handleAsistenteModo(ctx, client, fileInfo) {
     }
 
     // Para imágenes, usar visión para extraer cuentas o monto
-    if (detected?.tipo === 'imagen_sin_ocr') {
+    if (mimeType.startsWith('image/') ? (!detected || detected?.tipo === 'imagen_sin_ocr') : detected?.tipo === 'imagen_sin_ocr') {
       const imgAgent = docAgent ?? visionAgent;
       if (imgAgent) {
         let cuentas = [], visionResult = null;
@@ -821,9 +821,16 @@ bot.on('message:text', async (ctx, next) => {
     return;
   }
   if (session.estado === 'esperando_monto') {
-    const draft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
-    await procesarOperacion(ctx, `${draft.tipo_operacion} ${text}`, client, session);
-    return;
+    if (isImplicitOperacion(text) || isOperacionCommand(text)) {
+      await updateSession(session.id, 'idle', null);
+      session.estado = 'idle';
+      session.operation_draft_json = null;
+      // fall through to normal processing
+    } else {
+      const draft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
+      await procesarOperacion(ctx, `${draft.tipo_operacion} ${text}`, client, session);
+      return;
+    }
   }
   if (session.estado === 'esperando_entrega') {
     const draft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
@@ -966,8 +973,9 @@ bot.on('message:text', async (ctx, next) => {
   const PAGO_AMPLIO = /\b(?:pago|deposito|deposité|deposite|factura|cobro)\b/i;
   const { saldo: saldoActualPago } = await balanceManager.getSaldo(client.id);
   const esExplicitoPago = PAGO_EXPLICIT.some(k => text.toLowerCase().includes(k));
-  const esPagoTexto = esExplicitoPago ||
-                      (saldoActualPago < 0 && PAGO_AMPLIO.test(text) && !isOperacionCommand(text));
+  const _esOp = isImplicitOperacion(text) || isOperacionCommand(text);
+  const esPagoTexto = !_esOp && (esExplicitoPago ||
+                      (saldoActualPago < 0 && PAGO_AMPLIO.test(text)));
 
   // ── Detectar si es proveedor confirmando retorno ─────────────────────────
   const RETORNO_KEYWORDS = [
