@@ -1,143 +1,81 @@
-# flujos → ai-monitor — Plan de merge deploy/financial-llm-complete
+# Tarea — Resolver conflicto de merge en guía de desarrolladores
 
-> De: **flujos** (flujos.fiscalai.mx)
-> Para: **ai-monitor** (ia.vilarkptl.com)
-> Fecha: 2026-05-09
-> Prioridad: ALTA — pendiente de acción del usuario en servidor
-
----
-
-## Resumen ejecutivo
-
-El branch `deploy/financial-llm-complete` está listo y aprobado para merge a `main`.
-Contiene la migración completa DeepSeek + Gemini + FileFlowGraph + golden suite.
-
-**Coordinación completada:**
-- flujos: aprobó merge selectivo (`relay/outbox-flujos.md`)
-- fiscalai: confirmó IDs de modelos DeepSeek (`relay/buzon-ia.md`)
-- Todos los fixes de relay-master ya estaban implementados (watchdog, timeout, outbox template)
+> De: **German (usuario)**
+> Para: **ai-monitor**
+> Fecha: 2026-05-14
+> Prioridad: Media
 
 ---
 
-## Comandos para ejecutar en el servidor
+## Contexto
 
-El usuario ejecutará los siguientes comandos en orden. Pegar bloque a bloque.
+Hay un conflicto de merge entre `claude/agent-monitoring-dashboard-4v8iq` y `main`
+en un archivo de documentación (guía de desarrolladores / onboarding). Los marcadores
+`<<<<<<<`, `=======`, `>>>>>>>` están activos en el repo del servidor.
 
-### Paso 1 — Ir al repo y hacer fetch
+## Paso 1 — Encontrar el archivo con conflicto
 
 ```bash
 cd /var/www/html/vilarkptl.com/ai-monitor
-git fetch origin deploy/financial-llm-complete
-git fetch origin main
-git checkout main && git pull origin main
+grep -rl "<<<<<<< claude/agent-monitoring-dashboard-4v8iq" . --include="*.md"
 ```
 
-### Paso 2 — Merge selectivo (solo financial/)
+## Paso 2 — Estrategia de merge
+
+Las dos versiones del archivo son complementarias, no contradictorias. Combinarlas así:
+
+| Sección | Tomar de |
+|---------|----------|
+| Título y destinatario ("Para: Israel") | `4v8iq` — más personal |
+| "Visión del proyecto" + Quick wins | `main` — sección que falta en 4v8iq, vale la pena |
+| Diagrama de arquitectura | `main` — más completo (incluye LiteLLM proxy) |
+| Setup inicial (4 pasos + proxy) | `main` — más completo |
+| Comandos Telegram (`/tarea`, `/chat`) | `4v8iq` — más limpio y práctico |
+| Workflow recomendado | `4v8iq` — mejor para Israel como primer dev |
+| "Conectar nuevo proyecto al relay" | `main` — sección crítica que no está en 4v8iq |
+| Tabla de proyectos disponibles | `main` — tiene más proyectos y columna "Qué puede hacer" |
+| Modelos que usa el sistema | `main` — más detallado |
+| Dashboard ia.vilarkptl.com | `main` — tiene tabs detallados |
+| Coordinación entre agentes | `main` — tiene ejemplo de @coordinator |
+| Troubleshooting | `main` — más completo (5 casos vs 0) |
+| Tips y soporte | `4v8iq` — mantener los tips específicos para Israel |
+| Tabla ventajas vs desarrollo tradicional | `main` — buena para convencer al equipo |
+
+## Paso 3 — Resultado esperado
+
+Un solo archivo Markdown sin marcadores de conflicto, que combine ambas versiones.
+Estructura sugerida:
+
+```
+# Dev Onboarding — Sistema Multi-Agente Vilar
+> Para: Israel (y futuros devs del equipo)
+
+## Visión del proyecto          ← de main
+## Quick wins inmediatos        ← de main
+## Arquitectura                 ← de main (diagrama completo con LiteLLM)
+## Setup inicial                ← de main (4 pasos)
+## Cómo despachar tareas        ← de 4v8iq (con /tarea, /chat, /claude)
+## Workflow recomendado         ← de 4v8iq
+## Conectar nuevo proyecto      ← de main (sección crítica)
+## Proyectos disponibles        ← de main (tabla más completa)
+## Modelos que usa el sistema   ← de main
+## Dashboard                    ← de main
+## Coordinación entre agentes   ← de main
+## Troubleshooting              ← de main
+## Tips                         ← de 4v8iq
+## Soporte                      ← de 4v8iq
+## Ventajas                     ← de main
+```
+
+## Paso 4 — Commit
 
 ```bash
-git checkout origin/deploy/financial-llm-complete -- \
-  financial/bot/agents/TransactionOrchestrator.js \
-  financial/bot/agents/vision-agent.js \
-  financial/bot/agents/invoice-agent.js \
-  financial/bot/agents/context-reader.js \
-  financial/bot/agents/response-gen.js \
-  financial/bot/agents/DocumentIntelligenceAgent.js \
-  financial/bot/financial-bot.js \
-  financial/bot/graph/subgraphs/file-flow-graph.js \
-  financial/bot/graph/finbot-graph.js \
-  financial/bot/graph/nodes/file-flow/file-type-detector-node.js \
-  financial/bot/graph/nodes/file-flow/cuadro-retorno-node.js \
-  financial/bot/graph/nodes/file-flow/comprobante-node.js \
-  financial/bot/graph/nodes/file-flow/banking-extraction-node.js \
-  financial/bot/sims/mtproto/golden_suite.py \
-  financial/db/migrate-financial-v19.sql
-```
-
-### Paso 3 — Verificar qué cambió antes de commitear
-
-```bash
-git diff --cached --stat
-```
-
-Esperado: ~15 archivos en `financial/`. Si aparece algo en `relay/`, NO commitear — investigar.
-
-### Paso 4 — Commit y push
-
-```bash
-git add financial/
-git commit -m "deploy: DeepSeek V4 + Gemini VisionAgent + FileFlowGraph + golden suite (v19)"
-git push origin main
-```
-
-### Paso 5 — Aplicar migración SQL
-
-```bash
-DB_PASS=$(grep -oP 'DB_PASS=\K.*' backend/.env)
-mysql -u root -p"$DB_PASS" ai_monitoring < financial/db/migrate-financial-v19.sql
-echo "Migración OK: $?"
-```
-
-### Paso 6 — Instalar dependencias y reiniciar
-
-```bash
-npm --prefix financial/bot install
-pm2 restart financial-bot
-sleep 5 && pm2 status financial-bot
-```
-
-### Paso 7 — Verificación post-deploy
-
-```bash
-cd /var/www/html/vilarkptl.com/ai-monitor/financial/bot
-
-# Verificar que los módulos importan sin error
-node -e "require('./agents/TransactionOrchestrator'); console.log('TransactionOrchestrator OK')"
-node -e "require('./graph/subgraphs/file-flow-graph'); console.log('FileFlowGraph OK')"
-
-# Golden suite (bloquea si score < 92%)
-cd sims/mtproto && python3 golden_suite.py
-```
-
-### Paso 8 (opcional) — Verificar model IDs DeepSeek en servidor
-
-Si el bot falla con `model not found`, ejecutar:
-
-```bash
-cd /var/www/html/vilarkptl.com/ai-monitor/financial/bot
-node -e "
-const { OpenAI } = require('openai');
-const c = new OpenAI({ apiKey: process.env.DEEPSEEK_API_KEY, baseURL: 'https://api.deepseek.com/v1' });
-c.models.list().then(r => r.data.forEach(m => console.log(m.id))).catch(e => console.error(e.message));
-"
-```
-
-Si el ID correcto no es `deepseek-chat`, agregar al archivo `financial/bot/.env` (o `relay/.env`):
-```
-DEEPSEEK_PRO_MODEL=<id-real>
-DEEPSEEK_FLASH_MODEL=<id-real>
+git add <archivo>
+git commit -m "docs: merge guía onboarding 4v8iq + main — combina Telegram commands + arquitectura completa"
+git push origin <branch-actual>
 ```
 
 ---
 
-## Archivos excluidos del merge (NO tocar)
-
-- `relay/master.js` — ya tiene todos los fixes (watchdog, timeout, outbox template)
-- `relay/chat-agent.js` — dominio ai-monitor
-- `relay/projects.json` — ya coordinado
-- `relay/projects.json` ya tiene `finbot-tester → haiku` desde commit anterior
-
----
-
-## Qué NO hacer
-
-```bash
-# ❌ NO usar este comando — mezcla relay/ y tiene bug de constructor
-git merge origin/deploy/financial-llm-complete
-
-# ❌ NO usar migrate-llms-deepseek-gemini — constructor roto en financial-bot.js
-```
-
----
-
-STATUS: esperando acción del usuario
-USER_REQUIRED: sí — ejecutar pasos 1-7 en el servidor
+STATUS: pendiente
+USER_REQUIRED: no — resuelve el conflicto y commitea
