@@ -1,5 +1,9 @@
 'use strict';
 
+// Strip ANTHROPIC_API_KEY immediately — PM2 injects it from its registry even
+// when commented in .env. Claude runs via Max subscription (claude-proxy, $0).
+delete process.env.ANTHROPIC_API_KEY;
+
 /**
  * relay/master.js — Master Relay
  *

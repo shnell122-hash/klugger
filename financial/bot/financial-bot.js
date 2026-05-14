@@ -1,4 +1,8 @@
 'use strict';
+// Strip ANTHROPIC_API_KEY immediately — PM2 injects it from its registry even
+// when commented in .env. VisionAgent uses Gemini; no paid Anthropic inference.
+delete process.env.ANTHROPIC_API_KEY;
+
 /**
  * Financial Bot — Bot principal de Telegram para operaciones financieras.
  *
