@@ -55,7 +55,8 @@ class TransactionOrchestrator {
   constructor(llmClient, opts = {}) {
     if (!llmClient) throw new Error('TransactionOrchestrator requiere llmClient (OpenAI-compatible)');
     this.client = llmClient;
-    this.model  = opts.model ?? process.env.DEEPSEEK_PRO_MODEL ?? 'deepseek-chat';
+    const _raw  = opts.model ?? process.env.DEEPSEEK_PRO_MODEL ?? 'deepseek-chat';
+    this.model  = _raw === 'deepseek-reasoner' ? 'deepseek-chat' : _raw;
   }
 
   async rutear({ estado, mensajesRecientes, textoUsuario, saldo, nombre }) {
