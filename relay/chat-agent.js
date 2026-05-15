@@ -150,6 +150,7 @@ HERRAMIENTAS DISPONIBLES:
 - read_file(path, offset?, limit?)  Lee un archivo con números de línea.
 - write_file(path, content)    Escribe/sobreescribe un archivo (crea directorios si no existen).
 - git_commit(repo, files[], message, branch?)  Hace git add + commit + push. Excluye .env y node_modules automáticamente.
+- visual_check(url, criteria?, wait_ms?)  Screenshot con Chromium + análisis visual con Gemini Flash. Devuelve APROBADO o NECESITA_CORRECCIÓN con issues específicos. SIEMPRE llamar después de un deploy de frontend. Iterar hasta APROBADO (máx 3 veces).
 - pm2_action(action, process?, lines?)  Gestiona PM2: list/restart/start/stop/delete/logs/env. "restart all" pide confirmación.
 - github_create_repo(name, description?, private?)  Crea un repo en la org vilarkptl-lang. Devuelve clone URL.
 - dispatch_task(project, description)  Despacha una tarea al relay-master para un agente Claude Code.
@@ -260,6 +261,19 @@ const TOOLS_ANTHROPIC = [
     },
   },
   {
+    name: 'visual_check',
+    description: 'Take a Chromium screenshot of a URL and analyze it with Gemini Flash vision. Use after every deploy to verify the page looks correct. If the verdict is NECESITA_CORRECCIÓN, read `issues` and `actions_needed`, fix the code, redeploy, and call visual_check again. Iterate until APROBADO (max 3 times).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        url:      { type: 'string', description: 'Full URL to screenshot (e.g. "https://testing.fiscalai.mx?id=XAXX010101000")' },
+        criteria: { type: 'string', description: 'What to verify visually (e.g. "nav bar shows Análisis Fiscal item, no 404 errors, data cards load")' },
+        wait_ms:  { type: 'number', description: 'Milliseconds to wait for page JS to render (default 4000)' },
+      },
+      required: ['url'],
+    },
+  },
+  {
     name: 'github_create_repo',
     description: 'Create a new GitHub repository in the vilarkptl-lang organization. Returns clone URL.',
     input_schema: {
@@ -366,6 +380,31 @@ async function runTool(name, input, sessionDispatched = null, chatId = null) {
       const pushTarget = branch ? `origin ${branch}` : '--set-upstream origin HEAD';
       const out = execSync(`git -C "${repo}" push ${pushTarget} 2>&1`, { encoding: 'utf8', timeout: 30000 });
       return `✅ Commit + push OK\n${out.slice(0, 500)}`;
+    }
+    if (name === 'visual_check') {
+      const { url: vcUrl, criteria: vcCriteria, wait_ms: vcWait = 4000 } = input;
+      const vcScript = path.join(__dirname, 'visual-check.js');
+      if (!fs.existsSync(vcScript)) return 'ERROR: relay/visual-check.js no encontrado en el servidor.';
+
+      const args = [vcScript, vcUrl];
+      if (vcCriteria) args.push(vcCriteria);
+      args.push(String(vcWait));
+
+      const raw = execSync(`node ${args.map(a => JSON.stringify(a)).join(' ')}`, {
+        cwd: REPO, timeout: 60_000, encoding: 'utf8',
+      });
+
+      let result;
+      try { result = JSON.parse(raw); } catch (_) { return raw.slice(0, 2000); }
+
+      // Send screenshot photo to Telegram if chatId available
+      if (chatId && result.screenshot && fs.existsSync(result.screenshot)) {
+        const { InputFile } = require('grammy');
+        const caption = `📸 ${result.verdict || '?'} — ${vcUrl}\n\n${(result.analysis || '').slice(0, 800)}`;
+        bot.api.sendPhoto(chatId, new InputFile(result.screenshot), { caption: caption.slice(0, 1024) }).catch(() => {});
+      }
+
+      return JSON.stringify(result, null, 2).slice(0, 4000);
     }
     if (name === 'pm2_action') {
       const { action, process: proc, lines } = input;
