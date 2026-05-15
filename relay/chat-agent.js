@@ -139,39 +139,55 @@ const CLAUDE_MD = (() => {
   catch (_) { return ''; }
 })();
 
-const SYSTEM_PROMPT = `Eres Claude Code en el servidor de producción vilar-desarrollo (143.198.228.78).
-Tienes herramientas para leer/escribir archivos, ejecutar bash y despachar tareas a agentes relay.
+const SYSTEM_PROMPT = `Eres un agente de desarrollo en el servidor de producción vilar-desarrollo (143.198.228.78).
+Modelo principal: DeepSeek V4-Pro. Visión (imágenes): Gemini Flash.
 
-Repo: ${REPO}
-Proyectos activos: fiscalai, fiscalai-front, coordinator, ai-monitor
-Archivos clave: relay/master.js (orquestador — proceso PM2 "relay-master"), relay/chat-agent.js (este bot), deploy/claude-proxy.js
+Repo base: ${REPO}
+Proyectos activos: fiscalai, fiscalai-front, coordinator, ai-monitor, flujos, finbot-coordinator
+
+HERRAMIENTAS DISPONIBLES:
+- bash(command, cwd?)          Ejecuta cualquier comando shell. Timeout 60s. Comandos destructivos piden confirmación al usuario.
+- read_file(path, offset?, limit?)  Lee un archivo con números de línea.
+- write_file(path, content)    Escribe/sobreescribe un archivo (crea directorios si no existen).
+- git_commit(repo, files[], message, branch?)  Hace git add + commit + push. Excluye .env y node_modules automáticamente.
+- pm2_action(action, process?, lines?)  Gestiona PM2: list/restart/start/stop/delete/logs/env. "restart all" pide confirmación.
+- github_create_repo(name, description?, private?)  Crea un repo en la org vilarkptl-lang. Devuelve clone URL.
+- dispatch_task(project, description)  Despacha una tarea al relay-master para un agente Claude Code.
+
+FLUJO PARA UN PROYECTO NUEVO (si ya tienes el repo clonado en el servidor):
+1. bash: ls /ruta/del/repo    # verificar que existe
+2. write_file: crear archivos de código
+3. bash: npm install --prefix /ruta/del/repo   # instalar dependencias
+4. git_commit: commitear los archivos creados
+5. pm2_action: restart el proceso si ya existe, o start si es nuevo
+   Para start: bash: pm2 start /ruta/del/repo/server.js --name mi-proyecto
+
+FLUJO PARA CREAR UN PROYECTO DESDE CERO:
+1. github_create_repo(name)    # crear repo en GitHub
+2. bash: git clone <clone_url> /ruta/destino
+3. write_file: crear archivos
+4. git_commit: primer commit
+5. pm2_action / bash: lanzar proceso
 
 ESTRUCTURA CRÍTICA — dos repos, no confundir:
 - vilarkptl-lang/agentic-repo  ← ESTE repo: relay, dashboard, financial/bot, chat-agent
   Ruta servidor: ${REPO}
-  Archivos: relay/master.js, relay/chat-agent.js, financial/bot/agents/, backend/, frontend/
-- vilarkptl-lang/ryby.lease    ← Repo fiscalai (SAT/PHP/Claude Code del proyecto fiscal)
+- vilarkptl-lang/ryby.lease    ← Repo fiscalai (SAT, facturas, PHP, Node fiscal)
   Ruta servidor: ${REPO}/relay/workspaces/fiscalai/
-  Solo usar ryby.lease para tareas de fiscalai (código SAT, facturas, PHP, Node fiscal)
 
-INICIO DE TAREA — OBLIGATORIO antes de cualquier cambio o plan:
-Ejecuta siempre este comando y muestra el output: bash: pwd && git -C "${REPO}" remote get-url origin && git -C "${REPO}" branch --show-current
-Si vas a crear un PR/issue/push: confirma primero a qué repo pertenece la tarea (agentic-repo vs ryby.lease).
+INICIO DE TAREA — si el usuario activa una sesión con /chat [proyecto], ya tienes el repo y branch.
+Si no, ejecuta: bash: pwd && git -C "${REPO}" remote get-url origin && git -C "${REPO}" branch --show-current
 
 REGLAS DE COMPORTAMIENTO:
-- Responde en español, directo al grano. SIN saludos, SIN listas de capacidades, SIN emojis.
-- Responde a la solicitud concreta. Si no hay tarea clara, pide aclaración en UNA línea.
+- Responde en el idioma del usuario. Directo al grano. Sin saludos, sin listas genéricas.
 - Lee un archivo antes de modificarlo. Lee solo lo necesario para la tarea.
 - Scope limitado: máximo 3 archivos por tarea. Si requiere más, divide y confirma.
-- Ante tareas abiertas o de exploración sin límite definido (ej: "revisa todo el código"),
-  pide al usuario que acote: ¿qué proyecto? ¿qué tipo de problema? No explores sin límite.
 - Commits: git add <archivos específicos>, NUNCA git add . ni add -A.
 - NUNCA commitees node_modules, .env, nohup.out, FETCH_HEAD.
-- Ante acciones destructivas (rm, reset --hard, drop table), confirma antes.
-- NUNCA afirmes que algo está implementado sin tener el output del tool call que lo confirma. Si no tienes confirmación, di "pendiente de verificar".
-- NUNCA afirmes que un branch "ya existe" o "ya tiene cambios" sin correr: git -C "${REPO}" log --oneline <branch> 2>&1
-- Para tareas de planificación ("genera un plan", "propón un approach", "escribe un doc"): máximo 3 tool calls — lee lo necesario, escribe el archivo, confirma. No explores más allá de lo pedido.
-- Antes de crear issues o PRs en GitHub, verifica el repo correcto ejecutando: bash: git -C "${REPO}" remote get-url origin
+- Comandos destructivos (rm -rf, git reset --hard, DROP TABLE, pm2 delete): el sistema pide confirmación al usuario automáticamente — NO necesitas pedir permiso antes, el middleware lo maneja.
+- NUNCA afirmes que algo está implementado sin tener el output del tool call que lo confirma.
+- Para npm install/pip install: usa la ruta absoluta: bash: npm install --prefix /ruta/del/repo
+- Para virtualenv Python: bash: python3 -m venv /ruta/del/repo/venv && source /ruta/del/repo/venv/bin/activate && pip install -r /ruta/del/repo/requirements.txt
 
 --- CLAUDE.md ---
 ${CLAUDE_MD}`.trim();
@@ -231,6 +247,32 @@ const TOOLS_ANTHROPIC = [
     },
   },
   {
+    name: 'pm2_action',
+    description: 'Manage PM2 processes: list status, restart, start, stop, view logs, inspect env. Dangerous actions (restart all, delete, kill) ask the user before executing.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        action:  { type: 'string', enum: ['list', 'restart', 'start', 'stop', 'delete', 'logs', 'env'], description: 'Action to perform' },
+        process: { type: 'string', description: 'Process name or ID (e.g. "relay-master", "9"). Required for restart/start/stop/delete/logs/env.' },
+        lines:   { type: 'number', description: 'Number of log lines for action=logs (default 50)' },
+      },
+      required: ['action'],
+    },
+  },
+  {
+    name: 'github_create_repo',
+    description: 'Create a new GitHub repository in the vilarkptl-lang organization. Returns clone URL.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        name:        { type: 'string', description: 'Repo name (e.g. "my-project")' },
+        description: { type: 'string', description: 'Repo description' },
+        private:     { type: 'boolean', description: 'Private repo? Default true' },
+      },
+      required: ['name'],
+    },
+  },
+  {
     name: 'dispatch_task',
     description: 'Send a task to a relay agent (writes inbox.md). Projects: fiscalai, fiscalai-front, coordinator, ai-monitor.',
     input_schema: {
@@ -259,16 +301,45 @@ const TOOLS_OPENAI = TOOLS_ANTHROPIC.map(t => ({
 // Claude never needs these; prompt injection or mistakes would be catastrophic.
 const BASH_DENYLIST = /(\brm\s+(-[^-\s]*f[^-\s]*|-[^-\s]*r[^-\s]*f|--force)\s+\/|\bdd\s+.*of=\/dev\/|\bmkfs\b|\bfdisk\b|\bshred\b|\bwipefs\b|>\s*\/dev\/sd[a-z]|:\(\)\s*\{.*\})/i;
 
+// Commands that need explicit user confirmation via Telegram before executing
+const CONFIRM_REQUIRED = /\brm\s+-[rRfF]+\s+\S|\bgit\s+(reset\s+--hard|push\s+--force|clean\s+-[fd])\b|\b(DROP|TRUNCATE)\s+(TABLE|DATABASE)\b|\bpm2\s+(restart\s+all|delete\b|kill\b)/i;
+
+const PENDING_CONFIRMS = new Map(); // token → { resolve, chatId, msgId }
+
+async function askConfirmation(chatId, command) {
+  const token = Math.random().toString(36).slice(2, 9);
+  const kb = new InlineKeyboard()
+    .text('✅ Ejecutar', `conf:y:${token}`)
+    .text('❌ Cancelar', `conf:n:${token}`);
+  const sent = await bot.api.sendMessage(chatId,
+    `⚠️ *Confirmación requerida*\n\nEl agente quiere ejecutar:\n\`\`\`\n${String(command).slice(0, 600)}\n\`\`\`\n¿Proceder?`,
+    { parse_mode: 'Markdown', reply_markup: kb },
+  );
+  return new Promise((resolve, reject) => {
+    PENDING_CONFIRMS.set(token, { resolve, chatId, msgId: sent.message_id });
+    setTimeout(() => {
+      if (!PENDING_CONFIRMS.has(token)) return;
+      PENDING_CONFIRMS.delete(token);
+      bot.api.editMessageText(chatId, sent.message_id, '⏰ Timeout — confirmación expiró. Operación cancelada.').catch(() => {});
+      reject(new Error('Timeout: el usuario no respondió en 2 minutos. Operación cancelada.'));
+    }, 120_000);
+  });
+}
+
 // ── Tool execution ────────────────────────────────────────────────────────────
-async function runTool(name, input, sessionDispatched = null) {
+async function runTool(name, input, sessionDispatched = null, chatId = null) {
   try {
     if (name === 'bash') {
       if (BASH_DENYLIST.test(input.command)) {
         return 'ERROR: Comando bloqueado (política de seguridad). Reformula sin operaciones destructivas de disco/partición.';
       }
+      if (CONFIRM_REQUIRED.test(input.command) && chatId) {
+        const ok = await askConfirmation(chatId, input.command);
+        if (!ok) return 'Operación cancelada por el usuario.';
+      }
       const out = execSync(input.command, {
         cwd:      input.cwd || REPO,
-        timeout:  30000,
+        timeout:  60000,
         encoding: 'utf8',
         stdio:    ['pipe', 'pipe', 'pipe'],
       });
@@ -295,6 +366,40 @@ async function runTool(name, input, sessionDispatched = null) {
       const pushTarget = branch ? `origin ${branch}` : '--set-upstream origin HEAD';
       const out = execSync(`git -C "${repo}" push ${pushTarget} 2>&1`, { encoding: 'utf8', timeout: 30000 });
       return `✅ Commit + push OK\n${out.slice(0, 500)}`;
+    }
+    if (name === 'pm2_action') {
+      const { action, process: proc, lines } = input;
+      const safe = (proc || '').replace(/[^a-zA-Z0-9_\-\.]/g, '');
+      if (action === 'list')    return execSync('pm2 jlist 2>/dev/null', { encoding: 'utf8', timeout: 10000 }).slice(0, 8000);
+      if (action === 'logs')    return execSync(`pm2 logs ${safe} --lines ${lines || 50} --nostream 2>&1`, { encoding: 'utf8', timeout: 15000 }).slice(0, 8000);
+      if (action === 'env')     return execSync(`pm2 env ${safe} 2>&1`, { encoding: 'utf8', timeout: 10000 }).slice(0, 4000);
+      if (!safe) return 'ERROR: se requiere "process" para esta acción.';
+      // restart / start / stop → confirm if process=all or action=delete/kill
+      const needsConfirm = safe === 'all' || action === 'delete' || action === 'kill';
+      if (needsConfirm && chatId) {
+        const ok = await askConfirmation(chatId, `pm2 ${action} ${safe}`);
+        if (!ok) return 'Cancelado por el usuario.';
+      }
+      const out = execSync(`pm2 ${action} ${safe} 2>&1`, { encoding: 'utf8', timeout: 20000 });
+      return out.slice(0, 4000) || '(sin salida)';
+    }
+    if (name === 'github_create_repo') {
+      const token = process.env.GITHUB_TOKEN;
+      if (!token) return 'ERROR: GITHUB_TOKEN no configurado en relay/.env';
+      const body = JSON.stringify({
+        name: input.name,
+        description: input.description || '',
+        private: input.private !== false,
+        auto_init: true,
+      });
+      const resp = await fetch('https://api.github.com/orgs/vilarkptl-lang/repos', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github+json' },
+        body,
+      });
+      const json = await resp.json().catch(() => ({}));
+      if (!resp.ok) return `ERROR ${resp.status}: ${json.message || JSON.stringify(json)}`;
+      return `Repo creado: ${json.html_url}\nClone: ${json.clone_url}\nSSH: ${json.ssh_url}`;
     }
     if (name === 'dispatch_task') {
       if (sessionDispatched && sessionDispatched.has(input.project)) {
@@ -437,7 +542,7 @@ async function callAnthropic(m, messages, ctx, onProgress, signal, anthropicClie
         });
         let result;
         try {
-          result = await runTool(t.name, t.input, sessionDispatched);
+          result = await runTool(t.name, t.input, sessionDispatched, ctx.chatId);
         } catch (toolErr) {
           result = `ERROR: ${toolErr.message || String(toolErr)}`;
         }
@@ -560,7 +665,7 @@ async function callDeepSeek(m, messages, ctx, onProgress, signal, oaiClient) { /
           tool_name: tc.function.name, tool_input_summary: inputSummary,
           project_name: ctx.projectName, api_provider: m.provider, agent_user: ctx.username,
         });
-        const result = await runTool(tc.function.name, input, sessionDispatched);
+        const result = await runTool(tc.function.name, input, sessionDispatched, ctx.chatId);
         apiPost('/api/events', {
           session_id: ctx.sessionId, event_type: 'post_tool',
           tool_name: tc.function.name, tool_response_summary: result.slice(0, 500),
@@ -666,7 +771,7 @@ async function callLiteLLMProxy(m, messages, ctx, onProgress, signal) {
           tool_name: tc.function.name, tool_input_summary: inputSummary,
           project_name: ctx.projectName, api_provider: 'litellm', agent_user: ctx.username,
         });
-        const result = await runTool(tc.function.name, input, sessionDispatched);
+        const result = await runTool(tc.function.name, input, sessionDispatched, ctx.chatId);
         apiPost('/api/events', {
           session_id: ctx.sessionId, event_type: 'post_tool',
           tool_name: tc.function.name, tool_response_summary: result.slice(0, 500),
@@ -991,6 +1096,24 @@ async function githubCreateRepo(repoName, isPrivate = true) {
   if (!resp.ok) throw new Error(data.message || `GitHub API error ${resp.status}`);
   return data.full_name; // e.g. "vilarkptl-lang/flujos-fiscalai"
 }
+
+// ── Confirmation callbacks (from askConfirmation) ─────────────────────────────
+bot.callbackQuery(/^conf:(y|n):([a-z0-9]+)$/, async (ctx) => {
+  await ctx.answerCallbackQuery();
+  const m = ctx.callbackQuery.data.match(/^conf:(y|n):([a-z0-9]+)$/);
+  if (!m) return;
+  const [, action, token] = m;
+  const pending = PENDING_CONFIRMS.get(token);
+  if (!pending) return ctx.reply('⚠️ Esta confirmación ya expiró o fue procesada.');
+  if (pending.chatId !== ctx.chat.id) return;
+  PENDING_CONFIRMS.delete(token);
+  const label = action === 'y' ? '✅ Aprobado — ejecutando...' : '❌ Cancelado por el usuario.';
+  await ctx.editMessageText(
+    (ctx.callbackQuery.message?.text || '') + `\n\n${label}`,
+    { parse_mode: 'Markdown' },
+  ).catch(() => {});
+  pending.resolve(action === 'y');
+});
 
 bot.callbackQuery(/^wiz:repo:(new|existing)$/, async (ctx) => {
   const threadId = effectiveThreadId(ctx.chat.id, ctx.callbackQuery.message?.message_thread_id ?? 0);
