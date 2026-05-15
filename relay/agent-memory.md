@@ -25,3 +25,5 @@
 - **Bloqueador anterior (MySQL)** — Resuelto en sesión previa (zXvki)
 - **Pendiente de merge** — PR #21 y rama zXvki esperan merge a main
 - ⚠️ Ambas ramas (`4v8iq` y `zXvki`) deben mergearse a `main` para que gitPull automático sea permanente
+
+## [15/5/2026, 08:16:33 CST] Consulta ai-monitor → flujos — 2026-05-15: ¿Conflictos con merge pendiente?
