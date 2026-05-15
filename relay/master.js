@@ -954,6 +954,49 @@ function callDeepSeekDirect(systemPrompt, userMessage, maxTokens = 512, useCompl
   });
 }
 
+// ─── DeepSeek tool-calling API (OpenAI-compat) ───────────
+// Used by runDeepSeekAgent for agentic tool-calling loops.
+function callDeepSeekWithTools(systemPrompt, messages, tools, model, maxTokens = 4096) {
+  const timeoutMs = 90000;
+  return new Promise((resolve, reject) => {
+    if (!DEEPSEEK_KEY) { reject(new Error('DEEPSEEK_API_KEY no configurado')); return; }
+    const body = JSON.stringify({
+      model: model || process.env.DEEPSEEK_PRO_MODEL || 'deepseek-chat',
+      max_tokens: maxTokens,
+      tools,
+      tool_choice: 'auto',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages,
+      ],
+    });
+    const req = https.request({
+      hostname: 'api.deepseek.com',
+      path:     '/v1/chat/completions',
+      method:   'POST',
+      headers: {
+        'Authorization':  `Bearer ${DEEPSEEK_KEY}`,
+        'Content-Type':   'application/json',
+        'Content-Length': Buffer.byteLength(body),
+      },
+    }, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          if (json.error) { reject(new Error(`DeepSeek: ${json.error.message?.slice(0, 200)}`)); return; }
+          resolve(json);
+        } catch (e) { reject(new Error(`DeepSeek parse: ${data.slice(0, 200)}`)); }
+      });
+    });
+    req.setTimeout(timeoutMs, () => { req.destroy(); reject(new Error('Timeout — api.deepseek.com')); });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
 // Append a timestamped entry to relay/journal.md in a project repo
 function journalEntryFile(repoPath, direction, summary) {
   const tsCst  = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
@@ -1914,6 +1957,244 @@ async function runDeepSeekCodeFix(project, taskContent, callback) {
   callback(1, failSummary, 0);
 }
 
+// ─── DeepSeek agentic runner ─────────────────────────────
+// Replaces Claude CLI for projects with mode:"deepseek-agent".
+// Runs DeepSeek V4-Pro in a tool-calling loop (bash, read_file, write_file, git_commit).
+// Same callback signature as runClaude: callback(exitCode, resultText, costUsd).
+async function runDeepSeekAgent(project, taskContent, callback, dispatchMeta = {}) {
+  const startTime   = Date.now();
+  const repoBase    = project.repo || '/var/www/html';
+  const branch      = project.branch || 'main';
+  const MAX_TURNS   = 25;
+  const TOOL_TIMEOUT_MS = 45000;
+  const BASH_DENY   = /rm\s+-rf\s+\/(?!tmp|var\/www\/html\/vilarkptl|home)|DROP\s+TABLE\s|TRUNCATE\s+TABLE\s|git\s+push\s+--force|git\s+reset\s+--hard\s+origin/i;
+
+  const DS_TOOLS = [
+    {
+      type: 'function',
+      function: {
+        name: 'bash',
+        description: 'Run a shell command on the server. Returns stdout+stderr (max 5000 chars).',
+        parameters: {
+          type: 'object',
+          properties: {
+            command: { type: 'string', description: 'Shell command. Working dir is project repo.' },
+          },
+          required: ['command'],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'read_file',
+        description: 'Read a file from disk. Returns up to 10000 chars.',
+        parameters: {
+          type: 'object',
+          properties: {
+            path: { type: 'string', description: 'Absolute path or path relative to project repo.' },
+          },
+          required: ['path'],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'write_file',
+        description: 'Write content to a file. Creates parent directories if needed.',
+        parameters: {
+          type: 'object',
+          properties: {
+            path:    { type: 'string', description: 'File path (absolute or relative to repo).' },
+            content: { type: 'string', description: 'Full file content.' },
+          },
+          required: ['path', 'content'],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'git_commit',
+        description: 'Stage specific files, commit, and push to the project branch.',
+        parameters: {
+          type: 'object',
+          properties: {
+            files:   { type: 'array',   items: { type: 'string' }, description: 'Files to stage (relative to repo).' },
+            message: { type: 'string',  description: 'Commit message.' },
+            push:    { type: 'boolean', description: 'Push after commit (default: true).' },
+          },
+          required: ['files', 'message'],
+        },
+      },
+    },
+  ];
+
+  const agentCtx  = loadAgentContext(project.id, project.url);
+  const agentMem  = loadAgentMemory(project.repo);
+  const agentPlan = loadProjectPlan(project.id);
+
+  const systemPrompt = agentCtx
+    ? `${agentCtx}${agentPlan}${agentMem}`
+    : `Eres el agente de ejecución para el proyecto "${project.name}".
+Repo: ${repoBase} | Branch: ${branch}
+URL: ${project.url || 'N/A'}
+
+Usa las herramientas para completar la tarea. Al terminar responde EXACTAMENTE:
+## Resultados
+✅/❌ [acción] — [archivo o evidencia]
+
+## Issues
+- [solo si hay algo pendiente]
+
+STATUS: done|partial|blocked
+CHANGED: archivo1, archivo2 (o "ninguno")
+DEPLOYED: yes|no
+PENDING: descripción (o "ninguno")
+USER_REQUIRED: no${agentPlan}${agentMem}`;
+
+  const messages = [{ role: 'user', content: taskContent }];
+  const model     = process.env.DEEPSEEK_PRO_MODEL || 'deepseek-chat';
+  let toolCallCount = 0;
+  let resultText    = '';
+  let taskCostUsd   = 0;
+  let lastToolName  = null;
+
+  const taskId    = dispatchMeta.id    || `relay-${project.id}-${Date.now()}`;
+  const taskDepth = dispatchMeta.depth ?? 0;
+  const sessionId = `relay-ds-${project.id}-${Date.now()}`;
+
+  // Heartbeat so Telegram knows we're alive
+  const taskTitle = taskContent.split('\n').find(l => /^#{1,3} /.test(l))
+    ?.replace(/^#+ /, '').slice(0, 60) || project.name;
+  const runStart  = Date.now();
+  const heartbeat = setInterval(() => {
+    const elapsedMin = Math.round((Date.now() - runStart) / 60000);
+    tg(`⏳ <b>DeepSeek agent — ${project.name}</b>
+🗂 <code>${taskTitle}</code>
+⏱ ${elapsedMin} min | 🔧 ${toolCallCount} herramientas
+Última: <code>${lastToolName || 'iniciando…'}</code>`);
+  }, RUNNING_WARN_MS);
+
+  const agentTimeout = setTimeout(() => {
+    clearInterval(heartbeat);
+    if (!resultText) resultText = `## Resultados\n⏰ Timeout deepseek-agent (${Math.round(CLAUDE_TIMEOUT_MS / 60000)}min)\n\nSTATUS: partial\nCHANGED: ninguno\nDEPLOYED: no`;
+    callback(1, resultText, taskCostUsd);
+  }, CLAUDE_TIMEOUT_MS);
+
+  try {
+    for (let turn = 0; turn < MAX_TURNS; turn++) {
+      let response;
+      try {
+        response = await callDeepSeekWithTools(systemPrompt, messages, DS_TOOLS, model, 4096);
+      } catch (e) {
+        log(project.id, `[deepseek-agent] API error turn ${turn}: ${e.message?.slice(0, 150)}`);
+        resultText = `## Resultados\n❌ DeepSeek API error: ${e.message?.slice(0, 200)}\n\n## Acceso\n- api_keys: ❌ DEEPSEEK_API_KEY\n\nSTATUS: blocked\nCHANGED: ninguno\nDEPLOYED: no`;
+        break;
+      }
+
+      if (response.usage) {
+        taskCostUsd += ((response.usage.prompt_tokens || 0) * 0.00014 + (response.usage.completion_tokens || 0) * 0.00028) / 1000;
+      }
+
+      const msg = response.choices?.[0]?.message;
+      if (!msg) { log(project.id, `[deepseek-agent] empty message turn ${turn}`); break; }
+
+      messages.push(msg);
+
+      if (!msg.tool_calls || !msg.tool_calls.length) {
+        resultText = msg.content || `## Resultados\n✅ Agente completó (${toolCallCount} herramientas)\n\nSTATUS: done\nCHANGED: ninguno\nDEPLOYED: no`;
+        log(project.id, `[deepseek-agent] done: turn ${turn}, ${toolCallCount} tools, $${taskCostUsd.toFixed(6)}`);
+        break;
+      }
+
+      // Execute tool calls
+      const toolResults = [];
+      for (const tc of msg.tool_calls) {
+        toolCallCount++;
+        const name = tc.function.name;
+        lastToolName = name;
+        let input = {};
+        try { input = JSON.parse(tc.function.arguments || '{}'); } catch (_) {}
+
+        log(project.id, `[deepseek-agent] tool[${turn}]: ${name} — ${JSON.stringify(input).slice(0, 100)}`);
+        postEvent({
+          session_id:         sessionId,
+          event_type:         'pre_tool',
+          tool_name:          name,
+          tool_input_summary: JSON.stringify(input).slice(0, 300),
+          timestamp:          new Date().toISOString(),
+          project_name:       project.name,
+          api_provider:       'deepseek',
+          agent_user:         CLAUDE_USER,
+          working_dir:        repoBase,
+        });
+
+        let output = '';
+        try {
+          if (name === 'bash') {
+            const cmd = (input.command || '').trim();
+            if (BASH_DENY.test(cmd)) {
+              output = 'ERROR: Comando bloqueado por política de seguridad.';
+            } else {
+              const res = execSync(cmd, {
+                cwd:     repoBase,
+                timeout: TOOL_TIMEOUT_MS,
+                stdio:   'pipe',
+                env:     { ...process.env },
+              });
+              output = res.toString().slice(0, 5000) || '(sin output)';
+            }
+          } else if (name === 'read_file') {
+            const fpath = path.isAbsolute(input.path || '')
+              ? input.path : path.join(repoBase, input.path || '');
+            output = fs.readFileSync(fpath, 'utf8').slice(0, 10000);
+          } else if (name === 'write_file') {
+            const fpath = path.isAbsolute(input.path || '')
+              ? input.path : path.join(repoBase, input.path || '');
+            fs.mkdirSync(path.dirname(fpath), { recursive: true });
+            fs.writeFileSync(fpath, input.content || '');
+            output = `OK: escrito ${fpath}`;
+          } else if (name === 'git_commit') {
+            const files    = (input.files || []).map(f => `"${f.replace(/"/g, '\\"')}"`).join(' ');
+            const commitMsg = (input.message || 'fix').replace(/'/g, '"').slice(0, 200);
+            const shouldPush = input.push !== false;
+            const pushPart   = shouldPush ? ` && git push origin ${branch} --quiet` : '';
+            if (!files.trim()) { output = 'ERROR: no files specified'; }
+            else {
+              const res = execSync(
+                `cd ${repoBase} && git add ${files} && git diff --cached --quiet || (git commit -m '${commitMsg}' --quiet${pushPart})`,
+                { timeout: 45000, stdio: 'pipe' }
+              );
+              output = `OK: ${res.toString().trim() || 'committed'}`;
+            }
+          } else {
+            output = `ERROR: herramienta desconocida "${name}"`;
+          }
+        } catch (e) {
+          output = `ERROR: ${e.message?.slice(0, 500)}`;
+        }
+
+        toolResults.push({ role: 'tool', tool_call_id: tc.id, content: output });
+      }
+
+      messages.push(...toolResults);
+    }
+
+    if (!resultText) {
+      resultText = `## Resultados\n⚠️ Agente alcanzó límite de ${MAX_TURNS} turnos sin respuesta final\n\nSTATUS: partial\nCHANGED: ninguno\nDEPLOYED: no`;
+    }
+  } finally {
+    clearTimeout(agentTimeout);
+    clearInterval(heartbeat);
+  }
+
+  const duration = Math.round((Date.now() - startTime) / 1000);
+  log(project.id, `[deepseek-agent] completado: ${duration}s, ${toolCallCount} tools, $${taskCostUsd.toFixed(6)}`);
+  callback(0, resultText.trim(), taskCostUsd);
+}
+
 // ─── Pre-push commit safety validation ───────────────────
 const DANGEROUS_PATTERNS = [/^node_modules\//, /\.env$/, /\.env\./, /^nohup\.out$/, /^FETCH_HEAD$/];
 
@@ -2413,7 +2694,7 @@ $${planCostSoFar.toFixed(4)} gastado de $${budgetMax.toFixed(2)}`);
     log(project.id, `adaptive timeout: ${Math.round(adaptiveTimeout / 60000)}min (${journal.consecutive_failures} fallos previos)`);
   }
 
-  runClaude(project, taskContent, (exitCode, resultRaw, costUsd = 0) => {
+  function onTaskComplete(exitCode, resultRaw, costUsd = 0) {
     releaseLock(project.id);
     const duration  = Math.round((Date.now() - startTime) / 1000);
     const timestamp = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
@@ -2659,23 +2940,33 @@ La tarea se interrumpió por timeout (${Math.round(CLAUDE_TIMEOUT_MS / 60000)} m
       tg(`🆘 <b>Acción requerida — ${project.name}</b>\n🗂 ${title}\n<code>${intMsg.slice(0, 800)}</code>`);
     }
 
-    // ── Screenshots ───────────────────────────────────────
-    if (verifyUrls.length) {
+    // ── Visual check or basic screenshot ─────────────────
+    // When DEPLOYED:yes + verify URLs present: use visual-check.js (Gemini Flash analysis,
+    // iterative fix loop, annotated screenshot). Otherwise take a basic Chromium screenshot.
+    const vcIterMatch    = title.match(/intento\s*(\d+)\s*\/\s*3/i);
+    const vcIteration    = vcIterMatch ? parseInt(vcIterMatch[1]) - 1 : 0;
+    const vcCriteria     = criteriaItems.length
+      ? criteriaItems.map(l => l.replace(/^[-•*[\] ]+/, '').replace(/https?:\/\/\S+/g, '').trim()).filter(Boolean).join('; ')
+      : null;
+    const willRunVisualCheck = structured.deployed === 'yes'
+      && verifyUrls.length > 0
+      && !needsHuman
+      && !isTimeout;
+
+    if (willRunVisualCheck) {
+      runVisualCheckOnce(project, title, verifyUrls, vcCriteria, vcIteration);
+    } else if (verifyUrls.length) {
       const shotDir = path.join(__dirname, '..', 'frontend', 'screenshots');
       try { fs.mkdirSync(shotDir, { recursive: true }); } catch (_) {}
-
       verifyUrls.forEach(verifyUrl => {
         const filename = `${project.id}-${Date.now()}.png`;
         const shotPath = path.join(shotDir, filename);
         screenshot(verifyUrl, shotPath, (filePath) => {
           if (filePath) {
             tgPhoto(filePath, `📸 ${project.name}\n${verifyUrl}`);
-            // Notify dashboard (socket.io broadcast via monitor API)
             postToMonitor('/api/screenshots/new', {
-              filename,
-              project_id: project.id,
-              url:        `/screenshots/${filename}`,
-              verify_url: verifyUrl,
+              filename, project_id: project.id,
+              url: `/screenshots/${filename}`, verify_url: verifyUrl,
             });
           } else {
             tg(`📸 <b>Screenshot</b> — ${project.name}\n🔗 ${verifyUrl}`);
@@ -2685,7 +2976,104 @@ La tarea se interrumpió por timeout (${Math.round(CLAUDE_TIMEOUT_MS / 60000)} m
     }
 
     log(project.id, `Completado (exit:${exitCode}, ${duration}s)`);
-  }, activeDM, adaptiveTimeout);
+  }
+
+  // ── Choose execution engine ───────────────────────────
+  const execEngine = project.mode || 'claude';
+  if (execEngine === 'deepseek-agent') {
+    log(project.id, `Motor: deepseek-agent (DeepSeek V4-Pro tool loop)`);
+    runDeepSeekAgent(project, taskContent, onTaskComplete, activeDM);
+  } else {
+    runClaude(project, taskContent, onTaskComplete, activeDM, adaptiveTimeout);
+  }
+}
+
+// ─── Post-deploy visual check (Gemini Flash) ─────────────
+// Called non-blocking after DEPLOYED:yes. Runs visual-check.js, sends photo + verdict.
+// If NECESITA_CORRECCIÓN and iteration < 2 → writes corrective task to project.inbox.
+// Iteration tracking is embedded in task title: "Corrección visual (intento N/3)".
+function runVisualCheckOnce(project, taskTitle, verifyUrls, taskCriteria, currentIteration) {
+  if (!verifyUrls.length) return;
+  const MAX_ITER  = 3;
+  const url       = verifyUrls[0];
+  const vcScript  = path.join(__dirname, 'visual-check.js');
+  if (!fs.existsSync(vcScript)) {
+    log(project.id, 'visual-check.js no encontrado — saltando visual check');
+    return;
+  }
+
+  tg(`🔍 <b>Verificando visual — ${project.name}</b>\n🔗 ${url}\nEjecutando análisis Gemini Flash…`);
+
+  const criteria = (taskCriteria || 'página carga sin errores, nav visible, datos cargan')
+    .replace(/"/g, "'").replace(/\n/g, ' ').slice(0, 400);
+  const safeUrl  = url.replace(/"/g, '\\"');
+
+  exec(`node "${vcScript}" "${safeUrl}" "${criteria}" 5000`, { timeout: 75000 }, (err, stdout) => {
+    let vcResult;
+    try { vcResult = JSON.parse(stdout || ''); } catch (_) {}
+
+    if (!vcResult) {
+      const errMsg = err?.message?.slice(0, 200) || stdout?.slice(0, 200) || 'sin output';
+      log(project.id, `visual-check error: ${errMsg}`);
+      tg(`⚠️ <b>Visual check error — ${project.name}</b>\n<code>${errMsg}</code>`);
+      return;
+    }
+
+    if (vcResult.screenshot && fs.existsSync(vcResult.screenshot)) {
+      const icon = vcResult.passed ? '✅' : '⚠️';
+      tgPhoto(vcResult.screenshot,
+        `${icon} Visual check (${currentIteration + 1}/${MAX_ITER}) — ${project.name}\n${vcResult.verdict}\n${url}`);
+    }
+
+    if (vcResult.passed) {
+      tg(`✅ <b>Visual APROBADO — ${project.name}</b>\n🔗 ${url}`);
+      return;
+    }
+
+    const issues  = (vcResult.issues  || []).filter(Boolean).slice(0, 5).join('\n- ') || '(ver análisis)';
+    const actions = (vcResult.actions_needed || []).filter(Boolean).slice(0, 5).join('\n- ') || 'Sin acciones';
+
+    if (currentIteration >= MAX_ITER - 1) {
+      tg(`⚠️ <b>Visual falló (${MAX_ITER} intentos) — ${project.name}</b>
+🔗 ${url}
+
+<b>Issues:</b>
+<code>- ${issues}</code>
+Requiere revisión manual.`);
+      return;
+    }
+
+    const nextIter      = currentIteration + 2;  // convert: 0-indexed current +1 for human label +1 for next
+    const correctiveTask =
+      `## Corrección visual (intento ${nextIter}/${MAX_ITER}) — ${taskTitle}\n\n` +
+      `La verificación visual automática detectó problemas tras el último deploy.\n\n` +
+      `**URL verificada**: ${url}\n\n` +
+      `**Problemas detectados:**\n- ${issues}\n\n` +
+      `**Acciones sugeridas:**\n- ${actions}\n\n` +
+      `Corrige los issues, haz deploy y responde con el formato de outbox estándar.\n` +
+      `Incluye \`DEPLOYED: yes\` para que se vuelva a verificar automáticamente.`;
+
+    if (project.inbox) {
+      try {
+        fs.writeFileSync(project.inbox, correctiveTask);
+        const h = loadHashes(); delete h[project.id]; saveHashes(h);
+        if (project.repo && project.branch) {
+          gitPushInbox(project.repo, project.branch, project.inbox,
+            `vc-fix-${nextIter}-${Date.now()}`, correctiveTask);
+        }
+        tg(`🔄 <b>NECESITA_CORRECCIÓN (${currentIteration + 1}/${MAX_ITER}) — ${project.name}</b>
+🔗 ${url}
+
+<b>Issues:</b>
+<code>- ${issues}</code>
+
+Despachando corrección automática…`);
+        log(project.id, `visual-check: corrective dispatch ${nextIter}/${MAX_ITER} escrito en inbox`);
+      } catch (e) {
+        log(project.id, `visual-check: inbox write falló: ${e.message?.slice(0, 100)}`);
+      }
+    }
+  });
 }
 
 // ─── Connectivity diagnostic for buzon handler ───────────
