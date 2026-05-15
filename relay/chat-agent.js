@@ -217,6 +217,20 @@ const TOOLS_ANTHROPIC = [
     },
   },
   {
+    name: 'git_commit',
+    description: 'Stage specific files, commit and push to a git repo. Skips .env and node_modules automatically. Use after write_file to persist changes to GitHub.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        repo:    { type: 'string', description: 'Absolute path to the git repo root' },
+        files:   { type: 'array', items: { type: 'string' }, description: 'Files to stage, relative to repo root (e.g. ["src/index.js", "package.json"])' },
+        message: { type: 'string', description: 'Commit message' },
+        branch:  { type: 'string', description: 'Branch to push to (default: current branch)' },
+      },
+      required: ['repo', 'files', 'message'],
+    },
+  },
+  {
     name: 'dispatch_task',
     description: 'Send a task to a relay agent (writes inbox.md). Projects: fiscalai, fiscalai-front, coordinator, ai-monitor.',
     input_schema: {
@@ -270,6 +284,17 @@ async function runTool(name, input, sessionDispatched = null) {
       fs.mkdirSync(path.dirname(input.path), { recursive: true });
       fs.writeFileSync(input.path, input.content, 'utf8');
       return `Escrito: ${input.path} (${input.content.length} bytes)`;
+    }
+    if (name === 'git_commit') {
+      const { repo, files, message, branch } = input;
+      const BLOCKED = /\.(env|key|pem|p12)$|node_modules[\\/]|\.git[\\/]/;
+      const safe = (files || []).filter(f => !BLOCKED.test(f));
+      if (!safe.length) return 'ERROR: No hay archivos válidos para commitear (se excluyen .env, node_modules, .git).';
+      execSync(`git -C "${repo}" add ${safe.map(f => `"${f}"`).join(' ')}`, { encoding: 'utf8', timeout: 10000 });
+      execSync(`git -C "${repo}" commit -m ${JSON.stringify(message)}`, { encoding: 'utf8', timeout: 10000 });
+      const pushTarget = branch ? `origin ${branch}` : '--set-upstream origin HEAD';
+      const out = execSync(`git -C "${repo}" push ${pushTarget} 2>&1`, { encoding: 'utf8', timeout: 30000 });
+      return `✅ Commit + push OK\n${out.slice(0, 500)}`;
     }
     if (name === 'dispatch_task') {
       if (sessionDispatched && sessionDispatched.has(input.project)) {
@@ -907,7 +932,7 @@ async function executeProjectCreation(data, ctx, threadId) {
     claude_model:      modelId,
     claude_model_fast: 'claude-haiku-4-5-20251001',
     deepseek_model:    'pro',
-    use_cli_proxy:     true,
+    use_cli_proxy:     false,
     inbox,
     outbox,
     repo:   repoPath,
@@ -1121,8 +1146,11 @@ function buildSystemBlocks(chatId) {
 // String variant used by DeepSeek / Gemini (OpenAI-compat system is a plain string)
 function buildSystemPrompt(chatId) {
   const sctx = SESSION_CONTEXT.get(chatId);
-  if (!sctx?.claudeMd) return SYSTEM_PROMPT;
-  return `${SYSTEM_PROMPT}\n\n--- CLAUDE.md (${sctx.projectId}) ---\n${sctx.claudeMd}`;
+  if (!sctx) return SYSTEM_PROMPT;
+  let extra = '';
+  if (sctx.claudeMd) extra += `\n\n--- CLAUDE.md (${sctx.projectId}) ---\n${sctx.claudeMd}`;
+  if (sctx.repoPath) extra += `\n\nProyecto activo: ${sctx.projectId}\nRepo: ${sctx.repoPath}\nBranch: ${sctx.branch || 'main'}\n\nUsa las herramientas bash, read_file, write_file y git_commit con las rutas de este repo para hacer cambios directamente.`;
+  return extra ? `${SYSTEM_PROMPT}${extra}` : SYSTEM_PROMPT;
 }
 
 // ── Semantic memory compaction ─────────────────────────────────────────────────
@@ -1444,9 +1472,15 @@ bot.on('message:text', async (ctx) => {
     const matchedProject = PROJECTS_LIST.find(p => p.id === name || p.name?.toLowerCase() === name.toLowerCase());
     if (matchedProject) {
       const claudeMd = getProjectClaudeMd(matchedProject.id);
-      SESSION_CONTEXT.set(ctx.chat.id, { projectId: matchedProject.id, claudeMd });
+      SESSION_CONTEXT.set(ctx.chat.id, {
+        projectId: matchedProject.id,
+        claudeMd,
+        repoPath:  matchedProject.repo   || null,
+        branch:    matchedProject.branch || 'main',
+      });
       const ctxNote = claudeMd ? ` · contexto de ${matchedProject.id} cargado` : '';
-      return ctx.reply(`✅ Sesión *${name}* activada${ctxNote}.`, { parse_mode: 'Markdown', ...topicOpts(threadId) });
+      const repoNote = matchedProject.repo ? ` · repo: \`${matchedProject.repo}\`` : '';
+      return ctx.reply(`✅ Sesión *${name}* activada${ctxNote}${repoNote}.`, { parse_mode: 'Markdown', ...topicOpts(threadId) });
     }
 
     // Clear project context when switching to a non-project session
