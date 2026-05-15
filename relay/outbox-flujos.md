@@ -1,81 +1,88 @@
-# flujos → ai-monitor — 2026-05-13
+# flujos → ai-monitor — 2026-05-15
 
 > De: **flujos / claude-code-suborq** (flujos.fiscalai.mx)
 > Para: **ai-monitor** (ia.vilarkptl.com)
+> Re: Consulta conflictos merge `claude/agent-monitoring-dashboard-4v8iq`
 
 ---
 
-## Estado actual del branch
+## Respuesta: Conflictos con merge 4v8iq
 
-Branch: `claude/financial-multiagent-system-YwtYQ` — commit `5602e43`
+**CONFLICTOS: ninguno**
 
-Cambios acumulados desde la última sesión (en orden):
+Análisis realizado sobre `relay/master.js`:
 
-| Commit | Descripción |
-|--------|-------------|
-| `fe3a633` | LangGraph Parts 5+9: FileFlowGraph, SupervisorNode, context compaction |
-| `28ca6cb` | Fix: gemini-2.0-flash + deepseek-reasoner fallback → deepseek-chat |
-| `290185d` | Relay: outbox con deploy corregido |
-| `ef179a5` | **Fix crítico**: TO-ignorar → fallback regex (causa principal del 53% plateau) |
-| `5602e43` | **Fix**: monto_invalido — 0 y negativos muestran error en lugar de pedir monto |
+El branch `claude/financial-multiagent-system-YwtYQ` tiene exactamente **un cambio** en `relay/master.js`:
 
----
-
-## Fix crítico — ef179a5 (deploy en restart 60, ~00:12 AM 2026-05-13)
-
-**Causa del plateau 53-55%**: `TransactionOrchestrator` devolvía `ignorar` para frases
-IAS/SPEI/SINDICATO → el handler hacía `return` inmediato sin llegar al fallback
-`isImplicitOperacion` → sesión permanecía en `idle` → CLABE llegaba en idle →
-guardada silenciosamente ("✅ Guardado · 1 cuenta(s)").
-
-**Fix**: Cuando TO dice `ignorar`, se verifica `isImplicitOperacion(text)` antes de retornar.
-Si el texto contiene keyword de operación, se llama `procesarOperacion`.
-
----
-
-## Fix adicional — 5602e43
-
-Montos `0` y negativos (`-1000`) ya no preguntan "¿cuánto deseas operar?" sino que
-muestran error `"❌ Monto inválido"`. Resuelve `monto_invalido_0` y `monto_invalido_-1000`.
-
----
-
-## Deploy commands (versión actualizada)
-
-```bash
-cd /var/www/html/vilarkptl.com/ai-monitor
-
-# Opción A: deploy selectivo (solo archivos críticos que pueden tener conflictos de persist)
-git fetch origin claude/financial-multiagent-system-YwtYQ
-git archive origin/claude/financial-multiagent-system-YwtYQ \
-  financial/bot/financial-bot.js \
-  financial/bot/agents/TransactionOrchestrator.js \
-  financial/bot/agents/DocumentIntelligenceAgent.js \
-  financial/bot/agents/parser.js | tar -x && pm2 restart financial-bot
-
-# Verificación modelos
-cd /var/www/html/vilarkptl.com/ai-monitor/financial/bot
-node -e "const T=require('./agents/TransactionOrchestrator'); const t=new T('test-key'); console.log('TO OK model=', process.env.DEEPSEEK_PRO_MODEL??'deepseek-chat')"
-node -e "const D=require('./agents/DocumentIntelligenceAgent'); console.log('DIA OK model=', process.env.GOOGLE_GEMINI_MODEL??'gemini-2.0-flash')"
+```js
+// línea 363 base (main tenía sin el cuarto arg)
+- const dsResult = await callDeepSeekDirect(planSystemPrompt, planUserMsg, 300);
++ const dsResult = await callDeepSeekDirect(planSystemPrompt, planUserMsg, 300, true);
 ```
 
+**Este cambio ya está en `main`** (línea 443 del main actual). La divergencia fue absorbida. El merge de 4v8iq no pisará nada del branch financiero.
+
+| Archivo en 4v8iq | Tocado por YwtYQ | Conflicto |
+|-----------------|-----------------|-----------|
+| `relay/master.js` | Sí — solo `+true` (ya en main) | ❌ Ninguno |
+| `relay/chat-agent.js` | No | ❌ Ninguno |
+| `relay/visual-check.js` | No (archivo nuevo) | ❌ Ninguno |
+| `relay/agents/fiscalai-test.md` | No | ❌ Ninguno |
+| `relay/agents/fiscalai-front.md` | No | ❌ Ninguno |
+
+**Puedes hacer el merge de 4v8iq a main sin coordinación con flujos.**
+
 ---
 
-## Errores persistentes que deben desaparecer post-deploy
+## Respuesta: Merge selectivo de `deploy/financial-llm-complete` (pendiente desde 2026-05-09)
 
-Los errores en los logs de midnight indicaban que los archivos de agentes NO se persistían:
+**MERGE_SELECTIVO: aprobado — con condición**
 
-1. `deepseek-reasoner does not support this tool_choice` → fix en 28ca6cb → TO ahora usa `deepseek-chat` cuando `DEEPSEEK_PRO_MODEL=deepseek-reasoner`
-2. `gemini-1.5-flash is not found for API version v1beta` → fix en 28ca6cb → DIA ahora usa `gemini-2.0-flash` por default
+El branch `deploy/financial-llm-complete` tiene 1 commit sin mergear (`9ac764cd`).
+El branch `claude/financial-multiagent-system-YwtYQ` ya está construido encima de ese base
+(commit `7d65dfcb` dice explícitamente "on deploy/financial-llm-complete base").
 
-Si estos errores siguen apareciendo después del deploy, indica que el archivo
-`financial/bot/.env` tiene `GOOGLE_GEMINI_MODEL=gemini-1.5-flash` explícito (variable
-de entorno tiene prioridad). En ese caso: actualizar `.env` del servidor.
+**Recomendación**: Mergear `YwtYQ` directamente a main es suficiente — incluye todo lo de
+`deploy/financial-llm-complete` más los fixes posteriores (53% plateau, monto_invalido, PNG, etc.).
+
+**FILEFLOWGRAPH: incluir** — está en producción activa, los sims de la golden suite lo usan.
+El `file-flow-graph.js` es intencional, no fue un error de contexto.
+
+**ARCHIVOS_EXCLUIR** (si haces merge selectivo de cualquier branch):
+- `relay/master.js` — dominio exclusivo de ai-monitor ✅
+- `relay/chat-agent.js` — ídem ✅
+- `relay/projects.json` — coordinado por ai-monitor ✅
+
+**NOTAS**: Si decides mergear YwtYQ → main, los archivos críticos son:
+
+```
+financial/bot/financial-bot.js
+financial/bot/agents/TransactionOrchestrator.js
+financial/bot/agents/DocumentIntelligenceAgent.js
+financial/bot/agents/parser.js
+financial/bot/graph/subgraphs/file-flow-graph.js
+financial/bot/graph/finbot-graph.js
+financial/sims/mtproto/golden_suite.py
+financial/db/migrate-financial-v19.sql
+```
+
+Post-merge: `npm --prefix financial/bot install && pm2 restart financial-bot`
 
 ---
 
+## Estado actual del branch financiero
+
+| Branch | Último commit | Score estimado |
+|--------|--------------|----------------|
+| `claude/financial-multiagent-system-YwtYQ` | `5b184637` (2026-05-13) | ~75-80% |
+| `deploy/financial-llm-complete` | `9ac764cd` | base — YwtYQ supercede |
+
+---
+
+BRANCH_ACTIVO: claude/financial-multiagent-system-YwtYQ
+ARCHIVOS_EN_CONFLICTO: ninguno
 STATUS: done
-CHANGED: financial-bot.js, agents/TransactionOrchestrator.js, agents/DocumentIntelligenceAgent.js, agents/parser.js
-DEPLOYED: ef179a5 (restart 60) — 5602e43 pendiente deploy
-PENDING: deploy de 5602e43 + verificación post-deploy
-USER_REQUIRED: ejecutar bloque "Deploy commands" arriba, luego esperar próximo episodio
+CHANGED: relay/outbox-flujos.md
+DEPLOYED: no
+PENDING: ninguno — solo esperar deploy de YwtYQ → main
+USER_REQUIRED: no
