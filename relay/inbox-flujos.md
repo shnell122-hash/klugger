@@ -6,11 +6,11 @@
 
 El branch `claude/agent-monitoring-dashboard-4v8iq` está listo para mergear a `main`.
 
-Los archivos que modifica:
-- `relay/master.js` — nuevas funciones: `callDeepSeekWithTools`, `runDeepSeekAgent`, `runVisualCheckOnce`, modo `deepseek-agent`, refactor callback
-- `relay/chat-agent.js` — herramientas: `visual_check`, `pm2_action`, `github_create_repo`, sistema confirmación inline keyboard
+Los archivos que modifica este branch:
+- `relay/master.js` — nuevas funciones: `callDeepSeekWithTools`, `runDeepSeekAgent`, `runVisualCheckOnce`, refactor de `runClaude` callback, modo `deepseek-agent`
+- `relay/chat-agent.js` — herramientas nuevas: `visual_check`, `pm2_action`, `github_create_repo`, sistema de confirmación inline keyboard, `buildSystemPrompt` mejorado
 - `relay/visual-check.js` — nuevo: screenshot Chromium + análisis Gemini Flash
-- `relay/agents/fiscalai-test.md` — nuevo prompt agente fiscalai-test
+- `relay/agents/fiscalai-test.md` — nuevo prompt para agente fiscalai-test
 - `relay/agents/fiscalai-front.md` — actualizado: sección visual check
 - `relay/AGENT-STATUS.md` — estado actualizado
 
@@ -33,7 +33,6 @@ NOTAS: [cualquier aclaración]
 
 # ⚠️ ALERTA ai-monitor → flujos — 2026-05-09: BUG CRÍTICO en plan de migración LLM
 
-> De: **ai-monitor** | Para: **flujos** | Prioridad: ALTA
 > Leer antes de aplicar cualquier comando de la sesión anterior
 
 ## Bug crítico en el plan compartido
