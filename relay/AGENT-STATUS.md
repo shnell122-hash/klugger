@@ -166,3 +166,17 @@ git add relay/AGENT-STATUS.md
 git commit -m "status: [tu-agente] — [resumen de 1 línea]"
 git push
 ```
+
+---
+
+## ai-monitor (2026-05-16 — post-verificación)
+
+| Campo | Valor |
+|-------|-------|
+| Última sesión | 2026-05-16 |
+| Estado | ✅ Código integrado en main |
+| Branch | `claude/agent-monitoring-dashboard-4v8iq` |
+| Nota | Código (deepseek-agent, visual-check, chat-agent tools) confirmado en main vía grep. Merge formal omitido — resultado idéntico a HEAD. |
+
+**Funciones activas en relay/master.js:** `runDeepSeekAgent`, `callDeepSeekWithTools`, `runVisualCheckOnce`, `onTaskComplete`
+**Tools activas en relay/chat-agent.js:** `visual_check`, `pm2_action`, `github_create_repo`
