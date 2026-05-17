@@ -41,6 +41,21 @@ const DISPATCH_FILE   = process.env.DISPATCH_FILE ||
 const HASHES_FILE     = `/tmp/relay-master-hashes-${process.getuid?.() ?? 'x'}.json`;
 // Separate file for buzon hashes — prevents inbox saveHashes() from wiping buzon state
 const BUZON_HASHES_FILE = `/tmp/relay-buzon-hashes-${process.getuid?.() ?? 'x'}.json`;
+// Per-project Claude session IDs for --resume continuity between dispatches
+const SESSIONS_FILE   = `/tmp/relay-sessions-${process.getuid?.() ?? 'x'}.json`;
+const PROJECT_SESSIONS = (() => {
+  try { return JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8')); } catch (_) { return {}; }
+})();
+function saveProjectSessions() {
+  try { fs.writeFileSync(SESSIONS_FILE, JSON.stringify(PROJECT_SESSIONS)); } catch (_) {}
+}
+// Sessions expire after 4h — avoids passing stale IDs that Claude rejects
+const SESSION_TTL_MS = 4 * 60 * 60 * 1000;
+function getResumeSession(projectId) {
+  const entry = PROJECT_SESSIONS[projectId];
+  if (!entry || Date.now() - entry.ts > SESSION_TTL_MS) return null;
+  return entry.id;
+}
 // Per-project lock files: /tmp/relay-lock-{projectId} (parallel execution)
 // Outbox watchdog: track when each project last got an inbox dispatch
 const DISPATCH_TIMES  = {};   // { [projectId]: { dispatched_at: ms, dispatch_id: str } }
@@ -1400,11 +1415,13 @@ ${taskContent}`;
     : null;
   const proxyEnvPrefix = proxyBase ? `ANTHROPIC_BASE_URL=${proxyBase} ` : '';
 
+  const resumeSession = getResumeSession(project.id);
+  const resumePart    = resumeSession ? ` --resume ${resumeSession}` : '';
   const coreCmd = [
     `cd ${project.repo || '/var/www/html'} 2>/dev/null || true`,
     // Diagnostic first — visible in resultText so Telegram shows it on task completion
-    `echo "RELAY_DIAG user=$(id -un 2>/dev/null||echo '?') home=$HOME task=$(test -r ${taskFile} && echo ok || echo UNREADABLE)" > ${outFile} 2>&1`,
-    `${proxyEnvPrefix}${CLAUDE_BIN} --dangerously-skip-permissions --output-format stream-json --verbose --print --model ${claudeModel} < ${taskFile} >> ${outFile} 2>&1`,
+    `echo "RELAY_DIAG user=$(id -un 2>/dev/null||echo '?') home=$HOME task=$(test -r ${taskFile} && echo ok || echo UNREADABLE) resume=${resumeSession || 'none'}" > ${outFile} 2>&1`,
+    `${proxyEnvPrefix}${CLAUDE_BIN} --dangerously-skip-permissions --output-format stream-json --verbose --print${resumePart} --model ${claudeModel} < ${taskFile} >> ${outFile} 2>&1`,
   ].join(' && ');
 
   function buildCmd(user) {
@@ -1569,6 +1586,12 @@ Timeout en ${remainMin} min`);
     try { evt = JSON.parse(line); } catch (_) {
       resultText += line + '\n';
       return;
+    }
+
+    // Capture session_id for --resume on next dispatch (B1 context continuity)
+    if (evt.type === 'system' && evt.session_id) {
+      PROJECT_SESSIONS[project.id] = { id: evt.session_id, ts: Date.now() };
+      saveProjectSessions();
     }
 
     if (evt.type === 'assistant' && Array.isArray(evt.message?.content)) {
