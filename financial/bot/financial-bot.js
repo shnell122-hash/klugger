@@ -1,8 +1,4 @@
 'use strict';
-// Strip ANTHROPIC_API_KEY immediately — PM2 injects it from its registry even
-// when commented in .env. VisionAgent uses Gemini; no paid Anthropic inference.
-delete process.env.ANTHROPIC_API_KEY;
-
 /**
  * Financial Bot — Bot principal de Telegram para operaciones financieras.
  *
@@ -853,8 +849,10 @@ bot.on('message:text', async (ctx, next) => {
     }
     const rawCuentas = BankingManager.parsearTexto(text);
     if (!rawCuentas.length) {
-      await ctx.reply('No encontré ninguna CLABE, tarjeta ni cuenta. Envíame el número directamente.');
-      return;
+      await updateSession(session.id, 'idle', null);
+      session.estado = 'idle';
+      session.operation_draft_json = null;
+      // fall through: re-process as new message (saldo query, new operation, etc.)
     }
     // Si el número coincide con una de nuestras cuentas, es un comprobante de pago
     const { ajenas, eraVuelta } = await filtrarCuentasAjenas(rawCuentas);
@@ -1217,6 +1215,19 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
     await handleIncomingLink({ pool, clientId: client.id, operationId, url: fileInfo.url });
     await ctx.reply('🔗 Link registrado.');
   } else {
+    // ── Cuadro retorno XLSX/PNG — prioridad máxima, modo normal ───────────────
+    const _ext = (fileInfo.fileName ?? '').split('.').pop()?.toLowerCase();
+    const _isXlsx = _ext === 'xlsx' || _ext === 'xls' ||
+                    (fileInfo.mimeType ?? '').includes('spreadsheet') ||
+                    (fileInfo.mimeType ?? '').includes('excel');
+    if (_isXlsx) {
+      const _bufXlsx = await downloadTelegramFileAsBuffer(BOT_TOKEN, fileInfo.file.file_id);
+      const _xlsxResult = BankingManager.parsearXlsx(_bufXlsx);
+      if (_xlsxResult?.tipo === 'cuadro_retorno' && _xlsxResult.filas?.length > 0) {
+        await handleCuadroRetorno(ctx, client, _xlsxResult);
+        return;
+      }
+    }
     // ── Intentar factura/comprobante ──────────────────────────────────────────
     // PDFs y documentos: SIEMPRE intentar invoice (un PDF nunca es respuesta a
     // "¿qué tipo de operación?" — siempre es factura o comprobante).
@@ -1250,6 +1261,15 @@ bot.on(['message:document', 'message:photo'], async (ctx) => {
           // Reutilizar el buffer ya descargado arriba
           const imgBuffer = buffer;
           const mimeImg   = fileInfo.mimeType ?? 'image/jpeg';
+
+          // Cuadro retorno PNG — verificar antes de extraer cuentas
+          if (docAgent) {
+            const _cuadroPng = await docAgent.analizarCuadroRetorno(imgBuffer, mimeImg).catch(() => null);
+            if (_cuadroPng?.tipo === 'cuadro_retorno' && _cuadroPng.filas?.length > 0) {
+              await handleCuadroRetorno(ctx, client, _cuadroPng);
+              return;
+            }
+          }
 
           const imgAgent = docAgent ?? visionAgent;
           if (imgAgent) {
