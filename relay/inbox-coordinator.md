@@ -1,3 +1,3 @@
-# Test B1 — primera sesión
+# Test B1 — segunda sesión
 
-Responde solo: "B1 primera tarea OK". Sin cambios de código.
+Responde solo: "B1 segunda tarea OK — ¿recuerdas la primera?". Sin cambios.
