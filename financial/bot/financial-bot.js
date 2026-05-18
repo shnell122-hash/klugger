@@ -853,27 +853,28 @@ bot.on('message:text', async (ctx, next) => {
       session.estado = 'idle';
       session.operation_draft_json = null;
       // fall through: re-process as new message (saldo query, new operation, etc.)
-    }
-    // Si el número coincide con una de nuestras cuentas, es un comprobante de pago
-    const { ajenas, eraVuelta } = await filtrarCuentasAjenas(rawCuentas);
-    if (eraVuelta) {
-      await ctx.reply(
-        '⚠️ El número que enviaste coincide con una de nuestras cuentas bancarias.\n' +
-        'Si ya realizaste la transferencia, comparte el comprobante completo o escribe el monto pagado.'
+    } else {
+      // Si el número coincide con una de nuestras cuentas, es un comprobante de pago
+      const { ajenas, eraVuelta } = await filtrarCuentasAjenas(rawCuentas);
+      if (eraVuelta) {
+        await ctx.reply(
+          '⚠️ El número que enviaste coincide con una de nuestras cuentas bancarias.\n' +
+          'Si ya realizaste la transferencia, comparte el comprobante completo o escribe el monto pagado.'
+        );
+        return;
+      }
+      const cuentas = ajenas;
+      draft.cuentas_bancarias = cuentas;
+      await updateSession(session.id, 'esperando_datos_bancarios', draft);
+      const kb = new InlineKeyboard()
+        .text('✅ Sí, continuar', 'confirmar_cuentas')
+        .text('✏️ Corregir', 'nueva_cuenta');
+      await safeReply(ctx,
+        `✅ Cuenta guardada:\n\n${BankingManager.formatearCuentas(cuentas)}\n\n¿Es correcto?`,
+        { parse_mode: 'HTML', reply_markup: kb }
       );
       return;
     }
-    const cuentas = ajenas;
-    draft.cuentas_bancarias = cuentas;
-    await updateSession(session.id, 'esperando_datos_bancarios', draft);
-    const kb = new InlineKeyboard()
-      .text('✅ Sí, continuar', 'confirmar_cuentas')
-      .text('✏️ Corregir', 'nueva_cuenta');
-    await safeReply(ctx,
-      `✅ Cuenta guardada:\n\n${BankingManager.formatearCuentas(cuentas)}\n\n¿Es correcto?`,
-      { parse_mode: 'HTML', reply_markup: kb }
-    );
-    return;
   }
   if (session.estado === 'confirmando_cuentas') {
     const draft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
