@@ -655,42 +655,47 @@ async function handleTelegramCommand(text, imageContext) {
     }
 
     if (sub === 'repo') {
-      // /gh repo <nombre> [private|public] [--register]
-      // --register: además de crear el repo, lo agrega a projects.json como nuevo agente Claude
-      const name     = parts[2];
-      const flags    = parts.slice(3);
-      const privacy  = !flags.includes('public');
-      const register = flags.includes('--register');
-      if (!name) { tg('❓ Uso: /gh repo &lt;nombre&gt; [private|public] [--register]\n--register: agrega el repo como proyecto al relay'); return; }
+      // /gh repo <nombre> [private|public]
+      // Crea el repo en GitHub y despacha al coordinator para registrarlo y configurarlo.
+      const name    = parts[2];
+      const privacy = !parts.slice(3).includes('public');
+      if (!name) { tg('❓ Uso: /gh repo &lt;nombre&gt; [private|public]\nEl coordinator registra y configura el proyecto automáticamente.'); return; }
       try {
         const repo = await ghCreateRepo(name, privacy);
-        let extra = '';
-        if (register) {
-          // Add to projects.json as a new Claude agent project
-          const allProjs = (() => { try { return JSON.parse(fs.readFileSync(PROJECTS_FILE, 'utf8')); } catch (_) { return []; } })();
-          if (!allProjs.find(p => p.id === name)) {
-            allProjs.push({
-              id:     name,
-              name:   name,
-              runner: 'claude',
-              mode:   'full-claude-code',
-              active: false,  // inactive until server path is configured
-              inbox:  '',
-              outbox: '',
-              repo:   '',
-              branch: 'main',
-              github: repo.html_url,
-              url:    '',
-            });
-            fs.writeFileSync(PROJECTS_FILE, JSON.stringify(allProjs, null, 2));
-            const repoRoot = path.join(__dirname, '..');
-            execSync(`cd "${repoRoot}" && git add relay/projects.json && git commit -m "relay: registrar nuevo proyecto ${name}" && git push origin HEAD 2>&1`, { stdio: 'pipe', timeout: 30000 });
-            extra = `\n📋 Registrado en projects.json (actívalo con <code>/activar ${name}</code> cuando configures el servidor)`;
-          } else {
-            extra = '\n⚠️ Ya existía en projects.json';
-          }
+        tg(`✅ <b>Repo creado</b>\n<code>${GITHUB_ORG}/${repo.name}</code>\n🔗 ${repo.html_url}\n\n⚙️ Despachando al coordinator para registrar y configurar el proyecto...`);
+
+        // Dispatch to coordinator — it edits projects.json, creates workspace, sets up inbox/outbox
+        const coordinatorTask =
+          `# Registrar nuevo proyecto: ${name}\n\n` +
+          `Se acaba de crear el repositorio GitHub: ${repo.html_url}\n\n` +
+          `## Pasos requeridos\n\n` +
+          `1. Edita \`relay/projects.json\` y agrega el nuevo proyecto con esta estructura:\n` +
+          `   - id: "${name}"\n` +
+          `   - name: "${name}"\n` +
+          `   - runner: "claude"\n` +
+          `   - active: true\n` +
+          `   - branch: "main"\n` +
+          `   - github: "${repo.html_url}"\n` +
+          `   - repo: "/var/www/html/vilarkptl.com/${name}" (o la ruta que corresponda)\n` +
+          `   - inbox: ruta absoluta al archivo inbox del proyecto\n` +
+          `   - outbox: ruta absoluta al archivo outbox del proyecto\n\n` +
+          `2. Clona el repositorio en el servidor si la ruta de \`repo\` no existe:\n` +
+          `   \`git clone ${repo.clone_url} /var/www/html/vilarkptl.com/${name}\`\n\n` +
+          `3. Crea los archivos inbox y outbox vacíos en la ruta configurada.\n\n` +
+          `4. Haz commit y push de \`relay/projects.json\`.\n\n` +
+          `5. Responde con STATUS: done y la ruta final configurada.\n`;
+
+        const allProjects = (() => { try { return JSON.parse(fs.readFileSync(PROJECTS_FILE, 'utf8')); } catch (_) { return []; } })();
+        const coordinator  = allProjects.find(p => p.active && p.id === 'coordinator' && p.inbox);
+        if (coordinator) {
+          fs.writeFileSync(coordinator.inbox, coordinatorTask, 'utf8');
+          const repoRoot  = path.join(__dirname, '..');
+          const relInbox  = path.relative(repoRoot, coordinator.inbox);
+          execSync(`cd "${repoRoot}" && git add "${relInbox}" && git commit -m "dispatch: gh-repo→coordinator — registrar ${name}" && git push origin HEAD 2>&1`, { stdio: 'pipe', timeout: 30000 });
+          tg(`📋 <b>Coordinator notificado</b> — configurará el proyecto ${name} en ~15s.`);
+        } else {
+          tg(`⚠️ Coordinator no disponible. Registra manualmente en projects.json:\n<code>id: "${name}", github: "${repo.html_url}"</code>`);
         }
-        tg(`✅ <b>Repo creado</b>\n<code>${GITHUB_ORG}/${repo.name}</code>\n🔗 ${repo.html_url}${extra}`);
       } catch (e) { tg(`❌ GitHub: ${e.message}`); }
       return;
     }
