@@ -223,18 +223,22 @@ function tgAnswerCallback(callbackId) {
 function registerBotCommands() {
   if (!BOT_TOKEN) return;
   const commands = [
-    { command: 'dispatch', description: 'Despacha directamente sin plan — /dispatch [proyecto] [desc]' },
-    { command: 'tarea',    description: 'Propone plan y despacha tarea — /tarea [proyecto] [descripción]' },
-    { command: 'status',   description: 'Tareas corriendo en este momento' },
-    { command: 'resumen',  description: 'Resumen de proyectos — /resumen [id?]' },
-    { command: 'detente',  description: 'Detiene tareas activas — /detente [id?]' },
-    { command: 'activar',  description: 'Reactiva un agente detenido — /activar [id]' },
-    { command: 'memoria',  description: 'Agrega nota a la memoria del agente — /memoria [id] [nota]' },
-    { command: 'plan',     description: 'Ver plan activo del proyecto — /plan [id?]' },
-    { command: 'limite',   description: 'Cambiar límite de gasto — /limite [proveedor] [usd]' },
-    { command: 'reanudar', description: 'Reanudar relay si está pausado por kill-switch' },
-    { command: 'comandos', description: 'Lista todos los comandos disponibles' },
-    { command: 'ayuda',    description: 'Lista todos los comandos disponibles' },
+    { command: 'dispatch',  description: 'Despacha directamente sin plan — /dispatch [proyecto] [desc]' },
+    { command: 'tarea',     description: 'Propone plan y despacha tarea — /tarea [proyecto] [descripción]' },
+    { command: 'gh',        description: 'GitHub: repos, branches, issues — /gh [repo|branch|dispatch|issue|repos]' },
+    { command: 'backlog',   description: 'Ver tareas pendientes compartidas' },
+    { command: 'claim',     description: 'Tomar tarea del backlog — /claim [ID] [proyecto]' },
+    { command: 'schedule',  description: 'Tareas programadas — /schedule [list|add|del]' },
+    { command: 'status',    description: 'Tareas corriendo en este momento' },
+    { command: 'resumen',   description: 'Resumen de proyectos — /resumen [id?]' },
+    { command: 'detente',   description: 'Detiene tareas activas — /detente [id?]' },
+    { command: 'activar',   description: 'Reactiva un agente detenido — /activar [id]' },
+    { command: 'memoria',   description: 'Agrega nota a la memoria del agente — /memoria [id] [nota]' },
+    { command: 'plan',      description: 'Ver plan activo del proyecto — /plan [id?]' },
+    { command: 'limite',    description: 'Cambiar límite de gasto — /limite [proveedor] [usd]' },
+    { command: 'reanudar',  description: 'Reanudar relay si está pausado por kill-switch' },
+    { command: 'comandos',  description: 'Lista todos los comandos disponibles' },
+    { command: 'ayuda',     description: 'Lista todos los comandos disponibles' },
   ];
   const body = JSON.stringify({ commands });
   const req  = https.request({
@@ -631,6 +635,196 @@ async function handleTelegramCommand(text, imageContext) {
     }
     return;
   }
+
+  // ── /gh — GitHub operations ────────────────────────────────
+  if (lower.startsWith('/gh')) {
+    const parts = raw.trim().split(/\s+/);
+    const sub   = (parts[1] || '').toLowerCase();
+
+    if (!GITHUB_TOKEN) { tg('❌ GITHUB_TOKEN no configurado en relay/.env'); return; }
+
+    if (sub === 'repos') {
+      try {
+        const repos = await ghListRepos();
+        const lines = repos.slice(0, 20).map(r =>
+          `  • <code>${r.name}</code> ${r.private ? '🔒' : '🌐'}${r.description ? ' — ' + r.description.slice(0, 40) : ''}`
+        ).join('\n');
+        tg(`📦 <b>Repos — ${GITHUB_ORG}</b>\n${lines || 'Sin repos'}`);
+      } catch (e) { tg(`❌ GitHub: ${e.message}`); }
+      return;
+    }
+
+    if (sub === 'repo') {
+      const name    = parts[2];
+      const privacy = (parts[3] || 'private').toLowerCase() !== 'public';
+      if (!name) { tg('❓ Uso: /gh repo &lt;nombre&gt; [private|public]'); return; }
+      try {
+        const repo = await ghCreateRepo(name, privacy);
+        tg(`✅ <b>Repo creado</b>\n<code>${GITHUB_ORG}/${repo.name}</code>\n🔗 ${repo.html_url}`);
+      } catch (e) { tg(`❌ GitHub: ${e.message}`); }
+      return;
+    }
+
+    if (sub === 'branch') {
+      const repo   = parts[2];
+      const branch = parts[3];
+      const from   = parts[4] || 'main';
+      if (!repo || !branch) { tg('❓ Uso: /gh branch &lt;repo&gt; &lt;branch&gt; [from]'); return; }
+      try {
+        await ghCreateBranch(repo, branch, from);
+        tg(`✅ <b>Branch creado</b>\n<code>${GITHUB_ORG}/${repo}@${branch}</code> (desde <code>${from}</code>)`);
+      } catch (e) { tg(`❌ GitHub: ${e.message}`); }
+      return;
+    }
+
+    if (sub === 'dispatch') {
+      // /gh dispatch <agent> <task...>  — crea issue con labels relay:inbox + agent:<id>
+      const agentId = parts[2];
+      const task    = parts.slice(3).join(' ').trim();
+      if (!agentId || !task) { tg('❓ Uso: /gh dispatch &lt;agente&gt; &lt;descripción&gt;'); return; }
+      try {
+        const issue = await ghCreateIssue(
+          GITHUB_REPO_MAIN,
+          `[${agentId}] ${task.slice(0, 80)}`,
+          `${task}\n\n---\n_Despachado via Telegram — ${new Date().toISOString()}_`,
+          ['relay:inbox', `agent:${agentId}`]
+        );
+        tg(`✅ <b>Issue #${issue.number} creado</b>\n<code>${agentId}</code> lo procesará en el próximo ciclo.\n🔗 ${issue.html_url}`);
+      } catch (e) { tg(`❌ GitHub: ${e.message}`); }
+      return;
+    }
+
+    if (sub === 'issue') {
+      // /gh issue <repo> <title> :: <body>
+      const repo = parts[2];
+      const rest = parts.slice(3).join(' ');
+      const [issueTitle, issueBodyPart] = rest.split('::').map(s => s.trim());
+      if (!repo || !issueTitle) { tg('❓ Uso: /gh issue &lt;repo&gt; &lt;título&gt; :: &lt;cuerpo&gt;'); return; }
+      try {
+        const issue = await ghCreateIssue(repo, issueTitle, issueBodyPart || '');
+        tg(`✅ <b>Issue #${issue.number}</b> en <code>${repo}</code>\n🔗 ${issue.html_url}`);
+      } catch (e) { tg(`❌ GitHub: ${e.message}`); }
+      return;
+    }
+
+    tg(`📦 <b>Comandos GitHub (/gh)</b>\n\n/gh repos — listar repos\n/gh repo &lt;nombre&gt; [private|public] — crear repo\n/gh branch &lt;repo&gt; &lt;branch&gt; [from] — crear branch\n/gh dispatch &lt;agente&gt; &lt;tarea&gt; — buzón vía issue de GitHub\n/gh issue &lt;repo&gt; &lt;título&gt; :: &lt;cuerpo&gt; — issue libre`);
+    return;
+  }
+
+  // ── /backlog — ver y gestionar tareas pendientes ──────────
+  if (lower === '/backlog' || lower === '/bl') {
+    const tasks = loadBacklog();
+    if (!tasks.length) { tg('📋 Backlog vacío.'); return; }
+    const icon  = s => s === 'libre' ? '🟢' : s === 'tomada' ? '🟡' : '✅';
+    const lines = tasks.map(t =>
+      `  <b>${t.id}</b> [${t.proyecto}] ${icon(t.status)} ${t.desc.slice(0, 80)}`
+    ).join('\n');
+    tg(`📋 <b>Backlog compartido</b>\n${lines}\n\n<code>/claim &lt;ID&gt; [proyecto]</code> para tomar una tarea.`);
+    return;
+  }
+
+  // ── /claim <id> [proyecto] — tomar tarea del backlog ─────
+  if (lower.startsWith('/claim')) {
+    const parts   = raw.split(/\s+/);
+    const taskId  = (parts[1] || '').toUpperCase();
+    const destId  = parts[2] || '';
+    if (!taskId) { tg('❓ Uso: /claim &lt;ID&gt; [proyecto-destino]'); return; }
+    const tasks = loadBacklog();
+    const task  = tasks.find(t => t.id.toUpperCase() === taskId);
+    if (!task)                { tg(`❌ Tarea <code>${taskId}</code> no encontrada en backlog.`); return; }
+    if (task.status === 'tomada') { tg(`⚠️ Tarea <code>${taskId}</code> ya está tomada por <code>${task.proyecto}</code>.`); return; }
+
+    let allProjects = [];
+    try { allProjects = JSON.parse(fs.readFileSync(PROJECTS_FILE, 'utf8')); } catch (_) {}
+    const projectId = destId || task.proyecto;
+    const project   = allProjects.find(p => p.active && p.id === projectId);
+    if (!project) { tg(`❌ Proyecto <code>${projectId}</code> no encontrado.`); return; }
+
+    task.status = 'tomada';
+    saveBacklog(tasks);
+    const taskContent = `# [Backlog ${task.id}] ${task.desc}\n\nTarea reclamada del backlog compartido.\n`;
+    try {
+      if (project.runner && project.runner !== 'claude') {
+        runAgentByRunner(project, taskContent, (err) => {
+          task.status = err ? 'libre' : 'done';
+          saveBacklog(tasks);
+        });
+      } else {
+        fs.writeFileSync(project.inbox,
+          `# Tarea — Backlog ${task.id}\n\n${task.desc}\n\n_Reclamada via /claim — ${new Date().toISOString()}_\n`, 'utf8');
+        const repoRoot = path.join(__dirname, '..');
+        const relInbox = path.relative(repoRoot, project.inbox);
+        execSync(
+          `cd "${repoRoot}" && git add "${relInbox}" && git commit -m "claim: backlog ${task.id} → ${projectId}" && git push origin HEAD 2>&1`,
+          { stdio: 'pipe', timeout: 30000 });
+      }
+      tg(`✅ <b>Backlog ${task.id} → ${projectId}</b>\n${task.desc.slice(0, 200)}`);
+    } catch (e) {
+      task.status = 'libre';
+      saveBacklog(tasks);
+      tg(`❌ Error al despachar backlog ${task.id}: ${e.message.slice(0, 200)}`);
+    }
+    return;
+  }
+
+  // ── /schedule — tareas programadas ───────────────────────
+  if (lower.startsWith('/schedule')) {
+    const parts = raw.trim().split(/\s+/);
+    const sub   = (parts[1] || '').toLowerCase();
+
+    if (sub === 'list' || sub === 'ls' || sub === '') {
+      const entries = loadSchedule();
+      if (!entries.length) { tg('📅 Sin tareas programadas.'); return; }
+      const lines = entries.map(e =>
+        `  <b>${e.id}</b> ${e.active ? '🟢' : '⏸'} ${e.time} MX → <code>${e.project}</code>\n  <i>${e.task.slice(0, 60)}</i>`
+      ).join('\n\n');
+      tg(`📅 <b>Tareas programadas</b>\n\n${lines}`);
+      return;
+    }
+
+    if (sub === 'add') {
+      // /schedule add <project> <HH:MM> <task...>
+      const project = parts[2];
+      const time    = parts[3];
+      const task    = parts.slice(4).join(' ').trim();
+      if (!project || !time || !task) {
+        tg('❓ Uso: /schedule add &lt;proyecto&gt; &lt;HH:MM&gt; &lt;descripción&gt;\nEj: /schedule add coordinator 08:00 Genera reporte diario');
+        return;
+      }
+      if (!/^\d{1,2}:\d{2}$/.test(time)) { tg('❌ Hora inválida — usar formato HH:MM (ej: 08:00)'); return; }
+      const entries = loadSchedule();
+      const newId   = `S${Date.now().toString().slice(-4)}`;
+      entries.push({ id: newId, project, time, task, active: true, created: new Date().toISOString() });
+      saveSchedule(entries);
+      tg(`✅ <b>Tarea programada <code>${newId}</code></b>\n🕐 ${time} MX → <code>${project}</code>\n<i>${task.slice(0, 200)}</i>`);
+      return;
+    }
+
+    if (sub === 'del' || sub === 'rm') {
+      const delId   = (parts[2] || '').toUpperCase();
+      const entries = loadSchedule();
+      const idx     = entries.findIndex(e => e.id.toUpperCase() === delId);
+      if (idx === -1) { tg(`❌ Tarea <code>${delId}</code> no encontrada.`); return; }
+      entries.splice(idx, 1);
+      saveSchedule(entries);
+      tg(`✅ Tarea programada <code>${delId}</code> eliminada.`);
+      return;
+    }
+
+    if (sub === 'pause' || sub === 'resume') {
+      const schId   = (parts[2] || '').toUpperCase();
+      const entries = loadSchedule();
+      const entry   = entries.find(e => e.id.toUpperCase() === schId);
+      if (!entry) { tg(`❌ Tarea <code>${schId}</code> no encontrada.`); return; }
+      entry.active = sub === 'resume';
+      saveSchedule(entries);
+      tg(`${entry.active ? '▶️' : '⏸'} Tarea <code>${schId}</code> ${entry.active ? 'reanudada' : 'pausada'}.`);
+      return;
+    }
+
+    tg('📅 <b>Scheduler</b>\n/schedule list — ver tareas\n/schedule add &lt;proyecto&gt; &lt;HH:MM&gt; &lt;tarea&gt;\n/schedule del &lt;ID&gt;\n/schedule pause/resume &lt;ID&gt;');
+    return;
+  }
 }
 
 function handleCallbackQuery(cb) {
@@ -995,6 +1189,338 @@ function callDeepSeekWithTools(systemPrompt, messages, tools, model, maxTokens =
     req.write(body);
     req.end();
   });
+}
+
+// ─────────────────────────────────────────────────────────────
+// ── GitHub API  ──────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+const GITHUB_ORG       = process.env.GITHUB_ORG       || 'vilarkptl-lang';
+const GITHUB_REPO_MAIN = process.env.GITHUB_REPO_MAIN || 'agentic-repo';
+const GOOGLE_API_KEY   = process.env.GOOGLE_API_KEY;
+
+function githubRequest(method, apiPath, body) {
+  return new Promise((resolve, reject) => {
+    const bodyStr = body ? JSON.stringify(body) : '';
+    const opts = {
+      hostname: 'api.github.com',
+      path:     apiPath,
+      method,
+      headers: {
+        'Authorization':        `Bearer ${GITHUB_TOKEN}`,
+        'Accept':               'application/vnd.github+json',
+        'User-Agent':           'relay-master/1.0',
+        'X-GitHub-Api-Version': '2022-11-28',
+        ...(bodyStr ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(bodyStr) } : {}),
+      },
+    };
+    const req = https.request(opts, (res) => {
+      let data = '';
+      res.on('data', c => { data += c; });
+      res.on('end', () => {
+        try { resolve({ status: res.statusCode, body: data ? JSON.parse(data) : null }); }
+        catch (_) { resolve({ status: res.statusCode, body: data }); }
+      });
+    });
+    req.on('error', reject);
+    setTimeout(() => reject(new Error('GitHub API timeout')), 15000);
+    if (bodyStr) req.write(bodyStr);
+    req.end();
+  });
+}
+
+async function ghCreateRepo(name, isPrivate = true, description = '') {
+  const r = await githubRequest('POST', `/orgs/${GITHUB_ORG}/repos`,
+    { name, private: isPrivate, description, auto_init: true });
+  if (r.status >= 400) throw new Error(r.body?.message || `GitHub ${r.status}`);
+  return r.body;
+}
+
+async function ghCreateBranch(repo, branch, fromBranch = 'main') {
+  const refRes = await githubRequest('GET', `/repos/${GITHUB_ORG}/${repo}/git/refs/heads/${fromBranch}`);
+  if (refRes.status >= 400) throw new Error(`Branch ${fromBranch} no encontrado en ${repo}`);
+  const sha = refRes.body.object?.sha;
+  const r   = await githubRequest('POST', `/repos/${GITHUB_ORG}/${repo}/git/refs`,
+    { ref: `refs/heads/${branch}`, sha });
+  if (r.status >= 400) throw new Error(r.body?.message || `GitHub ${r.status}`);
+  return r.body;
+}
+
+async function ghCreateIssue(repo, title, issueBody, labels = []) {
+  const r = await githubRequest('POST', `/repos/${GITHUB_ORG}/${repo}/issues`,
+    { title, body: issueBody, labels });
+  if (r.status >= 400) throw new Error(r.body?.message || `GitHub ${r.status}`);
+  return r.body;
+}
+
+async function ghCommentIssue(repo, number, commentBody) {
+  const r = await githubRequest('POST', `/repos/${GITHUB_ORG}/${repo}/issues/${number}/comments`,
+    { body: commentBody });
+  if (r.status >= 400) throw new Error(r.body?.message || `GitHub ${r.status}`);
+  return r.body;
+}
+
+async function ghCloseIssue(repo, number) {
+  const r = await githubRequest('PATCH', `/repos/${GITHUB_ORG}/${repo}/issues/${number}`,
+    { state: 'closed' });
+  if (r.status >= 400) throw new Error(r.body?.message || `GitHub ${r.status}`);
+  return r.body;
+}
+
+async function ghListRepos() {
+  const r = await githubRequest('GET',
+    `/orgs/${GITHUB_ORG}/repos?type=all&per_page=30&sort=updated`);
+  if (r.status >= 400) throw new Error(r.body?.message || `GitHub ${r.status}`);
+  return Array.isArray(r.body) ? r.body : [];
+}
+
+async function ghListIssues(repo, label) {
+  const q = label
+    ? `?labels=${encodeURIComponent(label)}&state=open&per_page=10`
+    : '?state=open&per_page=10';
+  const r = await githubRequest('GET', `/repos/${GITHUB_ORG}/${repo}/issues${q}`);
+  if (r.status >= 400) return [];
+  return Array.isArray(r.body) ? r.body : [];
+}
+
+// Issues labeled 'relay:inbox' + 'agent:<projectId>' are picked up and dispatched.
+const GH_PROCESSED_ISSUES = new Set();
+async function pollGithubIssues(projects) {
+  if (!GITHUB_TOKEN) return;
+  const ghProjects = projects.filter(p => p.active && (p.runner === 'deepseek' || p.runner === 'gemini'));
+  if (!ghProjects.length) return;
+
+  for (const project of ghProjects) {
+    try {
+      const label  = project.github_label || `agent:${project.id}`;
+      const issues = await ghListIssues(GITHUB_REPO_MAIN, label);
+      for (const issue of issues) {
+        if (GH_PROCESSED_ISSUES.has(issue.number)) continue;
+        if (ACTIVE_TASKS.has(project.id)) continue;
+        GH_PROCESSED_ISSUES.add(issue.number);
+        const taskContent = `# ${issue.title}\n\n${issue.body || ''}`;
+        log(project.id, `[github-inbox] Issue #${issue.number}: ${issue.title.slice(0, 60)}`);
+        await ghCommentIssue(GITHUB_REPO_MAIN, issue.number,
+          `⚙️ **Procesando** — relay-master recibió esta tarea a las ${new Date().toISOString()}`);
+        runAgentByRunner(project, taskContent, async (err, result) => {
+          const resultText = err ? `❌ Error: ${err.message}` : (result || '✅ Completado');
+          try {
+            await ghCommentIssue(GITHUB_REPO_MAIN, issue.number,
+              `## Resultado\n\n${resultText.slice(0, 5000)}`);
+            await ghCloseIssue(GITHUB_REPO_MAIN, issue.number);
+          } catch (e) {
+            log(project.id, `Error closing issue #${issue.number}: ${e.message}`);
+          }
+        });
+      }
+    } catch (e) {
+      log(project.id, `pollGithubIssues error: ${e.message?.slice(0, 100)}`);
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// ── Multi-runner dispatcher ───────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+function runAgentByRunner(project, taskContent, callback) {
+  const runner = project.runner || 'claude';
+  if (runner === 'deepseek') return runDeepSeekAgent(project, taskContent, callback);
+  if (runner === 'gemini')   return runGeminiAgent(project, taskContent, callback);
+  return runClaude(project, taskContent, callback);
+}
+
+// ─── DeepSeek agent runner ────────────────────────────────────
+async function runDeepSeekAgent(project, taskContent, callback) {
+  if (ACTIVE_TASKS.has(project.id)) { callback(new Error('Already running')); return; }
+  ACTIVE_TASKS.add(project.id);
+  TASK_START_TIMES[project.id] = Date.now();
+  log(project.id, `[deepseek-runner] Iniciando (${taskContent.length} chars)`);
+  try {
+    const systemPrompt = loadAgentContext(project.id, project.url) ||
+      `Eres un agente de análisis para el proyecto "${project.name}". Responde en español. Sé conciso y práctico. Al terminar incluye STATUS: done|partial|failed y RESUMEN: una oración.`;
+    const model = project.model || 'deepseek-reasoner';
+    const body  = JSON.stringify({
+      model, max_tokens: 2048,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: taskContent },
+      ],
+    });
+    const result = await new Promise((res, rej) => {
+      const req = https.request({
+        hostname: 'api.deepseek.com', path: '/v1/chat/completions', method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${DEEPSEEK_KEY}`,
+          'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body),
+        },
+      }, (r) => {
+        let data = '';
+        r.on('data', c => { data += c; });
+        r.on('end', () => {
+          try {
+            const j = JSON.parse(data);
+            if (j.error) { rej(new Error(j.error.message)); return; }
+            res(j.choices?.[0]?.message?.content || '');
+          } catch (e) { rej(e); }
+        });
+      });
+      req.on('error', rej);
+      setTimeout(() => rej(new Error('DeepSeek agent timeout 120s')), 120000);
+      req.write(body);
+      req.end();
+    });
+
+    if (project.inbox) {
+      const outboxPath = project.inbox.replace(/inbox/g, 'outbox');
+      fs.writeFileSync(outboxPath, `# Resultado — ${project.name}\n\n${result}\n\n_${new Date().toISOString()}_\n`, 'utf8');
+      try {
+        const repoRoot = path.join(__dirname, '..');
+        const relOut   = path.relative(repoRoot, outboxPath);
+        execSync(
+          `cd "${repoRoot}" && git add "${relOut}" && git commit -m "result: ${project.id} deepseek" && git push origin HEAD 2>&1`,
+          { stdio: 'pipe', timeout: 30000 });
+      } catch (_) {}
+    }
+    tg(`✅ <b>${project.name}</b> (DeepSeek)\n${result.slice(0, 800)}`);
+    log(project.id, `[deepseek-runner] Completado (${result.length} chars)`);
+    callback(null, result);
+  } catch (err) {
+    log(project.id, `[deepseek-runner] Error: ${err.message}`);
+    tg(`❌ <b>${project.name}</b> (DeepSeek): ${err.message.slice(0, 200)}`);
+    callback(err);
+  } finally {
+    ACTIVE_TASKS.delete(project.id);
+    delete TASK_START_TIMES[project.id];
+  }
+}
+
+// ─── Gemini Flash agent runner ────────────────────────────────
+async function runGeminiAgent(project, taskContent, callback) {
+  if (ACTIVE_TASKS.has(project.id)) { callback(new Error('Already running')); return; }
+  ACTIVE_TASKS.add(project.id);
+  TASK_START_TIMES[project.id] = Date.now();
+  log(project.id, `[gemini-runner] Iniciando (${taskContent.length} chars)`);
+  try {
+    const systemPrompt = loadAgentContext(project.id, project.url) ||
+      `Eres un agente de análisis para el proyecto "${project.name}". Responde en español. Sé conciso y práctico.`;
+    const model = project.model || 'gemini-1.5-flash';
+    const body  = JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\n---\n\n${taskContent}` }] }],
+      generationConfig: { maxOutputTokens: 2048 },
+    });
+    const result = await new Promise((res, rej) => {
+      const req = https.request({
+        hostname: 'generativelanguage.googleapis.com',
+        path:     `/v1beta/models/${model}:generateContent?key=${GOOGLE_API_KEY}`,
+        method:   'POST',
+        headers:  { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+      }, (r) => {
+        let data = '';
+        r.on('data', c => { data += c; });
+        r.on('end', () => {
+          try {
+            const j = JSON.parse(data);
+            if (j.error) { rej(new Error(j.error.message)); return; }
+            res(j.candidates?.[0]?.content?.parts?.[0]?.text || '');
+          } catch (e) { rej(e); }
+        });
+      });
+      req.on('error', rej);
+      setTimeout(() => rej(new Error('Gemini agent timeout 120s')), 120000);
+      req.write(body);
+      req.end();
+    });
+
+    if (project.inbox) {
+      const outboxPath = project.inbox.replace(/inbox/g, 'outbox');
+      fs.writeFileSync(outboxPath, `# Resultado — ${project.name}\n\n${result}\n\n_${new Date().toISOString()}_\n`, 'utf8');
+      try {
+        const repoRoot = path.join(__dirname, '..');
+        const relOut   = path.relative(repoRoot, outboxPath);
+        execSync(
+          `cd "${repoRoot}" && git add "${relOut}" && git commit -m "result: ${project.id} gemini" && git push origin HEAD 2>&1`,
+          { stdio: 'pipe', timeout: 30000 });
+      } catch (_) {}
+    }
+    tg(`✅ <b>${project.name}</b> (Gemini)\n${result.slice(0, 800)}`);
+    log(project.id, `[gemini-runner] Completado (${result.length} chars)`);
+    callback(null, result);
+  } catch (err) {
+    log(project.id, `[gemini-runner] Error: ${err.message}`);
+    tg(`❌ <b>${project.name}</b> (Gemini): ${err.message.slice(0, 200)}`);
+    callback(err);
+  } finally {
+    ACTIVE_TASKS.delete(project.id);
+    delete TASK_START_TIMES[project.id];
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// ── Backlog — tareas pendientes compartidas ───────────────────
+// ─────────────────────────────────────────────────────────────
+const BACKLOG_FILE = path.join(__dirname, 'BACKLOG.md');
+
+function loadBacklog() {
+  try {
+    const tasks = [];
+    let inTable = false;
+    for (const line of fs.readFileSync(BACKLOG_FILE, 'utf8').split('\n')) {
+      if (line.startsWith('| ID'))  { inTable = true; continue; }
+      if (line.startsWith('|---'))  { continue; }
+      if (!inTable || !line.startsWith('|')) continue;
+      const cols = line.split('|').map(c => c.trim()).filter(Boolean);
+      if (cols.length >= 4) tasks.push({ id: cols[0], proyecto: cols[1], status: cols[2], desc: cols[3] });
+    }
+    return tasks;
+  } catch (_) { return []; }
+}
+
+function saveBacklog(tasks) {
+  const header = '# Backlog — Relay Master\n\n_Actualizado automáticamente. Para reclamar: `/claim <ID>`_\n\n';
+  const rows   = tasks.map(t => `| ${t.id} | ${t.proyecto} | ${t.status} | ${t.desc} |`).join('\n');
+  fs.writeFileSync(BACKLOG_FILE,
+    `${header}| ID | Proyecto | Estado | Descripción |\n|-----|----------|--------|-------------|\n${rows}\n`,
+    'utf8');
+}
+
+// ─────────────────────────────────────────────────────────────
+// ── Scheduler — tareas programadas ───────────────────────────
+// ─────────────────────────────────────────────────────────────
+const SCHEDULE_FILE     = path.join(__dirname, 'schedule.json');
+const SCHEDULE_LAST_RUN = new Map();  // scheduleId-YYYY-MM-DDTHH:MM → timestamp
+
+function loadSchedule() {
+  try { return JSON.parse(fs.readFileSync(SCHEDULE_FILE, 'utf8')); } catch (_) { return []; }
+}
+
+function saveSchedule(entries) {
+  fs.writeFileSync(SCHEDULE_FILE, JSON.stringify(entries, null, 2), 'utf8');
+}
+
+function checkSchedule(projects) {
+  const entries = loadSchedule();
+  if (!entries.length) return;
+  const now    = new Date();
+  const mxHour = (now.getUTCHours() - 6 + 24) % 24;
+  const mxMin  = now.getUTCMinutes();
+
+  for (const entry of entries) {
+    if (!entry.active) continue;
+    const [schedH, schedM] = (entry.time || '').split(':').map(Number);
+    if (isNaN(schedH) || mxHour !== schedH || mxMin !== schedM) continue;
+
+    const key = `${entry.id}-${now.toISOString().slice(0, 16)}`;
+    if (SCHEDULE_LAST_RUN.get(key)) continue;
+    SCHEDULE_LAST_RUN.set(key, Date.now());
+
+    const project = projects.find(p => p.active && p.id === entry.project);
+    if (!project) { log(null, `[schedule] Proyecto ${entry.project} no encontrado`); continue; }
+
+    log(null, `[schedule] Disparando ${entry.id} → ${entry.project}`);
+    tg(`🕐 <b>Tarea programada ${entry.id}</b> → <code>${entry.project}</code>\n<i>${entry.task.slice(0, 150)}</i>`);
+    runAgentByRunner(project, entry.task, (err) => {
+      if (err) log(null, `[schedule] ${entry.id} error: ${err.message}`);
+    });
+  }
 }
 
 // Append a timestamped entry to relay/journal.md in a project repo
@@ -3283,6 +3809,14 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
     // Process dispatch queue first (coordinator writes here)
     try { await processDispatchQueue(projects, hashes); } catch (e) {
       log(null, `ERROR processDispatchQueue: ${e.message}`);
+    }
+
+    // Poll GitHub Issues for DeepSeek/Gemini agents + check scheduler
+    try { await pollGithubIssues(projects); } catch (e) {
+      log(null, `ERROR pollGithubIssues: ${e.message}`);
+    }
+    try { checkSchedule(projects); } catch (e) {
+      log(null, `ERROR checkSchedule: ${e.message}`);
     }
 
     // Check outbox watchdog (detects stuck agents)
