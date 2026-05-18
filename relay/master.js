@@ -655,12 +655,42 @@ async function handleTelegramCommand(text, imageContext) {
     }
 
     if (sub === 'repo') {
-      const name    = parts[2];
-      const privacy = (parts[3] || 'private').toLowerCase() !== 'public';
-      if (!name) { tg('❓ Uso: /gh repo &lt;nombre&gt; [private|public]'); return; }
+      // /gh repo <nombre> [private|public] [--register]
+      // --register: además de crear el repo, lo agrega a projects.json como nuevo agente Claude
+      const name     = parts[2];
+      const flags    = parts.slice(3);
+      const privacy  = !flags.includes('public');
+      const register = flags.includes('--register');
+      if (!name) { tg('❓ Uso: /gh repo &lt;nombre&gt; [private|public] [--register]\n--register: agrega el repo como proyecto al relay'); return; }
       try {
         const repo = await ghCreateRepo(name, privacy);
-        tg(`✅ <b>Repo creado</b>\n<code>${GITHUB_ORG}/${repo.name}</code>\n🔗 ${repo.html_url}`);
+        let extra = '';
+        if (register) {
+          // Add to projects.json as a new Claude agent project
+          const allProjs = (() => { try { return JSON.parse(fs.readFileSync(PROJECTS_FILE, 'utf8')); } catch (_) { return []; } })();
+          if (!allProjs.find(p => p.id === name)) {
+            allProjs.push({
+              id:     name,
+              name:   name,
+              runner: 'claude',
+              mode:   'full-claude-code',
+              active: false,  // inactive until server path is configured
+              inbox:  '',
+              outbox: '',
+              repo:   '',
+              branch: 'main',
+              github: repo.html_url,
+              url:    '',
+            });
+            fs.writeFileSync(PROJECTS_FILE, JSON.stringify(allProjs, null, 2));
+            const repoRoot = path.join(__dirname, '..');
+            execSync(`cd "${repoRoot}" && git add relay/projects.json && git commit -m "relay: registrar nuevo proyecto ${name}" && git push origin HEAD 2>&1`, { stdio: 'pipe', timeout: 30000 });
+            extra = `\n📋 Registrado en projects.json (actívalo con <code>/activar ${name}</code> cuando configures el servidor)`;
+          } else {
+            extra = '\n⚠️ Ya existía en projects.json';
+          }
+        }
+        tg(`✅ <b>Repo creado</b>\n<code>${GITHUB_ORG}/${repo.name}</code>\n🔗 ${repo.html_url}${extra}`);
       } catch (e) { tg(`❌ GitHub: ${e.message}`); }
       return;
     }
@@ -1280,6 +1310,29 @@ async function ghListIssues(repo, label) {
   const r = await githubRequest('GET', `/repos/${GITHUB_ORG}/${repo}/issues${q}`);
   if (r.status >= 400) return [];
   return Array.isArray(r.body) ? r.body : [];
+}
+
+// Creates labels required for relay inbox routing — idempotent (ignores 422 if exists).
+async function ensureGithubLabels(projects = []) {
+  if (!GITHUB_TOKEN) return;
+  const labels = [
+    { name: 'relay:inbox',      color: '0075ca', description: 'Relay inbox — picked up by relay-master' },
+    { name: 'relay:processing', color: 'e4e669', description: 'Being processed by a relay agent' },
+    { name: 'relay:done',       color: '0e8a16', description: 'Processed by relay agent' },
+  ];
+  const active = Array.isArray(projects) ? projects.filter(p => p.active) : [];
+  for (const p of active) {
+    labels.push({ name: `agent:${p.id}`, color: 'f9d0c4', description: `Route to ${p.name || p.id}` });
+  }
+  let created = 0;
+  for (const label of labels) {
+    const r = await githubRequest('POST',
+      `/repos/${GITHUB_ORG}/${GITHUB_REPO_MAIN}/labels`, label);
+    if (r.status === 201) created++;
+    // 422 = already exists, ignore
+  }
+  if (created > 0) log(null, `[github] ${created} labels creados en ${GITHUB_ORG}/${GITHUB_REPO_MAIN}`);
+  else log(null, `[github] Labels verificados en ${GITHUB_ORG}/${GITHUB_REPO_MAIN} (ya existían)`);
 }
 
 // Issues labeled 'relay:inbox' + 'agent:<projectId>' are picked up and dispatched.
@@ -3679,6 +3732,9 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
 
   // Register command list with Telegram so they autocomplete in the chat
   registerBotCommands();
+
+  // Create GitHub labels required for relay inbox routing
+  ensureGithubLabels(projects).catch(() => {});
 
   // diagBuzonConnectivity eliminado — ANTHROPIC_API_KEY no se usa, Claude corre via Max subscription
 
