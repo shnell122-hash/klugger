@@ -1650,6 +1650,67 @@ bot.on('message:text', async (ctx) => {
     return ctx.reply(`✅ Sesión *${name}* activada.`, { parse_mode: 'Markdown', ...topicOpts(threadId) });
   }
 
+  // ── /dispatch — escribe inbox.md + git commit + push (B2 context continuity) ──
+  // Más fiable que /tarea (HTTP API): funciona aunque el endpoint esté caído.
+  // Uso: /dispatch [proyecto] [tarea]
+  //      /dispatch  (sin args → lista proyectos con keyboard)
+  if (userText.startsWith('/dispatch')) {
+    const arg     = userText.slice('/dispatch'.length).trim();
+    const match   = arg.match(/^(\S+)\s+([\s\S]+)$/);
+    const projectId = match ? match[1].toLowerCase() : null;
+    const task      = match ? match[2].trim() : null;
+
+    const activeProjects = PROJECTS_LIST.filter(p => p.active && p.inbox);
+
+    if (!projectId || !task) {
+      const list = activeProjects.map(p => `• \`${p.id}\` — ${p.name || p.id}`).join('\n');
+      return ctx.reply(
+        '*Dispatch directo al relay*\n\nUso: `/dispatch [proyecto] [descripción de la tarea]`\n\n' +
+        '*Proyectos activos:*\n' + list,
+        { parse_mode: 'Markdown', ...topicOpts(threadId) },
+      );
+    }
+
+    const project = activeProjects.find(p => p.id === projectId);
+    if (!project) {
+      const ids = activeProjects.map(p => `\`${p.id}\``).join(', ');
+      return ctx.reply(`❌ Proyecto \`${projectId}\` no encontrado.\nActivos: ${ids}`, { parse_mode: 'Markdown', ...topicOpts(threadId) });
+    }
+
+    const waiting = await ctx.reply(`⏳ Despachando a *${project.name || projectId}*…`, { parse_mode: 'Markdown', ...topicOpts(threadId) });
+
+    try {
+      // Write task to inbox file
+      const inboxPath = project.inbox;
+      const inboxDir  = path.dirname(inboxPath);
+      if (!fs.existsSync(inboxDir)) fs.mkdirSync(inboxDir, { recursive: true });
+
+      const inboxContent = `# Tarea despachada via Telegram\n\n${task}\n\n_Despachada por: ${userMeta.username || userMeta.first_name} — ${new Date().toISOString()}_\n`;
+      fs.writeFileSync(inboxPath, inboxContent, 'utf8');
+
+      // Determine which repo the inbox belongs to
+      const inboxRepo = inboxPath.startsWith(REPO) ? REPO : path.dirname(inboxDir);
+      const relInbox  = path.relative(inboxRepo, inboxPath);
+
+      await runShell(
+        `cd "${inboxRepo}" && git add "${relInbox}" && ` +
+        `git commit -m "dispatch: tg:${userMeta.username || 'user'}→${projectId} — ${task.slice(0, 60).replace(/"/g, "'")}" && ` +
+        `git push origin HEAD 2>&1`
+      );
+
+      await safeEdit(ctx.chat.id, waiting.message_id,
+        `✅ Tarea enviada a *${project.name || projectId}*\n` +
+        `_Relay la procesará en el próximo ciclo (~15s)_\n\n` +
+        `> ${task.slice(0, 150)}`
+      );
+    } catch (err) {
+      await safeEdit(ctx.chat.id, waiting.message_id,
+        `❌ Error al escribir inbox: \`${err.message.slice(0, 200)}\``
+      );
+    }
+    return;
+  }
+
   // ── /tarea — despachar tarea al relay-master desde Telegram ──────────────────
   // Uso: /tarea fiscalai Agrega endpoint GET /api/salud
   //      /tarea coordinator Revisa y organiza el inbox de todos los proyectos
@@ -1812,7 +1873,8 @@ bot.on('message:text', async (ctx) => {
       '`/nuevo` — Crear proyecto nuevo (wizard completo)\n' +
       '`/borrar [id]` — Eliminar proyecto del relay y hacer commit\n' +
       '`/claude [msg]` — Chat directo con Claude Pro via proxy ($0)\n' +
-      '`/tarea [proyecto] [desc]` — Despachar tarea al relay-master\n' +
+      '`/dispatch [proyecto] [desc]` — Despachar vía inbox.md+git (más fiable)\n' +
+      '`/tarea [proyecto] [desc]` — Despachar tarea al relay-master (HTTP API)\n' +
       '`/chat` — Ver sesiones · `/chat [nombre]` — Crear/activar sesión\n' +
       '`/chat fiscalai` — Sesión con contexto CLAUDE.md del proyecto\n' +
       '`/model` — Cambiar modelo de IA\n' +
@@ -2020,6 +2082,7 @@ const BOT_COMMANDS = [
   { command: 'nuevo',   description: 'Crear nuevo proyecto — clona repo, configura agente' },
   { command: 'borrar',  description: 'Borrar proyecto del relay — /borrar [id]' },
   { command: 'claude',  description: 'Chat con Claude Pro via proxy ($0)' },
+  { command: 'dispatch', description: 'Despachar vía git inbox — /dispatch [proyecto] [desc]' },
   { command: 'tarea',   description: 'Despachar tarea al relay — /tarea [proyecto] [desc]' },
   { command: 'chat',    description: 'Ver/cambiar sesión — /chat [proyecto]' },
   { command: 'model',   description: 'Cambiar modelo de IA' },
