@@ -535,7 +535,8 @@ Si un archivo que necesitas está marcado como "in-progress" por otro dev en `re
 | ID | Descripción | Rama git |
 |----|-------------|----------|
 | `fiscalai` | Backend FiscalAI + SAT APIs | main (DeCabeceraTax) |
-| `fiscalai-front` | Frontend FiscalAI | main (DeCabeceraTax) |
+| `fiscalai-front` | Frontend FiscalAI — producción | main (DeCabeceraTax) |
+| `fiscalai-test` | Frontend FiscalAI — testing.fiscalai.mx | testing (DeCabeceraTax) |
 | `coordinator` | Coordinación entre agentes | main |
 | `ai-monitor` | Dashboard de monitoreo | main |
 | `finbot-tester` | Tester automatizado financial-bot | main |
