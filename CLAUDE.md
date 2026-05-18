@@ -468,3 +468,109 @@ Cuando el contexto se compacte automáticamente, el resumen debe seguir estas re
 
 **Objetivo: resumen ≤ 400 palabras. Si supera 600 palabras, está incluyendo demasiado.**
 9. **Branch de ai-monitor en projects.json es `main`** — no cambiar a branches de desarrollo
+
+---
+
+## Flujo multi-dev (3 desarrolladores simultáneos)
+
+> Leer esta sección COMPLETA al inicio de cada sesión antes de tocar cualquier archivo.
+
+### Identidad y branch por dev
+
+| Dev | Branch de trabajo | Ownership principal |
+|-----|-------------------|---------------------|
+| german | `claude/agent-monitoring-dashboard-4v8iq` | `relay/master.js`, `backend/`, `frontend/`, `deploy/` |
+| dev-2 | `claude/dev-[nombre]-[fecha]` | `financial/bot/`, DeCabeceraTax workspace |
+| dev-3 | `claude/dev-[nombre]-[fecha]` | proyectos nuevos (`pill.ai`, integraciones externas) |
+
+**Al iniciar sesión**, declara tu identidad:
+```
+Soy [nombre]. Mi branch es [branch]. Voy a trabajar en [área].
+```
+
+### Checklist de inicio de sesión
+
+```bash
+# 1. Verificar estado de otros devs
+cat relay/AGENT-STATUS.md
+
+# 2. Actualizar tu branch
+git fetch origin
+git rebase origin/main   # o merge, según prefieras
+
+# 3. Verificar que no hay conflictos pendientes
+git status --short
+```
+
+Si un archivo que necesitas está marcado como "in-progress" por otro dev en `relay/AGENT-STATUS.md`, coordina antes de tocarlo — despacha al coordinator:
+```
+/dispatch coordinator Necesito coordinar con [dev] sobre [archivo] — [qué quiero hacer]
+```
+
+### Workflow por sesión
+
+1. **Trabaja en tu branch** — nunca commitees directo a `main`
+2. **Commits frecuentes y específicos** — cada bloque lógico de cambios
+3. **Al terminar**: actualiza `relay/AGENT-STATUS.md` con archivos modificados y estado
+4. **Para mergear a main**: crea PR, otro dev revisa (o usa `/tarea coordinator revisar PR #N`)
+5. **El relay-master** hace `gitPull` de `main` cada 15s — mergea solo cuando el código es estable
+
+### Cómo despachar tareas al sistema multi-agente
+
+**Desde Claude Code** (slash command):
+```
+/dispatch fiscalai Agrega validación de RFC en el formulario de alta
+/dispatch coordinator Revisa conflictos en relay/master.js antes del merge
+/dispatch ai-monitor Actualiza el dashboard con nueva métrica de latencia
+```
+
+**Desde Telegram** (iavilarBot):
+```
+/dispatch [proyecto] [descripción]   ← despacha directo, sin plan
+/tarea [proyecto] [descripción]      ← genera plan DeepSeek + aprobación
+```
+
+**Proyectos disponibles para despacho:**
+
+| ID | Descripción | Rama git |
+|----|-------------|----------|
+| `fiscalai` | Backend FiscalAI + SAT APIs | main (DeCabeceraTax) |
+| `fiscalai-front` | Frontend FiscalAI | main (DeCabeceraTax) |
+| `coordinator` | Coordinación entre agentes | main |
+| `ai-monitor` | Dashboard de monitoreo | main |
+| `finbot-tester` | Tester automatizado financial-bot | main |
+| `finbot-verifier` | Verificador continuo financial-bot | main |
+
+### Para probar cambios en producción
+
+```bash
+# Ver logs de un proceso en tiempo real
+ssh root@143.198.228.78 "pm2 logs [proceso] --lines 30"
+
+# Dashboard con métricas de agentes
+# → ia.vilarkptl.com
+
+# Verificar que tu PR llegó a producción
+ssh root@143.198.228.78 "cd /var/www/html/vilarkptl.com/ai-monitor && git log --oneline -3"
+```
+
+### Asignación del roadmap pendiente
+
+| Tarea | Dev asignado | Prioridad |
+|-------|-------------|-----------|
+| B3: multi-cuenta routing (5 cuentas Pro/Max en master.js) | german | Alta |
+| Fix permanente DeCabeceraTax gitPull | dev-2 | Alta |
+| conversation-engine: confirmar score post-SQL fix | dev-2 | Alta |
+| pill.ai: deploy Fly.io + Stripe webhook | dev-3 | Media |
+| Agregar pill.ai a projects.json del relay | dev-3 | Media |
+| Tests: `/dispatch` en iavilarBot + Claude Code | german | Media |
+| Dashboard: métricas de sesiones B1 (--resume) | german | Baja |
+| CI: pytest + ruff para financial/bot | dev-2 | Baja |
+
+### Reglas anti-conflicto
+
+- **`relay/master.js`** — ownership exclusivo de german. Otros devs no tocan sin coordinación previa.
+- **`relay/projects.json`** — cambios siempre en `main` directo (no en branches de código). Formato: `git add relay/projects.json && git commit -m "relay: [descripción]" && git push origin main`
+- **`financial/bot/`** — ownership de dev-2. Cambios de arquitectura requieren actualizar `financial/bot/AGENTS.md` y `AGENT-TREE.md`.
+- **`relay/inbox-*.md` y `relay/outbox-*.md`** — NO commitear en branches de código. Solo relay-master y `/dispatch` los tocan.
+- Si hay duda sobre ownership: preguntar en `relay/AGENT-STATUS.md` o despachar al coordinator.
