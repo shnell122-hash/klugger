@@ -223,6 +223,7 @@ function tgAnswerCallback(callbackId) {
 function registerBotCommands() {
   if (!BOT_TOKEN) return;
   const commands = [
+    { command: 'dispatch', description: 'Despacha directamente sin plan — /dispatch [proyecto] [desc]' },
     { command: 'tarea',    description: 'Propone plan y despacha tarea — /tarea [proyecto] [descripción]' },
     { command: 'status',   description: 'Tareas corriendo en este momento' },
     { command: 'resumen',  description: 'Resumen de proyectos — /resumen [id?]' },
@@ -408,6 +409,48 @@ async function handleTelegramCommand(text, imageContext) {
     return;
   }
 
+  if (lower.startsWith('/dispatch')) {
+    const parts     = raw.split(/\s+/);
+    const projectId = parts[1] || '';
+    const task      = parts.slice(2).join(' ').trim();
+
+    let allProjects = [];
+    try { allProjects = JSON.parse(fs.readFileSync(PROJECTS_FILE, 'utf8')); } catch (_) {}
+
+    if (!projectId || !task) {
+      const avail = allProjects.filter(p => p.active && p.inbox).map(p => `<code>${p.id}</code>`).join(', ');
+      tg(`❓ Uso: /dispatch [proyecto] [descripción]\nDespacha directamente sin plan previo.\nProyectos: ${avail}`);
+      return;
+    }
+
+    const project = allProjects.find(p => p.active && p.inbox &&
+      (p.id === projectId || p.id.startsWith(projectId)));
+    if (!project) {
+      const avail = allProjects.filter(p => p.active).map(p => p.id).join(', ');
+      tg(`❌ Proyecto no encontrado: <code>${projectId}</code>\nActivos: ${avail}`);
+      return;
+    }
+
+    try {
+      const inboxContent =
+        `# Tarea despachada via Telegram\n\n${task}\n\n` +
+        `_Despachada directamente — ${new Date().toISOString()}_\n`;
+      fs.writeFileSync(project.inbox, inboxContent, 'utf8');
+
+      const repoRoot  = path.join(__dirname, '..');
+      const relInbox  = path.relative(repoRoot, project.inbox);
+      const commitMsg = `dispatch: telegram→${projectId} — ${task.slice(0, 60).replace(/"/g, "'")}`;
+      execSync(
+        `cd "${repoRoot}" && git add "${relInbox}" && git commit -m "${commitMsg}" && git push origin HEAD 2>&1`,
+        { stdio: 'pipe', timeout: 30000 }
+      );
+      tg(`✅ <b>Despachado a ${project.name || projectId}</b>\n<i>${task.slice(0, 200)}</i>\n\nRelay procesará en ~15s.`);
+    } catch (err) {
+      tg(`❌ Error al despachar: <code>${err.message.slice(0, 300)}</code>`);
+    }
+    return;
+  }
+
   if (lower.startsWith('/tarea') || lower.startsWith('/task')) {
     const parts        = raw.split(/\s+/);
     const projectsArg  = parts[1] || '';
@@ -497,6 +540,7 @@ async function handleTelegramCommand(text, imageContext) {
     tg(`🤖 <b>Comandos del agente relay</b>
 
 <b>Tareas</b>
+/dispatch [proyecto] [descripción] — despacha directo (sin plan previo)
 /tarea [proyecto] [descripción] — propone plan y despacha tarea
   • Acepta varios proyectos separados por coma: <code>fiscalai,fiscalai-front</code>
   • También puedes adjuntar una imagen con caption
