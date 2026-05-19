@@ -22,6 +22,7 @@ const { router: apiAdminRouter, dailySnapshot } = require('./routes/apiAdmin');
 const telegramUsersRouter = require('./routes/telegramUsers');
 const proxyUsageRouter    = require('./routes/proxyUsage');
 const financialRoutes = require('../financial/backend/routes/financial');
+const execRouter      = require('./routes/exec');
 const pool            = require('./db/mysql');
 
 const PORT = process.env.PORT || 3010;
@@ -58,6 +59,7 @@ app.use('/api/apiAdmin',        apiAdminRouter);
 app.use('/api/telegram',        telegramUsersRouter);
 app.use('/api/proxy-usage',     proxyUsageRouter);
 app.use('/api/financial',      financialRoutes(pool, io, express));
+app.use('/api/exec',           execRouter);
 
 // Serve screenshots directory (already covered by express.static on /frontend,
 // but also serve under /screenshots for direct access)
