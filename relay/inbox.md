@@ -1,29 +1,32 @@
 budget_usd_max: 0.8
 
-## Deploy analisis-wp — Verificación post-dispatch
+## Merge deploy/financial-llm-complete + PM2 restart
 
-Ejecutar en el servidor los siguientes pasos:
+Respuesta de flujos (2026-05-09): TransactionOrchestrator está listo en deploy/financial-llm-complete y necesita mergearse a main.
 
-1. Cambiar remote de origin:
-   cd /var/www/html/analisis-wp
-   git remote set-url origin https://github.com/vilarkptl-lang/analisis-wp.git
+### Acciones en ia.vilarkptl.com
 
-2. Fetch y reset:
-   git fetch origin
-   git reset --hard origin/main
+```bash
+cd /var/www/html/vilarkptl.com/ai-monitor
+git fetch origin
+git merge deploy/financial-llm-complete
+pm2 restart financial-bot
+pm2 status financial-bot
+curl -s http://localhost:3005/api/health | jq .
+```
 
-3. Listar contenido:
-   ls -la
+### Verificación
+- Status: financial-bot online
+- Health: {"status":"ok"}
+- Commit: merge completado
 
-4. Verificar que existen:
-   - webapp.py
-   - run.py
-   - requirements.txt
-   - templates/index.html
+### Contexto
+Esta rama contiene:
+- TransactionOrchestrator con OpenAI client correcto
+- Gemini 2.0 Flash en DocumentIntelligenceAgent
+- FileFlowGraph incluido
 
 Reportar en outbox-ai-monitor.md cuando esté listo.
-
-Dispatch original: f5071fdd-1890-480d-93ea-722e886b3aad
 
 ---
 ## Outbox — rellenar antes de terminar la sesión
