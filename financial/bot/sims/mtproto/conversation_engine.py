@@ -22,14 +22,10 @@ import json
 import random
 import re
 import sys
-import os
 import time
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
-
-# Ensure imports resolve from this script's directory regardless of PM2 cwd
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import io
 from telethon import events
@@ -50,10 +46,6 @@ ROUNDS_PER_REPORT       = 5    # cuántos rounds antes de publicar resumen en Te
 
 # ID de Flujos AI (financial-bot) — se auto-descubre al iniciar
 BOT_USER_ID: Optional[int] = None
-
-# Fallos consecutivos de send_message por cuenta — auto-excluye tras SEND_FAIL_THRESHOLD
-_send_failures: dict = {}
-SEND_FAIL_THRESHOLD = 5
 
 # ─── CLABEs y montos de prueba ────────────────────────────────────────────────
 
@@ -155,7 +147,6 @@ FRASES_SALDO = [
     "¿cuánto tengo disponible?",
     "¿cuánto queda en el saldo?",
     "¿cómo vamos con el saldo?",
-    "cuánto queda en mi cuenta?",
     "a cuánto estamos?",
 ]
 
@@ -420,7 +411,7 @@ def gen_op_scenario(acct: str, tipo: str, amount: int, tier: int) -> dict:
     Genera un escenario completo de operación para el tipo dado.
     Retorna un escenario type='bot' listo para ejecutar.
     """
-    clabe = pick(CLABES_TEST)  # Solo CLABEs de clientes externos (nunca empresa) para evitar eraVuelta
+    clabe = pick(CLABES_OP)
 
     # "selecciona" / "tipo" son fallback válidos: el bot pidió tipo porque el parser
     # no extrajo todo del texto natural — la conversación sigue, no es fallo total.
@@ -599,7 +590,7 @@ def gen_scenarios(tier: int, active_accounts: set = None) -> list[dict]:
         "asset": ("cuadro_png", tier),
         "mode": "asistente",
         "verify_db": "SELECT COUNT(*) FROM fin_operations WHERE created_at > NOW() - INTERVAL 180 SECOND",
-        "expected": ["Saldo", "comision", "$", "registrado", "Recibido", "recibido"],
+        "expected": ["Saldo", "comision", "$"],
     })
     if post:
         scenarios.append({"type": "chat", "tier": tier, "id": "post_cuadro_png", "turns": post})
@@ -623,7 +614,7 @@ def gen_scenarios(tier: int, active_accounts: set = None) -> list[dict]:
         "id": f"comprobante_{comp_sender}", "account": comp_sender,
         "asset": ("comprobante", tier),
         "mode": "asistente",
-        "expected": ["Saldo", "$", "registrado", "Recibido", "recibido", "Comprobante"],
+        "expected": ["Saldo", "$"],
     })
 
     # ── Consultas de saldo ─────────────────────────────────────────────────────
@@ -988,21 +979,17 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
                             try:
                                 await client.send_message(target, messages[0])
                             except Exception as retry_err:
-                                _send_failures[account] = _send_failures.get(account, 0) + 1
-                                return {"test_id": test_id, "passed": False, "account": account,
+                                return {"test_id": test_id, "passed": False,
                                         "detail": f"retry failed: {retry_err}", "bot_response": None}
                         else:
-                            _send_failures[account] = _send_failures.get(account, 0) + 1
-                            return {"test_id": test_id, "passed": False, "account": account,
+                            return {"test_id": test_id, "passed": False,
                                     "detail": "force reconnect failed", "bot_response": None}
                     else:
                         print(f"  WARNING: send_message failed ({account}): {send_err!r}")
                         if isinstance(target, int):
                             print(f"  WARNING: {account.upper()} not in group — add manually in Telegram")
-                        _send_failures[account] = _send_failures.get(account, 0) + 1
-                        return {"test_id": test_id, "passed": False, "account": account,
+                        return {"test_id": test_id, "passed": False,
                                 "detail": f"send_message failed: {send_err}", "bot_response": None}
-                _send_failures[account] = 0  # reset: send OK
                 # Primer mensaje: wait() estándar — avanzar cursor antes del siguiente send
                 bot_response = await col.wait(BOT_RESPONSE_TIMEOUT)
                 for i, msg in enumerate(messages[1:], 1):
@@ -1131,100 +1118,6 @@ async def resolve_group_entity(client, chat_id: int):
 
     print(f"[engine] WARNING: no se pudo resolver entidad {chat_id} — cuenta NO esta en el grupo")
     return chat_id
-
-
-# ─── Coordinator auto-dispatch ────────────────────────────────────────────────
-
-COORDINATOR_SCORE_THRESHOLD = 78.0   # % mínimo aceptable
-COORDINATOR_CONSEC_ROUNDS   = 2      # rounds consecutivos bajo umbral para disparar
-_coordinator_low_rounds: int = 0     # contador de rounds consecutivos bajo umbral
-
-
-def _dispatch_coordinator_if_needed(episode_id: int, results: list, stats: dict) -> None:
-    """
-    Si el score cae bajo COORDINATOR_SCORE_THRESHOLD por COORDINATOR_CONSEC_ROUNDS
-    consecutivos, escribe un reporte estructurado en relay/inbox-finbot-coordinator.md
-    y hace commit+push para que el relay-master lo detecte y active el coordinador.
-    """
-    global _coordinator_low_rounds
-    score = stats.get('score', 0)
-
-    if score >= COORDINATOR_SCORE_THRESHOLD:
-        _coordinator_low_rounds = 0
-        return
-
-    _coordinator_low_rounds += 1
-    print(f"[coordinator] Score bajo ({score:.1f}%) — ronda consecutiva #{_coordinator_low_rounds}")
-
-    if _coordinator_low_rounds < COORDINATOR_CONSEC_ROUNDS:
-        return
-
-    # Resetear para no volver a disparar hasta que suba y vuelva a bajar
-    _coordinator_low_rounds = 0
-
-    REPO_ROOT = Path(__file__).resolve().parents[4]
-
-    # Recolectar top fallos
-    failed = [r for r in results if not r.get('passed', True)]
-    # Agrupar por patrón (prefijo del test_id antes del primer _)
-    from collections import Counter
-    patterns: Counter = Counter()
-    for r in failed:
-        tid = r.get('test_id', '?')
-        patterns[tid.split('_')[0]] += 1
-
-    fallos_txt = '\n'.join(
-        f"- {r.get('test_id','?')}: esperado keywords, recibió \"{(r.get('bot_response') or 'sin respuesta')[:80]}\""
-        for r in failed[:8]
-    )
-    patrones_txt = '\n'.join(
-        f"- {pat}: ×{cnt} tests"
-        for pat, cnt in patterns.most_common(5)
-    )
-
-    # Obtener sha del archivo principal
-    import subprocess
-    sha = ''
-    try:
-        sha = subprocess.check_output(
-            ['git', 'log', '-1', '--format=%h', '--', 'financial/bot/financial-bot.js'],
-            cwd=REPO_ROOT, timeout=5, text=True
-        ).strip()
-    except Exception:
-        pass
-
-    inbox_path = REPO_ROOT / 'relay' / 'inbox-finbot-coordinator.md'
-    content = (
-        f"## Diagnóstico Requerido — Regresión Detectada\n\n"
-        f"**Episodio**: #{episode_id}\n"
-        f"**Score**: {score:.1f}% ({stats.get('passed',0)}/{stats.get('total',0)})\n"
-        f"**Trigger**: {COORDINATOR_CONSEC_ROUNDS} rounds consecutivos bajo {COORDINATOR_SCORE_THRESHOLD}%\n"
-        f"**financial-bot.js SHA**: {sha}\n\n"
-        f"### Fallos detectados ({len(failed)} tests)\n"
-        f"{fallos_txt}\n\n"
-        f"### Patrones recurrentes\n"
-        f"{patrones_txt}\n\n"
-        f"### Instrucciones\n"
-        f"1. Lee `relay/episode-results.jsonl` (últimas 20 líneas) para ver el historial\n"
-        f"2. Identifica la causa raíz leyendo el código en `financial/bot/financial-bot.js`\n"
-        f"3. Aplica un fix quirúrgico (no rewrites)\n"
-        f"4. `node --check financial/bot/financial-bot.js` antes de commit\n"
-        f"5. `git add financial/bot/financial-bot.js && git commit && git push`\n"
-        f"6. Reporta en `## Resultados` al terminar\n"
-    )
-
-    try:
-        inbox_path.write_text(content, encoding='utf-8')
-        subprocess.run(['git', 'add', str(inbox_path.relative_to(REPO_ROOT))],
-                       cwd=REPO_ROOT, capture_output=True, timeout=10)
-        subprocess.run(['git', 'commit', '--no-gpg-sign', '-m',
-                        f'dispatch: coordinator ep#{episode_id} score={score:.0f}%'],
-                       cwd=REPO_ROOT, capture_output=True, timeout=15)
-        subprocess.run(['git', 'push', 'origin', 'claude/financial-multiagent-system-YwtYQ'],
-                       cwd=REPO_ROOT, capture_output=True, timeout=30)
-        print(f"[coordinator] Dispatched — ep#{episode_id} score={score:.1f}% → inbox-finbot-coordinator.md")
-    except Exception as e:
-        print(f"[coordinator] dispatch failed: {e}")
 
 
 # ─── Relay: push de episodios para lectura en tiempo real ─────────────────────
@@ -1377,18 +1270,6 @@ async def run_engine(rounds: int = 0, force_tier: int = 0, dry_run: bool = False
             all_results.append(result)
             await asyncio.sleep(DELAY_BETWEEN_SCENARIOS)
 
-        # Auto-excluir cuentas con demasiados fallos consecutivos de envío
-        for acct in list(active_accounts):
-            if _send_failures.get(acct, 0) >= SEND_FAIL_THRESHOLD:
-                print(f"\n[engine] ⚠️  Auto-excluyendo {acct.upper()}: "
-                      f"{_send_failures[acct]} fallos consecutivos de send_message")
-                active_accounts.discard(acct)
-                _send_failures[acct] = 0  # reset para siguiente re-inclusión manual
-
-        if not active_accounts:
-            print("[engine] Sin cuentas activas — deteniendo engine")
-            break
-
         if episode_id and round_results:
             try:
                 stats = complete_episode(episode_id, round_results)
@@ -1400,7 +1281,6 @@ async def run_engine(rounds: int = 0, force_tier: int = 0, dry_run: bool = False
                     post_to_telegram(report)
 
                 dispatch_fix_if_needed(episode_id, round_results, stats)
-                _dispatch_coordinator_if_needed(episode_id, round_results, stats)
                 _push_episode_to_relay(episode_id, round_results, stats, round_num)
             except Exception as e:
                 print(f"[learning] Error completando episodio: {e}")
