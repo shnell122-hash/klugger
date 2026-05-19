@@ -440,14 +440,7 @@ async function handleTelegramCommand(text, imageContext) {
         `# Tarea despachada via Telegram\n\n${task}\n\n` +
         `_Despachada directamente — ${new Date().toISOString()}_\n`;
       fs.writeFileSync(project.inbox, inboxContent, 'utf8');
-
-      const repoRoot  = path.join(__dirname, '..');
-      const relInbox  = path.relative(repoRoot, project.inbox);
-      const commitMsg = `dispatch: telegram→${projectId} — ${task.slice(0, 60).replace(/"/g, "'")}`;
-      execSync(
-        `cd "${repoRoot}" && git add "${relInbox}" && git commit -m "${commitMsg}" && git push origin HEAD 2>&1`,
-        { stdio: 'pipe', timeout: 30000 }
-      );
+      gitCommitFile(project.inbox, `dispatch: telegram→${projectId} — ${task.slice(0, 60)}`);
       tg(`✅ <b>Despachado a ${project.name || projectId}</b>\n<i>${task.slice(0, 200)}</i>\n\nRelay procesará en ~15s.`);
     } catch (err) {
       tg(`❌ Error al despachar: <code>${err.message.slice(0, 300)}</code>`);
@@ -689,9 +682,7 @@ async function handleTelegramCommand(text, imageContext) {
         const coordinator  = allProjects.find(p => p.active && p.id === 'coordinator' && p.inbox);
         if (coordinator) {
           fs.writeFileSync(coordinator.inbox, coordinatorTask, 'utf8');
-          const repoRoot  = path.join(__dirname, '..');
-          const relInbox  = path.relative(repoRoot, coordinator.inbox);
-          execSync(`cd "${repoRoot}" && git add "${relInbox}" && git commit -m "dispatch: gh-repo→coordinator — registrar ${name}" && git push origin HEAD 2>&1`, { stdio: 'pipe', timeout: 30000 });
+          gitCommitFile(coordinator.inbox, `dispatch: gh-repo→coordinator — registrar ${name}`);
           tg(`📋 <b>Coordinator notificado</b> — configurará el proyecto ${name} en ~15s.`);
         } else {
           tg(`⚠️ Coordinator no disponible. Registra manualmente en projects.json:\n<code>id: "${name}", github: "${repo.html_url}"</code>`);
@@ -787,11 +778,7 @@ async function handleTelegramCommand(text, imageContext) {
       } else {
         fs.writeFileSync(project.inbox,
           `# Tarea — Backlog ${task.id}\n\n${task.desc}\n\n_Reclamada via /claim — ${new Date().toISOString()}_\n`, 'utf8');
-        const repoRoot = path.join(__dirname, '..');
-        const relInbox = path.relative(repoRoot, project.inbox);
-        execSync(
-          `cd "${repoRoot}" && git add "${relInbox}" && git commit -m "claim: backlog ${task.id} → ${projectId}" && git push origin HEAD 2>&1`,
-          { stdio: 'pipe', timeout: 30000 });
+        gitCommitFile(project.inbox, `claim: backlog ${task.id} → ${projectId}`);
       }
       tg(`✅ <b>Backlog ${task.id} → ${projectId}</b>\n${task.desc.slice(0, 200)}`);
     } catch (e) {
@@ -1430,13 +1417,7 @@ async function runDeepSeekAgent(project, taskContent, callback) {
     if (project.inbox) {
       const outboxPath = project.inbox.replace(/inbox/g, 'outbox');
       fs.writeFileSync(outboxPath, `# Resultado — ${project.name}\n\n${result}\n\n_${new Date().toISOString()}_\n`, 'utf8');
-      try {
-        const repoRoot = path.join(__dirname, '..');
-        const relOut   = path.relative(repoRoot, outboxPath);
-        execSync(
-          `cd "${repoRoot}" && git add "${relOut}" && git commit -m "result: ${project.id} deepseek" && git push origin HEAD 2>&1`,
-          { stdio: 'pipe', timeout: 30000 });
-      } catch (_) {}
+      try { gitCommitFile(outboxPath, `result: ${project.id} deepseek`); } catch (_) {}
     }
     tg(`✅ <b>${project.name}</b> (DeepSeek)\n${result.slice(0, 800)}`);
     log(project.id, `[deepseek-runner] Completado (${result.length} chars)`);
@@ -1491,13 +1472,7 @@ async function runGeminiAgent(project, taskContent, callback) {
     if (project.inbox) {
       const outboxPath = project.inbox.replace(/inbox/g, 'outbox');
       fs.writeFileSync(outboxPath, `# Resultado — ${project.name}\n\n${result}\n\n_${new Date().toISOString()}_\n`, 'utf8');
-      try {
-        const repoRoot = path.join(__dirname, '..');
-        const relOut   = path.relative(repoRoot, outboxPath);
-        execSync(
-          `cd "${repoRoot}" && git add "${relOut}" && git commit -m "result: ${project.id} gemini" && git push origin HEAD 2>&1`,
-          { stdio: 'pipe', timeout: 30000 });
-      } catch (_) {}
+      try { gitCommitFile(outboxPath, `result: ${project.id} gemini`); } catch (_) {}
     }
     tg(`✅ <b>${project.name}</b> (Gemini)\n${result.slice(0, 800)}`);
     log(project.id, `[gemini-runner] Completado (${result.length} chars)`);
@@ -1579,6 +1554,19 @@ function checkSchedule(projects) {
       if (err) log(null, `[schedule] ${entry.id} error: ${err.message}`);
     });
   }
+}
+
+// ─── Git: commit a single file in whatever repo it belongs to ─
+// Works for files inside agentic-repo AND external repos (DeCabeceraTax, etc.)
+function gitCommitFile(filePath, commitMsg, timeoutMs = 30000) {
+  const dir      = path.dirname(filePath);
+  const repoRoot = execSync(`cd "${dir}" && git rev-parse --show-toplevel`, { stdio: 'pipe', timeout: 5000 }).toString().trim();
+  const relPath  = path.relative(repoRoot, filePath);
+  const safeMsg  = commitMsg.replace(/"/g, "'");
+  execSync(
+    `cd "${repoRoot}" && git add "${relPath}" && git diff --cached --quiet || git commit -m "${safeMsg}" && git push origin HEAD`,
+    { stdio: 'pipe', timeout: timeoutMs }
+  );
 }
 
 // Append a timestamped entry to relay/journal.md in a project repo
