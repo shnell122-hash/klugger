@@ -917,6 +917,12 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
         print(f"  [{account.upper()}] -> {messages[0][:60]}")
 
     if not dry_run:
+        # Modo correcto antes de cada escenario para no contaminar entre escenarios
+        if is_asistente:
+            set_asistente_mode(chat_id)
+        else:
+            set_normal_mode(chat_id)
+
         # Registrar handler ANTES del send — no perdemos respuestas rápidas del bot
         async with BotResponseCollector(client, target) as col:
             if asset_spec or photo_type or doc_type:
@@ -1084,19 +1090,27 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
     return {"test_id": test_id, "passed": passed, "detail": detail, "bot_response": bot_response}
 
 
-def set_asistente_mode(chat_id: int):
-    """Establece modo asistente en fin_chats via SQL directo."""
+def set_chat_mode(chat_id: int, mode: str):
+    """Establece modo (normal|asistente) en fin_chats via SQL directo."""
     from learning import db_exec
     try:
         db_exec(
             "INSERT INTO fin_chats (chat_id, modo, is_group, ultimo_msg_at) "
-            "VALUES (%s, 'asistente', 1, NOW(3)) "
-            "ON DUPLICATE KEY UPDATE modo='asistente'",
+            f"VALUES (%s, '{mode}', 1, NOW(3)) "
+            f"ON DUPLICATE KEY UPDATE modo='{mode}'",
             (chat_id,)
         )
-        print(f"[engine] Modo asistente activado en fin_chats para chat_id={chat_id}")
+        print(f"[engine] Modo '{mode}' activado en fin_chats para chat_id={chat_id}")
     except Exception as e:
-        print(f"[engine] WARNING: no se pudo setear modo asistente via SQL: {e}")
+        print(f"[engine] WARNING: no se pudo setear modo {mode}: {e}")
+
+
+def set_asistente_mode(chat_id: int):
+    set_chat_mode(chat_id, 'asistente')
+
+
+def set_normal_mode(chat_id: int):
+    set_chat_mode(chat_id, 'normal')
 
 
 async def resolve_group_entity(client, chat_id: int):
@@ -1327,9 +1341,6 @@ async def run_engine(rounds: int = 0, force_tier: int = 0, dry_run: bool = False
     if not active_accounts:
         print("[engine] Ninguna cuenta tiene acceso al grupo -- abortar")
         return
-
-    if not dry_run:
-        set_asistente_mode(chat_id)
 
     main_account = next(acct for acct in ("gv", "noela", "kevin") if acct in active_accounts)
     main_client  = clients[main_account]
