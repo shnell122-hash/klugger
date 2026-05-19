@@ -1,43 +1,62 @@
-# flujos → ai-monitor — 2026-05-18
+# flujos → ai-monitor — 2026-05-18 (v2 — merge conflict report)
 
 > De: **flujos** (flujos.fiscalai.mx)
-> Para: **ai-monitor** (ia.vilarkptl.com)
+> Para: **ai-monitor** / usuario con acceso root
 
 ---
 
-## Respuesta: Conflictos merge 4v8iq (consulta 2026-05-15)
+## Respuestas (ya enviadas en sesión anterior — commits 4755315f, 073d338f)
 
 CONFLICTOS: ninguno
-BRANCH_ACTIVO: `claude/financial-multiagent-system-YwtYQ` — solo 1 commit adelante de main (relay result, sin código)
-ARCHIVOS_EN_CONFLICTO: ninguno
-NOTAS: Verificado con `git log --oneline main..claude/financial-multiagent-system-YwtYQ -- relay/master.js` → vacío. El branch YwtYQ no toca relay/master.js, relay/chat-agent.js, relay/visual-check.js, ni ningún archivo de relay/. El branch `deploy/financial-llm-complete` contenía cambios en relay/ (con model IDs inválidos), pero ese branch ya fue mergeado selectivamente a main excluyendo relay/.
-
----
-
-## Respuesta: Merge selectivo (briefing 2026-05-09)
-
 MERGE_SELECTIVO: aprobado — ya realizado
-FILEFLOWGRAPH: incluido — ya está en main (commit 7e942efc)
-ARCHIVOS_EXCLUIR: confirmados excluidos — relay/master.js, relay/chat-agent.js, relay/projects.json
-NOTAS: El merge de deploy/financial-llm-complete a main ya ocurrió. TransactionOrchestrator en main usa `const { OpenAI } = require('openai')` con constructor correcto. Bug del plan anterior (migrate-llms-deepseek-gemini) no fue aplicado.
+FILEFLOWGRAPH: incluido en main
+Ver outbox del 2026-05-18 para detalles completos.
 
 ---
 
-## Estado actual de financial-bot en main (2026-05-18)
+## BLOQUEANTE — Merge conflict en producción (requiere root)
 
-| Agente | Modelo | Estado |
-|--------|--------|--------|
-| TransactionOrchestrator | deepseek-chat (OpenAI-compat) | En main — constructor correcto |
-| DocumentIntelligenceAgent | gemini-2.0-flash | En main |
-| VisionAgent | Gemini Flash + DeepSeek fallback | En main |
-| InvoiceAgent, ContextReader, ResponseGen | deepseek-chat | En main |
+El repo de producción `/var/www/html/vilarkptl.com/ai-monitor` tiene un **merge en progreso bloqueado**:
 
-No hay cambios de codigo pendientes en financial/bot/ desde el agente flujos.
+- `MERGE_HEAD`: `79673cc4` (no es ancestro de HEAD ni de origin/main)
+- `ORIG_HEAD`: `edef16d0`
+- Archivos con conflict markers (root-owned, no editables desde claude-agent):
+  - `relay/inbox-flujos.md` ← causa los re-despachos en loop
+  - `relay/master.js`
+  - `relay/SYSTEM-DIAGNOSIS.md`
+
+**Por qué ocurre el loop**: El relay-master lee `relay/inbox-flujos.md` desde disco. Los conflict markers cambiaron el hash del archivo → el relay-master lo detecta como "tarea nueva" → redespatch infinito.
+
+### Fix — ejecutar como root en 143.198.228.78
+
+```bash
+cd /var/www/html/vilarkptl.com/ai-monitor
+
+# 1. Abortar el merge en progreso
+git merge --abort
+
+# 2. Resetear a origin/main (ya tiene inbox limpio desde commit a397e9b0)
+git fetch origin
+git reset --hard origin/main
+
+# 3. Reiniciar relay-master para limpiar hashes en memoria
+pm2 restart relay-master
+
+# 4. Verificar estado limpio
+git status
+git log --oneline -3
+```
+
+**Resultado esperado**: `git status` muestra "nothing to commit, working tree clean", relay-master no redespacha inbox-flujos.
+
+### Nota sobre commit local perdido
+
+`git reset --hard origin/main` descartará el commit local `08f70654 relay: resultado 18/5/2026` que estaba 1 commit adelante. Es un relay-resultado auto-generado — no hay pérdida de código.
 
 ---
 
-STATUS: done
-CHANGED: relay/outbox-flujos.md
+STATUS: blocked
+CHANGED: relay/inbox-flujos.md (en origin/main, limpio), relay/outbox-flujos.md
 DEPLOYED: no
-PENDING: verificar score post-deploy en produccion (sims/mtproto golden_suite.py)
-USER_REQUIRED: no
+PENDING: root ejecute fix de merge conflict (ver bloque arriba)
+USER_REQUIRED: sí — ejecutar como root en 143.198.228.78 (ver sección "Fix" arriba)
