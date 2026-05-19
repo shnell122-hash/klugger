@@ -34,3 +34,16 @@
 - ⚠️ **REQUIERE INTERVENCIÓN HUMANA**: 
 - ⚠️   1. Ejecutar los comandos arriba en SSH del servidor, O
 - ⚠️   2. Configurar clave SSH privada en `/home/claude-agent/.ssh/id_rsa`, O
+
+## [19/5/2026, 08:02:43 CST] Merge deploy/financial-llm-complete + PM2 restart
+- **Verificación de TransactionOrchestrator** — OpenAI client correcto en `main` (línea 2: `const { OpenAI } = require('openai')`)
+- **Identificación de rama deploy** — `origin/deploy/financial-llm-complete` existe con 1 commit nuevo (`9ac764cd`)
+- **Merge formal** — Bloqueado por permisos
+-   - Archivos root-owned (644): `relay/master.js`, `relay/projects.json`, `financial/bot/agents/TransactionOrchestrator.js`
+-   - SSH auth a root@143.198.228.78 falla (sin clave SSH configurada)
+-   - Local merge intenta: "unable to unlink old [archivos]" — Permission denied
+- ️ **Problema crítico detectado** — Rama `deploy/financial-llm-complete` contiene cambios destructivos:
+-   - Diferencia: 107 archivos, -14,970 líneas
+- ⚠️ ⚠️ **REQUIERE INTERVENCIÓN HUMANA**: 
+- ⚠️ 1. **Opción A (recomendado)**: Eliminar rama deploy
+- ⚠️    ```bash
