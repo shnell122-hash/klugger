@@ -353,7 +353,7 @@ git gc --auto
 ### Tabla de calificación (1–10)
 
 | Dimensión | Este Sistema | Claude Code (nativo) | Ventaja |
-|-----------|:-----------:|:--------------------:|---------|
+|-----------|:-----------:|:--------------------:|----------|
 | **Latencia por tarea** | 7 | 9 | Claude Code — overhead del relay (poll 15s, DeepSeek plan) |
 | **Costo operativo** | 10 | 6 | Este sistema — $0 API (Max subscription) + DeepSeek barato |
 | **Eficiencia multitarea** | 9 | 5 | Este sistema — múltiples proyectos paralelos nativos |
@@ -483,7 +483,7 @@ git push origin main
 ### Paso 6: Variables de entorno críticas
 ```bash
 # Ver las variables disponibles (sin mostrar valores)
-cat relay/.env | grep -oP '^[A-Z_]+=' 
+cat relay/.env | grep -oP '^[A-Z_]+='
 
 # Variables obligatorias por subsistema:
 # - relay/.env: TELEGRAM_BOT_TOKEN, ANTHROPIC_API_KEY, DEEPSEEK_API_KEY, DEEPSEEK_PRO_MODEL, DEEPSEEK_FLASH_MODEL
@@ -639,4 +639,313 @@ PRÓXIMA SEMANA:
 
 ---
 
-*Documento generado el 2026-05-15. Actualizar cuando cambien estados de proyectos, ramas activas, o arquitectura del sistema.*
+## 15. Brecha de Contexto — Por Qué los Agentes Relay No Tienen el Mismo Contexto que Claude Code Chat
+
+### La causa raíz: el flag `--print`
+
+Cuando relay-master despacha una tarea, ejecuta algo equivalente a:
+
+```bash
+claude --print --model claude-sonnet-4-6 "[prompt de tarea]"
+```
+
+El flag `--print` convierte a Claude Code en un **procesador de lotes sin estado**. Cada invocación es una sesión nueva desde cero, sin memoria de la conversación anterior. No importa cuántas tareas haya completado el agente antes — cada dispatch es como abrir Claude Code por primera vez.
+
+En contraste, cuando un desarrollador usa Claude Code de manera interactiva, la conversación se acumula en el mismo contexto: el agente recuerda qué archivos editó, qué errores encontró, qué decidió no hacer y por qué, y puede construir sobre esa base iterativamente.
+
+### Qué contexto SÍ recibe el agente relay (por despacho)
+
+| Fuente | Contenido | Tamaño típico |
+|--------|-----------|---------------|
+| `relay/agents/[id].md` | Descripción del proyecto, stack, rutas críticas, restricciones | ~200–500 tokens |
+| `relay/agent-memory.md` | Resúmenes de las últimas 15 sesiones (lossy) | ~800–1500 tokens |
+| `relay/[id]-plan.md` | Plan activo para la tarea actual (si existe) | ~300–800 tokens |
+| Contenido del inbox | La tarea en sí | ~100–500 tokens |
+| **Total inyectado** | | **~1400–3300 tokens** |
+
+### Qué contexto le FALTA vs Claude Code interactivo
+
+| Dimensión | Claude Code interactivo | Agente relay |
+|-----------|------------------------|---------------|
+| **Historial de conversación** | Completo, en ventana de contexto (hasta 200K tokens) | Ausente — solo resúmenes lossy en agent-memory.md |
+| **Memoria cross-sesión** | Acumulada automáticamente en la sesión activa | Requiere que el agente escriba explícitamente en agent-memory.md |
+| **Contexto de errores previos** | "Intenté X, falló por Y, cambié a Z" | Solo si el agente lo documentó en agent-memory |
+| **Estado del workspace** | Claude Code lee el FS en tiempo real | ✅ Igual — el agente tiene acceso al filesystem del servidor |
+| **Decisiones implícitas** | "No hice A porque viste que rompía B" | Perdidas entre sesiones |
+| **Feedback iterativo** | El dev puede corregir en tiempo real dentro de la misma sesión | Requiere nuevo dispatch con contexto explicado |
+| **CLAUDE.md auto-cargado** | ✅ Claude Code lee CLAUDE.md automáticamente al iniciar | ❌ No disponible con `--print`; debe inyectarse manualmente |
+
+### El problema concreto que esto genera
+
+En sesiones largas de Claude Code interactivo (como esta sesión donde se implementaron `callDeepSeekWithTools`, `runDeepSeekAgent`, `runVisualCheckOnce`, y el refactor de `onTaskComplete`), el modelo construye una comprensión profunda del sistema: qué patrones usa el código, qué limitaciones tiene la arquitectura, qué errores ya se intentaron. Un agente relay que recibe la misma tarea parte de cero, y puede repetir errores documentados, ignorar convenciones establecidas en la sesión previa, o introducir código inconsistente con decisiones recientes.
+
+---
+
+## 16. Soluciones a la Brecha de Contexto
+
+Ordenadas de mayor a menor impacto/esfuerzo:
+
+### Solución 1: `--resume [sessionId]` — Continuidad real de sesión ⭐⭐⭐⭐⭐
+
+Claude Code CLI expone el `session_id` en el stream-json output. Si relay-master captura ese ID y lo persiste por proyecto, puede continuar la misma sesión en el siguiente dispatch:
+
+```bash
+claude --print --resume abc123def456 "Nueva tarea del mismo proyecto"
+```
+
+**Implementación en master.js:**
+```js
+// 1. En runClaude(), parsear session_id del stream output
+const sessionId = parseSessionIdFromStream(output);
+if (sessionId) project.lastSessionId = sessionId;
+saveProjects(); // persistir
+
+// 2. En el siguiente dispatch, inyectar --resume
+const resumeFlag = project.lastSessionId ? `--resume ${project.lastSessionId}` : '';
+const cmd = `claude --print ${resumeFlag} --model ${model} "${escapedPrompt}"`;
+```
+
+**Resultado**: El agente "recuerda" todo lo que hizo en sesiones anteriores del mismo proyecto. Equivale a un desarrollador que nunca cierra su terminal.
+
+**Limitación**: La sesión puede expirar (Claude Code limpia sesiones antiguas). Necesita fallback a sesión nueva si `--resume` falla.
+
+### Solución 2: `agent-memory.md` más rico — Mejor contexto lossy ⭐⭐⭐
+
+Actualmente `appendAgentMemory()` escribe resúmenes genéricos. Cambiar a capturar:
+
+```
+[2026-05-15 14:32] Tarea: implementar runDeepSeekAgent
+  ARCHIVOS: relay/master.js:1897–2050 (función nueva)
+  DECISIONES: MAX_TURNS=25, BASH_DENY regex bloquea rm -rf y git reset --hard
+  ERRORES_RESUELTOS: TypeError en toolCall.function.arguments — era string JSON, necesita JSON.parse()
+  PENDIENTE: testear con proyecto sandbox antes de producción
+  SHA: 72fdf6a
+```
+
+Esto reduce la pérdida de información entre sesiones de ~70% a ~20% sin cambio arquitectural.
+
+### Solución 3: Sesiones de larga duración — Eliminar el problema ⭐⭐⭐⭐
+
+En vez de `claude --print` (one-shot), mantener Claude Code como proceso interactivo que recibe tareas vía stdin y las acumula en la misma conversación:
+
+```js
+// Proceso persistente por proyecto
+const proc = spawn('claude', ['--model', model], { stdio: ['pipe', 'pipe', 'pipe'] });
+project.claudeProc = proc;
+
+// Para cada nueva tarea:
+project.claudeProc.stdin.write(taskContent + '\n');
+```
+
+**Ventaja**: Contexto completo acumulado, igual que sesión interactiva.
+**Riesgo**: Gestión de estado del proceso (qué pasa si el proceso muere, se queda esperando, o llena el contexto). Requiere monitoreo adicional y lógica de reinicio.
+
+### Solución 4: `deepseek-agent` como proxy de continuidad ⭐⭐
+
+El modo `deepseek-agent` (DeepSeek V4-Pro tool loop) mantiene conversación de hasta 25 turnos **dentro** de una tarea. Esto resuelve la continuidad intra-tarea (el agente puede inspeccionar resultados de herramientas y ajustar su plan), aunque el problema entre tareas distintas persiste.
+
+**Mejora complementaria**: Al final de cada sesión `deepseek-agent`, forzar que el agente escriba un resumen estructurado en `agent-memory.md` como última acción antes de terminar.
+
+### Roadmap de implementación
+
+```
+Semana 1 (alta ROI, bajo riesgo):
+  → Enriquecer appendAgentMemory() (Solución 2) — cambio en master.js, ~50 líneas
+  → Agregar campo lastSessionId a projects.json + captura en runClaude()
+
+Semana 2:
+  → Implementar --resume flag en runClaude() con fallback a sesión nueva
+  → Agregar escritura de memoria al final de sesiones deepseek-agent
+
+Semana 3+ (si Solución 1 funciona bien):
+  → Evaluar sesiones de larga duración (Solución 3) en proyecto sandbox
+```
+
+---
+
+## 17. Propuesta: Dev Workflow con Paridad Claude Code
+
+### El objetivo
+
+Que un desarrollador trabajando en este sistema tenga la misma experiencia fluida que usando Claude Code interactivo, pero con el poder de los agentes autónomos del relay: paralelismo, observabilidad, costo cero, y ejecución desatendida.
+
+### Modelo mental: "Claude Code como servicio"
+
+```
+Dev escribe plan                    Dev ve progreso en tiempo real
+     │                                        ▲
+     │ (buzón / Telegram / Claude Code chat)  │ (fiscalaibot Telegram)
+     ▼                                        │
+ relay-master recibe tarea          backend/Socket.io → dashboard
+     │                                        ▲
+     ▼                                        │
+ Agente en servidor ejecuta  ────────────────►│
+  DeepSeek V4-Pro (coding)                    │
+  Gemini Flash (visión)                       │
+  Playwright (browser automation)             │
+     │                                        │
+     └── git commit + push ────────────────────
+```
+
+### Canales de entrada de planes (todos equivalentes)
+
+#### Canal 1: Buzón — como fiscalai (el flujo actual)
+```markdown
+# relay/inbox-[proyecto].md
+## Plan: Implementar autenticación OAuth
+- Instalar passport.js
+- Crear ruta /auth/google
+- Proteger rutas existentes
+- Tests: login exitoso, token expirado
+
+VERIFY_URLS: https://mi-app.com/login
+BUDGET: $2.00
+```
+```bash
+git add relay/inbox-[proyecto].md && git commit -m "dispatch: OAuth" && git push origin main
+# → relay-master detecta en 15s, ejecuta, reporta en outbox y Telegram
+```
+
+#### Canal 2: Telegram (interactivo)
+```
+/chat fiscalai
+→ [sesión interactiva con contexto del repo]
+"Implementa autenticación OAuth con Google"
+→ DeepSeek planifica en tiempo real
+→ Dev puede hacer preguntas, refinar el plan, aprobar
+→ Al confirmar: relay-master ejecuta el plan aprobado
+```
+
+#### Canal 3: Claude Code chat (esta sesión) — para planes complejos
+El dev trabaja aquí para diseñar la arquitectura, tomar decisiones, y al final:
+```bash
+# Claude Code escribe el plan resultante directo al inbox
+git add relay/inbox-[proyecto].md && git commit && git push origin main
+# El agente en el servidor lo ejecuta con el stack de producción
+```
+
+### Stack de ejecución en servidor: DeepSeek + Gemini + Playwright
+
+#### Por qué este stack como default (en vez de Claude CLI)
+
+| Criterio | Claude CLI (Max) | DeepSeek V4-Pro + Gemini + Playwright |
+|----------|:----------------:|:--------------------------------------:|
+| Costo | $0 (Max sub) | ~$0.14/M tokens (casi gratis) |
+| Velocidad de respuesta | ~8–15s por turno | ~3–6s por turno |
+| Herramientas nativas | Limitadas a CLI | bash, git, read, write, browser |
+| Autonomía de browser | ❌ No nativa | ✅ Playwright — SPA-ready |
+| Análisis visual | ❌ No nativo | ✅ Gemini Flash integrado |
+| Control de loop | Opaco (interno) | ✅ Configurable (MAX_TURNS, BASH_DENY) |
+| Concurrencia | 1 instancia/proyecto | N paralelos en mismo proceso |
+
+#### Flujo de ejecución del agente
+
+```
+Tarea recibida
+     │
+     ▼
+DeepSeek V4-Pro (sistema de razonamiento)
+├── Lee archivos relevantes (read_file)
+├── Ejecuta comandos (bash)
+├── Escribe código (write_file)
+├── Hace commit (git_commit)
+│
+├── Si hay UI para verificar:
+│   └── Playwright abre browser → captura screenshot → Gemini Flash analiza
+│       ├── APROBADO → reporta éxito
+│       └── NECESITA_CORRECCIÓN → DeepSeek corrige y repite (hasta 3x)
+│
+└── Escribe resumen en agent-memory.md (última acción)
+```
+
+#### Configuración en projects.json para habilitar este modo
+
+```json
+{
+  "mi-proyecto": {
+    "mode": "deepseek-agent",
+    "deepseek_model": "deepseek-v4-pro",
+    "vision_model": "gemini-flash",
+    "browser_automation": "playwright",
+    "verify_urls": ["https://mi-app.com"],
+    "max_turns": 25,
+    "budget_usd_max": 5.0
+  }
+}
+```
+
+### Reportes en tiempo real vía fiscalaibot (Telegram)
+
+Cada evento relevante del agente llega al canal de Telegram del proyecto:
+
+```
+🔧 [fiscalai] Iniciando tarea: OAuth Google
+   Agente: DeepSeek V4-Pro | Turno 1/25
+
+📝 [fiscalai] Turno 3: Escribiendo routes/auth.js
+   Herramienta: write_file | 127 líneas
+
+✅ [fiscalai] Turno 8: git commit
+   SHA: a1b2c3d | "feat: OAuth Google routes"
+
+🔍 [fiscalai] Visual check: testing.fiscalai.mx/login
+   Gemini: APROBADO — login flow funcional
+
+🎉 [fiscalai] Tarea completada en 4m 32s | $0.03
+   [Ver diff] [Ver outbox] [Nueva tarea]
+```
+
+El dev no necesita hacer polling — el sistema le empuja el estado en tiempo real.
+
+### Bidireccionalidad: el dev puede intervenir mid-task
+
+Cuando el agente está ejecutando, el dev puede enviar aclaraciones vía Telegram:
+
+```
+Dev: /clarify fiscalai "usa sesiones JWT, no cookies"
+```
+
+relay-master inyecta esa aclaración en el contexto del agente en ejecución:
+- Si es `deepseek-agent`: agrega un mensaje de sistema al thread activo antes del siguiente turno
+- Si es Claude CLI: no es posible mid-task, pero se encola como contexto adicional para el próximo dispatch
+
+Esto replica la experiencia de "interrumpir a Claude Code con una corrección" sin detener la tarea.
+
+### Comparación final: dev experience antes y después
+
+| Acción | Flujo actual | Flujo propuesto |
+|--------|-------------|------------------|
+| Dar una tarea | Editar inbox.md + commit + push | Telegram `/chat` o inbox.md (igual) |
+| Ver progreso | Poll outbox.md manualmente | Telegram notificaciones automáticas |
+| Corregir mid-task | Imposible — esperar que termine | `/clarify [proyecto] "..."` |
+| Ver estado visual | Ver screenshot en dashboard | Gemini Flash en cada deploy |
+| Aprobar cambios | Pull request manual | Telegram `[Aprobar]` `[Rechazar]` botones |
+| Costo total | $0 (Max) | ~$0.01–0.10 por tarea (DeepSeek) |
+| Latencia primera respuesta | 15s + 2-5min plan | 15s + ejecución directa |
+
+### Plan de implementación del modo propuesto
+
+```
+Semana 1 — Base (ya parcialmente implementado):
+  ✅ runDeepSeekAgent() con bash/read/write/git tools
+  ✅ Post-deploy visual check con Gemini Flash
+  → Mejorar notificaciones Telegram por turno (actualmente solo inicio/fin)
+  → Implementar /clarify command en chat-agent.js
+
+Semana 2 — Playwright:
+  → Reemplazar Chromium headless en visual-check.js con Playwright
+  → Ventaja: SPAs con Vue/React router funcionan correctamente
+  → Configurar como herramienta adicional en runDeepSeekAgent()
+
+Semana 3 — Continuidad de contexto:
+  → --resume sessionId (Solución §16.1)
+  → agent-memory.md estructurado (Solución §16.2)
+
+Semana 4 — Bidireccionalidad:
+  → /clarify command: inyección mid-task en deepseek-agent
+  → Botones Telegram inline para aprobar/rechazar commits antes de push
+```
+
+---
+
+*Documento generado el 2026-05-15. Actualizado con §15–17: brecha de contexto, soluciones, y propuesta de dev workflow con DeepSeek V4-Pro + Gemini Flash + Playwright.*
