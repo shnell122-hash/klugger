@@ -1688,14 +1688,27 @@ bot.on('message:text', async (ctx) => {
       const inboxContent = `# Tarea despachada via Telegram\n\n${task}\n\n_Despachada por: ${userMeta.username || userMeta.first_name} — ${new Date().toISOString()}_\n`;
       fs.writeFileSync(inboxPath, inboxContent, 'utf8');
 
-      // Determine which repo the inbox belongs to
-      const inboxRepo = inboxPath.startsWith(REPO) ? REPO : path.dirname(inboxDir);
-      const relInbox  = path.relative(inboxRepo, inboxPath);
+      // Determine repo root via git (handles external repos like DeCabeceraTax)
+      let inboxRepo;
+      try {
+        inboxRepo = await runShell(`cd "${inboxDir}" && git rev-parse --show-toplevel 2>&1`);
+      } catch (_) {
+        inboxRepo = inboxPath.startsWith(REPO) ? REPO : path.dirname(inboxDir);
+      }
+      const relInbox = path.relative(inboxRepo, inboxPath);
+      const branch   = project.branch || 'main';
+
+      // Checkout correct branch + pull (fixes detached HEAD, ensures fast-forward push)
+      try {
+        await runShell(`cd "${inboxRepo}" && git fetch origin ${branch} --quiet 2>&1`);
+        await runShell(`cd "${inboxRepo}" && git checkout -B ${branch} origin/${branch} --quiet 2>&1`);
+        fs.writeFileSync(inboxPath, inboxContent, 'utf8');
+      } catch (_) { /* proceed with current state */ }
 
       await runShell(
         `cd "${inboxRepo}" && git add "${relInbox}" && ` +
         `git commit -m "dispatch: tg:${userMeta.username || 'user'}→${projectId} — ${task.slice(0, 60).replace(/"/g, "'")}" && ` +
-        `git push origin HEAD 2>&1`
+        `git push origin HEAD:${branch} 2>&1`
       );
 
       await safeEdit(ctx.chat.id, waiting.message_id,
