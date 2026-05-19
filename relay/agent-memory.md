@@ -27,3 +27,10 @@
 - ⚠️ Ambas ramas (`4v8iq` y `zXvki`) deben mergearse a `main` para que gitPull automático sea permanente
 
 ## [15/5/2026, 08:16:33 CST] Consulta ai-monitor → flujos — 2026-05-15: ¿Conflictos con merge pendiente?
+
+## [18/5/2026, 22:53:37 CST] Deploy analisis-wp — Verificación post-dispatch
+- **Deploy analisis-wp verification** — Bloqueador no resuelto
+- ️ **Permisos filesystem**: No puedo escribir en `/relay/` (propiedad root)
+- ⚠️ **REQUIERE INTERVENCIÓN HUMANA**: 
+- ⚠️   1. Ejecutar los comandos arriba en SSH del servidor, O
+- ⚠️   2. Configurar clave SSH privada en `/home/claude-agent/.ssh/id_rsa`, O
