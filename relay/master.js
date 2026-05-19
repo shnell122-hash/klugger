@@ -76,6 +76,7 @@ const EXTRA_CHAT_IDS  = (process.env.TELEGRAM_EXTRA_CHAT_IDS || '')
   .split(',').map(s => s.trim()).filter(Boolean);
 const ANTHROPIC_KEY   = process.env.ANTHROPIC_API_KEY;
 const DEEPSEEK_KEY    = process.env.DEEPSEEK_API_KEY;
+const XAI_KEY         = process.env.XAI_API_KEY;
 const GITHUB_TOKEN    = process.env.GITHUB_TOKEN;
 const CLAUDE_BIN      = process.env.CLAUDE_BIN || '/usr/local/bin/claude';
 const CLAUDE_USER     = process.env.CLAUDE_USER || 'claude-agent';
@@ -1214,6 +1215,182 @@ function callDeepSeekWithTools(systemPrompt, messages, tools, model, maxTokens =
 }
 
 // ─────────────────────────────────────────────────────────────
+// ── Grok (xAI) tool-calling API  ─────────────────────────────
+// ─────────────────────────────────────────────────────────────
+function callGrokWithTools(systemPrompt, messages, tools, model, maxTokens = 4096) {
+  return new Promise((resolve, reject) => {
+    if (!XAI_KEY) { reject(new Error('XAI_API_KEY no configurado')); return; }
+    const body = JSON.stringify({
+      model: model || 'grok-3-mini',
+      max_tokens: maxTokens,
+      tools,
+      tool_choice: 'auto',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages,
+      ],
+    });
+    const req = https.request({
+      hostname: 'api.x.ai',
+      path:     '/v1/chat/completions',
+      method:   'POST',
+      headers: {
+        'Authorization':  `Bearer ${XAI_KEY}`,
+        'Content-Type':   'application/json',
+        'Content-Length': Buffer.byteLength(body),
+      },
+    }, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          if (json.error) { reject(new Error(`Grok: ${json.error.message?.slice(0, 200)}`)); return; }
+          resolve(json);
+        } catch (e) { reject(new Error(`Grok parse: ${data.slice(0, 200)}`)); }
+      });
+    });
+    req.setTimeout(120000, () => { req.destroy(); reject(new Error('Timeout — api.x.ai')); });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
+async function runGrokAgent(project, taskContent, callback, dispatchMeta = {}) {
+  if (ACTIVE_TASKS.has(project.id)) { callback(new Error('Already running')); return; }
+  ACTIVE_TASKS.add(project.id);
+
+  const startTime = Date.now();
+  const repoBase  = project.repo || '/var/www/html';
+  const MAX_TURNS = 20;
+  const TOOL_TIMEOUT_MS = 45000;
+  const BASH_DENY = /rm\s+-rf\s+\/(?!tmp|var\/www\/html\/vilarkptl|home)|DROP\s+TABLE\s|TRUNCATE\s+TABLE\s|git\s+push\s+--force|git\s+reset\s+--hard\s+origin/i;
+
+  // Auto-escalate to grok-3 for intensive research tasks
+  const INTENSIVE_KEYWORDS = /estudio|análisis|arquitectura|benchmark|investigación|mercado|comparativa|diseño|propuesta|fork|migración/i;
+  const model = INTENSIVE_KEYWORDS.test(taskContent) ? 'grok-3' : 'grok-3-mini';
+
+  const GROK_TOOLS = [
+    { type: 'function', function: { name: 'bash',       description: 'Run shell command. Returns stdout+stderr (max 5000 chars).', parameters: { type: 'object', properties: { command: { type: 'string' } }, required: ['command'] } } },
+    { type: 'function', function: { name: 'read_file',  description: 'Read file from disk (max 10000 chars).', parameters: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] } } },
+    { type: 'function', function: { name: 'write_file', description: 'Write content to file.', parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' } }, required: ['path', 'content'] } } },
+    { type: 'function', function: { name: 'git_commit', description: 'git add + commit + push.', parameters: { type: 'object', properties: { files: { type: 'array', items: { type: 'string' } }, message: { type: 'string' }, branch: { type: 'string' } }, required: ['files', 'message'] } } },
+  ];
+
+  const agentPromptPath = path.join(__dirname, 'agents', `${project.id}.md`);
+  const agentPlan = fs.existsSync(agentPromptPath)
+    ? `\n\n---\n## Instrucciones del agente\n${fs.readFileSync(agentPromptPath, 'utf8').slice(0, 3000)}`
+    : '';
+
+  const systemPrompt = `Eres un agente investigador y consultor de arquitectura de software llamado Grok Researcher.
+Repo de trabajo: ${repoBase}
+Modelo activo: ${model} (${model === 'grok-3' ? 'modo intensivo — tarea compleja detectada' : 'modo económico'})
+
+Tienes acceso a bash, lectura/escritura de archivos y git.
+Cuando termines, escribe tu resultado final en el outbox del proyecto y termina con:
+
+STATUS: done | partial | failed
+CHANGED: archivos modificados (o "ninguno")
+DEPLOYED: yes | no
+PENDING: descripción (o "ninguno")
+USER_REQUIRED: no${agentPlan}`;
+
+  const messages      = [{ role: 'user', content: taskContent }];
+  let toolCallCount   = 0;
+  let resultText      = '';
+  let taskCostUsd     = 0;
+  let lastToolName    = null;
+
+  const taskTitle  = taskContent.split('\n').find(l => /^#{1,3} /.test(l))?.replace(/^#+ /, '').slice(0, 60) || project.name;
+  const heartbeat  = setInterval(() => {
+    const elapsed = Math.round((Date.now() - startTime) / 60000);
+    tg(`⏳ <b>Grok agent — ${project.name}</b>\n🗂 <code>${taskTitle}</code>\n⚡ ${model} | ⏱ ${elapsed}min | 🔧 ${toolCallCount} tools\nÚltima: <code>${lastToolName || 'iniciando…'}</code>`);
+  }, RUNNING_WARN_MS);
+
+  const agentTimeout = setTimeout(() => {
+    clearInterval(heartbeat);
+    if (!resultText) resultText = `## Resultados\n⏰ Timeout grok-agent\n\nSTATUS: partial\nCHANGED: ninguno\nDEPLOYED: no`;
+    callback(1, resultText, taskCostUsd);
+  }, CLAUDE_TIMEOUT_MS);
+
+  try {
+    for (let turn = 0; turn < MAX_TURNS; turn++) {
+      let response;
+      try {
+        response = await callGrokWithTools(systemPrompt, messages, GROK_TOOLS, model, 4096);
+      } catch (e) {
+        resultText = `## Resultados\n❌ Grok API error: ${e.message?.slice(0, 200)}\n\nSTATUS: blocked\nCHANGED: ninguno\nDEPLOYED: no`;
+        break;
+      }
+
+      const choice  = response.choices?.[0];
+      const msg     = choice?.message;
+      const usage   = response.usage || {};
+      taskCostUsd  += ((usage.prompt_tokens || 0) * (model === 'grok-3' ? 0.000003 : 0.0000003) +
+                       (usage.completion_tokens || 0) * (model === 'grok-3' ? 0.000015 : 0.0000005));
+
+      if (!msg) { resultText = '## Resultados\n❌ Grok: respuesta vacía\n\nSTATUS: failed\nCHANGED: ninguno\nDEPLOYED: no'; break; }
+      messages.push({ role: 'assistant', content: msg.content || null, tool_calls: msg.tool_calls });
+
+      if (choice.finish_reason === 'stop' || !msg.tool_calls?.length) {
+        resultText = msg.content || '## Completado sin texto\n\nSTATUS: done\nCHANGED: ninguno\nDEPLOYED: no';
+        break;
+      }
+
+      const toolResults = [];
+      for (const tc of msg.tool_calls) {
+        lastToolName = tc.function?.name;
+        toolCallCount++;
+        let args, toolOut = '';
+        try { args = JSON.parse(tc.function.arguments); } catch (_) { args = {}; }
+
+        if (lastToolName === 'bash') {
+          if (BASH_DENY.test(args.command || '')) {
+            toolOut = 'ERROR: comando bloqueado por política de seguridad';
+          } else {
+            try {
+              toolOut = execSync(args.command, { cwd: repoBase, timeout: TOOL_TIMEOUT_MS, stdio: 'pipe' }).toString().slice(0, 5000);
+            } catch (e) { toolOut = (e.stdout?.toString() || e.stderr?.toString() || e.message || '').slice(0, 2000); }
+          }
+        } else if (lastToolName === 'read_file') {
+          try {
+            const fp = path.isAbsolute(args.path) ? args.path : path.join(repoBase, args.path);
+            toolOut = fs.readFileSync(fp, 'utf8').slice(0, 10000);
+          } catch (e) { toolOut = `Error leyendo archivo: ${e.message}`; }
+        } else if (lastToolName === 'write_file') {
+          try {
+            const fp = path.isAbsolute(args.path) ? args.path : path.join(repoBase, args.path);
+            fs.mkdirSync(path.dirname(fp), { recursive: true });
+            fs.writeFileSync(fp, args.content, 'utf8');
+            toolOut = `Archivo escrito: ${fp}`;
+          } catch (e) { toolOut = `Error escribiendo: ${e.message}`; }
+        } else if (lastToolName === 'git_commit') {
+          try {
+            const branch = args.branch || project.branch || 'main';
+            const files  = (args.files || []).join(' ');
+            execSync(`cd ${repoBase} && git add ${files} && git diff --cached --quiet || git commit -m "${(args.message || 'update').replace(/"/g, "'")}" && git push origin HEAD:${branch}`, { stdio: 'pipe', timeout: 60000 });
+            toolOut = `Commit OK → ${branch}`;
+          } catch (e) { toolOut = `Git error: ${e.message?.slice(0, 300)}`; }
+        }
+        toolResults.push({ role: 'tool', tool_call_id: tc.id, content: toolOut });
+      }
+      messages.push(...toolResults);
+    }
+  } catch (e) {
+    resultText = `## Resultados\n❌ Error interno: ${e.message?.slice(0, 200)}\n\nSTATUS: failed\nCHANGED: ninguno\nDEPLOYED: no`;
+  } finally {
+    clearInterval(heartbeat);
+    clearTimeout(agentTimeout);
+    ACTIVE_TASKS.delete(project.id);
+    const elapsed = Math.round((Date.now() - startTime) / 1000);
+    log(project.id, `Grok agent completado (${model}, ${elapsed}s, ${toolCallCount} tools, $${taskCostUsd.toFixed(4)})`);
+    if (!resultText) resultText = `STATUS: done\nCHANGED: ninguno\nDEPLOYED: no`;
+    callback(0, resultText, taskCostUsd);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
 // ── GitHub API  ──────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────
 const GITHUB_ORG       = process.env.GITHUB_ORG       || 'vilarkptl-lang';
@@ -1370,6 +1547,7 @@ function runAgentByRunner(project, taskContent, callback) {
   const runner = project.runner || 'claude';
   if (runner === 'deepseek') return runDeepSeekAgent(project, taskContent, callback);
   if (runner === 'gemini')   return runGeminiAgent(project, taskContent, callback);
+  if (runner === 'grok')     return runGrokAgent(project, taskContent, callback);
   return runClaude(project, taskContent, callback);
 }
 
@@ -2879,26 +3057,22 @@ function gitPull(repoPath, branch) {
 function gitPushOutbox(repoPath, branch, outboxPath, timestamp, outboxContent) {
   const projectId = path.basename(repoPath);
   try {
-    // Try rebase pull first; if it fails (diverged), reset hard to origin
+    // Ensure we are on the correct branch (shared repos like DeCabeceraTax have
+    // multiple projects on different branches; checkout -B resets without detaching)
     try {
       execSync(
-        `cd ${repoPath} && git pull origin ${branch} --rebase --quiet 2>/dev/null`,
+        `cd ${repoPath} && git fetch origin ${branch} --quiet && git checkout -B ${branch} origin/${branch} --quiet`,
         { stdio: 'pipe', timeout: 30000 }
       );
-    } catch (pullErr) {
-      log(projectId, `git pull --rebase falló, usando reset hard: ${pullErr.message?.slice(0,200)}`);
-      execSync(
-        `cd ${repoPath} && git rebase --abort 2>/dev/null || true && git fetch origin ${branch} --quiet && git reset --hard origin/${branch} --quiet`,
-        { stdio: 'pipe', timeout: 30000 }
-      );
-      // Re-write outbox after reset hard — reset wipes locally written content
       if (outboxContent) fs.writeFileSync(outboxPath, outboxContent);
+    } catch (checkoutErr) {
+      log(projectId, `git checkout ${branch} falló: ${checkoutErr.message?.slice(0,200)}`);
     }
     // Validate agent commits before pushing (catches node_modules, .env, etc.)
     validateAndCleanCommits(repoPath, branch);
 
     execSync(
-      `cd ${repoPath} && git add ${outboxPath} && git diff --cached --quiet || git commit -m "relay: resultado ${timestamp}" --quiet && git push origin ${branch} --quiet`,
+      `cd ${repoPath} && git add ${outboxPath} && git diff --cached --quiet || git commit -m "relay: resultado ${timestamp}" --quiet && git push origin HEAD:${branch} --quiet`,
       { stdio: 'pipe', timeout: 30000 }
     );
     log(projectId, `outbox push OK → ${branch}`);
@@ -2913,21 +3087,16 @@ function gitPushOutbox(repoPath, branch, outboxPath, timestamp, outboxContent) {
 function gitPushInbox(repoPath, branch, inboxPath, dispatchId, inboxContent) {
   const projectId = path.basename(repoPath);
   try {
+    // Checkout correct branch (handles shared repos with multiple projects on different branches)
     try {
       execSync(
-        `cd ${repoPath} && git pull origin ${branch} --rebase --autostash --quiet 2>/dev/null`,
+        `cd ${repoPath} && git fetch origin ${branch} --quiet && git checkout -B ${branch} origin/${branch} --quiet`,
         { stdio: 'pipe', timeout: 30000 }
       );
-    } catch (_) {
-      execSync(
-        `cd ${repoPath} && git rebase --abort 2>/dev/null || true && git fetch origin ${branch} --quiet && git reset --hard origin/${branch} --quiet`,
-        { stdio: 'pipe', timeout: 30000 }
-      );
-      // reset --hard wipes local writes — restore inbox content before committing
       if (inboxContent) fs.writeFileSync(inboxPath, inboxContent);
-    }
+    } catch (_) { /* proceed with current state */ }
     execSync(
-      `cd ${repoPath} && git add ${inboxPath} && git diff --cached --quiet || git commit -m "dispatch: tarea ${dispatchId}" --quiet && git push origin ${branch} --quiet`,
+      `cd ${repoPath} && git add ${inboxPath} && git diff --cached --quiet || git commit -m "dispatch: tarea ${dispatchId}" --quiet && git push origin HEAD:${branch} --quiet`,
       { stdio: 'pipe', timeout: 30000 }
     );
     log(projectId, `inbox push OK (dispatch ${dispatchId})`);

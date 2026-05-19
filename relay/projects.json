@@ -261,5 +261,17 @@
     "github": "",
     "url": "",
     "active": true
+  },
+  {
+    "id": "grok-researcher",
+    "name": "Grok Researcher",
+    "runner": "grok",
+    "active": true,
+    "ignore_quiet_hours": false,
+    "inbox": "/var/www/html/vilarkptl.com/ai-monitor/relay/inbox-grok-researcher.md",
+    "outbox": "/var/www/html/vilarkptl.com/ai-monitor/relay/outbox-grok-researcher.md",
+    "repo": "/var/www/html/vilarkptl.com/ai-monitor",
+    "branch": "main",
+    "github": "vilarkptl-lang/agentic-repo"
   }
 ]
