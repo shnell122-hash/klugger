@@ -2879,26 +2879,22 @@ function gitPull(repoPath, branch) {
 function gitPushOutbox(repoPath, branch, outboxPath, timestamp, outboxContent) {
   const projectId = path.basename(repoPath);
   try {
-    // Try rebase pull first; if it fails (diverged), reset hard to origin
+    // Ensure we are on the correct branch (shared repos like DeCabeceraTax have
+    // multiple projects on different branches; checkout -B resets without detaching)
     try {
       execSync(
-        `cd ${repoPath} && git pull origin ${branch} --rebase --quiet 2>/dev/null`,
+        `cd ${repoPath} && git fetch origin ${branch} --quiet && git checkout -B ${branch} origin/${branch} --quiet`,
         { stdio: 'pipe', timeout: 30000 }
       );
-    } catch (pullErr) {
-      log(projectId, `git pull --rebase falló, usando reset hard: ${pullErr.message?.slice(0,200)}`);
-      execSync(
-        `cd ${repoPath} && git rebase --abort 2>/dev/null || true && git fetch origin ${branch} --quiet && git reset --hard origin/${branch} --quiet`,
-        { stdio: 'pipe', timeout: 30000 }
-      );
-      // Re-write outbox after reset hard — reset wipes locally written content
       if (outboxContent) fs.writeFileSync(outboxPath, outboxContent);
+    } catch (checkoutErr) {
+      log(projectId, `git checkout ${branch} falló: ${checkoutErr.message?.slice(0,200)}`);
     }
     // Validate agent commits before pushing (catches node_modules, .env, etc.)
     validateAndCleanCommits(repoPath, branch);
 
     execSync(
-      `cd ${repoPath} && git add ${outboxPath} && git diff --cached --quiet || git commit -m "relay: resultado ${timestamp}" --quiet && git push origin ${branch} --quiet`,
+      `cd ${repoPath} && git add ${outboxPath} && git diff --cached --quiet || git commit -m "relay: resultado ${timestamp}" --quiet && git push origin HEAD:${branch} --quiet`,
       { stdio: 'pipe', timeout: 30000 }
     );
     log(projectId, `outbox push OK → ${branch}`);
@@ -2913,21 +2909,16 @@ function gitPushOutbox(repoPath, branch, outboxPath, timestamp, outboxContent) {
 function gitPushInbox(repoPath, branch, inboxPath, dispatchId, inboxContent) {
   const projectId = path.basename(repoPath);
   try {
+    // Checkout correct branch (handles shared repos with multiple projects on different branches)
     try {
       execSync(
-        `cd ${repoPath} && git pull origin ${branch} --rebase --autostash --quiet 2>/dev/null`,
+        `cd ${repoPath} && git fetch origin ${branch} --quiet && git checkout -B ${branch} origin/${branch} --quiet`,
         { stdio: 'pipe', timeout: 30000 }
       );
-    } catch (_) {
-      execSync(
-        `cd ${repoPath} && git rebase --abort 2>/dev/null || true && git fetch origin ${branch} --quiet && git reset --hard origin/${branch} --quiet`,
-        { stdio: 'pipe', timeout: 30000 }
-      );
-      // reset --hard wipes local writes — restore inbox content before committing
       if (inboxContent) fs.writeFileSync(inboxPath, inboxContent);
-    }
+    } catch (_) { /* proceed with current state */ }
     execSync(
-      `cd ${repoPath} && git add ${inboxPath} && git diff --cached --quiet || git commit -m "dispatch: tarea ${dispatchId}" --quiet && git push origin ${branch} --quiet`,
+      `cd ${repoPath} && git add ${inboxPath} && git diff --cached --quiet || git commit -m "dispatch: tarea ${dispatchId}" --quiet && git push origin HEAD:${branch} --quiet`,
       { stdio: 'pipe', timeout: 30000 }
     );
     log(projectId, `inbox push OK (dispatch ${dispatchId})`);
