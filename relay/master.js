@@ -1563,8 +1563,14 @@ function gitCommitFile(filePath, commitMsg, timeoutMs = 30000) {
   const repoRoot = execSync(`cd "${dir}" && git rev-parse --show-toplevel`, { stdio: 'pipe', timeout: 5000 }).toString().trim();
   const relPath  = path.relative(repoRoot, filePath);
   const safeMsg  = commitMsg.replace(/"/g, "'");
+  // Resolve push target: 'HEAD' on a branch, 'HEAD:main' in detached HEAD
+  let pushTarget = 'HEAD';
+  try {
+    const branch = execSync(`cd "${repoRoot}" && git symbolic-ref --short HEAD`, { stdio: 'pipe', timeout: 5000 }).toString().trim();
+    if (branch) pushTarget = `HEAD:${branch}`;
+  } catch (_) { pushTarget = 'HEAD:main'; }
   execSync(
-    `cd "${repoRoot}" && git add "${relPath}" && git diff --cached --quiet || git commit -m "${safeMsg}" && git push origin HEAD`,
+    `cd "${repoRoot}" && git add "${relPath}" && git diff --cached --quiet || git commit -m "${safeMsg}" && git push origin ${pushTarget}`,
     { stdio: 'pipe', timeout: timeoutMs }
   );
 }
