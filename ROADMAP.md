@@ -1,375 +1,243 @@
-# ROADMAP — AI Relay & Agent Orchestration
-> Actualizado 2026-05-16 | Calificación actual: **8.0/10** | Objetivo: paridad Claude.ai para 5 devs
->
-> Stack objetivo: **Claude Max/Pro (planificación, $0) + DeepSeek V4-Pro (ejecución) + Gemini Flash + Playwright (visual)**
+# ROADMAP — AI Monitor / Agentic Relay System
+
+> Actualizado: 2026-05-20  
+> Autor: análisis conjunto Claude Code + german  
+> Objetivo: cerrar la brecha entre AI Monitor (7/10) y Claude Code (9/10) como plataforma de desarrollo autónomo
 
 ---
 
-## Día 0–1 — Estabilidad Operacional (BLOQUEANTE)
+## Por qué está armado así
 
-> Nada más se puede expandir hasta resolver estos 4 puntos.
-> Ejecutar en el servidor `ssh root@143.198.228.78` en el orden indicado.
+Este roadmap se construyó con un criterio de **impacto sobre esfuerzo**, no de completitud técnica.
 
-### ✅ / ⏳ C1 — Swap +1 GB
+Hay dos tipos de mejoras posibles:
 
-```bash
-# Verificar estado actual
-free -h && swapon --show
+1. **Mejoras de infraestructura** — hacen que el sistema funcione más confiable (multi-cuenta, branch fixes, monitoreo). Son invisibles para el usuario pero evitan interrupciones de servicio.
+2. **Mejoras de capacidad** — hacen que los agentes produzcan código de mejor calidad (tool server, contexto persistente, interactividad). Son visibles y tienen impacto directo en la calidad del output.
 
-# Crear swap
-fallocate -l 1G /swapfile2
-chmod 600 /swapfile2
-mkswap /swapfile2
-swapon /swapfile2
+El orden prioriza **confiabilidad primero, capacidad después**, porque un sistema de alta capacidad que falla intermitentemente es menos útil que uno de capacidad media que siempre funciona. La única excepción es el Tool Server (Fase 2) que sube de golpe la calidad de código de DeepSeek de 6/10 a 8/10.
 
-# Hacer persistente entre reboots
-echo '/swapfile2 none swap sw 0 0' >> /etc/fstab
-
-# Verificar (debe mostrar ~3 GB swap total)
-free -h && swapon --show
-```
-
-### ✅ / ⏳ C2 — Estabilizar `vilar-legal-os-v59` (analizar antes de decidir)
-
-```bash
-# PASO 1: Diagnóstico
-pm2 describe vilar-legal-os-v59
-pm2 logs vilar-legal-os-v59 --lines 100 --nostream
-
-# PASO 2: Localizar el proceso
-pm2 describe vilar-legal-os-v59 | grep -E 'script|cwd|pm_cwd'
-
-# PASO 3: Ver el error exacto del crash
-pm2 logs vilar-legal-os-v59 --err --lines 30 --nostream
-
-# Basado en el diagnóstico, tomar una de estas acciones:
-
-# OPCIÓN A: Error de dependencia faltante
-cd [cwd del proceso] && npm install && pm2 restart vilar-legal-os-v59
-
-# OPCIÓN B: Variable de entorno faltante
-pm2 show vilar-legal-os-v59 | grep -i env
-# Agregar la variable al ecosystem o al .env del proceso
-
-# OPCIÓN C: Puerto en uso por otro proceso
-lsof -i :[puerto] && pm2 restart vilar-legal-os-v59
-
-# OPCIÓN D: El proceso no es necesario — pausar sin eliminar
-pm2 stop vilar-legal-os-v59
-pm2 save
-# (NO delete — preservar config por si se necesita restaurar)
-```
-
-### ✅ / ⏳ C3 — Resolver divergencia Git en servidor
-
-```bash
-cd /var/www/html/vilarkptl.com/ai-monitor
-
-# PASO 1: Diagnóstico exacto
-git fetch origin
-git log origin/main..HEAD --oneline        # commits locales sin push
-git log HEAD..origin/main --oneline        # commits remotos sin pull
-git status                                  # cambios sin commit
-
-# PASO 2: Backup OBLIGATORIO (ejecutar antes de cualquier otra cosa)
-git branch backup/server-main-$(date +%Y%m%d-%H%M) HEAD
-git branch  # verificar que el backup aparece en la lista
-
-# PASO 3: Si hay cambios sin commit, guardarlos
-git stash
-
-# PASO 4: Merge (NO reset --hard)
-git merge origin/main --no-ff -m "merge: resolver divergencia servidor $(date +%Y-%m-%d)"
-
-# PASO 5A: Si hay conflictos en relay/projects.json — fusionar manualmente:
-git checkout --ours relay/projects.json    # tomar versión local
-# editar manualmente para combinar entradas de ambas versiones
-git add relay/projects.json
-git commit -m "merge: fusionar projects.json resolviendo conflicto"
-
-# PASO 5B: Si hay conflictos en relay/master.js — tomar versión local (tiene más features):
-git checkout --ours relay/master.js
-git add relay/master.js
-git commit -m "merge: tomar master.js local (tiene deepseek-agent + visual check)"
-
-# PASO 6: Push
-git push origin main
-
-# PASO 7: Restaurar stash si aplica
-git stash pop
-
-# Verificación final
-git log --oneline -5
-git status  # debe estar limpio
-```
-
-### ✅ / ⏳ C4 — pm2-logrotate
-
-```bash
-# Verificar si ya está instalado
-pm2 list | grep logrotate
-
-# Instalar si no está
-pm2 install pm2-logrotate
-pm2 set pm2-logrotate:max_size 50M
-pm2 set pm2-logrotate:retain 7
-pm2 set pm2-logrotate:compress true
-pm2 set pm2-logrotate:dateFormat YYYY-MM-DD_HH-mm
-pm2 save
-
-# Verificar
-pm2 conf pm2-logrotate
-```
+Las últimas fases (paralelismo, CI/CD) son mejoras de escala — solo tienen valor cuando las fases anteriores están sólidas.
 
 ---
 
-## Día 1–2 — Merge y Consolidación
+## Estado actual (2026-05-20)
 
-### M1 — Merge `claude/agent-monitoring-dashboard-4v8iq` → main
+| Componente | Estado | Calificación |
+|------------|--------|-------------|
+| relay-master (orquestador) | ✅ Online | 8/10 |
+| DeepSeek V4 Pro (código) | ✅ Activo en `fiscalai-test` | 7/10 |
+| Gemini 2.0 Flash (visual) | ✅ Screenshot OK, análisis limitado por cuota free tier | 6/10 |
+| Claude Code CLI (full-claude-code) | ✅ Activo para fiscalai, flujos | 9/10 |
+| Dashboard ia.vilarkptl.com | ✅ Online | 7/10 |
+| Telegram bot (iaVilarBot) | ✅ Todos los comandos operativos | 8/10 |
+| Multi-cuenta API keys | ❌ Solo 1 key Anthropic | 3/10 |
+| DeCabeceraTax branch testing | ⚠️ Rama incorrecta en producción | 5/10 |
+| pill.ai integración | ❌ No registrado | 0/10 |
+| conversation-engine score | ⚠️ Online pero score no verificado post-SQL fix | 6/10 |
 
-> ⚠️ Esperar respuesta de flujos en `relay/outbox-flujos.md` antes de mergear (confirmar sin conflictos en `relay/master.js`).
+### Comparación actual vs Claude Code
 
-```bash
-cd /var/www/html/vilarkptl.com/ai-monitor
-git fetch origin
-git merge origin/claude/agent-monitoring-dashboard-4v8iq --no-ff \
-  -m "merge: visual check loop + deepseek-agent mode + chat-agent tools"
-git push origin main
-pm2 restart relay-master --update-env
-```
-
-**Contiene:** `runDeepSeekAgent()`, `callDeepSeekWithTools()`, `runVisualCheckOnce()`, `onTaskComplete` refactor, `visual-check.js`, tools en chat-agent.
-
-### M2 — Mover financial-bot a repositorio propio (recomendado)
-
-> Actualmente `financial/bot/` vive dentro de `agentic-repo`. Tenerlo en su propio repo reduce el tamaño, acomoda mejor el ciclo de deploy, y evita conflictos de merge entre el relay y el bot.
-
-```bash
-# En servidor:
-cd /var/www/html/vilarkptl.com/ai-monitor
-
-# 1. Crear nuevo repo en GitHub: vilarkptl-lang/financial-bot
-# (via /nuevo en Telegram o github.com/organizations/vilarkptl-lang/repositories/new)
-
-# 2. Extraer historial de financial/ como repo independiente
-git subtree split --prefix=financial -b financial-bot-split
-
-# 3. Clonar nuevo destino y push
-git clone /var/www/html/vilarkptl.com/ai-monitor /tmp/financial-bot-new
-cd /tmp/financial-bot-new
-git checkout financial-bot-split
-git remote set-url origin git@github.com:vilarkptl-lang/financial-bot.git
-git push origin HEAD:main
-
-# 4. Configurar el nuevo repo en el servidor de producción
-cd /var/www/html/vilarkptl.com
-git clone git@github.com:vilarkptl-lang/financial-bot.git
-cd financial-bot && npm install
-pm2 stop financial-bot
-# Actualizar ecosystem.config.js con la nueva ruta
-pm2 start financial-bot
-```
-
-> Si se decide NO mover a repo separado: hacer merge selectivo como se tenía planeado.
-
-### M3 — Merge selectivo `deploy/financial-llm-complete`
-
-```bash
-cd /var/www/html/vilarkptl.com/ai-monitor
-git fetch origin deploy/financial-llm-complete
-git checkout origin/deploy/financial-llm-complete -- financial/bot/
-git commit -m "merge: DeepSeek V4 + Gemini en financial-bot (selectivo)"
-git push origin main
-npm --prefix financial/bot install
-pm2 restart financial-bot
-
-# Verificar:
-node -e "require('./financial/bot/agents/TransactionOrchestrator.js'); console.log('TO OK')"
-```
-
-### M4 — Limpieza Git
-
-```bash
-git prune
-git gc --auto
-```
+| Dimensión | AI Monitor | Claude Code |
+|-----------|-----------|-------------|
+| Operación autónoma 24/7 | **9/10** | 2/10 |
+| Calidad de código generado | 6/10 | **9/10** |
+| Debugging interactivo | 3/10 | **9/10** |
+| Coordinación multi-proyecto | **9/10** | 4/10 |
+| Costo por tarea | **8/10** | 5/10 |
+| Visibilidad / trazabilidad | **8/10** | 5/10 |
+| Velocidad de respuesta | 5/10 | **9/10** |
+| Toolset del agente | 5/10 | **10/10** |
+| **Overall** | **7/10** | **9/10** |
 
 ---
 
-## Día 2–3 — Contexto y Experiencia de Desarrollador
+## Fase 1 — Confiabilidad 🔴 Alta prioridad | ~1 semana
 
-### `--resume sessionId` en `runClaude()`
+> Con una sola API key de Anthropic, si hay rate limit todos los agentes `full-claude-code` se quedan sin motor. Es el punto de falla más crítico del sistema antes de cualquier mejora de capacidad.
 
-```js
-// relay/master.js — parsear session_id del stream output:
-proc.stdout.on('data', (chunk) => {
-  for (const line of chunk.toString().split('\n')) {
-    try {
-      const msg = JSON.parse(line);
-      if (msg.type === 'system' && msg.session_id) {
-        project.lastSessionId = msg.session_id;
-        saveProjectState();
-      }
-    } catch {}
-  }
-});
+### 1.1 Multi-cuenta API key routing (B3)
 
-// buildClaudeCmd():
-const resumeFlag = project.lastSessionId ? `--resume ${project.lastSessionId}` : '';
-const cmd = `claude --print ${resumeFlag} --model ${model} "${escapeShell(prompt)}"`;
-```
+- Agregar `ANTHROPIC_API_KEY_2` … `ANTHROPIC_API_KEY_5` al `relay/.env`
+- Implementar round-robin en `runClaude()` de `relay/master.js`
+- Si una key devuelve 429 → pasar a la siguiente automáticamente
+- Registrar qué key se usó en cada sesión (columna en tabla `sessions`)
 
-### `agent-memory.md` enriquecido
+**Impacto**: elimina el riesgo de downtime total por rate limit. Escala a 5 proyectos concurrentes sin throttling.
 
-Formato por entrada:
-```markdown
-## [2026-05-16 14:32] Título de la tarea
+### 1.2 Fix permanente DeCabeceraTax rama `testing`
 
-**SHA:** a1b2c3d
-**Archivos:** relay/master.js:1897–2050 (runDeepSeekAgent nueva)
-**Decisiones:** MAX_TURNS=25, BASH_DENY incluye git reset --hard
-**Errores resueltos:** toolCall.function.arguments requiere JSON.parse()
-**Pendiente:** testear en sandbox
-```
+- El repo de producción vive en `claude/ml-backend-69bis-module-5iap0`
+- relay-master intenta hacer `git checkout testing` en cada ciclo → falla → outbox push falla → `fiscalai-test` pierde historial
+- Fix: crear worktree dedicado en `/var/www/html/vilarkptl.com/DeCabeceraTax-testing` apuntando a rama `testing`
+- Actualizar `fiscalai-test.repo` en `projects.json` a la ruta del worktree
 
-### `/dispatch` en `chat-agent.js`
+**Impacto**: elimina errores de outbox en cada tarea de fiscalai-test.
 
-Ver implementación completa en `relay/DISPATCH.md`.
+### 1.3 Activar billing en Google Cloud (Gemini)
 
-```
-/dispatch fiscalai fix endpoint /api/cfdi que retorna 500
-→ [✅ Enviar] [❌ Cancelar] → push a main → relay detecta en ≤15s
-```
+- Agregar tarjeta al proyecto Google Cloud con la API key actual
+- Costo real: ~$0.001 por imagen con `gemini-2.0-flash`
+- Sin billing: el sistema toma screenshots pero no puede analizarlos → loop visual de corrección automática inútil
 
-### Routing multi-cuenta (5 cuentas Pro/Max)
-
-```js
-// relay/master.js:
-function selectClaudeUser(project) {
-  if (project.claude_user) return project.claude_user;
-  return CLAUDE_ACCOUNTS
-    .filter(a => a.active)
-    .reduce((min, a) =>
-      (loads[a.user] || 0) < (loads[min.user] || 0) ? a : min
-    ).user;
-}
-```
-
-### Compactación semántica + inyección automática de contexto
-
-- Al inicio de cada despacho: inyectar `CLAUDE.md` + `relay/AGENTS.md` + `agent-memory.md` comprimidos en el system prompt
-- Al final de cada sesión `deepseek-agent`: forzar escritura de resumen en `agent-memory.md` antes de terminar
-- Límite de memoria: mantener últimas 20 entradas, rotar las más viejas
+**Impacto**: el loop de corrección visual automática pasa de 0% efectivo a 100%.
 
 ---
 
-## Día 3–4 — Optimizaciones LLM y Visual
+## Fase 2 — Tool Server para DeepSeek 🔴 Alta prioridad | ~1 semana
 
-### LiteLLM en `master.js`
+> Es el cambio de mayor impacto en calidad de código. DeepSeek reescribe archivos completos porque no tiene `edit_file` quirúrgico. Esto genera diffs enormes, conflictos git y errores por contexto perdido.
 
-```js
-async function callViaLiteLLM(messages, model = 'kptl-chat') {
-  const res = await fetch(`${process.env.LITELLM_BASE_URL}/v1/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.LITELLM_MASTER_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ model, messages, max_tokens: 4096 }),
-  });
-  return res.json();
-}
-// Chains: kptl-chat (Sonnet→DS→GPT4o), kptl-chat-fast (Haiku→GPT4o-mini→Gemini)
+### 2.1 Implementar servidor de herramientas MCP-compatible
+
+Crear `relay/tools-server.js` con las siguientes herramientas que DeepSeek puede invocar via tool-calling:
+
+| Herramienta | Equivalente Claude Code | Descripción |
+|-------------|------------------------|-------------|
+| `read_file(path, offset?, limit?)` | `Read` | Líneas numeradas, soporte paginación |
+| `edit_file(path, old_str, new_str)` | `Edit` | Reemplazo quirúrgico, falla si `old_str` no es único |
+| `list_directory(path, pattern?)` | `Bash ls` | Árbol de archivos con tamaños |
+| `search_code(pattern, path?, context)` | `Bash grep -n` | Grep con líneas de contexto |
+| `web_fetch(url)` | `WebFetch` | HTTP GET |
+| `file_exists(path)` | — | Boolean |
+
+El `runDeepSeekAgent()` ya tiene la infraestructura de tool-calling loop en `relay/master.js`. Solo hay que registrar estas herramientas adicionales en el schema de tools que se envía a la API de DeepSeek.
+
+**Impacto**: calidad de código DeepSeek sube de 6/10 a 8/10. Diffs quirúrgicos en vez de reescrituras totales.
+
+### 2.2 Modelo correcto por tipo de tarea
+
+| Tipo de tarea | Modelo actual | Modelo correcto | Ahorro |
+|---------------|--------------|-----------------|--------|
+| Código complejo (>3 archivos) | Haiku | Claude Sonnet | calidad +3 |
+| Código simple / repetible | Claude Sonnet | DeepSeek V4 Pro | -96% costo |
+| Coordinación / dispatch | Claude Haiku | Claude Haiku ✅ | — |
+| Planning | DeepSeek V4 Pro | DeepSeek V4 Pro ✅ | — |
+| Visual analysis | Gemini Flash | Gemini Flash ✅ | — |
+
+**Impacto**: ~60% reducción de costo en tareas simples; mejor calidad en tareas complejas.
+
+---
+
+## Fase 3 — Interactividad 🟡 Media prioridad | ~3-4 días
+
+> Sin esto el agente tiene que adivinar cuando hay ambigüedad → errores evitables que desperdician sesiones enteras.
+
+### 3.1 Protocolo ASK mid-task
+
+Cuando un agente necesita aclaración a mitad de tarea, escribe en su outbox:
+
+```
+ASK: ¿Quieres usar MySQL o PostgreSQL para la nueva tabla?
 ```
 
-### Playwright reemplaza Chromium headless
+relay-master detecta el prefijo `ASK:`, envía a Telegram, pausa el ciclo del proyecto y espera respuesta. El agente continúa con el contexto de la respuesta del usuario.
+
+**Impacto**: elimina ~80% de errores por suposiciones incorrectas del agente.
+
+### 3.2 Reducir poll interval a 3 segundos
+
+El ciclo actual de 15s hace que el sistema se sienta lento para flujos interactivos. Bajar a 3s para proyectos `active` con `ignore_quiet_hours: true`.
+
+**Impacto**: latencia 15s → 3s. El sistema se siente interactivo.
+
+---
+
+## Fase 4 — Contexto persistente 🟡 Media prioridad | ~1 semana
+
+> Mejora significativa para tareas largas. Hasta que Fases 1-3 estén sólidas, el beneficio marginal es menor.
+
+### 4.1 Historial de conversación en DB
+
+- Guardar el array completo de `messages` de cada sesión DeepSeek en la tabla `sessions` (columna `conversation_json`)
+- Al iniciar tarea de corrección del mismo proyecto, inyectar las últimas 20 interacciones como contexto
+- Visible en dashboard: "sesión retomó contexto de X mensajes anteriores"
+
+### 4.2 Session resume para Claude Code CLI
+
+- El flag `--resume` retoma la última sesión del directorio de trabajo
+- Completar la integración en relay-master: tareas de corrección automática reanuden la sesión anterior del mismo proyecto
+
+**Impacto**: agentes que "recuerdan" lo que hicieron → menos re-lectura de archivos, decisiones más consistentes. Estimado: -40% tiempo por tarea en sesiones de corrección.
+
+---
+
+## Fase 5 — Proyectos pendientes 🟡 Media prioridad | Paralelo con Fases 3-4
+
+### 5.1 pill.ai → projects.json
 
 ```bash
-npm install playwright
-npx playwright install chromium
+/addproject pill-ai "Pill AI" https://pill.ai \
+  github=vilarkptl-lang/pill.ai \
+  repo=/var/www/html/vilarkptl.com/pill-relay \
+  branch=claude/add-licensing-system-KsFAw \
+  mode=full-claude-code
 ```
 
-Cambio en `relay/visual-check.js`: `puppeteer.launch()` → `playwright.chromium.launch()`.
-Ventaja: SPAs con Vue/React Router, espera a hydration, mejor manejo de auth.
+### 5.2 conversation-engine score verificación
 
-### Quiet hours exceptions
+- Ejecutar test de scoring post-SQL fix
+- Documentar resultado en `relay/AGENT-STATUS.md`
 
-```js
-// En master.js — campo ignore_quiet_hours ya existe en projects.json
-// Agregar: bypass por URGENCIA en el inbox
-const isUrgent = taskContent.includes('URGENCIA: critica');
-if (isQuietHours && !project.ignore_quiet_hours && !isUrgent) return;
+### 5.3 Dashboard métricas `--resume` (B1)
+
+- Mostrar en dashboard: sesiones nuevas vs sesiones reanudadas con `--resume`
+- Útil para medir cuánto contexto se está reutilizando efectivamente
+
+### 5.4 CI/CD pipeline básico
+
+- `pytest` + `ruff` para `financial/bot/` en cada push
+- Si CI falla → no deploy automático → despachar tarea de fix al agente
+- Resultado visible en dashboard y Telegram
+
+---
+
+## Fase 6 — Paralelismo y escala 🟢 Baja prioridad | ~2 semanas
+
+> Solo agrega valor con >10 proyectos activos concurrentes. Complejidad alta, beneficio marginal hasta llegar a ese volumen.
+
+### 6.1 Sub-task dispatch con join/wait
+
+Dentro de una tarea, un agente puede despachar sub-tareas paralelas:
+
+```
+DISPATCH_PARALLEL:
+  - fiscalai: actualizar endpoints de saldo
+  - fiscalai-front: actualizar UI de saldo
+WAIT_FOR: fiscalai, fiscalai-front
+THEN: deploy y verificación visual
 ```
 
-### Verificar IDs reales de DeepSeek
+relay-master ejecuta ambos en paralelo y continúa solo cuando ambos reportan `STATUS: done`.
 
-```bash
-curl https://api.deepseek.com/v1/models \
-  -H "Authorization: Bearer $DEEPSEEK_API_KEY" | jq '.data[].id'
+### 6.2 Múltiples workers relay-master
 
-# Actualizar relay/.env:
-DEEPSEEK_FLASH_MODEL=deepseek-v4-flash   # con el ID exacto confirmado
-DEEPSEEK_PRO_MODEL=deepseek-v4-pro       # con el ID exacto confirmado
-```
+- Actualmente single-cluster — con >5 tareas concurrentes hay cola de espera
+- Escalar a 2-3 workers con partición por proyecto o por prioridad
 
 ---
 
-## Backlog (sin fecha)
+## Métricas de éxito por fase
 
-| Item | Esfuerzo | Impacto |
-|------|----------|---------|
-| Worker processes por proyecto (refactor master.js) | Alto | Alto |
-| Sesiones de larga duración (Claude como proceso persistente) | Alto | Alto |
-| Tests de integración para master.js | Medio | Alto |
-| Dashboard por equipo (filtros dev/proyecto) | Medio | Medio |
-| Métricas longitudinales de calidad de tareas | Medio | Medio |
-| Bidireccionalidad mid-task (/clarify + botones pre-push) | Medio | Alto |
-| Onboarding proyectos inactivos (credito, voltic, ocr...) | Bajo | Medio |
-| Admin API keys para monitoring cuentas Max | Bajo | Bajo |
-| LiteLLM sombra en producción (use_cli_proxy flag) | Bajo | Bajo |
-| finbot-tester golden suite >90% cobertura | Medio | Medio |
+| Fase | Métrica clave | Target |
+|------|--------------|--------|
+| 1 | Uptime sin interrupciones por rate limit | 99.9% |
+| 2 | % de commits con diffs <50 líneas (quirúrgicos) | >70% |
+| 3 | % de tareas completadas sin errores por suposición incorrecta | >85% |
+| 4 | Reducción de tiempo en sesiones de corrección | -40% |
+| 5 | Proyectos activos registrados | ≥8 |
+| 6 | Tareas concurrentes sin degradación | ≥10 |
 
 ---
 
-## Estado actual del sistema
+## Calificación proyectada
 
-| Dimensión | Calificación | Notas |
-|-----------|:-----------:|-------|
-| Costo operativo | 10/10 | $0 API (Max OAuth) + DeepSeek barato |
-| Eficiencia multitarea | 9/10 | 9 proyectos paralelos |
-| Seguridad / guardrails | 9/10 | Kill-switch, rate limit, watchdog |
-| Observabilidad | 9/10 | Dashboard, alertas, costos, visual check |
-| Escala | 8/10 | Un proceso para todo — riesgo SPOF |
-| Recuperación de errores | 8/10 | Adaptive timeout, auto-retry, DS code fix |
-| Latencia | 7/10 | Poll 15s + planning overhead |
-| Calidad de código | 7/10 | plan-execute introduce traducción |
-| Experiencia de dev | 7/10 | Telegram ayuda, pero aún más fricción que Claude.ai |
-| **GLOBAL** | **8.0/10** | |
+| Después de | AI Monitor | vs Claude Code |
+|------------|-----------|----------------|
+| Hoy        | 7/10      | −2 puntos |
+| Fase 1     | 7.5/10    | −1.5 puntos |
+| Fases 1+2  | 8.5/10    | −0.5 puntos |
+| Fases 1-3  | 9/10      | = empate funcional |
+| Fases 1-6  | 9.5/10    | +0.5 (autonomía supera a Claude Code) |
 
-**Por qué no llega a 9:**
-1. Swap 94% — OOM puede matar relay-master (C1, resoluble hoy)
-2. `deepseek-agent` sin validación en producción compleja
-3. `relay/master.js` como single point of failure (3,296 líneas)
-
----
-
-## Documentación de referencia
-
-| Archivo | Propósito |
-|---------|-----------|
-| `CLAUDE.md` | Referencia maestra |
-| `ROADMAP.md` | Este archivo |
-| `relay/AGENTS.md` | Roles, rutas, zonas de propiedad |
-| `relay/PROJECTS.md` | Rutas completas del servidor, PM2 |
-| `relay/CONVENTIONS.md` | Git, código, outbox format |
-| `relay/SYSTEM.md` | Arquitectura, stack, seguridad |
-| `relay/WORKFLOW.md` | 3 canales de entrada, visual check |
-| `relay/MEMORY.md` | --resume, agent-memory enriquecido |
-| `relay/TOOLS.md` | Herramientas por modo |
-| `relay/DISPATCH.md` | /dispatch Telegram, routing multi-cuenta |
-| `relay/SYSTEM-DIAGNOSIS.md` | Diagnóstico completo 17 secciones |
-| `relay/AGENT-STATUS.md` | Estado de agentes — actualizar al terminar |
-
----
-
-*Actualizado 2026-05-16. Próxima actualización tras completar Día 0–1.*
+La ventaja final de AI Monitor sobre Claude Code no es la calidad del código individual — ahí Claude Code siempre gana. La ventaja es operar **24/7 sin humano presente**, coordinar **múltiples proyectos simultáneamente**, y reducir el costo por tarea ~30x usando DeepSeek para trabajo repetible.
