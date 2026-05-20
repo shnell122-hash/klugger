@@ -3072,6 +3072,14 @@ function gitPull(repoPath, branch) {
 
 function gitPushOutbox(repoPath, branch, outboxPath, timestamp, outboxContent) {
   const projectId = path.basename(repoPath);
+  // Save current branch so we can restore after checkout-B (prevents permanent
+  // branch switch that would cause checkSelfReload to loop when this repo contains
+  // relay/master.js — e.g. finbot-coordinator switching to claude/financial-* branch)
+  let originalBranch = '';
+  try {
+    originalBranch = execSync(`cd ${repoPath} && git symbolic-ref --short HEAD 2>/dev/null`, { stdio: 'pipe', timeout: 5000 }).toString().trim();
+  } catch (_) {}
+
   try {
     // Ensure we are on the correct branch (shared repos like DeCabeceraTax have
     // multiple projects on different branches; checkout -B resets without detaching)
@@ -3096,12 +3104,24 @@ function gitPushOutbox(repoPath, branch, outboxPath, timestamp, outboxContent) {
     const msg = err.message?.slice(0, 300) || 'unknown error';
     log(projectId, `ERROR: outbox push falló: ${msg}`);
     tg(`⚠️ <b>Outbox push falló — ${projectId}</b>\n<code>${msg}</code>`);
+  } finally {
+    // Restore original branch to avoid leaving master.js at an unexpected version
+    if (originalBranch && originalBranch !== branch) {
+      try {
+        execSync(`cd ${repoPath} && git checkout ${originalBranch} --quiet 2>/dev/null || true`, { stdio: 'pipe', timeout: 10000 });
+      } catch (_) {}
+    }
   }
 }
 
 // ─── Git push inbox (for dispatch) ───────────────────────
 function gitPushInbox(repoPath, branch, inboxPath, dispatchId, inboxContent) {
   const projectId = path.basename(repoPath);
+  let originalBranch = '';
+  try {
+    originalBranch = execSync(`cd ${repoPath} && git symbolic-ref --short HEAD 2>/dev/null`, { stdio: 'pipe', timeout: 5000 }).toString().trim();
+  } catch (_) {}
+
   try {
     // Checkout correct branch (handles shared repos with multiple projects on different branches)
     try {
@@ -3119,6 +3139,12 @@ function gitPushInbox(repoPath, branch, inboxPath, dispatchId, inboxContent) {
   } catch (err) {
     log(projectId, `inbox push falló (dispatch ${dispatchId}): ${err.message?.slice(0,200)}`);
     // Continue anyway — relay-master will pick up the file change locally
+  } finally {
+    if (originalBranch && originalBranch !== branch) {
+      try {
+        execSync(`cd ${repoPath} && git checkout ${originalBranch} --quiet 2>/dev/null || true`, { stdio: 'pipe', timeout: 10000 });
+      } catch (_) {}
+    }
   }
 }
 
