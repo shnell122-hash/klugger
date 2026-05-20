@@ -14,12 +14,13 @@ const SYSTEM_PROMPT =
   '- "cancelar": el usuario cancela\n' +
   '- "pedir_monto": necesitas pedirle el monto al usuario\n' +
   '- "pedir_cuenta_bancaria": necesitas pedirle cuenta bancaria\n' +
-  '- "responder_info": responder una pregunta informativa (saldo, historial, etc.)\n' +
+  '- "responder_info": pregunta informativa (saldo, historial) — SIEMPRE incluir mensaje_respuesta con el saldo real\n' +
   '- "ignorar": el mensaje no requiere acción del bot financiero\n\n' +
   'IMPORTANTE:\n' +
   '- Solo decide "iniciar_operacion" si hay intención clara de hacer una transacción financiera\n' +
   '- "ignorar" si el mensaje es saludo casual, off-topic o ruido\n' +
-  '- Sé conservador: ante la duda, "ignorar"';
+  '- Sé conservador: ante la duda, "ignorar"\n' +
+  '- Para "responder_info" de saldo: incluir en mensaje_respuesta el saldo exacto del contexto';
 
 const TOOL = {
   type: 'function',

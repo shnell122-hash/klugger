@@ -1160,7 +1160,9 @@ bot.on('message:text', async (ctx, next) => {
       });
       if (decision.accion === 'responder_info' && decision.params?.mensaje_respuesta) {
         await ctx.reply(decision.params.mensaje_respuesta);
-      } else if (decision.accion !== 'ignorar' && decision.accion !== 'responder_info') {
+      } else if (decision.accion === 'responder_info') {
+        await ctx.reply(`💰 Saldo actual: <b>$${fmt(saldoCtx)}</b>`, { parse_mode: 'HTML' });
+      } else if (decision.accion !== 'ignorar') {
         await procesarOperacion(ctx, text, client, session);
       }
     } else {
