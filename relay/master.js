@@ -3022,23 +3022,25 @@ function gitPull(repoPath, branch) {
         { stdio: 'ignore' }
       );
     }
+    // Abort any in-progress rebase/merge before touching the repo
+    try { execSync(`cd ${repoPath} && git rebase --abort 2>/dev/null || true`, { stdio: 'pipe', timeout: 5000 }); } catch (_) {}
+    try { execSync(`cd ${repoPath} && git merge --abort 2>/dev/null || true`, { stdio: 'pipe', timeout: 5000 }); } catch (_) {}
+
+    // Fetch the target branch
+    try {
+      execSync(`cd ${repoPath} && git fetch origin ${branch} --quiet`, { stdio: 'pipe', timeout: 30000 });
+    } catch (_) {}
+
+    // Ensure we are on the correct branch. Shared repos (e.g. DeCabeceraTax) have
+    // multiple projects on different branches; checkout -B resets to origin/<branch>
+    // without detaching and prevents "Cannot rebase onto multiple branches" errors.
     try {
       execSync(
-        `cd ${repoPath} && git pull origin ${branch} --rebase --autostash --quiet`,
+        `cd ${repoPath} && git stash --quiet 2>/dev/null || true && git checkout -B ${branch} origin/${branch} --quiet && git stash pop --quiet 2>/dev/null || true`,
         { stdio: 'pipe', timeout: 30000 }
       );
-    } catch (rebaseErr) {
-      const reason = (rebaseErr.stderr?.toString() || rebaseErr.stdout?.toString() || rebaseErr.message || '').slice(0, 200).trim();
-      try {
-        execSync(`cd ${repoPath} && git rebase --abort 2>/dev/null || true`, { stdio: 'pipe', timeout: 5000 });
-        execSync(
-          `cd ${repoPath} && git stash --quiet 2>/dev/null || true && git pull origin ${branch} --quiet && git stash pop --quiet 2>/dev/null || true`,
-          { stdio: 'pipe', timeout: 30000 }
-        );
-        log(projectId, `gitPull: rebase+autostash falló (${reason || 'sin detalle'}) — usé stash+pull`);
-      } catch (stashErr) {
-        log(projectId, `gitPull: stash+pull también falló — ${stashErr.message?.slice(0, 100)}`);
-      }
+    } catch (checkoutErr) {
+      log(projectId, `gitPull: checkout ${branch} falló — ${checkoutErr.message?.slice(0, 150)}`);
     }
   } catch (err) {
     log(projectId, `gitPull error: ${err.message?.slice(0, 200)}`);
