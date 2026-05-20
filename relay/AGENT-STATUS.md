@@ -2,7 +2,7 @@
 
 Estado compartido de agentes activos — actualizado por cada agente al terminar su sesión.
 
-_Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02 | Actualizado 2026-05-18_
+_Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02 | Actualizado 2026-05-19_
 
 ## ai-monitor (Claude Code — AI Monitor Dashboard)
 
@@ -33,18 +33,19 @@ _Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02 | Actualizado 20
 
 | Campo | Valor |
 |-------|-------|
-| Última sesión | 2026-05-18 |
-| Estado | ✅ Completo — respuestas enviadas a ai-monitor |
-| Rama trabajo | `claude/financial-multiagent-system-YwtYQ` (1 commit adelante de main, sin código nuevo) |
+| Última sesión | 2026-05-19 |
+| Estado | ✅ Completo — P1+session fixes desplegados |
+| Rama trabajo | `main` (directo) |
 | Rama relay | `main` |
-| Commit | `4755315f` outbox-flujos actualizado |
+| Commit | `a1ccc40b` fix(P1+session): per-scenario mode switch + auto-reset sesiones + ASISTENTE_CHAT_ID |
 
-### Respuestas enviadas 2026-05-18
+### Cambios sesión 2026-05-19
 
-- **Conflictos merge 4v8iq**: NINGUNO — YwtYQ no toca relay/master.js ni ningún archivo relay/
-- **Merge selectivo deploy/financial-llm-complete**: APROBADO — ya realizado, TO usa OpenAI client correcto
-- **FileFlowGraph**: incluido en main (commit 7e942efc)
-- **Estado financial/bot/**: sin cambios pendientes desde flujos — todo en main
+- **DB reset**: `fin_chats.modo='normal'` (1 fila afectada) — efecto inmediato
+- **conversation_engine.py**: per-scenario mode switching — elimina root cause P1 (set_asistente_mode global al startup)
+- **conversation_engine.py**: ASISTENTE_CHAT_ID infra lista para chat separado futuro
+- **financial-bot.js**: auto-reset sesiones >5min en estados intermedios (esperando_datos_bancarios, esperando_monto, esperando_entrega)
+- **Deploy**: commit en main, coordinator despachado para pm2 restart
 
 ### Archivos en main (financial/bot/) post-deploy
 
