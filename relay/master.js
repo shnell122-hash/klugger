@@ -3022,7 +3022,7 @@ function gitPull(repoPath, branch) {
         { stdio: 'ignore' }
       );
     }
-    // Abort any in-progress rebase/merge before touching the repo
+    // Abort any in-progress rebase/merge
     try { execSync(`cd ${repoPath} && git rebase --abort 2>/dev/null || true`, { stdio: 'pipe', timeout: 5000 }); } catch (_) {}
     try { execSync(`cd ${repoPath} && git merge --abort 2>/dev/null || true`, { stdio: 'pipe', timeout: 5000 }); } catch (_) {}
 
@@ -3031,16 +3031,24 @@ function gitPull(repoPath, branch) {
       execSync(`cd ${repoPath} && git fetch origin ${branch} --quiet`, { stdio: 'pipe', timeout: 30000 });
     } catch (_) {}
 
-    // Ensure we are on the correct branch. Shared repos (e.g. DeCabeceraTax) have
-    // multiple projects on different branches; checkout -B resets to origin/<branch>
-    // without detaching and prevents "Cannot rebase onto multiple branches" errors.
+    // If already on the correct branch, fast-forward only (safe, no detach risk).
+    // If on a DIFFERENT branch (e.g. DeCabeceraTax shared by 3 projects on different branches),
+    // force-checkout the target branch — do NOT stash/pop because stash pop can re-apply
+    // old file content (including master.js) causing checkSelfReload to loop infinitely.
+    let currentBranch = '';
     try {
-      execSync(
-        `cd ${repoPath} && git stash --quiet 2>/dev/null || true && git checkout -B ${branch} origin/${branch} --quiet && git stash pop --quiet 2>/dev/null || true`,
-        { stdio: 'pipe', timeout: 30000 }
-      );
+      currentBranch = execSync(`cd ${repoPath} && git symbolic-ref --short HEAD 2>/dev/null`, { stdio: 'pipe', timeout: 5000 }).toString().trim();
+    } catch (_) {}
+
+    try {
+      if (currentBranch === branch) {
+        execSync(`cd ${repoPath} && git merge origin/${branch} --ff-only --quiet 2>/dev/null || true`, { stdio: 'pipe', timeout: 30000 });
+      } else {
+        // Wrong branch: force-checkout (discards local uncommitted changes in working tree)
+        execSync(`cd ${repoPath} && git checkout -B ${branch} origin/${branch} --quiet -f 2>/dev/null || true`, { stdio: 'pipe', timeout: 10000 });
+      }
     } catch (checkoutErr) {
-      log(projectId, `gitPull: checkout ${branch} falló — ${checkoutErr.message?.slice(0, 150)}`);
+      log(projectId, `gitPull: update ${branch} falló — ${checkoutErr.message?.slice(0, 150)}`);
     }
   } catch (err) {
     log(projectId, `gitPull error: ${err.message?.slice(0, 200)}`);
