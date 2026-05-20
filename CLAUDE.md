@@ -50,6 +50,63 @@
 └── v59-repo/agentic-repo/       ← Fork OCR (no parte de ai-monitor)
 ```
 
+### Acceso al servidor para agentes (exec endpoint)
+
+Los agentes Claude Code corren como `claude-agent` (no root). Para comandos privilegiados
+(`pm2`, `mysql -u root`, `git` fuera del workspace), se usa el endpoint `/api/exec`
+que corre en el mismo servidor como root:
+
+```
+URL:   http://localhost:3010/api/exec
+Auth:  header x-exec-token: <CLAUDE_EXEC_TOKEN>
+Body:  { "cmd": "pm2 restart financial-bot", "cwd": "/var/www/html/vilarkptl.com/ai-monitor" }
+```
+
+**Activar el endpoint (ejecutar en el servidor como root — una sola vez):**
+```bash
+# 1. Generar token y agregarlo al .env del backend
+echo "CLAUDE_EXEC_TOKEN=$(openssl rand -hex 32)" \
+  >> /var/www/html/vilarkptl.com/ai-monitor/backend/.env
+
+# 2. Reiniciar el backend para que lo tome
+pm2 restart ai-monitor
+
+# 3. Verificar que funciona
+EXEC_TOKEN=$(grep -oP 'CLAUDE_EXEC_TOKEN=\K\S+' \
+  /var/www/html/vilarkptl.com/ai-monitor/backend/.env)
+curl -s -X POST http://localhost:3010/api/exec \
+  -H "Content-Type: application/json" \
+  -H "x-exec-token: $EXEC_TOKEN" \
+  -d '{"cmd":"pm2 status","cwd":"/var/www/html/vilarkptl.com/ai-monitor"}' \
+  | python3 -m json.tool
+```
+
+**Función bash que usan los agentes (ya está en `relay/agents/flujos.md`):**
+```bash
+EXEC_TOKEN=$(grep -oP 'CLAUDE_EXEC_TOKEN=\K\S+' \
+  /var/www/html/vilarkptl.com/ai-monitor/backend/.env | tail -1)
+EXEC_URL="http://localhost:3010/api/exec"
+
+exec_server() {
+  local CMD="$1"
+  local CWD="${2:-/var/www/html/vilarkptl.com/ai-monitor}"
+  local BODY
+  BODY=$(python3 -c "import sys,json; print(json.dumps({'cmd':sys.argv[1],'cwd':sys.argv[2]}))" "$CMD" "$CWD")
+  curl -s -X POST "$EXEC_URL" \
+    -H "Content-Type: application/json" \
+    -H "x-exec-token: $EXEC_TOKEN" \
+    -d "$BODY" \
+    | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('output') or d.get('error','(sin output)'))"
+}
+```
+
+Comandos permitidos: `pm2 status|logs|restart|stop|start|reload|list`,
+`git status|log|diff|fetch|pull|merge|push|checkout|branch|add|commit|reset|stash`,
+`mysql -u root ...`, `cat` (solo rutas de ai-monitor/relay), `grep`, `ls`, `df`, `free`, `uptime`
+
+> **Nota**: El token NO está en el repo — vive solo en `backend/.env` del servidor.
+> Los agentes lo leen al inicio de cada sesión con el `grep -oP` de arriba.
+
 ### Comandos de administración en producción
 
 ```bash
@@ -286,8 +343,8 @@ cd dashboard-financial && npm run build && pm2 restart financial-dashboard
 | **Claude Code CLI** (este agente) | Desarrolla todo el código, hace commits y push |
 | **Cursor Cloud Agents** (servidor) | Revisa, prueba y optimiza el código en el servidor |
 
-Claude Code CLI **nunca** corre el código en producción — solo escribe y commitea.  
-Cursor Cloud Agents **nunca** escribe código — solo ejecuta y valida lo que Claude generó.
+Claude Code CLI escribe código, commitea, y puede ejecutar comandos en producción vía `/api/exec` (pm2, mysql, git).
+Cursor Cloud Agents también ejecuta y valida el código en el servidor.
 
 ### Variables de entorno obligatorias en financial/bot
 
