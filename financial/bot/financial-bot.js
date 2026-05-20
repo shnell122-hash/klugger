@@ -102,7 +102,7 @@ const docAgent = process.env.GOOGLE_API_KEY
   ? new DocumentIntelligenceAgent(process.env.GOOGLE_API_KEY)
   : null;
 const transactionOrchestrator = DEEPSEEK_KEY
-  ? new TransactionOrchestrator(llm, { model: process.env.DEEPSEEK_PRO_MODEL ?? 'deepseek-v4-pro' })
+  ? new TransactionOrchestrator(llm, { model: 'deepseek-chat' })
   : null;
 
 // ── Transformer: log bot outgoing messages ────────────────────────────────────
@@ -803,6 +803,16 @@ bot.on('message:text', async (ctx, next) => {
   const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
   const session = await getOrCreateSession(chatId, client.id);
 
+  // Auto-reset sesiones atascadas en estados intermedios por más de 5 minutos
+  if (['esperando_datos_bancarios', 'esperando_monto', 'esperando_entrega'].includes(session.estado)) {
+    const staleMs = Date.now() - new Date(session.updated_at).getTime();
+    if (staleMs > 5 * 60 * 1000) {
+      await updateSession(session.id, 'idle', null);
+      session.estado = 'idle';
+      session.operation_draft_json = null;
+    }
+  }
+
   // Si hay edición pendiente (el usuario está enviando el nuevo valor)
   if (pollHandler.hasPendingEdit(chatId)) {
     const { ok, error, operationDraft } = pollHandler.applyEditValue(chatId, text);
@@ -1150,7 +1160,9 @@ bot.on('message:text', async (ctx, next) => {
       });
       if (decision.accion === 'responder_info' && decision.params?.mensaje_respuesta) {
         await ctx.reply(decision.params.mensaje_respuesta);
-      } else if (decision.accion !== 'ignorar' && decision.accion !== 'responder_info') {
+      } else if (decision.accion === 'responder_info') {
+        await ctx.reply(`💰 Saldo actual: <b>$${fmt(saldoCtx)}</b>`, { parse_mode: 'HTML' });
+      } else if (decision.accion !== 'ignorar') {
         await procesarOperacion(ctx, text, client, session);
       }
     } else {

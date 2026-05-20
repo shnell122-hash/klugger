@@ -79,7 +79,7 @@ class VisionAgent {
     // Gemini Flash preferred for vision — better OCR than DeepSeek Flash
     const googleKey = opts.googleApiKey ?? process.env.GOOGLE_API_KEY;
     this.gemini     = googleKey ? new GoogleGenerativeAI(googleKey) : null;
-    this.geminiModel = opts.geminiModel ?? process.env.GEMINI_FLASH_MODEL ?? 'gemini-1.5-flash';
+    this.geminiModel = opts.geminiModel ?? process.env.GEMINI_FLASH_MODEL ?? 'gemini-2.0-flash';
   }
 
   async _callVision(imageBuffer, mimeType, prompt) {

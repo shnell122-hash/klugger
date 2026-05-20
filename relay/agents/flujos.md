@@ -61,20 +61,21 @@ curl -s -X POST "$RELAY_DISPATCH_URL" \
 
 ## Acceso al servidor de producción
 
-Usa el endpoint `/api/exec` para ejecutar comandos privilegiados (`pm2`, `mysql -u root`, `git`).
-**Funciona desde cualquier entorno** (Claude Code web, CLI, sandbox) vía HTTPS:
+Corres como `claude-agent` (no root). Para `pm2`, `mysql -u root` y `git checkout` de otros branches,
+usa el endpoint `/api/exec` que corre como root:
 
 ```bash
-# Token y URL — hardcoded, siempre disponibles sin leer .env
-EXEC_TOKEN="cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a"
-EXEC_URL="https://ia.vilarkptl.com/api/exec"
+# Leer token al inicio de cada sesión
+EXEC_TOKEN=$(grep -oP 'CLAUDE_EXEC_TOKEN=\K\S+' \
+  /var/www/html/vilarkptl.com/ai-monitor/backend/.env | tail -1)
+EXEC_URL="http://localhost:3010/api/exec"
 
 exec_server() {
   local CMD="$1"
   local CWD="${2:-/var/www/html/vilarkptl.com/ai-monitor}"
   local BODY
   BODY=$(python3 -c "import sys,json; print(json.dumps({'cmd':sys.argv[1],'cwd':sys.argv[2]}))" "$CMD" "$CWD")
-  curl -s --max-time 20 -X POST "$EXEC_URL" \
+  curl -s -X POST "$EXEC_URL" \
     -H "Content-Type: application/json" \
     -H "x-exec-token: $EXEC_TOKEN" \
     -d "$BODY" \
@@ -90,8 +91,6 @@ exec_server "git log --oneline -5" "/var/www/html/vilarkptl.com/ai-monitor"
 ```
 
 Comandos permitidos: `pm2 status|logs|restart|stop|start|reload|list`, `git status|log|fetch|diff`, `mysql -u root ...`
-
-> **Nota**: No uses `&&` en comandos — llama `exec_server` una vez por comando separado.
 
 **Regla**: si editas un archivo y haces `git push origin main`, siempre termina con `exec_server "pm2 restart <proceso>"` — nunca dejes `DEPLOYED: pendiente`.
 

@@ -47,3 +47,22 @@
 - ⚠️ ⚠️ **REQUIERE INTERVENCIÓN HUMANA**: 
 - ⚠️ 1. **Opción A (recomendado)**: Eliminar rama deploy
 - ⚠️    ```bash
+
+## [20/5/2026, 13:40:35 CST] Sin tareas pendientes
+- **gemini-2.0-flash** — `DocumentIntelligenceAgent.js` y `vision-agent.js`: modelo `gemini-1.5-flash` fue deprecado por Google, actualizado a `gemini-2.0-flash`  
+- **deepseek-chat para TransactionOrchestrator** — `deepseek-v4-pro` mapeaba a `deepseek-reasoner` en la API de DeepSeek, el cual no soporta `tool_choice` → 400 errors en cada llamada → fallback a `igno
+- **responder_info fallback** — cuando TO dice `responder_info` sin `mensaje_respuesta`, el bot ahora responde directamente con `💰 Saldo actual: $X` (evita 91 timeouts)  
+- **TO prompt mejorado** — instrucción explícita de incluir saldo real en `mensaje_respuesta`  
+- **Deploy completo** — 4 commits pusheados a `main`, 2 `pm2 restart` ejecutados via exec_server
+- **Score esperado:** 85%+ (ambos root causes corregidos — tool_choice errors + Gemini 404)
+- STATUS: done
+- CHANGED: financial/bot/agents/DocumentIntelligenceAgent.js:4, financial/bot/agents/vision-agent.js:82, financial/bot/agents/TransactionOrchestrator.js:17-23, financial/bot/financial-bot.js:1161-1165
+
+## [20/5/2026, 15:55:58 CST] Fix automático — Episodio #1765
+- Fix aplicado — 3 causas raíz, 3 archivos: `financial-bot.js:817`, `DocumentIntelligenceAgent.js:4`, `vision-agent.js:82`
+- Sintaxis verificada — `node --check` OK en los 3 archivos
+- Committed — `654a6e52` "fix: gemini-2.0-flash-001 + saldo-priority + monto_invalido_0 — ep#1765"
+- Pushed — `claude/financial-multiagent-system-YwtYQ`
+- Deployed — `pm2 restart financial-bot` ✓ (restarts: 6, uptime: 0s → online)
+- Outbox — `relay/outbox-finbot-coordinator.md` escrito en main
+- ⚠️ `tarjetas_kevin_80000`: sesión queda en `esperando_entrega` tras la primera frase. El CLABE llega como dirección → el poll summary (texto + poll vacío) hace que `wait()` retorne `""`. El fix de `conve

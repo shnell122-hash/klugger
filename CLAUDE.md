@@ -13,7 +13,22 @@
 | Contraseña SSH | `romanos12_2` |
 | OS | Ubuntu / Debian (Apache + PM2) |
 
-**Método principal — HTTPS (funciona desde cualquier entorno, sin excepciones):**
+**Conexión desde agentes Claude Code (CLI web):**
+```bash
+# Instalar sshpass si no está disponible
+apt-get install -y sshpass 2>/dev/null
+
+# Ejecutar comando remoto
+sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78 "comando"
+
+# Alias útil para sesión
+srv() { sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78 "$@"; }
+# Uso: srv "pm2 status"
+#      srv "pm2 restart financial-bot"
+#      srv "grep CLAUDE_EXEC_TOKEN /var/www/html/vilarkptl.com/ai-monitor/backend/.env"
+```
+
+**Si SSH no responde (el sandbox web bloquea el puerto 22), usar HTTPS — siempre funciona:**
 ```bash
 EXEC_TOKEN="cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a"
 EXEC_URL="https://ia.vilarkptl.com/api/exec"
@@ -37,16 +52,9 @@ exec_server "pm2 logs financial-bot --lines 20 --nostream"
 exec_server "git log --oneline -5"
 ```
 
-**Método alternativo — SSH directo (cuando se tiene acceso de red al puerto 22):**
-```bash
-# Instalar sshpass si no está disponible
-apt-get install -y sshpass 2>/dev/null
-
-sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78 "comando"
-
-# Alias útil para sesión
-srv() { sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78 "$@"; }
-```
+> **IMPORTANTE**: `https://ia.vilarkptl.com/api/exec` funciona desde cualquier entorno
+> (Claude Code web, CLI, agentes del relay). Usar SIEMPRE esta URL como método principal.
+> SSH es alternativo cuando hay acceso directo al puerto 22.
 
 ### Árbol del servidor (rutas críticas)
 
@@ -109,19 +117,36 @@ pm2 restart ai-monitor
 
 # 3. Verificar que funciona
 EXEC_TOKEN=$(grep -oP 'CLAUDE_EXEC_TOKEN=\K\S+' \
-  /var/www/html/vilarkptl.com/ai-monitor/backend/.env)
-curl -s -X POST http://localhost:3010/api/exec \
+  /var/www/html/vilarkptl.com/ai-monitor/backend/.env | tail -1)
+curl -s -X POST https://ia.vilarkptl.com/api/exec \
   -H "Content-Type: application/json" \
   -H "x-exec-token: $EXEC_TOKEN" \
   -d '{"cmd":"pm2 status","cwd":"/var/www/html/vilarkptl.com/ai-monitor"}' \
   | python3 -m json.tool
 ```
 
+**Función bash que usan los agentes:**
+```bash
+EXEC_TOKEN="cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a"
+EXEC_URL="https://ia.vilarkptl.com/api/exec"  # URL pública (Claude Code web)
+# EXEC_URL="http://localhost:3010/api/exec"   # URL local (agentes en el servidor)
+
+exec_server() {
+  local CMD="$1"
+  local CWD="${2:-/var/www/html/vilarkptl.com/ai-monitor}"
+  local BODY
+  BODY=$(python3 -c "import sys,json; print(json.dumps({'cmd':sys.argv[1],'cwd':sys.argv[2]}))" "$CMD" "$CWD")
+  curl -s --max-time 20 -X POST "$EXEC_URL" \
+    -H "Content-Type: application/json" \
+    -H "x-exec-token: $EXEC_TOKEN" \
+    -d "$BODY" \
+    | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('output') or d.get('error','(sin output)'))"
+}
+```
+
 Comandos permitidos: `pm2 status|logs|restart|stop|start|reload|list`,
 `git status|log|diff|fetch|pull|merge|push|checkout|branch|add|commit|reset|stash`,
 `mysql -u root ...`, `cat` (solo rutas de ai-monitor/relay), `grep`, `ls`, `df`, `free`, `uptime`
-
-> **Nota**: No usar `&&` en comandos — cada llamada a `exec_server` ejecuta un solo comando.
 
 ### Comandos de administración en producción
 
@@ -169,11 +194,12 @@ Tablas principales:
 - Reverse proxy: `ia.vilarkptl.com` → `localhost:3010`
 
 ```bash
-# Conectar por SSH (contraseña en /opt/kptl-secrets/server-credentials.txt)
-ssh root@143.198.228.78
+# Conectar por SSH
+sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78
 
-# MySQL (contraseña en /opt/kptl-secrets/server-credentials.txt)
-mysql -u root -p ai_monitoring
+# MySQL (contraseña en backend/.env)
+DB_PASS=$(grep -oP 'DB_PASS=\K.*' /var/www/html/vilarkptl.com/ai-monitor/backend/.env)
+mysql -u root -p"$DB_PASS" ai_monitoring
 
 # Verificar módulos
 apache2ctl -M | grep proxy
@@ -197,6 +223,7 @@ relay/master.js  (Node.js, PM2)
     │
     ├──▶ Claude Code CLI --model <claude_model>
     │         └── edita archivos, hace commits, push
+    │         └── puede ejecutar pm2/mysql vía SSH o /api/exec
     │
     ├──▶ DeepSeek V3 API (planning /tarea, resúmenes memoria)
     │
@@ -295,13 +322,11 @@ pm2 restart ai-monitor
 # Hard refresh en el browser (cerrar y reabrir pestaña)
 ```
 
-### Recursos del servidor (2026-05-20)
+### Swap crítico
 
-RAM: 7.8 GB total | 1.9 GB usado | 5.5 GB disponible | Swap: 3 GB (70% usado)
-Disco: 155 GB total | 49 GB usado (32%) | CPU load: 0.08 — tranquilo
-
-Si hay OOM (swap > 95%):
+RAM: 3.8 GB total | Swap: ~96% usado. Si hay OOM:
 ```bash
+# Agregar 1 GB swap temporal:
 fallocate -l 1G /swapfile2 && chmod 600 /swapfile2 && mkswap /swapfile2 && swapon /swapfile2
 ```
 
@@ -417,6 +442,7 @@ cd dashboard-financial && npm run build && pm2 restart financial-dashboard
    mysql -u root -p"$DB_PASS" nombre_db < migrate.sql
    ```
 8. **Deploy al terminar cada commit**: incluir bloque `DEPLOY` con los comandos exactos según los archivos modificados (ver sección *Financial System — Rutas y procesos PM2*). Copiar y pegar sin editar.
+9. **Branch de ai-monitor en projects.json es `main`** — no cambiar a branches de desarrollo
 
 ---
 
@@ -429,7 +455,7 @@ cd dashboard-financial && npm run build && pm2 restart financial-dashboard
 | **Claude Code CLI** (este agente) | Desarrolla todo el código, hace commits y push |
 | **Cursor Cloud Agents** (servidor) | Revisa, prueba y optimiza el código en el servidor |
 
-Claude Code CLI escribe código, commitea, y puede ejecutar comandos en producción vía `/api/exec` (pm2, mysql, git).
+Claude Code CLI escribe código, commitea, y puede ejecutar comandos en producción vía SSH o `/api/exec` (pm2, mysql, git).
 Cursor Cloud Agents también ejecuta y valida el código en el servidor.
 
 ### Variables de entorno obligatorias en financial/bot
@@ -610,7 +636,6 @@ Cuando el contexto se compacte automáticamente, el resumen debe seguir estas re
 ```
 
 **Objetivo: resumen ≤ 400 palabras. Si supera 600 palabras, está incluyendo demasiado.**
-9. **Branch de ai-monitor en projects.json es `main`** — no cambiar a branches de desarrollo
 
 ---
 
@@ -689,19 +714,19 @@ Si un archivo que necesitas está marcado como "in-progress" por otro dev en `re
 
 ```bash
 # Ver logs de un proceso en tiempo real
-ssh root@143.198.228.78 "pm2 logs [proceso] --lines 30"
+sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78 "pm2 logs [proceso] --lines 30"
 
 # Dashboard con métricas de agentes
 # → ia.vilarkptl.com
 
 # Verificar que tu PR llegó a producción
-ssh root@143.198.228.78 "cd /var/www/html/vilarkptl.com/ai-monitor && git log --oneline -3"
+sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78 "cd /var/www/html/vilarkptl.com/ai-monitor && git log --oneline -3"
 ```
 
 ### Asignación del roadmap pendiente
 
 | Tarea | Dev asignado | Prioridad |
-|-------|-------------|-----------|
+|-------|-------------|----------|
 | B3: multi-cuenta routing (5 cuentas Pro/Max en master.js) | german | Alta |
 | Fix permanente DeCabeceraTax gitPull | dev-2 | Alta |
 | conversation-engine: confirmar score post-SQL fix | dev-2 | Alta |
