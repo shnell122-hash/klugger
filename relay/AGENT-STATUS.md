@@ -35,25 +35,24 @@ _Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02 | Actualizado 20
 
 | Campo | Valor |
 |-------|-------|
-| Última sesión | 2026-05-19 |
-| Estado | ✅ Completo — P1+session fixes desplegados |
+| Última sesión | 2026-05-20 |
+| Estado | ✅ Completo — model fixes + deploy |
 | Rama trabajo | `main` (directo) |
 | Rama relay | `main` |
-| Commit | `a1ccc40b` fix(P1+session): per-scenario mode switch + auto-reset sesiones + ASISTENTE_CHAT_ID |
+| Commit | `b41a677e` fix(models): gemini-2.0-flash + deepseek-chat for tool_choice compat |
 
-### Cambios sesión 2026-05-19
+### Cambios sesión 2026-05-20
 
-- **DB reset**: `fin_chats.modo='normal'` (1 fila afectada) — efecto inmediato
-- **conversation_engine.py**: per-scenario mode switching — elimina root cause P1 (set_asistente_mode global al startup)
-- **conversation_engine.py**: ASISTENTE_CHAT_ID infra lista para chat separado futuro
-- **financial-bot.js**: auto-reset sesiones >5min en estados intermedios (esperando_datos_bancarios, esperando_monto, esperando_entrega)
-- **Deploy**: commit en main, coordinator despachado para pm2 restart
+- **DocumentIntelligenceAgent.js**: `gemini-1.5-flash` → `gemini-2.0-flash` (modelo deprecado)
+- **vision-agent.js**: mismo fix — gemini default actualizado
+- **financial-bot.js**: TransactionOrchestrator hardcodeado a `deepseek-chat` (deepseek-v4-pro mapeaba a reasoner → bloqueaba tool_choice)
+- **Deploy**: git plumbing → push → git checkout HEAD → pm2 restart financial-bot ✅
 
 ### Score
 
-- Pre-fix: 40% (40+ episodios)
-- Post-fix ep #52: 62.5% (P3 desaparece, P1 en progreso)
-- Esperado próximos episodios: 85–93%
+- Pre-fix sesión anterior: 77.8% (ep #1747) — debajo del 80%
+- Root causes: 177x saldo sin keywords (TO→ignorar fallback), 91x timeout
+- Post-fix esperado: 85%+ (tool_choice funciona, Gemini disponible)
 
 ---
 
@@ -83,7 +82,7 @@ _Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02 | Actualizado 20
 | `kptl-credito` | ✅ online | Fix webhook.py aplicado |
 | `kptl-credito-worker` | ⚠️ online | 213 restarts — depende de kptl-credito |
 | `vilar-legal-os-v59` | ⚠️ online | 146k+ restarts — crash loop no resuelto |
-| `financial-bot` | ✅ online | P1+session fixes en main (a1ccc40b) — score esperado 85-93% |
+| `financial-bot` | ✅ online | Model fixes en main (b41a677e) — gemini-2.0-flash + deepseek-chat para tool_choice |
 | `conversation-engine` | ✅ online | P1 fix deployado, score 62.5% ep.#52 → mejorando |
 | `claude-code-suborq` | ✅ online | Comunicación bidireccional activa |
 
