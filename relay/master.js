@@ -1911,12 +1911,6 @@ function checkSelfReload() {
   if (_selfReloading) return;
   const newHash = fileHash(__filename);
   if (newHash && newHash !== _selfHash) {
-    log('master', `🔍 checkSelfReload: hash cambió de ${_selfHash?.slice(0,8)} a ${newHash?.slice(0,8)} — cargando diff...`);
-    try {
-      const diffOut = require('child_process').execSync(`cd "${require('path').dirname(__filename)}" && git diff HEAD relay/master.js 2>/dev/null | head -20`, { stdio: 'pipe', timeout: 5000 }).toString().trim();
-      if (diffOut) log('master', `diff: ${diffOut.slice(0, 300)}`);
-      else log('master', 'diff: sin cambios en git (cambio fuera de git o archivo untracked)');
-    } catch (_) {}
     _selfReloading = true;
     const active = [...ACTIVE_TASKS];
     if (active.length > 0) {
