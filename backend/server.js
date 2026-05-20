@@ -21,6 +21,7 @@ const { router: platformRouter, fetchAndCacheUsage, checkBudgets } = require('./
 const { router: apiAdminRouter, dailySnapshot } = require('./routes/apiAdmin');
 const telegramUsersRouter = require('./routes/telegramUsers');
 const proxyUsageRouter    = require('./routes/proxyUsage');
+const providerCostsRouter = require('./routes/providerCosts');
 const financialRoutes = require('../financial/backend/routes/financial');
 const execRouter      = require('./routes/exec');
 const pool            = require('./db/mysql');
@@ -58,6 +59,7 @@ app.use('/api/platform',        platformRouter);
 app.use('/api/apiAdmin',        apiAdminRouter);
 app.use('/api/telegram',        telegramUsersRouter);
 app.use('/api/proxy-usage',     proxyUsageRouter);
+app.use('/api/provider-costs',  providerCostsRouter);
 app.use('/api/financial',      financialRoutes(pool, io, express));
 app.use('/api/exec',           execRouter);
 
@@ -77,6 +79,27 @@ io.on('connection', (socket) => {
     console.log(`[ws] Client disconnected: ${socket.id}`);
   });
 });
+
+// Auto-run pending migrations on startup
+(async () => {
+  const fs   = require('fs');
+  const path = require('path');
+  const migrationsDir = path.join(__dirname, 'db');
+  const migrations = fs.readdirSync(migrationsDir)
+    .filter(f => /^migrate-v\d+\.sql$/.test(f))
+    .sort((a, b) => {
+      const n = f => parseInt(f.match(/\d+/)[0]);
+      return n(a) - n(b);
+    });
+  for (const file of migrations) {
+    const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+    // Run each statement — IF NOT EXISTS makes them idempotent
+    for (const stmt of sql.split(';').map(s => s.trim()).filter(Boolean)) {
+      try { await pool.query(stmt); } catch (_) {}
+    }
+  }
+  console.log('[db] migrations checked');
+})().catch(e => console.error('[db] migration error:', e.message));
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`[ai-monitor] Running on port ${PORT}`);

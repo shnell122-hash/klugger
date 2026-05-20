@@ -1013,6 +1013,13 @@ function postAlert(alertType, projectId, severity, title, details, autoFixed = f
   postToMonitor('/api/alerts', { alert_type: alertType, project_id: projectId, severity, title, details, auto_fixed: autoFixed });
 }
 
+// Report a real (non-Max-subscription) API call cost to the dashboard.
+// Claude CLI via Max subscription = $0; DeepSeek/Gemini/Grok = real charges.
+function postProviderCost(provider, model, projectId, inputTokens, outputTokens, costUsd) {
+  if (!costUsd || costUsd <= 0) return;
+  postToMonitor('/api/provider-costs', { provider, model, project_id: projectId, input_tokens: inputTokens, output_tokens: outputTokens, cost_usd: costUsd });
+}
+
 // ─── Per-project kill-switch (migrate-v12 project_monthly_budget) ────────────
 // Cache refreshed every 5 min by the kill-switch poller via /api/apiAdmin/projectBudgets.
 // Avoids a DB query on every 15-second poll cycle.
@@ -1297,10 +1304,12 @@ PENDING: descripción (o "ninguno")
 USER_REQUIRED: no${agentPlan}`;
 
   const messages      = [{ role: 'user', content: taskContent }];
-  let toolCallCount   = 0;
-  let resultText      = '';
-  let taskCostUsd     = 0;
-  let lastToolName    = null;
+  let toolCallCount     = 0;
+  let resultText        = '';
+  let taskCostUsd       = 0;
+  let grokInputTokens   = 0;
+  let grokOutputTokens  = 0;
+  let lastToolName      = null;
 
   const taskTitle  = taskContent.split('\n').find(l => /^#{1,3} /.test(l))?.replace(/^#+ /, '').slice(0, 60) || project.name;
   const heartbeat  = setInterval(() => {
@@ -1327,8 +1336,13 @@ USER_REQUIRED: no${agentPlan}`;
       const choice  = response.choices?.[0];
       const msg     = choice?.message;
       const usage   = response.usage || {};
-      taskCostUsd  += ((usage.prompt_tokens || 0) * (model === 'grok-3' ? 0.000003 : 0.0000003) +
-                       (usage.completion_tokens || 0) * (model === 'grok-3' ? 0.000015 : 0.0000005));
+      const gInTok  = usage.prompt_tokens || 0;
+      const gOutTok = usage.completion_tokens || 0;
+      grokInputTokens  += gInTok;
+      grokOutputTokens += gOutTok;
+      // grok-3: $3/M input, $15/M output; grok-3-mini: $0.3/M input, $0.5/M output
+      taskCostUsd  += (gInTok * (model === 'grok-3' ? 0.000003 : 0.0000003) +
+                       gOutTok * (model === 'grok-3' ? 0.000015 : 0.0000005));
 
       if (!msg) { resultText = '## Resultados\n❌ Grok: respuesta vacía\n\nSTATUS: failed\nCHANGED: ninguno\nDEPLOYED: no'; break; }
       messages.push({ role: 'assistant', content: msg.content || null, tool_calls: msg.tool_calls });
@@ -1386,6 +1400,7 @@ USER_REQUIRED: no${agentPlan}`;
     const elapsed = Math.round((Date.now() - startTime) / 1000);
     log(project.id, `Grok agent completado (${model}, ${elapsed}s, ${toolCallCount} tools, $${taskCostUsd.toFixed(4)})`);
     if (!resultText) resultText = `STATUS: done\nCHANGED: ninguno\nDEPLOYED: no`;
+    postProviderCost('grok', model || 'grok-3', project.id, grokInputTokens, grokOutputTokens, taskCostUsd);
     callback(0, resultText, taskCostUsd);
   }
 }
@@ -1637,7 +1652,12 @@ async function runGeminiAgent(project, taskContent, callback) {
           try {
             const j = JSON.parse(data);
             if (j.error) { rej(new Error(j.error.message)); return; }
-            res(j.candidates?.[0]?.content?.parts?.[0]?.text || '');
+            // Track token usage for real cost reporting (gemini-1.5-flash: $0.075/M input, $0.30/M output)
+            const usage = j.usageMetadata || {};
+            const inTok  = usage.promptTokenCount || 0;
+            const outTok = usage.candidatesTokenCount || 0;
+            const cost   = (inTok * 0.000075 + outTok * 0.00030) / 1000;
+            res({ text: j.candidates?.[0]?.content?.parts?.[0]?.text || '', inTok, outTok, cost });
           } catch (e) { rej(e); }
         });
       });
@@ -1647,14 +1667,16 @@ async function runGeminiAgent(project, taskContent, callback) {
       req.end();
     });
 
+    const { text: resultText, inTok, outTok, cost } = typeof result === 'object' ? result : { text: result, inTok: 0, outTok: 0, cost: 0 };
     if (project.inbox) {
       const outboxPath = project.inbox.replace(/inbox/g, 'outbox');
-      fs.writeFileSync(outboxPath, `# Resultado — ${project.name}\n\n${result}\n\n_${new Date().toISOString()}_\n`, 'utf8');
+      fs.writeFileSync(outboxPath, `# Resultado — ${project.name}\n\n${resultText}\n\n_${new Date().toISOString()}_\n`, 'utf8');
       try { gitCommitFile(outboxPath, `result: ${project.id} gemini`); } catch (_) {}
     }
-    tg(`✅ <b>${project.name}</b> (Gemini)\n${result.slice(0, 800)}`);
-    log(project.id, `[gemini-runner] Completado (${result.length} chars)`);
-    callback(null, result);
+    postProviderCost('gemini', model, project.id, inTok, outTok, cost);
+    tg(`✅ <b>${project.name}</b> (Gemini)\n${resultText.slice(0, 800)}`);
+    log(project.id, `[gemini-runner] Completado (${resultText.length} chars, $${cost.toFixed(6)})`);
+    callback(null, resultText);
   } catch (err) {
     log(project.id, `[gemini-runner] Error: ${err.message}`);
     tg(`❌ <b>${project.name}</b> (Gemini): ${err.message.slice(0, 200)}`);
@@ -2498,8 +2520,15 @@ Timeout en ${remainMin} min`);
       // only fall back to evt.result when nothing was accumulated.
       if (evt.result && !resultText.trim()) resultText = evt.result;
       if (evt.total_cost_usd) {
-        taskCostUsd = evt.total_cost_usd;
-        log(project.id, `costo real: $${evt.total_cost_usd.toFixed(6)}`);
+        // Max subscription: Claude CLI reports API-equivalent cost, not a real charge.
+        // Only count as real cost when routing through a paid proxy (use_cli_proxy: true).
+        if (project.use_cli_proxy) {
+          taskCostUsd = evt.total_cost_usd;
+          log(project.id, `costo real (proxy): $${evt.total_cost_usd.toFixed(6)}`);
+        } else {
+          taskCostUsd = 0;
+          log(project.id, `costo Max (estimado, no cobrado): $${evt.total_cost_usd.toFixed(6)}`);
+        }
       }
     }
   }
@@ -2812,9 +2841,11 @@ USER_REQUIRED: no${agentPlan}${agentMem}`;
 
   const messages = [{ role: 'user', content: taskContent }];
   const model     = process.env.DEEPSEEK_PRO_MODEL || 'deepseek-chat';
-  let toolCallCount = 0;
-  let resultText    = '';
-  let taskCostUsd   = 0;
+  let toolCallCount   = 0;
+  let resultText      = '';
+  let taskCostUsd     = 0;
+  let totalInputTokens  = 0;
+  let totalOutputTokens = 0;
   let lastToolName  = null;
 
   const taskId    = dispatchMeta.id    || `relay-${project.id}-${Date.now()}`;
@@ -2851,7 +2882,14 @@ USER_REQUIRED: no${agentPlan}${agentMem}`;
       }
 
       if (response.usage) {
-        taskCostUsd += ((response.usage.prompt_tokens || 0) * 0.00014 + (response.usage.completion_tokens || 0) * 0.00028) / 1000;
+        // DeepSeek V3 (deepseek-chat): $0.27/M input, $1.10/M output
+        // DeepSeek R1 (deepseek-reasoner): $0.55/M input, $2.19/M output
+        const isR1 = (model || '').includes('reasoner');
+        const inTok  = response.usage.prompt_tokens || 0;
+        const outTok = response.usage.completion_tokens || 0;
+        totalInputTokens  += inTok;
+        totalOutputTokens += outTok;
+        taskCostUsd += (inTok * (isR1 ? 0.00055 : 0.00027) + outTok * (isR1 ? 0.00219 : 0.00110)) / 1000;
       }
 
       const msg = response.choices?.[0]?.message;
@@ -2948,6 +2986,7 @@ USER_REQUIRED: no${agentPlan}${agentMem}`;
 
   const duration = Math.round((Date.now() - startTime) / 1000);
   log(project.id, `[deepseek-agent] completado: ${duration}s, ${toolCallCount} tools, $${taskCostUsd.toFixed(6)}`);
+  postProviderCost('deepseek', model || 'deepseek-chat', project.id, totalInputTokens, totalOutputTokens, taskCostUsd);
   callback(0, resultText.trim(), taskCostUsd);
 }
 
