@@ -102,7 +102,7 @@ const docAgent = process.env.GOOGLE_API_KEY
   ? new DocumentIntelligenceAgent(process.env.GOOGLE_API_KEY)
   : null;
 const transactionOrchestrator = DEEPSEEK_KEY
-  ? new TransactionOrchestrator(llm, { model: process.env.DEEPSEEK_PRO_MODEL ?? 'deepseek-v4-pro' })
+  ? new TransactionOrchestrator(llm, { model: 'deepseek-chat' })
   : null;
 
 // ── Transformer: log bot outgoing messages ────────────────────────────────────
