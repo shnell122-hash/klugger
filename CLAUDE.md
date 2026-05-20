@@ -13,22 +13,7 @@
 | Contraseña SSH | `romanos12_2` |
 | OS | Ubuntu / Debian (Apache + PM2) |
 
-**Conexión desde agentes Claude Code (CLI web):**
-```bash
-# Instalar sshpass si no está disponible
-apt-get install -y sshpass 2>/dev/null
-
-# Ejecutar comando remoto
-sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78 "comando"
-
-# Alias útil para sesión
-srv() { sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78 "$@"; }
-# Uso: srv "pm2 status"
-#      srv "pm2 restart financial-bot"
-#      srv "grep CLAUDE_EXEC_TOKEN /var/www/html/vilarkptl.com/ai-monitor/backend/.env"
-```
-
-**Si SSH no responde (el sandbox web bloquea el puerto 22), usar HTTPS — siempre funciona:**
+**Método principal — HTTPS (funciona desde cualquier entorno, sin excepciones):**
 ```bash
 EXEC_TOKEN="cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a"
 EXEC_URL="https://ia.vilarkptl.com/api/exec"
@@ -52,9 +37,16 @@ exec_server "pm2 logs financial-bot --lines 20 --nostream"
 exec_server "git log --oneline -5"
 ```
 
-> **IMPORTANTE**: `https://ia.vilarkptl.com/api/exec` funciona desde cualquier entorno
-> (Claude Code web, CLI, agentes del relay). Usar SIEMPRE esta URL como método principal.
-> SSH es alternativo cuando hay acceso directo al puerto 22.
+**Método alternativo — SSH directo (cuando se tiene acceso de red al puerto 22):**
+```bash
+# Instalar sshpass si no está disponible
+apt-get install -y sshpass 2>/dev/null
+
+sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78 "comando"
+
+# Alias útil para sesión
+srv() { sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78 "$@"; }
+```
 
 ### Árbol del servidor (rutas críticas)
 
@@ -125,31 +117,11 @@ curl -s -X POST http://localhost:3010/api/exec \
   | python3 -m json.tool
 ```
 
-**Función bash que usan los agentes (ya está en `relay/agents/flujos.md`):**
-```bash
-EXEC_TOKEN=$(grep -oP 'CLAUDE_EXEC_TOKEN=\K\S+' \
-  /var/www/html/vilarkptl.com/ai-monitor/backend/.env | tail -1)
-EXEC_URL="http://localhost:3010/api/exec"
-
-exec_server() {
-  local CMD="$1"
-  local CWD="${2:-/var/www/html/vilarkptl.com/ai-monitor}"
-  local BODY
-  BODY=$(python3 -c "import sys,json; print(json.dumps({'cmd':sys.argv[1],'cwd':sys.argv[2]}))" "$CMD" "$CWD")
-  curl -s -X POST "$EXEC_URL" \
-    -H "Content-Type: application/json" \
-    -H "x-exec-token: $EXEC_TOKEN" \
-    -d "$BODY" \
-    | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('output') or d.get('error','(sin output)'))"
-}
-```
-
 Comandos permitidos: `pm2 status|logs|restart|stop|start|reload|list`,
 `git status|log|diff|fetch|pull|merge|push|checkout|branch|add|commit|reset|stash`,
 `mysql -u root ...`, `cat` (solo rutas de ai-monitor/relay), `grep`, `ls`, `df`, `free`, `uptime`
 
-> **Nota**: El token NO está en el repo — vive solo en `backend/.env` del servidor.
-> Los agentes lo leen al inicio de cada sesión con el `grep -oP` de arriba.
+> **Nota**: No usar `&&` en comandos — cada llamada a `exec_server` ejecuta un solo comando.
 
 ### Comandos de administración en producción
 
@@ -323,11 +295,13 @@ pm2 restart ai-monitor
 # Hard refresh en el browser (cerrar y reabrir pestaña)
 ```
 
-### Swap crítico
+### Recursos del servidor (2026-05-20)
 
-RAM: 3.8 GB total | Swap: ~96% usado. Si hay OOM:
+RAM: 7.8 GB total | 1.9 GB usado | 5.5 GB disponible | Swap: 3 GB (70% usado)
+Disco: 155 GB total | 49 GB usado (32%) | CPU load: 0.08 — tranquilo
+
+Si hay OOM (swap > 95%):
 ```bash
-# Agregar 1 GB swap temporal:
 fallocate -l 1G /swapfile2 && chmod 600 /swapfile2 && mkswap /swapfile2 && swapon /swapfile2
 ```
 
