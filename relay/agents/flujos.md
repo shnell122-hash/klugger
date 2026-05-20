@@ -73,15 +73,13 @@ EXEC_URL="http://localhost:3010/api/exec"
 exec_server() {
   local CMD="$1"
   local CWD="${2:-/var/www/html/vilarkptl.com/ai-monitor}"
+  local BODY
+  BODY=$(python3 -c "import sys,json; print(json.dumps({'cmd':sys.argv[1],'cwd':sys.argv[2]}))" "$CMD" "$CWD")
   curl -s -X POST "$EXEC_URL" \
     -H "Content-Type: application/json" \
     -H "x-exec-token: $EXEC_TOKEN" \
-    -d "{\"cmd\":$(echo "$CMD" | python3 -c \
-        'import sys,json; print(json.dumps(sys.stdin.read().strip()))'),\
-\"cwd\":\"$CWD\"}" \
-    | python3 -c \
-        "import sys,json; d=json.load(sys.stdin); \
-print(d.get('output') or d.get('error','(sin output)'))"
+    -d "$BODY" \
+    | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('output') or d.get('error','(sin output)'))"
 }
 
 # Ejemplos:
