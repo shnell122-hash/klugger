@@ -1146,6 +1146,14 @@ bot.on('message:text', async (ctx, next) => {
     return;
   }
 
+  // Consulta de saldo en lenguaje natural — responder antes del orchestrator
+  const SALDO_QUERY_RE = /\b(?:saldo|cu[aá]nto\s+(?:tengo|hay|queda|disponible)|c[oó]mo\s+vamos|a\s+cu[aá]nto\s+estamos|dime\s+(?:mi\s+)?saldo)\b/i;
+  if (SALDO_QUERY_RE.test(text)) {
+    const { saldo: saldoNL } = await balanceManager.getSaldo(client.id);
+    await ctx.reply(`💰 Saldo actual: <b>$${fmt(saldoNL)}</b>`, { parse_mode: 'HTML' });
+    return;
+  }
+
   // Fallback: decide si hay algo útil que responder
   try {
     const mensajesCtx = await contextManager.getRecientes(chatId, 25);
@@ -1963,6 +1971,16 @@ async function procesarOperacion(ctx, input, client, session) {
     await ctx.reply(responseGen.formatAskMonto(parsed.tipo), { parse_mode: 'HTML' });
     const baseDraft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
     await updateSession(session.id, 'esperando_monto', { ...baseDraft, tipo_operacion: parsed.tipo, clientId: client.id });
+    return;
+  }
+
+  // Validar monto — rechazar negativos y montos menores a $1
+  if (parsed.monto < 1) {
+    await ctx.reply(
+      `❌ Monto inválido: <b>$${parsed.monto}</b>.\n\nEl monto debe ser un número positivo mayor a $1.00.`,
+      { parse_mode: 'HTML' }
+    );
+    await updateSession(session.id, 'idle', null);
     return;
   }
 

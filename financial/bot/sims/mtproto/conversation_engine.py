@@ -807,6 +807,11 @@ class BotResponseCollector:
         if drain > 0:
             await asyncio.sleep(drain)
         self._cursor = len(self._received)
+        # Return the last non-empty message — poll messages arrive as "" and would mask text summaries
+        new_msgs = self._received[cursor:]
+        for msg in reversed(new_msgs):
+            if msg:
+                return msg
         return self._received[-1] if self._received else None
 
     def latest(self) -> Optional[str]:
