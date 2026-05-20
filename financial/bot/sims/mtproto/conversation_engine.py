@@ -883,7 +883,8 @@ async def run_chat_scenario(clients: dict, chat_entities: dict, scenario: dict,
 
 
 async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
-                       chat_id: int, episode_id: int, dry_run: bool = False) -> dict:
+                       chat_id: int, episode_id: int, dry_run: bool = False,
+                       asistente_chat_id: int = None) -> dict:
     """
     Ejecuta un escenario con el account indicado.
     Retorna {"test_id", "passed", "detail", "bot_response"}.
@@ -896,7 +897,6 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
     expected = scenario.get("expected", [])
     test_id  = scenario["id"]
     client   = clients.get(account)
-    target   = chat_entities.get(account, chat_id)
 
     is_asistente = scenario.get("mode") == "asistente"
     verify_db    = scenario.get("verify_db")
@@ -905,6 +905,13 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
     filename     = scenario.get("filename", "archivo.xlsx")
     photo_type   = scenario.get("photo")
     doc_type     = scenario.get("document")
+
+    # Chat separado para asistente (sin interferencia con el chat principal)
+    use_separate_asist = is_asistente and asistente_chat_id
+    effective_chat_id  = asistente_chat_id if use_separate_asist else chat_id
+    target = chat_entities.get(account, effective_chat_id)
+    if use_separate_asist:
+        target = asistente_chat_id  # siempre usar el chat asistente directamente
 
     if not client:
         return {"test_id": test_id, "passed": False,
@@ -917,8 +924,11 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
         print(f"  [{account.upper()}] -> {messages[0][:60]}")
 
     if not dry_run:
-        # Modo correcto antes de cada escenario para no contaminar entre escenarios
-        if is_asistente:
+        # Modo correcto antes de cada escenario
+        # Si hay chat separado para asistente, solo necesitamos limpiar el chat principal
+        if use_separate_asist:
+            set_normal_mode(chat_id)   # chat principal siempre en normal
+        elif is_asistente:
             set_asistente_mode(chat_id)
         else:
             set_normal_mode(chat_id)
@@ -1296,8 +1306,12 @@ async def run_engine(rounds: int = 0, force_tier: int = 0, dry_run: bool = False
     Motor principal. rounds=0 -> infinito.
     """
     chat_id = get_chat_id()
+    _asist_raw = env('SIM_ASISTENTE_CHAT_ID', '')
+    asistente_chat_id = int(_asist_raw) if _asist_raw.lstrip('-').isdigit() else None
     print(f"\n{'='*60}")
     print(f" Conversation Engine -- chat_id={chat_id}")
+    if asistente_chat_id:
+        print(f" Asistente chat_id={asistente_chat_id} (chat separado para escenarios asistente)")
     print(f" Rounds: {'inf' if rounds == 0 else rounds} | Dry-run: {dry_run}")
     print(f"{'='*60}\n")
 
@@ -1383,7 +1397,8 @@ async def run_engine(rounds: int = 0, force_tier: int = 0, dry_run: bool = False
         round_results = []
 
         for scenario in scenarios:
-            result = await run_scenario(clients, chat_entities, scenario, chat_id, episode_id, dry_run)
+            result = await run_scenario(clients, chat_entities, scenario, chat_id, episode_id, dry_run,
+                                        asistente_chat_id=asistente_chat_id)
             round_results.append(result)
             all_results.append(result)
             await asyncio.sleep(DELAY_BETWEEN_SCENARIOS)
