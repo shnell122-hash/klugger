@@ -47,3 +47,13 @@
 - ⚠️ ⚠️ **REQUIERE INTERVENCIÓN HUMANA**: 
 - ⚠️ 1. **Opción A (recomendado)**: Eliminar rama deploy
 - ⚠️    ```bash
+
+## [20/5/2026, 13:40:35 CST] Sin tareas pendientes
+- **gemini-2.0-flash** — `DocumentIntelligenceAgent.js` y `vision-agent.js`: modelo `gemini-1.5-flash` fue deprecado por Google, actualizado a `gemini-2.0-flash`  
+- **deepseek-chat para TransactionOrchestrator** — `deepseek-v4-pro` mapeaba a `deepseek-reasoner` en la API de DeepSeek, el cual no soporta `tool_choice` → 400 errors en cada llamada → fallback a `igno
+- **responder_info fallback** — cuando TO dice `responder_info` sin `mensaje_respuesta`, el bot ahora responde directamente con `💰 Saldo actual: $X` (evita 91 timeouts)  
+- **TO prompt mejorado** — instrucción explícita de incluir saldo real en `mensaje_respuesta`  
+- **Deploy completo** — 4 commits pusheados a `main`, 2 `pm2 restart` ejecutados via exec_server
+- **Score esperado:** 85%+ (ambos root causes corregidos — tool_choice errors + Gemini 404)
+- STATUS: done
+- CHANGED: financial/bot/agents/DocumentIntelligenceAgent.js:4, financial/bot/agents/vision-agent.js:82, financial/bot/agents/TransactionOrchestrator.js:17-23, financial/bot/financial-bot.js:1161-1165
