@@ -986,15 +986,20 @@ async function loadInitialData() {
 
 async function loadCosts() {
   try {
-    const r = await fetch(`${API}/api/costs`);
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const data = await r.json();
-    if (data.error) throw new Error(data.error);
-    costData = data;
-    refreshCostsPanel(costData);
+    const [r, rp] = await Promise.all([
+      fetch(`${API}/api/costs`),
+      fetch(`${API}/api/provider-costs`),
+    ]);
+    if (r.ok) {
+      const data = await r.json();
+      if (!data.error) { costData = data; refreshCostsPanel(costData); }
+    }
+    if (rp.ok) {
+      const pd = await rp.json();
+      if (!pd.error) refreshProviderCostsPanel(pd);
+    }
   } catch (err) {
     console.warn('[costs] load error:', err.message);
-    // Fallback: compute today's totals from in-memory events
     const todayCost = events.reduce((s, e) => s + (parseFloat(e.estimated_cost_usd) || 0), 0);
     const todaySessions = new Set(events.map(e => e.session_id)).size;
     refreshCostsPanel({
@@ -1002,6 +1007,62 @@ async function loadCosts() {
       week:  { total_cost_usd: todayCost, sessions: todaySessions },
       by_tool: [], by_hour: [],
     });
+  }
+}
+
+const PROVIDER_LABELS = {
+  deepseek: { name: 'DeepSeek', emoji: '🤖' },
+  gemini:   { name: 'Gemini',   emoji: '💎' },
+  grok:     { name: 'Grok/xAI', emoji: '𝕏'  },
+  anthropic:      { name: 'Anthropic API', emoji: '🟠' },
+  'anthropic-api':{ name: 'Anthropic API', emoji: '🟠' },
+};
+
+function fmtTokens(n) {
+  if (!n) return '0';
+  return n >= 1000000 ? (n/1000000).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(0)+'K' : String(n);
+}
+
+function refreshProviderCostsPanel(pd) {
+  const todayEl  = document.getElementById('provider-costs-today');
+  const monthEl  = document.getElementById('provider-costs-month');
+  const totalEl  = document.getElementById('provider-costs-month-total');
+  if (!todayEl && !monthEl) return;
+
+  // Today by provider+model
+  if (todayEl && pd.today) {
+    if (!pd.today.length) {
+      todayEl.innerHTML = '<div class="cost-row"><span class="label" style="color:var(--text-muted)">Sin cargos hoy</span><span class="val zero">$0.000000</span></div>';
+    } else {
+      todayEl.innerHTML = pd.today.map(r => {
+        const lbl = PROVIDER_LABELS[r.provider] || { name: r.provider, emoji: '🔌' };
+        const cost = parseFloat(r.cost_usd || 0);
+        return `<div class="provider-badge">
+          <span class="pname">${lbl.emoji} ${lbl.name} <small style="color:var(--text-muted)">${r.model||''}</small></span>
+          <span class="ptokens">${fmtTokens(r.input_tokens)}in / ${fmtTokens(r.output_tokens)}out</span>
+          <span class="pcost${cost===0?' zero':''}">${cost===0 ? '$0' : '$'+cost.toFixed(6)}</span>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // Month totals by provider
+  if (monthEl && pd.month) {
+    const monthTotal = pd.month.reduce((s, r) => s + parseFloat(r.cost_usd||0), 0);
+    if (totalEl) totalEl.textContent = `Total mes: $${monthTotal.toFixed(4)}`;
+    if (!pd.month.length) {
+      monthEl.innerHTML = '<div class="cost-row"><span class="label" style="color:var(--text-muted)">Sin cargos este mes</span><span class="val zero">$0.000000</span></div>';
+    } else {
+      monthEl.innerHTML = pd.month.map(r => {
+        const lbl = PROVIDER_LABELS[r.provider] || { name: r.provider, emoji: '🔌' };
+        const cost = parseFloat(r.cost_usd || 0);
+        return `<div class="provider-badge">
+          <span class="pname">${lbl.emoji} ${lbl.name}</span>
+          <span class="ptokens">${fmtTokens(r.input_tokens)}in / ${fmtTokens(r.output_tokens)}out</span>
+          <span class="pcost${cost===0?' zero':''}">${cost===0 ? '$0' : '$'+cost.toFixed(4)}</span>
+        </div>`;
+      }).join('');
+    }
   }
 }
 
@@ -1104,6 +1165,15 @@ function connectSocket() {
   socket.on('alert:resolved', ({ id }) => {
     const a = alerts.find(x => x.id === id);
     if (a) { a.resolved = 1; renderAlerts(); updateAlertsBadge(); }
+  });
+
+  // Reload provider costs panel on new real cost event
+  socket.on('provider_cost', () => {
+    if (document.getElementById('provider-costs-today')) {
+      fetch(`${API}/api/provider-costs`).then(r => r.json()).then(pd => {
+        if (!pd.error) refreshProviderCostsPanel(pd);
+      }).catch(() => {});
+    }
   });
 }
 

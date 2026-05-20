@@ -152,14 +152,25 @@
 
     <!-- Costs -->
     <div id="costs-panel">
+      <!-- Real API provider costs (DeepSeek, Gemini, Grok — Claude Max = $0) -->
+      <div class="cost-section provider-costs-header">
+        <h3>💰 Costos reales por proveedor API</h3>
+        <p class="cost-note">Claude (Max subscription) = $0. Solo se cobran DeepSeek, Gemini y Grok.</p>
+        <div id="provider-costs-today"></div>
+        <div id="provider-costs-month-total" style="margin-top:6px;font-size:0.85em;color:#aaa"></div>
+      </div>
       <div class="cost-section">
-        <h3>Hoy</h3>
+        <h3>Mes actual — por proveedor</h3>
+        <div id="provider-costs-month"></div>
+      </div>
+      <div class="cost-section">
+        <h3>Hoy (Claude CLI equivalente — no cobrado)</h3>
         <div class="cost-row"><span class="label">Total USD</span><span class="val" id="cost-today">—</span></div>
         <div class="cost-row"><span class="label">Sesiones</span><span class="val" id="cost-today-sessions">—</span></div>
         <div class="cost-row"><span class="label">Eventos</span><span class="val" id="cost-today-events">—</span></div>
       </div>
       <div class="cost-section">
-        <h3>Esta semana</h3>
+        <h3>Esta semana (Claude CLI equivalente)</h3>
         <div class="cost-row"><span class="label">Total USD</span><span class="val" id="cost-week">—</span></div>
         <div class="cost-row"><span class="label">Sesiones</span><span class="val" id="cost-week-sessions">—</span></div>
       </div>
