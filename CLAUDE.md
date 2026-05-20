@@ -9,9 +9,27 @@
 | Campo | Valor |
 |-------|-------|
 | Host | `143.198.228.78` (vilar-desarrollo) |
-| Usuario SSH | `root` |
-| Contraseñas | Ver `/opt/kptl-secrets/server-credentials.txt` en el servidor (solo root) |
+| Usuario SSH | `german` (también `root`) |
+| Contraseña SSH | `romanos12_2` |
 | OS | Ubuntu / Debian (Apache + PM2) |
+
+**Conexión desde agentes Claude Code (CLI web):**
+```bash
+# Instalar sshpass si no está disponible
+apt-get install -y sshpass 2>/dev/null
+
+# Ejecutar comando remoto
+sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78 "comando"
+
+# Alias útil para sesión
+srv() { sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78 "$@"; }
+# Uso: srv "pm2 status"
+#      srv "pm2 restart financial-bot"
+#      srv "grep CLAUDE_EXEC_TOKEN /var/www/html/vilarkptl.com/ai-monitor/backend/.env"
+```
+
+> **Nota**: Si el puerto 22 no responde desde este workspace, usar el endpoint `/api/exec`
+> como alternativa (ver sección *Acceso al servidor para agentes* más abajo).
 
 ### Árbol del servidor (rutas críticas)
 
@@ -153,11 +171,12 @@ Tablas principales:
 - Reverse proxy: `ia.vilarkptl.com` → `localhost:3010`
 
 ```bash
-# Conectar por SSH (contraseña en /opt/kptl-secrets/server-credentials.txt)
-ssh root@143.198.228.78
+# Conectar por SSH
+sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78
 
-# MySQL (contraseña en /opt/kptl-secrets/server-credentials.txt)
-mysql -u root -p ai_monitoring
+# MySQL (contraseña en backend/.env)
+DB_PASS=$(grep -oP 'DB_PASS=\K.*' /var/www/html/vilarkptl.com/ai-monitor/backend/.env)
+mysql -u root -p"$DB_PASS" ai_monitoring
 
 # Verificar módulos
 apache2ctl -M | grep proxy
@@ -181,7 +200,7 @@ relay/master.js  (Node.js, PM2)
     │
     ├──▶ Claude Code CLI --model <claude_model>
     │         └── edita archivos, hace commits, push
-    │         └── puede ejecutar pm2/mysql vía /api/exec (exec_server())
+    │         └── puede ejecutar pm2/mysql vía SSH o /api/exec
     │
     ├──▶ DeepSeek V3 API (planning /tarea, resúmenes memoria)
     │
@@ -344,7 +363,7 @@ cd dashboard-financial && npm run build && pm2 restart financial-dashboard
 | **Claude Code CLI** (este agente) | Desarrolla todo el código, hace commits y push |
 | **Cursor Cloud Agents** (servidor) | Revisa, prueba y optimiza el código en el servidor |
 
-Claude Code CLI escribe código, commitea, y puede ejecutar comandos en producción vía `/api/exec` (pm2, mysql, git).
+Claude Code CLI escribe código, commitea, y puede ejecutar comandos en producción vía SSH o `/api/exec` (pm2, mysql, git).
 Cursor Cloud Agents también ejecuta y valida el código en el servidor.
 
 ### Variables de entorno obligatorias en financial/bot
@@ -604,13 +623,13 @@ Si un archivo que necesitas está marcado como "in-progress" por otro dev en `re
 
 ```bash
 # Ver logs de un proceso en tiempo real
-ssh root@143.198.228.78 "pm2 logs [proceso] --lines 30"
+sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78 "pm2 logs [proceso] --lines 30"
 
 # Dashboard con métricas de agentes
 # → ia.vilarkptl.com
 
 # Verificar que tu PR llegó a producción
-ssh root@143.198.228.78 "cd /var/www/html/vilarkptl.com/ai-monitor && git log --oneline -3"
+sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78 "cd /var/www/html/vilarkptl.com/ai-monitor && git log --oneline -3"
 ```
 
 ### Asignación del roadmap pendiente
