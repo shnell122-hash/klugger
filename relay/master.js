@@ -738,6 +738,115 @@ async function handleTelegramCommand(text, imageContext) {
     return;
   }
 
+
+  // ── /addproject — registrar nuevo proyecto en projects.json ─
+  // Uso: /addproject id nombre url [github=owner/repo] [repo=/ruta] [branch=main] [mode=full-claude-code] [model=claude-sonnet-4-6]
+  if (lower.startsWith('/addproject')) {
+    const parts  = raw.trim().split(/\s+/);
+    const projId = parts[1];
+    const name   = parts[2];
+    const url    = parts[3];
+
+    if (!projId || !name) {
+      tg(`❓ <b>Uso:</b> <code>/addproject id nombre url [opciones]</code>
+
+<b>Opciones:</b>
+  <code>github=owner/repo</code>
+  <code>repo=/ruta/en/servidor</code>
+  <code>branch=main</code>
+  <code>mode=full-claude-code|plan-execute|deepseek-agent|llm-direct</code>
+  <code>model=claude-sonnet-4-6</code>
+
+<b>Ejemplo:</b>
+<code>/addproject pill-ai "Pill AI" https://pill.ai github=vilarkptl-lang/pill.ai repo=/var/www/html/vilarkptl.com/pill-ai branch=main</code>`);
+      return;
+    }
+
+    // Parse key=value options
+    const opts = {};
+    for (const p of parts.slice(4)) {
+      const eq = p.indexOf('=');
+      if (eq > 0) opts[p.slice(0, eq)] = p.slice(eq + 1);
+    }
+
+    const repoPath = opts.repo || '';
+    const branch   = opts.branch || 'main';
+    const mode     = opts.mode   || 'full-claude-code';
+    const github   = opts.github || '';
+    const model    = opts.model  || 'claude-sonnet-4-6';
+
+    // Auto-derive inbox/outbox from repo path
+    const inbox  = repoPath ? path.join(repoPath, 'relay', `inbox-${projId}.md`)  : '';
+    const outbox = repoPath ? path.join(repoPath, 'relay', `outbox-${projId}.md`) : '';
+
+    // Check for duplicate ID
+    let allProjects = [];
+    try { allProjects = JSON.parse(fs.readFileSync(PROJECTS_FILE, 'utf8')); } catch (_) {}
+    if (allProjects.find(p => p.id === projId)) {
+      tg(`❌ Ya existe un proyecto con id <code>${esc(projId)}</code>.\nUsa un id diferente o edita <code>relay/projects.json</code> manualmente.`);
+      return;
+    }
+
+    const newProject = {
+      id:           projId,
+      name,
+      mode,
+      ignore_quiet_hours: false,
+      claude_model:       model,
+      claude_model_fast:  'claude-haiku-4-5-20251001',
+      use_cli_proxy:      false,
+      inbox,
+      outbox,
+      repo:   repoPath,
+      branch,
+      github,
+      url:    url || '',
+      active: true,
+    };
+
+    // Remove empty fields to keep JSON clean
+    for (const k of Object.keys(newProject)) {
+      if (newProject[k] === '' || newProject[k] === null) delete newProject[k];
+    }
+
+    allProjects.push(newProject);
+    try {
+      fs.writeFileSync(PROJECTS_FILE, JSON.stringify(allProjects, null, 2) + '\n', 'utf8');
+    } catch (e) {
+      tg(`❌ Error escribiendo projects.json: <code>${esc(e.message.slice(0,200))}</code>`);
+      return;
+    }
+
+    // Create inbox/outbox files if repo exists
+    if (repoPath && fs.existsSync(repoPath)) {
+      try {
+        const relayDir = path.join(repoPath, 'relay');
+        fs.mkdirSync(relayDir, { recursive: true });
+        if (inbox  && !fs.existsSync(inbox))  fs.writeFileSync(inbox,  '', 'utf8');
+        if (outbox && !fs.existsSync(outbox)) fs.writeFileSync(outbox, '', 'utf8');
+      } catch (_) {}
+    }
+
+    // Commit and push projects.json
+    gitCommitFile(PROJECTS_FILE, `relay: addproject — ${projId} (${mode})`);
+
+    const summary = [
+      `✅ <b>Proyecto registrado: ${esc(name)}</b>`,
+      `<code>id:</code> <code>${esc(projId)}</code>`,
+      `<code>mode:</code> <code>${esc(mode)}</code>`,
+      `<code>model:</code> <code>${esc(model)}</code>`,
+      url    ? `<code>url:</code> ${esc(url)}` : null,
+      github ? `<code>github:</code> <code>${esc(github)}</code>` : null,
+      repoPath ? `<code>repo:</code> <code>${esc(repoPath)}</code>` : null,
+      inbox    ? `<code>inbox:</code> <code>${esc(inbox)}</code>` : null,
+      `\n📋 El relay lo detectará en el próximo ciclo (~15s).`,
+      `Si el repo no existe en el servidor, clónalo:\n<code>git clone &lt;url&gt; ${esc(repoPath || '/ruta/al/repo')}</code>`,
+    ].filter(Boolean).join('\n');
+
+    tg(summary);
+    return;
+  }
+
   // ── /backlog — ver y gestionar tareas pendientes ──────────
   if (lower === '/backlog' || lower === '/bl') {
     const tasks = loadBacklog();
