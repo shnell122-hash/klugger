@@ -28,9 +28,6 @@ srv() { sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.
 #      srv "grep CLAUDE_EXEC_TOKEN /var/www/html/vilarkptl.com/ai-monitor/backend/.env"
 ```
 
-> **Nota**: Si el puerto 22 no responde desde este workspace, usar el endpoint `/api/exec`
-> como alternativa (ver sección *Acceso al servidor para agentes* más abajo).
-
 ### Árbol del servidor (rutas críticas)
 
 ```
@@ -309,6 +306,74 @@ fallocate -l 1G /swapfile2 && chmod 600 /swapfile2 && mkswap /swapfile2 && swapo
 
 ---
 
+## pill.ai — Acceso al servidor para agentes
+
+| Campo | Valor |
+|-------|-------|
+| Host | `143.198.228.78` |
+| Puerto HTTP | `8181` |
+| Usuario SSH | `german` |
+| Dir producción | `/var/www/html/vilarkptl.com/pill-relay` |
+| Servicio | `pillai-relay` (systemd) |
+| Repo código | `vilarkptl-lang/pill.ai` · branch `claude/add-licensing-system-KsFAw` |
+| Referencia completa | https://github.com/vilarkptl-lang/pillai-secrets/blob/main/README.md |
+
+### Opción 1 — HTTP API (recomendada, no requiere SSH)
+
+Header obligatorio en todos los endpoints: `x-deploy-secret: <PILLAI_DEPLOY_SECRET>`
+
+```bash
+PILLAI_SECRET="fcdeee3a67f637f57c7a55df56c5fa0d40ccb89053002ce715efc541cb31ff77"
+PILLAI_BASE="http://143.198.228.78:8181"
+
+# Ejecutar cualquier comando bash
+curl -s -X POST "$PILLAI_BASE/admin/exec" \
+  -H "x-deploy-secret: $PILLAI_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"command": "pm2 status", "cwd": "/var/www/html/vilarkptl.com/pill-relay"}'
+
+# Deploy (git pull + restart)
+curl -s -X POST "$PILLAI_BASE/admin/deploy" \
+  -H "x-deploy-secret: $PILLAI_SECRET" \
+  -H "Content-Type: application/json"
+
+# Ver logs
+curl -s "$PILLAI_BASE/admin/logs?service=pillai-relay&lines=100" \
+  -H "x-deploy-secret: $PILLAI_SECRET"
+```
+
+> **Seguridad**: comandos peligrosos (`rm -rf`, `kill -9`, `shutdown`, `dd`, `mkfs`) devuelven
+> `{"requires_confirmation": true}`. Reenviar con `"confirmed": true` **solo tras aprobación
+> explícita del usuario**.
+
+**En Python:**
+```python
+import requests
+S = "fcdeee3a67f637f57c7a55df56c5fa0d40ccb89053002ce715efc541cb31ff77"
+B = "http://143.198.228.78:8181"
+H = {"x-deploy-secret": S, "Content-Type": "application/json"}
+requests.post(f"{B}/admin/deploy", headers=H)
+requests.post(f"{B}/admin/exec", headers=H, json={"command": "pm2 list"})
+requests.get(f"{B}/admin/logs", headers=H, params={"lines": 200})
+```
+
+### Opción 2 — SSH con llave privada
+
+La llave privada está en `ssh/pillai_agents.pem` de este repo.
+
+```bash
+# Setup al inicio de sesión (leer llave del repo vía GitHub MCP o git)
+mkdir -p ~/.ssh && chmod 700 ~/.ssh
+# Copiar contenido de ssh/pillai_agents.pem a ~/.ssh/pillai_agents
+chmod 600 ~/.ssh/pillai_agents
+ssh-keyscan -H 143.198.228.78 >> ~/.ssh/known_hosts 2>/dev/null
+
+# Conectar
+ssh -i ~/.ssh/pillai_agents german@143.198.228.78
+```
+
+---
+
 ## Financial System — Rutas y procesos PM2
 
 | Directorio (repo) | Ruta en servidor | Proceso PM2 | Puerto |
@@ -351,6 +416,7 @@ cd dashboard-financial && npm run build && pm2 restart financial-dashboard
    mysql -u root -p"$DB_PASS" nombre_db < migrate.sql
    ```
 8. **Deploy al terminar cada commit**: incluir bloque `DEPLOY` con los comandos exactos según los archivos modificados (ver sección *Financial System — Rutas y procesos PM2*). Copiar y pegar sin editar.
+9. **Branch de ai-monitor en projects.json es `main`** — no cambiar a branches de desarrollo
 
 ---
 
@@ -544,7 +610,6 @@ Cuando el contexto se compacte automáticamente, el resumen debe seguir estas re
 ```
 
 **Objetivo: resumen ≤ 400 palabras. Si supera 600 palabras, está incluyendo demasiado.**
-9. **Branch de ai-monitor en projects.json es `main`** — no cambiar a branches de desarrollo
 
 ---
 
