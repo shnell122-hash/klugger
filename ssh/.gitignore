@@ -1,0 +1,3 @@
+# No ignorar .pem — están en el repo intencionalmente para acceso de agentes
+# Si quieres ignorarlos, comenta la siguiente línea:
+!*.pem
