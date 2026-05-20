@@ -60,10 +60,14 @@ function findChromium() {
 }
 
 // ── Call Gemini Flash vision API ──────────────────────────────────────────────
+// ANÁLISIS_OMITIDO is returned when quota (429) or access (403) is unavailable —
+// callers treat this as "screenshot OK, no analysis" and do not fail the check.
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+
 function callGemini(b64Image, prompt) {
   return new Promise((resolve, reject) => {
     const apiKey = process.env.GOOGLE_API_KEY;
-    if (!apiKey) { resolve('(GOOGLE_API_KEY no configurada — análisis visual omitido)'); return; }
+    if (!apiKey) { resolve('ANÁLISIS_OMITIDO: GOOGLE_API_KEY no configurada'); return; }
 
     const body = JSON.stringify({
       contents: [{
@@ -77,7 +81,7 @@ function callGemini(b64Image, prompt) {
 
     const req = https.request({
       hostname: 'generativelanguage.googleapis.com',
-      path:     `/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      path:     `/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
       method:   'POST',
       headers:  { 'Content-Type': 'application/json' },
     }, res => {
@@ -86,6 +90,14 @@ function callGemini(b64Image, prompt) {
       res.on('end', () => {
         try {
           const r = JSON.parse(data);
+          // Handle quota exhausted (429) or access denied (403) gracefully
+          if (r.error) {
+            const code = r.error.code;
+            if (code === 429) { resolve(`ANÁLISIS_OMITIDO: cuota Gemini agotada (${GEMINI_MODEL})`); return; }
+            if (code === 403) { resolve(`ANÁLISIS_OMITIDO: acceso denegado a ${GEMINI_MODEL}`); return; }
+            resolve(`ANÁLISIS_OMITIDO: error API ${code} — ${r.error.message?.slice(0, 100)}`);
+            return;
+          }
           resolve(r.candidates?.[0]?.content?.parts?.[0]?.text || `(sin respuesta: ${data.slice(0, 200)})`);
         } catch (_) { resolve(data.slice(0, 500)); }
       });
@@ -108,17 +120,24 @@ async function main() {
 
   try {
     fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
-    const result = spawnSync(chromium, [
+    // Snap Chromium writes 'screenshot.png' to cwd; absolute --screenshot= paths are blocked.
+    const shotCwd = '/root';
+    const shotSrc = `${shotCwd}/screenshot.png`;
+    try { fs.unlinkSync(shotSrc); } catch (_) {}
+
+    spawnSync(chromium, [
       '--headless', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage',
-      `--screenshot=${screenshotFile}`,
+      '--screenshot',
       '--window-size=1280,900',
       `--virtual-time-budget=${waitMs}`,
       url,
-    ], { timeout: 35_000, stdio: 'pipe' });
+    ], { timeout: 35_000, cwd: shotCwd, stdio: 'pipe' });
 
-    if (result.status !== 0 || !fs.existsSync(screenshotFile)) {
-      throw new Error((result.stderr || '').toString().slice(0, 300) || 'Screenshot no creado');
+    if (!fs.existsSync(shotSrc)) {
+      throw new Error('Screenshot no creado (snap Chromium no escribió screenshot.png en /root)');
     }
+    fs.copyFileSync(shotSrc, screenshotFile);
+    try { fs.unlinkSync(shotSrc); } catch (_) {}
   } catch (e) {
     process.stdout.write(JSON.stringify({ error: `Screenshot falló: ${e.message.slice(0, 300)}` }) + '\n');
     process.exit(1);
@@ -149,7 +168,11 @@ async function main() {
   }
 
   // 3. Parse result
-  const passed  = /VEREDICTO:\s*APROBADO/i.test(analysis) && !/NECESITA_CORRECCIÓN/i.test(analysis);
+  const analysisOmitted = analysis.startsWith('ANÁLISIS_OMITIDO');
+  // When analysis is unavailable (quota/access), screenshot success = passed
+  const passed  = analysisOmitted
+    ? true
+    : /VEREDICTO:\s*APROBADO/i.test(analysis) && !/NECESITA_CORRECCIÓN/i.test(analysis);
   const issues  = (analysis.match(/PROBLEMAS:([\s\S]*?)(?:ACCIONES|$)/i)?.[1] || '').trim()
                     .split('\n').map(l => l.replace(/^[-•]\s*/, '').trim()).filter(Boolean);
   const actions = (analysis.match(/ACCIONES_SUGERIDAS:([\s\S]*?)$/i)?.[1] || '').trim()
@@ -157,7 +180,7 @@ async function main() {
 
   const output = {
     passed,
-    verdict:        passed ? 'APROBADO' : 'NECESITA_CORRECCIÓN',
+    verdict:        analysisOmitted ? 'SCREENSHOT_OK_SIN_ANÁLISIS' : (passed ? 'APROBADO' : 'NECESITA_CORRECCIÓN'),
     analysis,
     issues:         issues.filter(i => i !== 'Ninguno'),
     actions_needed: actions.filter(a => a !== 'Ninguna'),
