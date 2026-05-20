@@ -294,147 +294,123 @@ def post_to_telegram(text: str, chat_id: str = None):
 
 def dispatch_fix_if_needed(episode_id: int, results: list[dict], stats: dict):
     """
-    Si hay patrones con consecutive_count >= 2 Y score < 80%:
-      - Escribe tarea en relay/inbox-finbot-verifier.md  (revisión rápida)
-    Si además consecutive_count >= 5 Y score < 65%:
-      - Escribe tarea en relay/claude-code-inbox.md      (fix de código, cooldown 30min)
+    Si hay patrones con consecutive_count >= 2 Y score < 85%:
+      - Escribe tarea en relay/inbox-finbot-coordinator.md (fix de código, cooldown 20 min)
+    finbot-coordinator usa rama claude/financial-multiagent-system-YwtYQ + api/exec deploy.
     """
-    if stats["score"] >= 80.0:
+    if stats["score"] >= 85.0:
         return
 
     critical = db_query(
         "SELECT pattern_key, test_id, description, consecutive_count "
         "FROM learning_patterns WHERE status='active' AND consecutive_count >= 2 "
-        "ORDER BY consecutive_count DESC LIMIT 3"
+        "ORDER BY consecutive_count DESC LIMIT 5"
     )
     if not critical:
         return
 
     episode_num = db_one(f"SELECT episode_num FROM learning_episodes WHERE id={episode_id}")
-
-    # ── Nivel 1: claude-code-suborq (revisión rápida, cooldown 15 min) ──────────
-    # Antes escribía a inbox-finbot-verifier (Anthropic Haiku). Ahora usa DeepSeek.
-    import time as _time
-    REPO_ROOT_L1 = Path(__file__).resolve().parents[4]
-    cooldown_l1  = REPO_ROOT_L1 / "relay" / ".verifier-dispatch-ts"
-    _now = _time.time()
-    _skip_l1 = False
-    if cooldown_l1.exists():
-        try:
-            if _now - float(cooldown_l1.read_text().strip() or "0") < 15 * 60:
-                _skip_l1 = True
-        except Exception:
-            pass
-    if not _skip_l1:
-        task_lines = [
-            f"## Revisión rápida — Episodio #{episode_num}",
-            f"Score actual: {stats['score']:.1f}% — bajo el umbral del 80%",
-            "",
-            "### Patrones de falla recurrentes:",
-        ]
-        for p in critical:
-            key, test_id, desc, count = p[0], p[1], p[2], p[3]
-            prev_fix = recall_fix(test_id, desc)
-            task_lines.append(f"- **{key}** (×{count} episodios): {desc[:150]}")
-            if prev_fix:
-                task_lines.append(f"  Fix previo efectivo: `{prev_fix[:100]}`")
-        task_lines += [
-            "",
-            "### Acción requerida:",
-            "1. Revisar `pm2 logs financial-bot --nostream --lines 30` para el error exacto",
-            "2. Corregir el código del bot en `financial/bot/financial-bot.js`",
-            "3. Hacer commit + push a la rama activa",
-        ]
-        inbox_l1 = REPO_ROOT_L1 / "relay" / "claude-code-inbox.md"
-        try:
-            inbox_l1.write_text("\n".join(task_lines) + "\n")
-            cooldown_l1.write_text(str(_now))
-            print(f"[learning] Fix task → claude-code-suborq/DeepSeek (ep#{episode_num})")
-        except Exception as e:
-            print(f"[learning] No se pudo escribir inbox suborq: {e}")
-
-    # ── Nivel 2: claude-code (fix de código, solo patrones severos) ───────────
-    severe = [p for p in critical if p[3] >= 5]
-    if severe and stats["score"] < 65.0:
-        _dispatch_to_claude_code(episode_num, severe, results, stats)
+    _dispatch_to_claude_code(episode_num, critical, results, stats)
 
 
 def _dispatch_to_claude_code(episode_num, patterns, results: list[dict], stats: dict):
     """
-    Escribe en relay/claude-code-inbox.md para que el relay-master despache
-    Claude Code CLI con un fix task estructurado.
+    Escribe en relay/inbox-finbot-coordinator.md para que relay-master despache
+    Claude Code CLI (proyecto finbot-coordinator, rama claude/financial-multiagent-system-YwtYQ).
 
-    Cooldown de 30 min para no re-disparar en cada episodio.
+    El agente recibe contexto completo + instrucción de deploy vía /api/exec.
+    Cooldown de 20 min para no re-disparar en cada episodio.
     """
     import time
 
-    COOLDOWN_SECS = 30 * 60
+    COOLDOWN_SECS = 20 * 60
     REPO_ROOT = Path(__file__).resolve().parents[4]
-    inbox_path    = REPO_ROOT / "relay" / "claude-code-inbox.md"
-    cooldown_file = REPO_ROOT / "relay" / ".claude-code-dispatch-ts"
+    inbox_path    = REPO_ROOT / "relay" / "inbox-finbot-coordinator.md"
+    cooldown_file = REPO_ROOT / "relay" / ".coordinator-dispatch-ts"
 
-    # Verificar cooldown
     if cooldown_file.exists():
         try:
             last_ts = float(cooldown_file.read_text().strip() or "0")
             if time.time() - last_ts < COOLDOWN_SECS:
-                print(f"[learning] Claude Code dispatch cooldown activo — omitiendo")
+                print(f"[learning] finbot-coordinator dispatch cooldown activo — omitiendo")
                 return
         except Exception:
             pass
 
-    failed = [r for r in results if not r.get("passed") and not r.get("skipped")]
+    failed  = [r for r in results if not r.get("passed") and not r.get("skipped")]
+    skipped = [r for r in results if r.get("skipped")]
 
     task_lines = [
         f"## Fix automático — Episodio #{episode_num}",
-        f"Score: {stats['score']:.1f}% ({stats['passed']}/{stats['total']}) — "
-        f"bajo el umbral crítico del 65%",
+        f"Score: {stats['score']:.1f}% ({stats['passed']}/{stats['total']}) — bajo umbral 85%",
         "",
-        "### Patrones severos (≥5 episodios consecutivos):",
+        "### Patrones de falla recurrentes (ordered by consecutive_count):",
     ]
     for p in patterns:
         key, test_id, desc, count = p[0], p[1], p[2], p[3]
         prev_fix = recall_fix(test_id, desc)
-        task_lines.append(f"- **{key}** (×{count} episodios): {desc[:200]}")
+        task_lines.append(f"- **{key}** (×{count} ep): {desc[:200]}")
         if prev_fix:
-            task_lines.append(f"  Fix previo efectivo: `{prev_fix[:120]}`")
+            task_lines.append(f"  Fix previo efectivo: `{prev_fix[:150]}`")
 
     if failed:
-        task_lines += ["", "### Tests fallando en este episodio:"]
-        for r in failed[:6]:
-            detail = (r.get("detail") or "")[:120]
-            resp   = (r.get("bot_response") or "")[:80]
+        task_lines += ["", "### Tests fallando (este episodio):"]
+        for r in failed[:8]:
+            detail = (r.get("detail") or "")[:150]
+            resp   = (r.get("bot_response") or "")[:100]
             task_lines.append(f"- `{r['test_id']}`: {detail}")
             if resp:
-                task_lines.append(f"  Respuesta bot: `{resp}`")
+                task_lines.append(f"  Bot respondió: `{resp}`")
+
+    if skipped:
+        task_lines += ["", f"### Tests skipped: {len(skipped)} (no cuentan en score)"]
 
     task_lines += [
         "",
-        "### Archivos relevantes:",
-        "- `financial/bot/financial-bot.js` — lógica principal del bot",
-        "- `financial/bot/sims/mtproto/conversation_engine.py` — motor de pruebas",
-        "- `financial/bot/agents/` — agentes especializados",
-        "",
-        "### Diagnóstico sugerido:",
+        "### Diagnóstico — ejecutar en orden:",
         "```bash",
-        "pm2 logs financial-bot --nostream --lines 50",
-        "pm2 logs conversation-engine --nostream --lines 30",
+        "pm2 logs financial-bot --nostream --lines 60",
+        "pm2 logs conversation-engine --nostream --lines 20",
         "```",
         "",
-        "### Instrucciones:",
-        "1. Analizar el patrón de falla + logs del bot",
-        "2. Identificar causa raíz y hacer el fix mínimo necesario",
-        "3. Commit + push a rama `claude/financial-multiagent-system-YwtYQ`",
-        "4. Escribir resultado en `relay/claude-code-outbox.md` con formato:",
+        "### Archivos relevantes:",
+        "- `financial/bot/financial-bot.js` — lógica principal del bot (estados de sesión)",
+        "- `financial/bot/sims/mtproto/conversation_engine.py` — motor de pruebas",
+        "- `financial/bot/agents/TransactionOrchestrator.js` — routing de intenciones",
+        "",
+        "### Contexto crítico del sistema:",
+        "- Estados de sesión: idle → esperando_tipo → esperando_monto → esperando_entrega",
+        "- Estado extra: esperando_datos_bancarios (solo para SPEI con CLABE)",
+        "- Modo asistente: fin_chats.modo='asistente' → el bot guarda CLABEs silenciosamente",
+        "- Verificar que fin_chats tenga modo='normal' para el chat_id de prueba",
+        "- DeepSeek usa tool_choice='required' — no 'auto' — en TransactionOrchestrator",
+        "",
+        "### Instrucciones (ejecutar en este orden):",
+        "1. Leer logs del bot para identificar causa raíz",
+        "2. Hacer el fix mínimo necesario en el/los archivos relevantes",
+        "3. `git add <archivos-específicos> && git commit -m 'fix: <descripción>'`",
+        "4. `git push -u origin claude/financial-multiagent-system-YwtYQ`",
+        "5. Deploy vía `/api/exec` (ver CLAUDE.md para endpoint y token):",
+        "   ```",
+        "   POST /api/exec",
+        "   {\"cmd\": \"git -C /var/www/html/vilarkptl.com/ai-monitor fetch origin claude/financial-multiagent-system-YwtYQ\"}",
+        "   {\"cmd\": \"git -C /var/www/html/vilarkptl.com/ai-monitor checkout origin/claude/financial-multiagent-system-YwtYQ -- financial/bot/financial-bot.js\"}",
+        "   {\"cmd\": \"pm2 restart financial-bot\"}",
+        "   ```",
+        "6. Verificar que pm2 restart mostró '↺ N' con N incrementado",
+        "7. Escribir resultado en `relay/outbox-finbot-coordinator.md`:",
+        "   ```",
         "   STATUS: done | partial | failed",
         "   CHANGED: archivos modificados",
         "   DEPLOYED: yes | no",
+        "   ROOT_CAUSE: descripción de 1 línea",
         "   PENDING: lo que falta",
+        "   ```",
     ]
 
     try:
         inbox_path.write_text("\n".join(task_lines) + "\n")
         cooldown_file.write_text(str(time.time()))
-        print(f"[learning] Claude Code dispatch → claude-code-inbox.md (ep#{episode_num})")
+        print(f"[learning] finbot-coordinator dispatch → inbox-finbot-coordinator.md (ep#{episode_num})")
     except Exception as e:
-        print(f"[learning] Claude Code dispatch falló: {e}")
+        print(f"[learning] coordinator dispatch falló: {e}")
