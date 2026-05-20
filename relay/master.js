@@ -3015,6 +3015,7 @@ function ensureGitignore(repoPath) {
 // ─── Git pull + push for a project ───────────────────────
 function gitPull(repoPath, branch) {
   const projectId = path.basename(repoPath);
+  let originalBranch = '';
   try {
     if (GITHUB_TOKEN) {
       execSync(
@@ -3033,18 +3034,17 @@ function gitPull(repoPath, branch) {
 
     // If already on the correct branch, fast-forward only (safe, no detach risk).
     // If on a DIFFERENT branch (e.g. DeCabeceraTax shared by 3 projects on different branches),
-    // force-checkout the target branch — do NOT stash/pop because stash pop can re-apply
-    // old file content (including master.js) causing checkSelfReload to loop infinitely.
-    let currentBranch = '';
+    // force-checkout the target branch to update working tree, then restore original branch
+    // in the finally block — prevents permanent branch switch that would cause
+    // checkSelfReload to detect master.js hash change and trigger restart loop.
     try {
-      currentBranch = execSync(`cd ${repoPath} && git symbolic-ref --short HEAD 2>/dev/null`, { stdio: 'pipe', timeout: 5000 }).toString().trim();
+      originalBranch = execSync(`cd ${repoPath} && git symbolic-ref --short HEAD 2>/dev/null`, { stdio: 'pipe', timeout: 5000 }).toString().trim();
     } catch (_) {}
 
     try {
-      if (currentBranch === branch) {
+      if (originalBranch === branch) {
         execSync(`cd ${repoPath} && git merge origin/${branch} --ff-only --quiet 2>/dev/null || true`, { stdio: 'pipe', timeout: 30000 });
       } else {
-        // Wrong branch: force-checkout (discards local uncommitted changes in working tree)
         execSync(`cd ${repoPath} && git checkout -B ${branch} origin/${branch} --quiet -f 2>/dev/null || true`, { stdio: 'pipe', timeout: 10000 });
       }
     } catch (checkoutErr) {
@@ -3052,6 +3052,14 @@ function gitPull(repoPath, branch) {
     }
   } catch (err) {
     log(projectId, `gitPull error: ${err.message?.slice(0, 200)}`);
+  } finally {
+    // Restore the original branch after a cross-branch checkout so relay-master's
+    // working tree (and relay/master.js) stays on the relay's own branch.
+    if (originalBranch && originalBranch !== branch) {
+      try {
+        execSync(`cd ${repoPath} && git checkout ${originalBranch} --quiet 2>/dev/null || true`, { stdio: 'pipe', timeout: 10000 });
+      } catch (_) {}
+    }
   }
 
   // Fix .git/objects ownership so Claude agents (non-root) can commit.
@@ -4094,11 +4102,13 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
     }
   }, POLL_MS);
 
-  // Initial poll immediately
+  // Initial poll immediately — share pulledRepos so finbot-coordinator (same repo as
+  // ai-monitor but different branch) doesn't call gitPull separately and switch branches.
   try { syncBuzonIA(); } catch (_) {}
   try { await processDispatchQueue(projects, hashes); } catch (_) {}
+  const _initPulledRepos = new Set();
   for (const project of projects) {
-    try { await processProject(project, hashes); } catch (_) {}
+    try { await processProject(project, hashes, _initPulledRepos); } catch (_) {}
   }
 
   // Global relay heartbeat — confirms relay-master is alive

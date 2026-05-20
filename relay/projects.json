@@ -147,7 +147,7 @@
     "inbox": "/var/www/html/vilarkptl.com/ai-monitor/relay/inbox-finbot-coordinator.md",
     "outbox": "/var/www/html/vilarkptl.com/ai-monitor/relay/outbox-finbot-coordinator.md",
     "repo": "/var/www/html/vilarkptl.com/ai-monitor",
-    "branch": "claude/financial-multiagent-system-YwtYQ",
+    "branch": "main",
     "github": "vilarkptl-lang/agentic-repo",
     "url": "http://ia.vilarkptl.com",
     "active": true
