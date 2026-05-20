@@ -813,6 +813,14 @@ bot.on('message:text', async (ctx, next) => {
     }
   }
 
+  // Consulta de saldo — alta prioridad, responde en cualquier estado de sesión
+  const SALDO_QUERY_RE = /\b(?:saldo|cu[aá]nto\s+(?:tengo|hay|queda|disponible)|c[oó]mo\s+vamos|a\s+cu[aá]nto\s+estamos|dime\s+(?:mi\s+)?saldo)\b/i;
+  if (SALDO_QUERY_RE.test(text)) {
+    const { saldo: saldoNL } = await balanceManager.getSaldo(client.id);
+    await ctx.reply(`💰 Saldo actual: <b>$${fmt(saldoNL)}</b>`, { parse_mode: 'HTML' });
+    return;
+  }
+
   // Si hay edición pendiente (el usuario está enviando el nuevo valor)
   if (pollHandler.hasPendingEdit(chatId)) {
     const { ok, error, operationDraft } = pollHandler.applyEditValue(chatId, text);
@@ -1143,14 +1151,6 @@ bot.on('message:text', async (ctx, next) => {
   // Detección implícita: ¿parece una solicitud de operación?
   if (isImplicitOperacion(text)) {
     await procesarOperacion(ctx, text, client, session);
-    return;
-  }
-
-  // Consulta de saldo en lenguaje natural — responder antes del orchestrator
-  const SALDO_QUERY_RE = /\b(?:saldo|cu[aá]nto\s+(?:tengo|hay|queda|disponible)|c[oó]mo\s+vamos|a\s+cu[aá]nto\s+estamos|dime\s+(?:mi\s+)?saldo)\b/i;
-  if (SALDO_QUERY_RE.test(text)) {
-    const { saldo: saldoNL } = await balanceManager.getSaldo(client.id);
-    await ctx.reply(`💰 Saldo actual: <b>$${fmt(saldoNL)}</b>`, { parse_mode: 'HTML' });
     return;
   }
 
@@ -1962,6 +1962,16 @@ async function procesarOperacion(ctx, input, client, session) {
 
   // Si falta monto → preguntar
   if (!parsed.monto) {
+    // Detectar si el input tenía monto explícito de 0 o menor — inválido
+    const rawMonto = parseNaturalText(input).monto;
+    if (rawMonto !== null && rawMonto < 1) {
+      await ctx.reply(
+        `❌ Monto inválido: <b>$${rawMonto}</b>.\n\nEl monto debe ser un número positivo mayor a $1.00.`,
+        { parse_mode: 'HTML' }
+      );
+      await updateSession(session.id, 'idle', null);
+      return;
+    }
     const commission = await getCommission(parsed.tipo, pool, client.id);
     if (!commission) {
       await ctx.reply(`❌ El tipo de operación <b>${parsed.tipo}</b> no está disponible para tu cuenta.`, { parse_mode: 'HTML' });
