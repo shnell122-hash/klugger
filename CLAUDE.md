@@ -9,9 +9,27 @@
 | Campo | Valor |
 |-------|-------|
 | Host | `143.198.228.78` (vilar-desarrollo) |
-| Usuario SSH | `root` |
-| Contraseñas | Ver `/opt/kptl-secrets/server-credentials.txt` en el servidor (solo root) |
+| Usuario SSH | `german` (también `root`) |
+| Contraseña SSH | `romanos12_2` |
 | OS | Ubuntu / Debian (Apache + PM2) |
+
+**Conexión desde agentes Claude Code (CLI web):**
+```bash
+# Instalar sshpass si no está disponible
+apt-get install -y sshpass 2>/dev/null
+
+# Ejecutar comando remoto
+sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78 "comando"
+
+# Alias útil para sesión
+srv() { sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78 "$@"; }
+# Uso: srv "pm2 status"
+#      srv "pm2 restart financial-bot"
+#      srv "grep CLAUDE_EXEC_TOKEN /var/www/html/vilarkptl.com/ai-monitor/backend/.env"
+```
+
+> **Nota**: Si el puerto 22 no responde desde este workspace, usar el endpoint `/api/exec`
+> como alternativa (ver sección *Acceso al servidor para agentes* más abajo).
 
 ### Árbol del servidor (rutas críticas)
 
