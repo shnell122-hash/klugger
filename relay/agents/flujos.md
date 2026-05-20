@@ -59,13 +59,44 @@ curl -s -X POST "$RELAY_DISPATCH_URL" \
 - [Solo si requiere atención humana]
 ```
 
-## Deploy
+## Acceso al servidor de producción
+
+Corres como `claude-agent` (no root). Para `pm2`, `mysql -u root` y `git checkout` de otros branches,
+usa el endpoint `/api/exec` que corre como root:
 
 ```bash
-cd /var/www/html/vilarkptl.com/ai-monitor
-git pull origin main
-pm2 restart financial-bot
+# Leer token al inicio de cada sesión
+EXEC_TOKEN=$(grep -oP 'CLAUDE_EXEC_TOKEN=\K\S+' \
+  /var/www/html/vilarkptl.com/ai-monitor/backend/.env | tail -1)
+EXEC_URL="http://localhost:3010/api/exec"
+
+exec_server() {
+  local CMD="$1"
+  local CWD="${2:-/var/www/html/vilarkptl.com/ai-monitor}"
+  curl -s -X POST "$EXEC_URL" \
+    -H "Content-Type: application/json" \
+    -H "x-exec-token: $EXEC_TOKEN" \
+    -d "{\"cmd\":$(echo "$CMD" | python3 -c \
+        'import sys,json; print(json.dumps(sys.stdin.read().strip()))'),\
+\"cwd\":\"$CWD\"}" \
+    | python3 -c \
+        "import sys,json; d=json.load(sys.stdin); \
+print(d.get('output') or d.get('error','(sin output)'))"
+}
+
+# Ejemplos:
+exec_server "pm2 restart financial-bot"
+exec_server "pm2 restart conversation-engine"
+exec_server "pm2 logs financial-bot --lines 20 --nostream"
+exec_server "pm2 status"
+exec_server "git log --oneline -5" "/var/www/html/vilarkptl.com/ai-monitor"
 ```
+
+Comandos permitidos: `pm2 status|logs|restart|stop|start|reload|list`, `git status|log|fetch|diff`, `mysql -u root ...`
+
+**Regla**: si editas un archivo y haces `git push origin main`, siempre termina con `exec_server "pm2 restart <proceso>"` — nunca dejes `DEPLOYED: pendiente`.
+
+## Deploy
 
 ## Comunicación entre agentes — OBLIGATORIO
 
