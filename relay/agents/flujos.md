@@ -96,8 +96,6 @@ Comandos permitidos: `pm2 status|logs|restart|stop|start|reload|list`, `git stat
 
 **Regla**: si editas un archivo y haces `git push origin main`, siempre termina con `exec_server "pm2 restart <proceso>"` — nunca dejes `DEPLOYED: pendiente`.
 
-## Deploy
-
 ## Comunicación entre agentes — OBLIGATORIO
 
 **Antes de empezar**, lee el estado compartido:
