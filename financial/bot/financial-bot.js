@@ -803,6 +803,16 @@ bot.on('message:text', async (ctx, next) => {
   const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
   const session = await getOrCreateSession(chatId, client.id);
 
+  // Auto-reset sesiones atascadas en estados intermedios por más de 5 minutos
+  if (['esperando_datos_bancarios', 'esperando_monto', 'esperando_entrega'].includes(session.estado)) {
+    const staleMs = Date.now() - new Date(session.updated_at).getTime();
+    if (staleMs > 5 * 60 * 1000) {
+      await updateSession(session.id, 'idle', null);
+      session.estado = 'idle';
+      session.operation_draft_json = null;
+    }
+  }
+
   // Si hay edición pendiente (el usuario está enviando el nuevo valor)
   if (pollHandler.hasPendingEdit(chatId)) {
     const { ok, error, operationDraft } = pollHandler.applyEditValue(chatId, text);
