@@ -1,7 +1,7 @@
 'use strict';
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-const MODEL = 'gemini-2.0-flash';
+const MODEL = process.env.GOOGLE_GEMINI_MODEL ?? 'gemini-2.0-flash-001';
 
 const SYSTEM_INSTRUCTION =
   'Eres un agente de inteligencia financiera especializado en México. ' +

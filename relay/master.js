@@ -1148,16 +1148,38 @@ function getProjectKilled(projectId) {
 // lo hace el coordinator dispatch (paso 2 en responderBuzonFiscalai).
 // Prompt caching activo en system prompt para reducir costos en llamadas repetidas.
 //
-// CLI Proxy routing: if ANTHROPIC_PROXY_URL is set (and optionally restricted to a project via
-// ANTHROPIC_PROXY_PROJECT), requests go to a local claude-relay proxy instead of api.anthropic.com.
-// This routes through a Pro/Max subscription to avoid per-token billing on background tasks.
-const ANTHROPIC_PROXY_URL     = process.env.ANTHROPIC_PROXY_URL     || null;  // e.g. http://127.0.0.1:5001
-const ANTHROPIC_PROXY_PROJECT = process.env.ANTHROPIC_PROXY_PROJECT || '';   // restrict to this project id
+// CLI Proxy routing — Multi-account pool (1 Max + 4 Pro)
+// CLAUDE_PROXY_MAX=http://127.0.0.1:5001  → coordinator + critical projects
+// CLAUDE_PROXY_PRO_1..4=http://127.0.0.1:5002..5005  → round-robin for rest
+// Legacy single-proxy: ANTHROPIC_PROXY_URL still works as fallback
+const ANTHROPIC_PROXY_URL     = process.env.ANTHROPIC_PROXY_URL     || null;
+const ANTHROPIC_PROXY_PROJECT = process.env.ANTHROPIC_PROXY_PROJECT || '';
+const _PROXY_POOL = {
+  max: process.env.CLAUDE_PROXY_MAX || null,
+  pro: [
+    process.env.CLAUDE_PROXY_PRO_1,
+    process.env.CLAUDE_PROXY_PRO_2,
+    process.env.CLAUDE_PROXY_PRO_3,
+    process.env.CLAUDE_PROXY_PRO_4,
+  ].filter(Boolean),
+};
+const _PROXY_MAX_PROJECTS = new Set(
+  (process.env.CLAUDE_PROXY_MAX_PROJECTS || 'coordinator,fiscalai,fiscalai-front')
+    .split(',').map(s => s.trim()).filter(Boolean)
+);
+let _proxyRRIdx = 0;
+function selectProxyForProject(projectId) {
+  if (_PROXY_POOL.max && _PROXY_MAX_PROJECTS.has(projectId)) return _PROXY_POOL.max;
+  if (_PROXY_POOL.pro.length) { const u=_PROXY_POOL.pro[_proxyRRIdx%_PROXY_POOL.pro.length]; _proxyRRIdx++; return u; }
+  if (ANTHROPIC_PROXY_URL && (!ANTHROPIC_PROXY_PROJECT || ANTHROPIC_PROXY_PROJECT===projectId)) return ANTHROPIC_PROXY_URL;
+  return null;
+}
 
 function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512, projectId = null) {
   // Determine if this call should go through the local CLI proxy
-  const useProxy = ANTHROPIC_PROXY_URL &&
-    (!ANTHROPIC_PROXY_PROJECT || ANTHROPIC_PROXY_PROJECT === projectId);
+  const _selectedProxy = selectProxyForProject(projectId || '');
+  const useProxy = !!_selectedProxy;
+  const _activeProxyUrl = _selectedProxy || ANTHROPIC_PROXY_URL;
 
   const timeoutMs = 90000;
   const apiCall = new Promise((resolve, reject) => {
@@ -1171,11 +1193,11 @@ function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512, project
 
     let hostname, port, isHttps;
     if (useProxy) {
-      const parsed = new URL(ANTHROPIC_PROXY_URL);
+      const parsed = new URL(_activeProxyUrl);
       hostname = parsed.hostname;
       port     = parseInt(parsed.port || (parsed.protocol === 'https:' ? '443' : '80'));
       isHttps  = parsed.protocol === 'https:';
-      log(projectId, `[anthropic-proxy] routing via ${ANTHROPIC_PROXY_URL}`);
+      log(projectId, `[anthropic-proxy] routing via ${_activeProxyUrl}`);
     } else {
       hostname = 'api.anthropic.com';
       port     = 443;
@@ -2383,10 +2405,10 @@ ${taskContent}`;
     || process.env.CLAUDE_DEFAULT_MODEL
     || 'claude-sonnet-4-6';
 
-  // When use_cli_proxy is true, route Claude CLI through LiteLLM (→ DeepSeek V4-Pro) instead of Anthropic API directly
+  // Proxy routing: use_cli_proxy → LiteLLM (DeepSeek); else use multi-account Claude proxy pool
   const proxyBase = (project.use_cli_proxy && process.env.LITELLM_BASE_URL)
     ? process.env.LITELLM_BASE_URL
-    : null;
+    : selectProxyForProject(project.id);
   const proxyEnvPrefix = proxyBase ? `ANTHROPIC_BASE_URL=${proxyBase} ` : '';
 
   const resumeSession = getResumeSession(project.id);
