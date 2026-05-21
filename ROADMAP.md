@@ -1,375 +1,466 @@
-# ROADMAP — AI Relay & Agent Orchestration
-> Actualizado 2026-05-16 | Calificación actual: **8.0/10** | Objetivo: paridad Claude.ai para 5 devs
->
-> Stack objetivo: **Claude Max/Pro (planificación, $0) + DeepSeek V4-Pro (ejecución) + Gemini Flash + Playwright (visual)**
+# ROADMAP — AI Monitor / Agentic Relay System
+
+> Actualizado: 2026-05-20 (revisión v2 — ajustes german)
+> Objetivo: plataforma autónoma 24/7 que iguala y supera a Claude Code
 
 ---
 
 ## Día 0–1 — Estabilidad Operacional (BLOQUEANTE)
 
-> Nada más se puede expandir hasta resolver estos 4 puntos.
-> Ejecutar en el servidor `ssh root@143.198.228.78` en el orden indicado.
+El orden responde a tres preguntas en secuencia:
 
-### ✅ / ⏳ C1 — Swap +1 GB
+1. **¿Funciona de forma confiable?** → Fase 1 (estabilidad, multi-cuenta, separar repos)
+2. **¿Produce código de calidad?** → Fase 2 (tool server, modelo correcto por tarea)
+3. **¿Escala sin fricción?** → Fases 3-6 (interactividad, contexto, paralelismo)
 
-```bash
-# Verificar estado actual
-free -h && swapon --show
+No tiene sentido subir la calidad del output si el sistema cae cada vez que hay un rate limit, o si el financial-bot contamina el repo principal con ruido. La confiabilidad es el prerequisito de todo lo demás.
 
-# Crear swap
-fallocate -l 1G /swapfile2
-chmod 600 /swapfile2
-mkswap /swapfile2
-swapon /swapfile2
-
-# Hacer persistente entre reboots
-echo '/swapfile2 none swap sw 0 0' >> /etc/fstab
-
-# Verificar (debe mostrar ~3 GB swap total)
-free -h && swapon --show
-```
-
-### ✅ / ⏳ C2 — Estabilizar `vilar-legal-os-v59` (analizar antes de decidir)
-
-```bash
-# PASO 1: Diagnóstico
-pm2 describe vilar-legal-os-v59
-pm2 logs vilar-legal-os-v59 --lines 100 --nostream
-
-# PASO 2: Localizar el proceso
-pm2 describe vilar-legal-os-v59 | grep -E 'script|cwd|pm_cwd'
-
-# PASO 3: Ver el error exacto del crash
-pm2 logs vilar-legal-os-v59 --err --lines 30 --nostream
-
-# Basado en el diagnóstico, tomar una de estas acciones:
-
-# OPCIÓN A: Error de dependencia faltante
-cd [cwd del proceso] && npm install && pm2 restart vilar-legal-os-v59
-
-# OPCIÓN B: Variable de entorno faltante
-pm2 show vilar-legal-os-v59 | grep -i env
-# Agregar la variable al ecosystem o al .env del proceso
-
-# OPCIÓN C: Puerto en uso por otro proceso
-lsof -i :[puerto] && pm2 restart vilar-legal-os-v59
-
-# OPCIÓN D: El proceso no es necesario — pausar sin eliminar
-pm2 stop vilar-legal-os-v59
-pm2 save
-# (NO delete — preservar config por si se necesita restaurar)
-```
-
-### ✅ / ⏳ C3 — Resolver divergencia Git en servidor
-
-```bash
-cd /var/www/html/vilarkptl.com/ai-monitor
-
-# PASO 1: Diagnóstico exacto
-git fetch origin
-git log origin/main..HEAD --oneline        # commits locales sin push
-git log HEAD..origin/main --oneline        # commits remotos sin pull
-git status                                  # cambios sin commit
-
-# PASO 2: Backup OBLIGATORIO (ejecutar antes de cualquier otra cosa)
-git branch backup/server-main-$(date +%Y%m%d-%H%M) HEAD
-git branch  # verificar que el backup aparece en la lista
-
-# PASO 3: Si hay cambios sin commit, guardarlos
-git stash
-
-# PASO 4: Merge (NO reset --hard)
-git merge origin/main --no-ff -m "merge: resolver divergencia servidor $(date +%Y-%m-%d)"
-
-# PASO 5A: Si hay conflictos en relay/projects.json — fusionar manualmente:
-git checkout --ours relay/projects.json    # tomar versión local
-# editar manualmente para combinar entradas de ambas versiones
-git add relay/projects.json
-git commit -m "merge: fusionar projects.json resolviendo conflicto"
-
-# PASO 5B: Si hay conflictos en relay/master.js — tomar versión local (tiene más features):
-git checkout --ours relay/master.js
-git add relay/master.js
-git commit -m "merge: tomar master.js local (tiene deepseek-agent + visual check)"
-
-# PASO 6: Push
-git push origin main
-
-# PASO 7: Restaurar stash si aplica
-git stash pop
-
-# Verificación final
-git log --oneline -5
-git status  # debe estar limpio
-```
-
-### ✅ / ⏳ C4 — pm2-logrotate
-
-```bash
-# Verificar si ya está instalado
-pm2 list | grep logrotate
-
-# Instalar si no está
-pm2 install pm2-logrotate
-pm2 set pm2-logrotate:max_size 50M
-pm2 set pm2-logrotate:retain 7
-pm2 set pm2-logrotate:compress true
-pm2 set pm2-logrotate:dateFormat YYYY-MM-DD_HH-mm
-pm2 save
-
-# Verificar
-pm2 conf pm2-logrotate
-```
+La decisión de usar **Claude Max/Pro para planificación y tareas críticas** y **DeepSeek + Gemini + Playwright para ejecución y visual** es de costo-efectividad: DeepSeek V4 Pro cuesta ~30x menos que Claude Sonnet y es suficientemente bueno para código repetible. Claude Max/Pro se reserva para razonamiento complejo donde cada token importa.
 
 ---
 
-## Día 1–2 — Merge y Consolidación
+## Modelo híbrido de agentes (mandatorio)
 
-### M1 — Merge `claude/agent-monitoring-dashboard-4v8iq` → main
-
-> ⚠️ Esperar respuesta de flujos en `relay/outbox-flujos.md` antes de mergear (confirmar sin conflictos en `relay/master.js`).
-
-```bash
-cd /var/www/html/vilarkptl.com/ai-monitor
-git fetch origin
-git merge origin/claude/agent-monitoring-dashboard-4v8iq --no-ff \
-  -m "merge: visual check loop + deepseek-agent mode + chat-agent tools"
-git push origin main
-pm2 restart relay-master --update-env
+```
+┌─────────────────────────────────────────────────────┐
+│              DECISIÓN / PLANIFICACIÓN               │
+│   Claude Max (1×)  ←  proyectos críticos            │
+│   Claude Pro (4×)  ←  proyectos estándar            │
+│          routing por proyecto/complejidad           │
+└──────────────────────┬──────────────────────────────┘
+                       │
+         ┌─────────────▼─────────────┐
+         │     EJECUCIÓN DE CÓDIGO   │
+         │   DeepSeek V4 Pro         │
+         │   (deepseek-agent mode)   │
+         └─────────────┬─────────────┘
+                       │
+         ┌─────────────▼─────────────┐
+         │   VERIFICACIÓN VISUAL     │
+         │   Playwright + Chromium   │
+         │   Gemini 2.0 Flash        │
+         └───────────────────────────┘
 ```
 
-**Contiene:** `runDeepSeekAgent()`, `callDeepSeekWithTools()`, `runVisualCheckOnce()`, `onTaskComplete` refactor, `visual-check.js`, tools en chat-agent.
+| Motor | Tarea | Costo/tarea |
+|-------|-------|-------------|
+| Claude Max | Coordinator, planning, tareas >5 archivos | $0 (suscripción) |
+| Claude Pro ×4 | Agentes estándar (flujos, ai-monitor, finbot) | $0 (suscripción) |
+| DeepSeek V4 Pro | Código repetible, migrations, tests | ~$0.005 |
+| Gemini 2.0 Flash | Análisis visual post-deploy | ~$0.001/imagen |
+| Playwright | Automatización browser, screenshots reales | $0 |
 
-### M2 — Mover financial-bot a repositorio propio (recomendado)
+---
 
-> Actualmente `financial/bot/` vive dentro de `agentic-repo`. Tenerlo en su propio repo reduce el tamaño, acomoda mejor el ciclo de deploy, y evita conflictos de merge entre el relay y el bot.
+## Estado actual (2026-05-20)
+
+| Componente | Estado | Cal. |
+|------------|--------|------|
+| relay-master | ✅ Online | 8/10 |
+| DeepSeek V4 Pro (`deepseek-agent`) | ✅ Activo en `fiscalai-test` | 7/10 |
+| Gemini 2.0 Flash (visual) | ✅ Screenshot OK, análisis limitado por cuota | 6/10 |
+| Claude Code CLI (`full-claude-code`) | ✅ Activo | 9/10 |
+| claude-proxy (1 cuenta) | ✅ Puerto 5001 | 5/10 |
+| Multi-cuenta routing | ❌ Solo 1 proxy | 0/10 |
+| financial-bot | ⚠️ En ai-monitor repo (ruido) | 5/10 |
+| Dashboard ia.vilarkptl.com | ✅ Online | 7/10 |
+| Telegram iaVilarBot | ✅ Todos los comandos | 8/10 |
+| DeCabeceraTax branch | ⚠️ Rama incorrecta en prod | 5/10 |
+| pill.ai | ❌ No registrado | 0/10 |
+| Playwright | ❌ No instalado | 0/10 |
+
+---
+
+## Fase 1 — Estabilidad operacional 🔴 Día 0–4
+
+> Prerequisito absoluto. Sin esto, todo lo demás es frágil.
+
+### Día 0–1: Estabilidad inmediata
+
+**Comandos exactos para ejecutar HOY en el servidor:**
 
 ```bash
-# En servidor:
-cd /var/www/html/vilarkptl.com/ai-monitor
+# ── Conexión al servidor ──────────────────────────────────────────
+EXEC_TOKEN="cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a"
+exec_s() {
+  curl -s --max-time 30 -X POST https://ia.vilarkptl.com/api/exec \
+    -H "Content-Type: application/json" \
+    -H "x-exec-token: $EXEC_TOKEN" \
+    -d "{\"cmd\":\"$1\",\"cwd\":\"${2:-/var/www/html/vilarkptl.com/ai-monitor}\"}" \
+    | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('output') or d.get('error'))"
+}
 
-# 1. Crear nuevo repo en GitHub: vilarkptl-lang/financial-bot
-# (via /nuevo en Telegram o github.com/organizations/vilarkptl-lang/repositories/new)
+# ── 1. Verificar estado de todos los procesos ─────────────────────
+exec_s "pm2 status"
 
-# 2. Extraer historial de financial/ como repo independiente
-git subtree split --prefix=financial -b financial-bot-split
+# ── 2. Fijar DeCabeceraTax en rama testing permanente ────────────
+# Crear worktree dedicado (no toca la rama principal del repo)
+exec_s "git worktree add /var/www/html/vilarkptl.com/DeCabeceraTax-testing testing" \
+       "/var/www/html/vilarkptl.com/DeCabeceraTax"
 
-# 3. Clonar nuevo destino y push
-git clone /var/www/html/vilarkptl.com/ai-monitor /tmp/financial-bot-new
-cd /tmp/financial-bot-new
-git checkout financial-bot-split
-git remote set-url origin git@github.com:vilarkptl-lang/financial-bot.git
-git push origin HEAD:main
+# Actualizar projects.json: fiscalai-test y fiscalai apuntan al worktree
+# (editar relay/projects.json: "repo": "/var/www/html/vilarkptl.com/DeCabeceraTax-testing")
 
-# 4. Configurar el nuevo repo en el servidor de producción
-cd /var/www/html/vilarkptl.com
-git clone git@github.com:vilarkptl-lang/financial-bot.git
-cd financial-bot && npm install
-pm2 stop financial-bot
-# Actualizar ecosystem.config.js con la nueva ruta
-pm2 start financial-bot
+# ── 3. Instalar Playwright (reemplaza Chromium snap para visual-check) ──
+exec_s "npm install -g playwright && npx playwright install chromium"
+
+# ── 4. Verificar que relay-master arrancó OK tras último reinicio ─
+exec_s "pm2 logs relay-master --lines 5 --nostream"
 ```
 
-> Si se decide NO mover a repo separado: hacer merge selectivo como se tenía planeado.
+### Día 1–2: Migrar financial-bot a repo propio
 
-### M3 — Merge selectivo `deploy/financial-llm-complete`
+**Objetivo**: reducir ruido en ai-monitor. financial-bot tiene su propio ciclo de releases, su propio equipo (dev-2), y sus propias dependencias. Mezclarlos genera conflictos de merge innecesarios.
 
 ```bash
-cd /var/www/html/vilarkptl.com/ai-monitor
-git fetch origin deploy/financial-llm-complete
-git checkout origin/deploy/financial-llm-complete -- financial/bot/
-git commit -m "merge: DeepSeek V4 + Gemini en financial-bot (selectivo)"
+# ── En el servidor (vía exec_server o SSH) ───────────────────────
+
+# PASO 1: Crear repo en GitHub
+# (vía Telegram: /gh repo financial-bot private)
+# O manualmente en github.com/organizations/vilarkptl-lang/repositories/new
+
+# PASO 2: Clonar financial-bot a su nueva ubicación
+git clone https://github.com/vilarkptl-lang/financial-bot.git \
+  /var/www/html/vilarkptl.com/financial-bot
+
+# PASO 3: Copiar el contenido actual
+cp -r /var/www/html/vilarkptl.com/ai-monitor/financial/bot/. \
+      /var/www/html/vilarkptl.com/financial-bot/
+
+# PASO 4: Primer commit en el nuevo repo
+cd /var/www/html/vilarkptl.com/financial-bot
+git add -A
+git commit -m "init: migrate from ai-monitor/financial/bot — preserving structure"
 git push origin main
-npm --prefix financial/bot install
+
+# PASO 5: Copiar .env si existe
+cp /var/www/html/vilarkptl.com/ai-monitor/financial/.env \
+   /var/www/html/vilarkptl.com/financial-bot/.env 2>/dev/null || true
+
+# PASO 6: Actualizar PM2 — financial-bot apunta al nuevo directorio
+# (editar deploy/ecosystem.config.js o ecosystem-financial.config.js)
+# cwd: '/var/www/html/vilarkptl.com/financial-bot'
+
+# PASO 7: Reiniciar con nueva ruta
 pm2 restart financial-bot
 
-# Verificar:
-node -e "require('./financial/bot/agents/TransactionOrchestrator.js'); console.log('TO OK')"
+# PASO 8: Verificar que arrancó desde la nueva ruta
+pm2 show financial-bot | grep cwd
+
+# PASO 9: Actualizar projects.json — flujos, finbot-tester, finbot-verifier
+# "repo": "/var/www/html/vilarkptl.com/financial-bot"
+# "github": "vilarkptl-lang/financial-bot"
+# "working_dir": "" (ya no es subdirectorio)
+
+# PASO 10 (semana siguiente): eliminar financial/bot de ai-monitor
+# git rm -r financial/bot && git commit -m "chore: remove financial-bot (moved to own repo)"
+# NO borrar todavía — verificar que todo funciona primero
 ```
 
-### M4 — Limpieza Git
+### Día 2–3: Multi-cuenta proxy (1 Max + 4 Pro)
+
+**Arquitectura**: 5 instancias de `claude-proxy.js` corriendo en puertos 5001–5005, cada una autenticada con una cuenta diferente de Claude. relay-master hace routing inteligente según proyecto y complejidad.
 
 ```bash
-git prune
-git gc --auto
+# ── SETUP CUENTAS (hacer una vez por cuenta) ─────────────────────
+# Cada cuenta necesita un usuario del sistema con claude autenticado
+
+# Crear usuarios para las cuentas Pro (si no existen)
+useradd -m claudepro1 && useradd -m claudepro2
+useradd -m claudepro3 && useradd -m claudepro4
+
+# Autenticar cada cuenta (correr como ese usuario)
+# La cuenta Max ya está en 'german' o 'root'
+su - claudepro1 -c "claude auth login"   # → cuenta Pro 1
+su - claudepro2 -c "claude auth login"   # → cuenta Pro 2
+su - claudepro3 -c "claude auth login"   # → cuenta Pro 3
+su - claudepro4 -c "claude auth login"   # → cuenta Pro 4
+
+# Verificar autenticación de cada cuenta
+su - claudepro1 -c "claude --print 'di OK' --model claude-haiku-4-5-20251001"
 ```
 
----
+**relay/.env** — agregar al final:
+```bash
+# Multi-cuenta proxy routing
+CLAUDE_PROXY_MAX=http://127.0.0.1:5001   # Max account (german/root)
+CLAUDE_PROXY_PRO_1=http://127.0.0.1:5002 # Pro account 1
+CLAUDE_PROXY_PRO_2=http://127.0.0.1:5003 # Pro account 2
+CLAUDE_PROXY_PRO_3=http://127.0.0.1:5004 # Pro account 3
+CLAUDE_PROXY_PRO_4=http://127.0.0.1:5005 # Pro account 4
 
-## Día 2–3 — Contexto y Experiencia de Desarrollador
+# Routing por proyecto (ids separados por coma → Max)
+CLAUDE_PROXY_MAX_PROJECTS=coordinator,fiscalai,fiscalai-front
+```
 
-### `--resume sessionId` en `runClaude()`
+**Routing en relay/master.js** — agregar cerca de la constante PROJECTS_FILE:
 
-```js
-// relay/master.js — parsear session_id del stream output:
-proc.stdout.on('data', (chunk) => {
-  for (const line of chunk.toString().split('\n')) {
-    try {
-      const msg = JSON.parse(line);
-      if (msg.type === 'system' && msg.session_id) {
-        project.lastSessionId = msg.session_id;
-        saveProjectState();
-      }
-    } catch {}
+```javascript
+// ─── Multi-account proxy pool ────────────────────────────────────
+const PROXY_POOL = {
+  max: process.env.CLAUDE_PROXY_MAX || null,
+  pro: [
+    process.env.CLAUDE_PROXY_PRO_1,
+    process.env.CLAUDE_PROXY_PRO_2,
+    process.env.CLAUDE_PROXY_PRO_3,
+    process.env.CLAUDE_PROXY_PRO_4,
+  ].filter(Boolean),
+};
+const MAX_PROJECTS = (process.env.CLAUDE_PROXY_MAX_PROJECTS || 'coordinator')
+  .split(',').map(s => s.trim());
+let _proxyIdx = 0;
+
+function selectProxy(project) {
+  // Max account → coordinator y proyectos críticos
+  if (PROXY_POOL.max && MAX_PROJECTS.includes(project.id)) {
+    return PROXY_POOL.max;
   }
-});
-
-// buildClaudeCmd():
-const resumeFlag = project.lastSessionId ? `--resume ${project.lastSessionId}` : '';
-const cmd = `claude --print ${resumeFlag} --model ${model} "${escapeShell(prompt)}"`;
-```
-
-### `agent-memory.md` enriquecido
-
-Formato por entrada:
-```markdown
-## [2026-05-16 14:32] Título de la tarea
-
-**SHA:** a1b2c3d
-**Archivos:** relay/master.js:1897–2050 (runDeepSeekAgent nueva)
-**Decisiones:** MAX_TURNS=25, BASH_DENY incluye git reset --hard
-**Errores resueltos:** toolCall.function.arguments requiere JSON.parse()
-**Pendiente:** testear en sandbox
-```
-
-### `/dispatch` en `chat-agent.js`
-
-Ver implementación completa en `relay/DISPATCH.md`.
-
-```
-/dispatch fiscalai fix endpoint /api/cfdi que retorna 500
-→ [✅ Enviar] [❌ Cancelar] → push a main → relay detecta en ≤15s
-```
-
-### Routing multi-cuenta (5 cuentas Pro/Max)
-
-```js
-// relay/master.js:
-function selectClaudeUser(project) {
-  if (project.claude_user) return project.claude_user;
-  return CLAUDE_ACCOUNTS
-    .filter(a => a.active)
-    .reduce((min, a) =>
-      (loads[a.user] || 0) < (loads[min.user] || 0) ? a : min
-    ).user;
+  // Pro round-robin → todo lo demás
+  if (PROXY_POOL.pro.length) {
+    const url = PROXY_POOL.pro[_proxyIdx % PROXY_POOL.pro.length];
+    _proxyIdx++;
+    return url;
+  }
+  // Fallback → proxy existente o directo
+  return process.env.ANTHROPIC_PROXY_URL || null;
 }
 ```
 
-### Compactación semántica + inyección automática de contexto
+**deploy/ecosystem.config.js** — agregar 4 proxies nuevos:
 
-- Al inicio de cada despacho: inyectar `CLAUDE.md` + `relay/AGENTS.md` + `agent-memory.md` comprimidos en el system prompt
-- Al final de cada sesión `deepseek-agent`: forzar escritura de resumen en `agent-memory.md` antes de terminar
-- Límite de memoria: mantener últimas 20 entradas, rotar las más viejas
+```javascript
+// ── claude-proxy-max (cuenta Max — para coordinator y proyectos críticos) ──
+{
+  name:        'claude-proxy-max',
+  script:      'deploy/claude-proxy.js',
+  args:        '--port 5001',
+  cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
+  exec_mode:   'fork',
+  instances:   1,
+  autorestart: true,
+  watch:       false,
+  max_memory_restart: '128M',
+  env: {
+    CLAUDE_BIN:      '/usr/local/bin/claude',
+    HOME:            '/root',             // cuenta Max autenticada en root/german
+    CLAUDE_RUN_USER: 'german',
+  },
+  error_file: '/var/log/ai-monitor/claude-proxy-max-error.log',
+  out_file:   '/var/log/ai-monitor/claude-proxy-max-out.log',
+},
+// ── claude-proxy-pro-1 ────────────────────────────────────────────
+{
+  name:        'claude-proxy-pro-1',
+  script:      'deploy/claude-proxy.js',
+  args:        '--port 5002',
+  cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
+  exec_mode:   'fork', instances: 1, autorestart: true, watch: false,
+  max_memory_restart: '128M',
+  env: { CLAUDE_BIN: '/usr/local/bin/claude', HOME: '/home/claudepro1', CLAUDE_RUN_USER: 'claudepro1' },
+  error_file: '/var/log/ai-monitor/claude-proxy-pro1-error.log',
+  out_file:   '/var/log/ai-monitor/claude-proxy-pro1-out.log',
+},
+// ── claude-proxy-pro-2 ────────────────────────────────────────────
+{
+  name:        'claude-proxy-pro-2',
+  script:      'deploy/claude-proxy.js',
+  args:        '--port 5003',
+  cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
+  exec_mode:   'fork', instances: 1, autorestart: true, watch: false,
+  max_memory_restart: '128M',
+  env: { CLAUDE_BIN: '/usr/local/bin/claude', HOME: '/home/claudepro2', CLAUDE_RUN_USER: 'claudepro2' },
+  error_file: '/var/log/ai-monitor/claude-proxy-pro2-error.log',
+  out_file:   '/var/log/ai-monitor/claude-proxy-pro2-out.log',
+},
+// ── claude-proxy-pro-3 ────────────────────────────────────────────
+{
+  name:        'claude-proxy-pro-3',
+  script:      'deploy/claude-proxy.js',
+  args:        '--port 5004',
+  cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
+  exec_mode:   'fork', instances: 1, autorestart: true, watch: false,
+  max_memory_restart: '128M',
+  env: { CLAUDE_BIN: '/usr/local/bin/claude', HOME: '/home/claudepro3', CLAUDE_RUN_USER: 'claudepro3' },
+  error_file: '/var/log/ai-monitor/claude-proxy-pro3-error.log',
+  out_file:   '/var/log/ai-monitor/claude-proxy-pro3-out.log',
+},
+// ── claude-proxy-pro-4 ────────────────────────────────────────────
+{
+  name:        'claude-proxy-pro-4',
+  script:      'deploy/claude-proxy.js',
+  args:        '--port 5005',
+  cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
+  exec_mode:   'fork', instances: 1, autorestart: true, watch: false,
+  max_memory_restart: '128M',
+  env: { CLAUDE_BIN: '/usr/local/bin/claude', HOME: '/home/claudepro4', CLAUDE_RUN_USER: 'claudepro4' },
+  error_file: '/var/log/ai-monitor/claude-proxy-pro4-error.log',
+  out_file:   '/var/log/ai-monitor/claude-proxy-pro4-out.log',
+},
+```
+
+**Iniciar los 5 proxies:**
+
+```bash
+pm2 start deploy/ecosystem.config.js --only claude-proxy-max
+pm2 start deploy/ecosystem.config.js --only claude-proxy-pro-1
+pm2 start deploy/ecosystem.config.js --only claude-proxy-pro-2
+pm2 start deploy/ecosystem.config.js --only claude-proxy-pro-3
+pm2 start deploy/ecosystem.config.js --only claude-proxy-pro-4
+pm2 save
+```
+
+**Test de cada proxy:**
+
+```bash
+for port in 5001 5002 5003 5004 5005; do
+  echo "=== Puerto $port ==="
+  curl -s -X POST http://localhost:$port/v1/messages \
+    -H "Content-Type: application/json" \
+    -d '{"model":"claude-haiku-4-5-20251001","max_tokens":20,"messages":[{"role":"user","content":"di OK"}]}' \
+    | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('content',[{}])[0].get('text','ERR'))"
+done
+```
+
+---
+
+## Fase 2 — Tool Server para DeepSeek 🔴 Día 4–8
+
+> Sube la calidad de código de DeepSeek de 6/10 a 8/10 con herramientas quirúrgicas.
+
+### 2.1 relay/tools-server.js
+
+Herramientas que DeepSeek invoca via tool-calling (equivalentes a Claude Code):
+
+| Tool | Equivalente CC | Descripción |
+|------|---------------|-------------|
+| `read_file(path, offset?, limit?)` | `Read` | Líneas numeradas, paginación |
+| `edit_file(path, old_str, new_str)` | `Edit` | Reemplazo quirúrgico |
+| `list_directory(path, pattern?)` | `Bash ls` | Árbol con tamaños |
+| `search_code(pattern, path?, ctx)` | `Bash grep -n` | Grep con contexto |
+| `web_fetch(url)` | `WebFetch` | HTTP GET |
+
+El `runDeepSeekAgent()` ya tiene la infraestructura de tool loop. Solo hay que registrar estas tools en el schema enviado a la API de DeepSeek.
+
+### 2.2 Playwright para visual-check
+
+Reemplazar Chromium CLI snap por Playwright:
+- Instalar: `npm install -g playwright && npx playwright install chromium`
+- Reescribir `relay/visual-check.js` usando `playwright.chromium.launch()`
+- Ventajas: screenshots de elementos específicos, wait for network idle, interacción real (click, type)
+- Permite verificar login, formularios, tablas de datos — no solo capturas estáticas
+
+---
+
+## Fase 3 — Interactividad 🟡 Día 8–10
+
+### 3.1 Protocolo ASK mid-task
+
+```
+# El agente escribe en su outbox:
+ASK: ¿MySQL o PostgreSQL para la nueva tabla?
+
+# relay-master detecta ASK:, envía a Telegram, pausa ciclo, espera respuesta
+# El agente continúa con el contexto de la respuesta
+```
+
+### 3.2 Poll interval: 15s → 3s
+
+Para proyectos con `ignore_quiet_hours: true`.
+
+---
+
+## Fase 4 — 5 devs simultáneos 🟡 Día 10–14
+
+> Israel + Ricardo + german + 2 más. Ver sesión de planning.
+
+- Branch ownership documentado en `relay/AGENT-STATUS.md`
+- Cada dev con su propia cuenta Claude Pro en el pool
+- Comandos `/dispatch` y `/tarea` disponibles para todos desde Telegram
+- Dashboard muestra quién está trabajando en qué
+
+### Devs confirmados
+
+| Dev | Cuenta Claude | Branch principal | Área |
+|-----|--------------|-----------------|------|
+| german | Max | `claude/agent-monitoring-dashboard-4v8iq` | relay, backend, frontend |
+| Israel | Pro-1 | `claude/dev-israel-*` | financial-bot, DeCabeceraTax |
+| Ricardo | Pro-2 | `claude/dev-ricardo-*` | proyectos nuevos, integraciones |
+| Dev-4 | Pro-3 | `claude/dev-4-*` | por definir |
+| Dev-5 | Pro-4 | `claude/dev-5-*` | por definir |
+
+---
+
+## Fase 5 — Proyectos pendientes 🟡 Día 7–14 (paralelo)
+
+```bash
+# pill.ai — registrar desde Telegram:
+/addproject pill-ai "Pill AI" https://pill.ai \
+  github=vilarkptl-lang/pill.ai \
+  repo=/var/www/html/vilarkptl.com/pill-relay \
+  branch=claude/add-licensing-system-KsFAw \
+  mode=full-claude-code
+
+# financial-bot — después de migración Día 1-2:
+/addproject financial-bot "Financial Bot" https://flujos.fiscalai.mx \
+  github=vilarkptl-lang/financial-bot \
+  repo=/var/www/html/vilarkptl.com/financial-bot \
+  branch=main mode=full-claude-code
+```
+
+**Tareas pendientes de verificación:**
+- conversation-engine: score post-SQL fix
+- dashboard: métricas --resume (B1)
+- DeCabeceraTax: worktree `testing` permanente (Día 0)
+
+---
+
+## Fase 6 — CI/CD y paralelismo 🟢 Día 14+
+
+- `pytest` + `ruff` para financial-bot en cada push → resultado en Telegram
+- Sub-task dispatch con `DISPATCH_PARALLEL` / `WAIT_FOR` en outbox
+- Múltiples workers relay-master para >10 proyectos concurrentes
 
 ---
 
 ## Día 3–4 — Optimizaciones LLM y Visual
 
-### LiteLLM en `master.js`
+| Después de | AI Monitor | vs Claude Code |
+|------------|-----------|----------------|
+| Hoy | 7/10 | −2 |
+| Fase 1 completa | 8/10 | −1 |
+| Fase 1+2 | 8.5/10 | −0.5 |
+| Fases 1-3 | 9/10 | = empate funcional |
+| Fases 1-4 | 9.5/10 | +0.5 (5 devs autónomos) |
+| Fases 1-6 | 9.8/10 | +0.8 (autonomía supera CC) |
 
-```js
-async function callViaLiteLLM(messages, model = 'kptl-chat') {
-  const res = await fetch(`${process.env.LITELLM_BASE_URL}/v1/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.LITELLM_MASTER_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ model, messages, max_tokens: 4096 }),
-  });
-  return res.json();
+---
+
+## Conexión al servidor para agentes externos
+
+Cualquier agente (Claude Code CLI, Cursor, otro) puede ejecutar comandos en el servidor de producción sin SSH:
+
+```bash
+EXEC_TOKEN="cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a"
+EXEC_URL="https://ia.vilarkptl.com/api/exec"
+
+exec_server() {
+  local CMD="$1"
+  local CWD="${2:-/var/www/html/vilarkptl.com/ai-monitor}"
+  local BODY
+  BODY=$(python3 -c "import sys,json; print(json.dumps({'cmd':sys.argv[1],'cwd':sys.argv[2]}))" "$CMD" "$CWD")
+  curl -s --max-time 30 -X POST "$EXEC_URL" \
+    -H "Content-Type: application/json" \
+    -H "x-exec-token: $EXEC_TOKEN" \
+    -d "$BODY" \
+    | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('output') or d.get('error','(sin output)'))"
 }
-// Chains: kptl-chat (Sonnet→DS→GPT4o), kptl-chat-fast (Haiku→GPT4o-mini→Gemini)
+
+# Ejemplos:
+exec_server "pm2 status"
+exec_server "pm2 logs financial-bot --lines 20 --nostream"
+exec_server "git log --oneline -5" "/var/www/html/vilarkptl.com/financial-bot"
 ```
 
-### Playwright reemplaza Chromium headless
+Comandos permitidos: `pm2`, `git`, `mysql -u root`, `grep`, `ls`, `df`, `free`, `uptime`, `node -e`
 
-```bash
-npm install playwright
-npx playwright install chromium
-```
-
-Cambio en `relay/visual-check.js`: `puppeteer.launch()` → `playwright.chromium.launch()`.
-Ventaja: SPAs con Vue/React Router, espera a hydration, mejor manejo de auth.
-
-### Quiet hours exceptions
-
-```js
-// En master.js — campo ignore_quiet_hours ya existe en projects.json
-// Agregar: bypass por URGENCIA en el inbox
-const isUrgent = taskContent.includes('URGENCIA: critica');
-if (isQuietHours && !project.ignore_quiet_hours && !isUrgent) return;
-```
-
-### Verificar IDs reales de DeepSeek
-
-```bash
-curl https://api.deepseek.com/v1/models \
-  -H "Authorization: Bearer $DEEPSEEK_API_KEY" | jq '.data[].id'
-
-# Actualizar relay/.env:
-DEEPSEEK_FLASH_MODEL=deepseek-v4-flash   # con el ID exacto confirmado
-DEEPSEEK_PRO_MODEL=deepseek-v4-pro       # con el ID exacto confirmado
-```
-
----
-
-## Backlog (sin fecha)
-
-| Item | Esfuerzo | Impacto |
-|------|----------|---------|
-| Worker processes por proyecto (refactor master.js) | Alto | Alto |
-| Sesiones de larga duración (Claude como proceso persistente) | Alto | Alto |
-| Tests de integración para master.js | Medio | Alto |
-| Dashboard por equipo (filtros dev/proyecto) | Medio | Medio |
-| Métricas longitudinales de calidad de tareas | Medio | Medio |
-| Bidireccionalidad mid-task (/clarify + botones pre-push) | Medio | Alto |
-| Onboarding proyectos inactivos (credito, voltic, ocr...) | Bajo | Medio |
-| Admin API keys para monitoring cuentas Max | Bajo | Bajo |
-| LiteLLM sombra en producción (use_cli_proxy flag) | Bajo | Bajo |
-| finbot-tester golden suite >90% cobertura | Medio | Medio |
-
----
-
-## Estado actual del sistema
-
-| Dimensión | Calificación | Notas |
-|-----------|:-----------:|-------|
-| Costo operativo | 10/10 | $0 API (Max OAuth) + DeepSeek barato |
-| Eficiencia multitarea | 9/10 | 9 proyectos paralelos |
-| Seguridad / guardrails | 9/10 | Kill-switch, rate limit, watchdog |
-| Observabilidad | 9/10 | Dashboard, alertas, costos, visual check |
-| Escala | 8/10 | Un proceso para todo — riesgo SPOF |
-| Recuperación de errores | 8/10 | Adaptive timeout, auto-retry, DS code fix |
-| Latencia | 7/10 | Poll 15s + planning overhead |
-| Calidad de código | 7/10 | plan-execute introduce traducción |
-| Experiencia de dev | 7/10 | Telegram ayuda, pero aún más fricción que Claude.ai |
-| **GLOBAL** | **8.0/10** | |
-
-**Por qué no llega a 9:**
-1. Swap 94% — OOM puede matar relay-master (C1, resoluble hoy)
-2. `deepseek-agent` sin validación en producción compleja
-3. `relay/master.js` como single point of failure (3,296 líneas)
-
----
-
-## Documentación de referencia
-
-| Archivo | Propósito |
-|---------|-----------|
-| `CLAUDE.md` | Referencia maestra |
-| `ROADMAP.md` | Este archivo |
-| `relay/AGENTS.md` | Roles, rutas, zonas de propiedad |
-| `relay/PROJECTS.md` | Rutas completas del servidor, PM2 |
-| `relay/CONVENTIONS.md` | Git, código, outbox format |
-| `relay/SYSTEM.md` | Arquitectura, stack, seguridad |
-| `relay/WORKFLOW.md` | 3 canales de entrada, visual check |
-| `relay/MEMORY.md` | --resume, agent-memory enriquecido |
-| `relay/TOOLS.md` | Herramientas por modo |
-| `relay/DISPATCH.md` | /dispatch Telegram, routing multi-cuenta |
-| `relay/SYSTEM-DIAGNOSIS.md` | Diagnóstico completo 17 secciones |
-| `relay/AGENT-STATUS.md` | Estado de agentes — actualizar al terminar |
-
----
-
-*Actualizado 2026-05-16. Próxima actualización tras completar Día 0–1.*
+Documentación completa: ver `CLAUDE.md` sección "Servidor de producción".
