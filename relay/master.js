@@ -3762,6 +3762,22 @@ $${planCostSoFar.toFixed(4)} gastado de $${budgetMax.toFixed(2)}`);
       }
     }
 
+    // ── CI runner — runs after successful agent commit ──
+    if (project.ci_enabled && project.repo && exitCode === 0 && !isTimeout) {
+      const ciCmd = project.ci_command ||
+        `cd "${project.repo}" && find . -name "*.js" -not -path "*/node_modules/*" -not -path "*/.git/*" | head -40 | xargs -r node --check 2>&1 | head -30`;
+      try {
+        const ciOut = execSync(ciCmd, { timeout: 30_000, stdio: 'pipe', cwd: project.repo }).toString().trim();
+        log(project.id, `CI: PASS`);
+        tg(`✅ <b>CI pasó — ${project.name}</b>\n🗂 ${title}`);
+      } catch (e) {
+        const errMsg = (e.stdout?.toString() || e.message || '').slice(0, 500);
+        log(project.id, `CI: FAIL — ${errMsg.slice(0, 100)}`);
+        tg(`🚨 <b>CI falló — ${project.name}</b>\n🗂 ${title}\n<code>${errMsg.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').slice(0, 400)}</code>`);
+      }
+    }
+
+
     // Check if agent requested human intervention
     const needsHuman = isTimeout || /REQUIERE INTERVENCIÓN HUMANA/i.test(resultRaw) || updatedJournal.state === 'stopped';
 
@@ -3865,6 +3881,27 @@ Verifica manualmente que los cambios funcionan correctamente.`);
 
 Para continuar, responde con:
 <code>/dispatch ${project.id} Respuesta: ${question.slice(0, 60)}...</code>`, true);
+    }
+
+    // ── DISPATCH_PARALLEL — fire-and-forget parallel sub-tasks ──
+    // Agents write one line per sub-task: DISPATCH_PARALLEL: <project_id> <task description>
+    const dpMatches = [...resultRaw.matchAll(/^DISPATCH_PARALLEL:\s*([\w-]+)\s+(.+)/gm)];
+    for (const dp of dpMatches) {
+      const targetId   = dp[1].trim();
+      const taskText   = dp[2].trim();
+      const targetProj = projects.find(p => p.id === targetId && p.active && p.inbox);
+      if (!targetProj) { log(project.id, `DISPATCH_PARALLEL: proyecto "${targetId}" no encontrado`); continue; }
+      const dpTask = `## Subtarea paralela de ${project.name}\n\n**Origen:** ${project.id} | **Fecha:** ${timestamp}\n\n${taskText}`;
+      try {
+        fs.writeFileSync(targetProj.inbox, dpTask);
+        const h = loadHashes(); delete h[targetId]; saveHashes(h);
+        if (hashes) delete hashes[targetId];
+        log(project.id, `DISPATCH_PARALLEL → ${targetId}: ${taskText.slice(0, 80)}`);
+        if (targetProj.repo && targetProj.branch) gitPushInbox(targetProj.repo, targetProj.branch, targetProj.inbox, `dp-${Date.now()}`, dpTask);
+        tg(`🔀 <b>Subtarea paralela</b>\n${project.name} → <b>${targetProj.name}</b>\n<code>${taskText.slice(0, 120)}</code>`);
+      } catch (e) {
+        log(project.id, `DISPATCH_PARALLEL falló → ${targetId}: ${e.message?.slice(0, 100)}`);
+      }
     }
 
     // ── Parse structured outbox fields ──
@@ -4346,14 +4383,22 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
       log(null, `ERROR watchdog: ${e.message}`);
     }
 
+    // Phase 1: git pulls — sequential + deduped to avoid .git/index.lock conflicts
     const pulledRepos = new Set();
     for (const project of projects) {
-      try {
-        await processProject(project, hashes, pulledRepos);
-      } catch (e) {
-        log(project.id, `ERROR: ${e.message}`);
+      if (project.active && project.repo && project.branch && !pulledRepos.has(project.repo)) {
+        try { gitPull(project.repo, project.branch); } catch (_) {}
+        pulledRepos.add(project.repo);
+        checkSelfReload();
       }
     }
+    // Phase 2: check + dispatch all projects in parallel (git already pulled above)
+    await Promise.allSettled(
+      projects.map(project =>
+        processProject(project, hashes, pulledRepos)
+          .catch(e => log(project.id, `ERROR: ${e.message}`))
+      )
+    );
   }, POLL_MS);
 
   // Fast poll (3s) for projects with ignore_quiet_hours — used for urgent tasks
