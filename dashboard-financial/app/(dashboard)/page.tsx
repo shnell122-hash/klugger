@@ -16,7 +16,7 @@ const EMPTY_KPIS = {
 
 export default async function DashboardPage() {
   const [kpisRes, volumeRes, opsByTypeRes] = await Promise.allSettled([
-    api.getKPIs(),
+    api.getKPIs('real'),
     api.getVolumeTS(30),
     api.getOpsByType(30),
   ]);
@@ -36,7 +36,7 @@ export default async function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Sistema Financiero</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Dashboard de operaciones en tiempo real</p>
+          <p className="text-sm text-gray-500 mt-0.5">Operaciones reales — Operaciones G · Operaciones LT</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-success animate-pulse-slow" />

@@ -323,11 +323,12 @@ export type LearningEpisodesData = {
 };
 
 export const api = {
-  getKPIs:              ()                         => get<KPIs>('/kpis'),
+  getKPIs:              (mode?: 'real'|'testing')   => get<KPIs>(`/kpis${mode ? `?mode=${mode}` : ''}`),
   getLearningEpisodes:  (limit = 300, offset = 0)  => get<LearningEpisodesData>(`/learning-episodes?limit=${limit}&offset=${offset}`),
   getClients:       (limit = 50)         => get<Client[]>(`/clients?limit=${limit}`),
   getBalanceHistory:(id: number)         => get<unknown[]>(`/clients/${id}/balance-history`),
   getOperations:    (params = '')        => get<Operation[]>(`/operations${params ? `?${params}` : ''}`),
+  getOperationsMode:(mode: 'real'|'testing', extra = '') => get<Operation[]>(`/operations?mode=${mode}${extra ? `&${extra}` : ''}`),
   marcarRetorno:    (id: number)         => post<{saldo_antes:number,saldo_despues:number}>(`/operations/${id}/retorno-pagado`),
   getVolumeTS:      (days = 30)          => get<VolumePoint[]>(`/analytics/volume?days=${days}`),
   getOpsByType:     (days = 30)          => get<OpsByType[]>(`/analytics/by-type?days=${days}`),

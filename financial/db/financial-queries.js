@@ -19,14 +19,16 @@ async function getClientSummary(pool, limit = 50) {
 }
 
 /** Operaciones con filtros */
-async function getOperations(pool, { clientId, estado, fechaDesde, fechaHasta, limit = 100, offset = 0 } = {}) {
+async function getOperations(pool, { clientId, estado, fechaDesde, fechaHasta, chatIds, excludeChatIds, limit = 100, offset = 0 } = {}) {
   const where = ['1=1'];
   const params = [];
 
-  if (clientId)   { where.push('client_id = ?');           params.push(clientId); }
-  if (estado)     { where.push('estado = ?');               params.push(estado); }
-  if (fechaDesde) { where.push('created_at >= ?');          params.push(fechaDesde); }
-  if (fechaHasta) { where.push('created_at <= ?');          params.push(fechaHasta); }
+  if (clientId)       { where.push('client_id = ?');                           params.push(clientId); }
+  if (estado)         { where.push('estado = ?');                               params.push(estado); }
+  if (fechaDesde)     { where.push('created_at >= ?');                          params.push(fechaDesde); }
+  if (fechaHasta)     { where.push('created_at <= ?');                          params.push(fechaHasta); }
+  if (chatIds?.length)        { where.push(`telegram_chat_id IN (${chatIds.map(() => '?').join(',')})`);        params.push(...chatIds); }
+  if (excludeChatIds?.length) { where.push(`telegram_chat_id NOT IN (${excludeChatIds.map(() => '?').join(',')})`); params.push(...excludeChatIds); }
 
   const [rows] = await pool.query(
     `SELECT * FROM fin_operations_full
@@ -38,18 +40,28 @@ async function getOperations(pool, { clientId, estado, fechaDesde, fechaHasta, l
   return rows;
 }
 
-/** KPIs del dashboard */
-async function getDashboardKPIs(pool) {
+/** KPIs del dashboard
+ * @param {object} opts
+ * @param {number[]} [opts.chatIds]        — filtrar SOLO estos chat_ids
+ * @param {number[]} [opts.excludeChatIds] — excluir estos chat_ids
+ */
+async function getDashboardKPIs(pool, { chatIds, excludeChatIds } = {}) {
+  const chatFilter = chatIds?.length
+    ? `AND telegram_chat_id IN (${chatIds.join(',')})`
+    : excludeChatIds?.length
+      ? `AND telegram_chat_id NOT IN (${excludeChatIds.join(',')})`
+      : '';
+
   const [rows] = await pool.query(`
     SELECT
       (SELECT COUNT(*) FROM fin_clients WHERE is_active=1)                           AS total_clientes,
       (SELECT SUM(saldo) FROM fin_clients WHERE is_active=1)                         AS saldo_total_clientes,
-      (SELECT COUNT(*) FROM fin_operations WHERE DATE(created_at) = CURDATE())       AS ops_hoy,
+      (SELECT COUNT(*) FROM fin_operations WHERE DATE(created_at) = CURDATE() ${chatFilter}) AS ops_hoy,
       (SELECT SUM(monto_bruto) FROM fin_operations
-         WHERE DATE(created_at) = CURDATE() AND estado NOT IN ('cancelada'))         AS volumen_hoy,
+         WHERE DATE(created_at) = CURDATE() AND estado NOT IN ('cancelada') ${chatFilter}) AS volumen_hoy,
       (SELECT SUM(monto_bruto - monto_neto) FROM fin_operations
-         WHERE DATE(created_at) = CURDATE() AND estado NOT IN ('cancelada'))         AS comisiones_hoy,
-      (SELECT COUNT(*) FROM fin_operations WHERE estado = 'pendiente')               AS ops_pendientes,
+         WHERE DATE(created_at) = CURDATE() AND estado NOT IN ('cancelada') ${chatFilter}) AS comisiones_hoy,
+      (SELECT COUNT(*) FROM fin_operations WHERE estado = 'pendiente' ${chatFilter}) AS ops_pendientes,
       (SELECT SUM(cost_usd) FROM fin_llm_usage
          WHERE DATE(created_at) = CURDATE())                                         AS costo_llm_hoy,
       (SELECT SUM(cost_usd) FROM fin_llm_usage
