@@ -10,6 +10,17 @@
 const q    = require('../../db/financial-queries');
 const path = require('path');
 
+// chat_ids de prueba (simulaciones) — excluidos del dashboard real
+const TESTING_CHAT_IDS = [-5142407305];
+// chat_ids reales de producción — incluidos en dashboard real
+const REAL_CHAT_IDS    = [-5135719373]; // Operaciones G; agregar LT cuando esté registrado
+
+function chatFilter(mode) {
+  if (mode === 'testing') return { chatIds: TESTING_CHAT_IDS };
+  if (mode === 'real')    return { excludeChatIds: TESTING_CHAT_IDS };
+  return {};
+}
+
 // Lee FIN_TELEGRAM_BOT_TOKEN de financial/.env — dotenv no funciona cross-process, leer directo
 function getTelegramToken() {
   if (process.env.FIN_TELEGRAM_BOT_TOKEN) return process.env.FIN_TELEGRAM_BOT_TOKEN;
@@ -29,7 +40,7 @@ module.exports = function financialRoutes(pool, io, express) {
 
   router.get('/kpis', async (req, res) => {
     try {
-      const data = await q.getDashboardKPIs(pool);
+      const data = await q.getDashboardKPIs(pool, chatFilter(req.query.mode));
       res.json({ ok: true, data });
     } catch (err) {
       res.status(500).json({ ok: false, error: err.message });
@@ -69,6 +80,7 @@ module.exports = function financialRoutes(pool, io, express) {
         fechaHasta: req.query.hasta,
         limit:      parseInt(req.query.limit)  || 100,
         offset:     parseInt(req.query.offset) || 0,
+        ...chatFilter(req.query.mode),
       });
       res.json({ ok: true, data });
     } catch (err) {
