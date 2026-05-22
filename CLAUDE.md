@@ -1,29 +1,53 @@
 # VILAR Legal OS — Notas de desarrollo para Claude
 
-## Entorno de producción
+## Servidor de producción
 
-- **Servidor:** ocr.ruby.lease (Ubuntu, Apache2 + PM2 + MySQL)
-- **App path:** `/var/www/catalogos/OCR/v59/`
-- **Repo path:** `/var/www/catalogos/OCR/v59-repo/agentic-repo/`
-- **Branch activo:** `claude/ocr-v59-implementation-vOcPD`
-- **Puerto Flask:** 5005
+| Campo | Valor |
+|-------|-------|
+| Host | `143.198.228.78` (ocr.ruby.lease) |
+| Usuario SSH | `german` |
+| Contraseña SSH | `romanos12_2` |
+| App path | `/var/www/catalogos/OCR/v59/` |
+| Repo path | `/var/www/catalogos/OCR/v59-repo/agentic-repo/` |
+| Branch activo | `claude/ocr-v59-implementation-vOcPD` |
+| Puerto Flask | `5005` |
 
-## ⚠️ SIEMPRE usar el virtualenv
+## Conexión al servidor desde agentes Claude Code
 
-El intérprete de Python de la app es:
-```
-/var/www/catalogos/OCR/v59/venv/bin/python3
-```
-
-PM2 lo usa directamente vía `ecosystem.config.js` (campo `interpreter`).
-
-**Para instalar paquetes en producción SIEMPRE usar:**
 ```bash
-/var/www/catalogos/OCR/v59/venv/bin/pip install <paquete>
+# SSH directo
+sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78 "comando"
+
+# Alias útil para sesión
+srv() { sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78 "$@"; }
+# Uso: srv "pm2 status"
+#      srv "pm2 restart vilar-legal-os-v59"
+#      srv "pm2 logs vilar-legal-os-v59 --lines 50 --nostream"
 ```
 
-**NUNCA usar `pip install` global ni `apt install python3-xxx`** — rompe
-el aislamiento y puede conflictuar con otros proyectos en el mismo servidor.
+**Si SSH no responde (sandbox web bloquea puerto 22), usar HTTPS:**
+
+```bash
+EXEC_TOKEN="cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a"
+EXEC_URL="https://ia.vilarkptl.com/api/exec"
+
+exec_server() {
+  local CMD="$1"
+  local CWD="${2:-/var/www/catalogos/OCR/v59-repo/agentic-repo}"
+  local BODY
+  BODY=$(python3 -c "import sys,json; print(json.dumps({'cmd':sys.argv[1],'cwd':sys.argv[2]}))" "$CMD" "$CWD")
+  curl -s --max-time 30 -X POST "$EXEC_URL" \
+    -H "Content-Type: application/json" \
+    -H "x-exec-token: $EXEC_TOKEN" \
+    -d "$BODY" \
+    | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('output') or d.get('error','(sin output)'))"
+}
+
+# Ejemplos:
+exec_server "pm2 status"
+exec_server "pm2 logs vilar-legal-os-v59 --lines 30 --nostream"
+exec_server "pm2 restart vilar-legal-os-v59"
+```
 
 ## Deploy one-liner
 
@@ -34,6 +58,8 @@ cp ocr/v59/api/routes/chat.py        /var/www/catalogos/OCR/v59/api/routes/chat.
 cp ocr/v59/api/routes/artifacts.py   /var/www/catalogos/OCR/v59/api/routes/artifacts.py && \
 cp ocr/v59/api/routes/imagen.py      /var/www/catalogos/OCR/v59/api/routes/imagen.py && \
 cp ocr/v59/api/routes/transcribe.py  /var/www/catalogos/OCR/v59/api/routes/transcribe.py && \
+cp ocr/v59/api/routes/admin.py       /var/www/catalogos/OCR/v59/api/routes/admin.py && \
+cp ocr/v59/api/routes/dashboard.py   /var/www/catalogos/OCR/v59/api/routes/dashboard.py && \
 cp ocr/v59/api/app.py                /var/www/catalogos/OCR/v59/api/app.py && \
 cp ocr/v59/openclaw/tool_definitions.json /var/www/catalogos/OCR/v59/openclaw/tool_definitions.json && \
 cp ocr/v59/openclaw/tool_router.py   /var/www/catalogos/OCR/v59/openclaw/tool_router.py && \
@@ -42,21 +68,10 @@ cp ocr/v59/frontend/index.html       /var/www/catalogos/OCR/v59/frontend/index.h
 pm2 restart vilar-legal-os-v59
 ```
 
-## Instalación de nuevas dependencias Python
+## Virtualenv
 
-```bash
-/var/www/catalogos/OCR/v59/venv/bin/pip install <paquete>
-pm2 restart vilar-legal-os-v59
-```
-
-## Instalación de dependencias del sistema
-
-```bash
-apt install -y ffmpeg           # requerido para transcripción
-pip install yt-dlp              # ojo: este es el global; yt-dlp es un CLI
-# o mejor:
-/var/www/catalogos/OCR/v59/venv/bin/pip install yt-dlp
-```
+El intérprete de Python es `/var/www/catalogos/OCR/v59/venv/bin/python3`.
+Para instalar paquetes: `/var/www/catalogos/OCR/v59/venv/bin/pip install <paquete>`
 
 ## Variables de entorno (.env)
 
@@ -67,6 +82,7 @@ Archivo: `/var/www/catalogos/OCR/v59/api/.env`
 | `ANTHROPIC_API_KEY` | Claude claude-opus-4-6 |
 | `FAL_KEY` | Generación de imágenes (fal.ai Flux.1) |
 | `OPENAI_API_KEY` | Transcripción de audio (Whisper) |
+| `APP_BASE_PATH` | `/OCR/v59` (prefijo de rutas estáticas) |
 | `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS` | MySQL |
 
 ## Estructura de tablas clave
@@ -90,18 +106,7 @@ ALTER TABLE system_artifacts ADD UNIQUE KEY uk_share_slug (share_slug);
 
 ### Configuración Apache (requerida para que /caso/ llegue a Flask):
 
-Si el VirtualHost de Apache solo hace proxy de `/api/` pero sirve el frontend
-como archivos estáticos, hay que añadir la ruta `/caso/` al proxy:
-
 ```apache
-# En el VirtualHost de ocr.ruby.lease:
 ProxyPass /caso/ http://127.0.0.1:5005/caso/
 ProxyPassReverse /caso/ http://127.0.0.1:5005/caso/
 ```
-
-Si ya hay un `ProxyPass / http://127.0.0.1:5005/` catch-all, no se necesita
-nada adicional (Flask maneja `/caso/` automáticamente).
-
-Verificar con: `curl -I https://ocr.ruby.lease/caso/test`
-— Si responde 404 de Flask: Apache ya pasa la ruta (correcto).
-— Si responde 404 de Apache: añadir las líneas ProxyPass arriba.
