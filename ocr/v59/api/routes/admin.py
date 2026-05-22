@@ -648,9 +648,12 @@ def create_invitation():
     if role not in valid_roles:
         return jsonify({'error': f'Rol inválido: {role}'}), 400
 
-    # Sub masters can invite into any of their assigned orgs
+    # Sub masters can invite into any of their assigned orgs + their own org
     if _is_sub_master():
         allowed = set(_sm_org_ids())
+        own_org = _my_org()
+        if own_org:
+            allowed.add(own_org)
         if not org_id or org_id not in allowed:
             return jsonify({'error': 'Solo puedes invitar a tus organizaciones asignadas'}), 403
     # Org admins can only invite into their own org
