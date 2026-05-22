@@ -11,19 +11,11 @@
  *
  * Agentes: llámalo después de cada deploy para verificar el resultado visual.
  * Si `passed` es false, lee `issues` y `actions` para saber qué corregir.
- *
- * Ejemplo:
- *   RESULT=$(node /var/www/html/vilarkptl.com/ai-monitor/relay/visual-check.js \
- *     "https://testing.fiscalai.mx?id=XAXX010101000" \
- *     "nav bar visible con ítem Análisis Fiscal, tabla de datos carga sin errores" \
- *     5000)
- *   echo $RESULT | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['analysis'])"
  */
 
 const fs   = require('fs');
 const path = require('path');
 const https = require('https');
-const { execSync, spawnSync } = require('child_process');
 
 // ── Load .env ─────────────────────────────────────────────────────────────────
 (function loadEnv(file) {
@@ -51,17 +43,7 @@ const SHOT_NAME       = `vc-${Date.now()}.png`;
 const screenshotFile  = path.join(SCREENSHOTS_DIR, SHOT_NAME);
 const screenshotUrl   = `/screenshots/${SHOT_NAME}`;
 
-// ── Find Chromium binary ──────────────────────────────────────────────────────
-function findChromium() {
-  for (const bin of ['chromium-browser', 'chromium', 'google-chrome', 'google-chrome-stable']) {
-    try { execSync(`which ${bin} 2>/dev/null`, { stdio: 'pipe' }); return bin; } catch (_) {}
-  }
-  return null;
-}
-
 // ── Call Gemini Flash vision API ──────────────────────────────────────────────
-// ANÁLISIS_OMITIDO is returned when quota (429) or access (403) is unavailable —
-// callers treat this as "screenshot OK, no analysis" and do not fail the check.
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
 function callGemini(b64Image, prompt) {
@@ -90,7 +72,6 @@ function callGemini(b64Image, prompt) {
       res.on('end', () => {
         try {
           const r = JSON.parse(data);
-          // Handle quota exhausted (429) or access denied (403) gracefully
           if (r.error) {
             const code = r.error.code;
             if (code === 429) { resolve(`ANÁLISIS_OMITIDO: cuota Gemini agotada (${GEMINI_MODEL})`); return; }
@@ -111,34 +92,36 @@ function callGemini(b64Image, prompt) {
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 async function main() {
-  // 1. Screenshot
-  const chromium = findChromium();
-  if (!chromium) {
-    process.stdout.write(JSON.stringify({ error: 'Chromium no encontrado. Instala con: apt-get install -y chromium-browser' }) + '\n');
+  // 1. Screenshot via Playwright (replaces Chromium CLI snap)
+  let playwright;
+  try {
+    playwright = require('playwright');
+  } catch (_) {
+    try { playwright = require('/usr/local/lib/node_modules/playwright'); } catch (_2) {}
+  }
+
+  if (!playwright) {
+    process.stdout.write(JSON.stringify({ error: 'Playwright no disponible. Instalar: npm install -g playwright && playwright install chromium' }) + '\n');
     process.exit(1);
   }
 
+  try { fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true }); } catch (_) {}
+
+  let browser;
   try {
-    fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
-    // Snap Chromium writes 'screenshot.png' to cwd; absolute --screenshot= paths are blocked.
-    const shotCwd = '/root';
-    const shotSrc = `${shotCwd}/screenshot.png`;
-    try { fs.unlinkSync(shotSrc); } catch (_) {}
-
-    spawnSync(chromium, [
-      '--headless', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage',
-      '--screenshot',
-      '--window-size=1280,900',
-      `--virtual-time-budget=${waitMs}`,
-      url,
-    ], { timeout: 35_000, cwd: shotCwd, stdio: 'pipe' });
-
-    if (!fs.existsSync(shotSrc)) {
-      throw new Error('Screenshot no creado (snap Chromium no escribió screenshot.png en /root)');
-    }
-    fs.copyFileSync(shotSrc, screenshotFile);
-    try { fs.unlinkSync(shotSrc); } catch (_) {}
+    browser = await playwright.chromium.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+    });
+    const page = await browser.newPage();
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(url, { waitUntil: 'load', timeout: 35_000 });
+    await page.waitForTimeout(waitMs);
+    await page.screenshot({ path: screenshotFile, fullPage: false });
+    await browser.close();
+    browser = null;
   } catch (e) {
+    if (browser) { try { await browser.close(); } catch (_) {} }
     process.stdout.write(JSON.stringify({ error: `Screenshot falló: ${e.message.slice(0, 300)}` }) + '\n');
     process.exit(1);
   }
@@ -169,7 +152,6 @@ async function main() {
 
   // 3. Parse result
   const analysisOmitted = analysis.startsWith('ANÁLISIS_OMITIDO');
-  // When analysis is unavailable (quota/access), screenshot success = passed
   const passed  = analysisOmitted
     ? true
     : /VEREDICTO:\s*APROBADO/i.test(analysis) && !/NECESITA_CORRECCIÓN/i.test(analysis);
