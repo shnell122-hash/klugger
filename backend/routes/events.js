@@ -19,19 +19,19 @@ function estimateTokens(text) {
 }
 
 // Ensure session row exists (upsert)
-async function upsertSession(sessionId, workingDir, agentUser, projectName, apiProvider, chatSource) {
+async function upsertSession(sessionId, workingDir, agentUser, projectName, apiProvider, chatSource, resumed) {
   if (!sessionId) return;
   await db.query(
     `INSERT INTO agent_sessions
-       (id, started_at, working_dir, agent_user, project_name, api_provider, chat_source, is_active)
-     VALUES (?, NOW(3), ?, ?, ?, ?, ?, 1)
+       (id, started_at, working_dir, agent_user, project_name, api_provider, chat_source, is_active, resumed)
+     VALUES (?, NOW(3), ?, ?, ?, ?, ?, 1, ?)
      ON DUPLICATE KEY UPDATE
        is_active    = 1,
        project_name = COALESCE(project_name, VALUES(project_name)),
        api_provider = COALESCE(api_provider, VALUES(api_provider)),
        chat_source  = COALESCE(chat_source,  VALUES(chat_source))`,
     [sessionId, workingDir || null, agentUser || null,
-     projectName || null, apiProvider || 'anthropic', chatSource || null]
+     projectName || null, apiProvider || 'anthropic', chatSource || null, resumed ? 1 : 0]
   );
 }
 
@@ -70,13 +70,14 @@ router.post('/', async (req, res) => {
       project_name,
       api_provider,
       chat_source,
+      resumed,
     } = req.body;
 
     if (!session_id || !event_type) {
       return res.status(400).json({ error: 'session_id and event_type required' });
     }
 
-    await upsertSession(session_id, working_dir, agent_user, project_name, api_provider, chat_source);
+    await upsertSession(session_id, working_dir, agent_user, project_name, api_provider, chat_source, resumed);
 
     // Estimate cost from combined input/response text
     const combinedText = (tool_input_summary || '') + (tool_response_summary || '');

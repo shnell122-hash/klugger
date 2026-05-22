@@ -3693,6 +3693,7 @@ $${planCostSoFar.toFixed(4)} gastado de $${budgetMax.toFixed(2)}`);
     project_name: project.name,
     api_provider: 'anthropic',
     agent_user:   CLAUDE_USER,
+    resumed:      getResumeSession(project.id) ? 1 : 0,
   });
 
   // ── Execute Claude ────────────────────────────────────

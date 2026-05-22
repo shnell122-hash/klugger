@@ -131,12 +131,14 @@ function refreshFeed() {
 
 // ─── Sessions ─────────────────────────────────────────────
 function renderSession(s) {
-  const cost   = costStr(s.total_cost_usd);
-  const active = s.is_active ? 'active' : '';
-  const proj   = s.project_name
+  const cost    = costStr(s.total_cost_usd);
+  const active  = s.is_active ? 'active' : '';
+  const proj    = s.project_name
     ? `<span class="proj">📁 ${esc(s.project_name)}</span>` : '';
-  const src    = s.chat_source && s.chat_source !== 'claude-code-cli'
+  const src     = s.chat_source && s.chat_source !== 'claude-code-cli'
     ? `<span style="color:var(--purple);font-size:9px">💬 ${esc(s.chat_source)}</span>` : '';
+  const resumed = s.resumed
+    ? `<span style="color:var(--green);font-size:9px" title="Sesión reanudada (--resume)">▶ resume</span>` : '';
   return `
   <div class="session-item ${active}" data-sid="${esc(s.id)}">
     <div class="sid" title="${esc(s.id)}">${shortId(s.id)}</div>
@@ -144,7 +146,7 @@ function renderSession(s) {
       <span>${esc(s.agent_user || '?')}</span>
       ${cost ? `<span class="cost">${cost}</span>` : ''}
       <span class="tools">🔩 ${s.tool_call_count || 0}</span>
-      ${proj}${src}
+      ${proj}${src}${resumed}
       <span>${providerBadge(s.api_provider)}</span>
       <span>${timeLabel(s.started_at)}</span>
     </div>
@@ -353,6 +355,27 @@ function refreshStats() {
   el('stat-cost',   '$' + todayCost.toFixed(5));
   el('stat-active', Object.values(sessions).filter(s=>s.is_active).length);
   el('stat-events', events.length);
+}
+
+let _resumeStatTs = 0;
+async function refreshResumeStats() {
+  if (Date.now() - _resumeStatTs < 60_000) return;
+  _resumeStatTs = Date.now();
+  try {
+    const r = await fetch(`${API}/api/sessions/stats/resume`);
+    if (!r.ok) return;
+    const d = await r.json();
+    const el = document.getElementById('stat-resumed');
+    if (!el) return;
+    const t = d.today || {};
+    if (t.total > 0) {
+      el.textContent = `${t.resumed}/${t.total} (${t.rate_pct}%)`;
+    } else {
+      el.textContent = '0';
+    }
+    const pill = document.getElementById('stat-resumed-pill');
+    if (pill) pill.title = `Reanudadas hoy: ${t.resumed} de ${t.total} sesiones (${t.rate_pct}%)`;
+  } catch (_) {}
 }
 
 // ─── Line Chart (Chart.js) ────────────────────────────────
@@ -977,6 +1000,7 @@ async function loadInitialData() {
     refreshFeed();
     refreshSessions();
     refreshStats();
+    refreshResumeStats();
   } catch (err) {
     console.warn('[dashboard] load error:', err.message);
     const list = document.getElementById('session-list');
@@ -2067,6 +2091,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadDispatches();
   loadScreenshots();
   loadAlerts();
+  refreshResumeStats();
   document.getElementById('alerts-show-resolved')?.addEventListener('change', loadAlerts);
   connectSocket();
   refreshFeed();
