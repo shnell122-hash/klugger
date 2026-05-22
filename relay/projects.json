@@ -271,5 +271,21 @@
     "repo": "/var/www/html/vilarkptl.com/ai-monitor",
     "branch": "main",
     "github": "vilarkptl-lang/agentic-repo"
+  },
+  {
+    "id": "pill-ai",
+    "name": "Pill AI",
+    "mode": "full-claude-code",
+    "ignore_quiet_hours": false,
+    "claude_model": "claude-sonnet-4-6",
+    "claude_model_fast": "claude-haiku-4-5-20251001",
+    "use_cli_proxy": false,
+    "inbox": "/var/www/html/vilarkptl.com/pill-relay/relay/inbox-pill-ai.md",
+    "outbox": "/var/www/html/vilarkptl.com/pill-relay/relay/outbox-pill-ai.md",
+    "repo": "/var/www/html/vilarkptl.com/pill-relay",
+    "branch": "claude/add-licensing-system-KsFAw",
+    "github": "vilarkptl-lang/pill.ai",
+    "url": "https://pill.ai",
+    "active": false
   }
 ]

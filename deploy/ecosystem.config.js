@@ -185,6 +185,21 @@ module.exports = {
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
     },
     {
+      // financial-bot — migrated to own repo at /var/www/html/vilarkptl.com/financial-bot
+      name:        'financial-bot',
+      script:      'financial-bot.js',
+      cwd:         '/var/www/html/vilarkptl.com/financial-bot',
+      exec_mode:   'fork',
+      instances:   1,
+      autorestart: true,
+      watch:       false,
+      max_memory_restart: '256M',
+      env_file:    '/var/www/html/vilarkptl.com/financial-bot/.env',
+      error_file:  '/var/log/ai-monitor/financial-bot-error.log',
+      out_file:    '/var/log/ai-monitor/financial-bot-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss',
+    },
+    {
       name:        'ai-monitor',
       script:      'backend/server.js',
       cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
