@@ -2945,6 +2945,53 @@ async function runDeepSeekAgent(project, taskContent, callback, dispatchMeta = {
         },
       },
     },
+    {
+      type: 'function',
+      function: {
+        name: 'edit_file',
+        description: 'Replace an exact unique string in a file. More precise than write_file for small changes. old_string must appear exactly once.',
+        parameters: {
+          type: 'object',
+          properties: {
+            path:       { type: 'string', description: 'File path (absolute or relative to repo).' },
+            old_string: { type: 'string', description: 'Exact string to replace — must appear exactly once in the file.' },
+            new_string: { type: 'string', description: 'Replacement string.' },
+          },
+          required: ['path', 'old_string', 'new_string'],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'search_code',
+        description: 'Search for a pattern in files using grep. Returns matches with line numbers and context.',
+        parameters: {
+          type: 'object',
+          properties: {
+            pattern:       { type: 'string', description: 'Grep pattern (supports regex).' },
+            path:          { type: 'string', description: 'File or directory to search (default: project repo).' },
+            context_lines: { type: 'integer', description: 'Lines of context around each match (default: 3).' },
+          },
+          required: ['pattern'],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'list_directory',
+        description: 'List files and directories. Use to explore project structure.',
+        parameters: {
+          type: 'object',
+          properties: {
+            path:    { type: 'string', description: 'Directory path (absolute or relative to repo).' },
+            pattern: { type: 'string', description: 'Optional file name filter (e.g. "*.js").' },
+          },
+          required: ['path'],
+        },
+      },
+    },
   ];
 
   const agentCtx  = loadAgentContext(project.id, project.url);
@@ -3094,6 +3141,26 @@ USER_REQUIRED: no${agentPlan}${agentMem}`;
               );
               output = `OK: ${res.toString().trim() || 'committed'}`;
             }
+          } else if (name === 'edit_file') {
+            const fpath = path.isAbsolute(input.path || '') ? input.path : path.join(repoBase, input.path || '');
+            const content = fs.readFileSync(fpath, 'utf8');
+            const count = content.split(input.old_string || '').length - 1;
+            if (count === 0) { output = `ERROR: old_string no encontrado en ${input.path}`; }
+            else if (count > 1) { output = `ERROR: old_string coincide ${count} veces — sé más específico`; }
+            else { fs.writeFileSync(fpath, content.replace(input.old_string, input.new_string || ''), 'utf8'); output = `OK: editado ${input.path}`; }
+          } else if (name === 'search_code') {
+            const ctx = input.context_lines || 3;
+            const sp  = input.path ? (path.isAbsolute(input.path) ? input.path : path.join(repoBase, input.path)) : repoBase;
+            try {
+              const res = execSync(`grep -rn --context=${ctx} ${JSON.stringify(input.pattern || '')} "${sp}" 2>/dev/null | head -200`, { timeout: 10000, stdio: 'pipe' });
+              output = res.toString().slice(0, 5000) || '(sin coincidencias)';
+            } catch (_) { output = '(sin coincidencias)'; }
+          } else if (name === 'list_directory') {
+            const dp = input.path ? (path.isAbsolute(input.path) ? input.path : path.join(repoBase, input.path)) : repoBase;
+            try {
+              const res = execSync(input.pattern ? `find "${dp}" -maxdepth 2 -name "${input.pattern}" 2>/dev/null | head -100` : `ls -la "${dp}" 2>/dev/null | head -100`, { timeout: 5000, stdio: 'pipe' });
+              output = res.toString().slice(0, 3000);
+            } catch (e) { output = `ERROR: ${e.message.slice(0, 200)}`; }
           } else {
             output = `ERROR: herramienta desconocida "${name}"`;
           }
@@ -3783,6 +3850,23 @@ Verifica manualmente que los cambios funcionan correctamente.`);
       }
     }
 
+    // ── ASK: protocol — agent can pause and ask user a question ──
+    // If agent writes "ASK: <question>" in result, relay sends it to Telegram
+    // and the user replies via /dispatch <project> <answer>
+    const askMatch = /^ASK:\s*(.+)/m.exec(resultRaw);
+    if (askMatch) {
+      const question = askMatch[1].trim().slice(0, 500);
+      log(project.id, `ASK: ${question}`);
+      tg(`❓ <b>Pregunta del agente — ${project.name}</b>
+🗂 ${title}
+
+<b>El agente necesita tu respuesta:</b>
+<code>${question}</code>
+
+Para continuar, responde con:
+<code>/dispatch ${project.id} Respuesta: ${question.slice(0, 60)}...</code>`, true);
+    }
+
     // ── Parse structured outbox fields ──
     const structured  = parseStructuredOutbox(resultRaw);
 
@@ -4271,6 +4355,16 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
       }
     }
   }, POLL_MS);
+
+  // Fast poll (3s) for projects with ignore_quiet_hours — used for urgent tasks
+  setInterval(async () => {
+    const fastProjects = projects.filter(p => p.ignore_quiet_hours && p.active && p.inbox);
+    if (!fastProjects.length) return;
+    const fp = new Set();
+    for (const p of fastProjects) {
+      try { await processProject(p, hashes, fp); } catch (_) {}
+    }
+  }, 3000);
 
   // Initial poll immediately — share pulledRepos so finbot-coordinator (same repo as
   // ai-monitor but different branch) doesn't call gitPull separately and switch branches.
