@@ -3314,7 +3314,18 @@ function gitPull(repoPath, branch) {
 
     try {
       if (originalBranch === branch) {
-        execSync(`cd ${repoPath} && git merge origin/${branch} --ff-only --quiet 2>/dev/null || true`, { stdio: 'pipe', timeout: 30000 });
+        // Try fast-forward first; if diverged (local has extra commits), rebase onto origin
+        const ffResult = require('child_process').spawnSync(
+          'bash', ['-c', `cd ${repoPath} && git merge origin/${branch} --ff-only --quiet 2>&1`],
+          { stdio: 'pipe', timeout: 30000 }
+        );
+        if (ffResult.status !== 0) {
+          // ff-only failed → rebase local commits on top of origin (handles ep#XXXX divergence)
+          execSync(
+            `cd ${repoPath} && git rebase origin/${branch} --quiet 2>/dev/null || (git rebase --abort 2>/dev/null; git reset --hard origin/${branch} --quiet)`,
+            { stdio: 'pipe', timeout: 30000 }
+          );
+        }
       } else {
         execSync(`cd ${repoPath} && git checkout -B ${branch} origin/${branch} --quiet -f 2>/dev/null || true`, { stdio: 'pipe', timeout: 10000 });
       }
