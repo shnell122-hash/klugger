@@ -68,3 +68,5 @@
 - ⚠️ `tarjetas_kevin_80000`: sesión queda en `esperando_entrega` tras la primera frase. El CLABE llega como dirección → el poll summary (texto + poll vacío) hace que `wait()` retorne `""`. El fix de `conve
 
 ## [24/5/2026, 08:27:35 CST] Test protocolo ASK
+
+## [24/5/2026, 08:52:13 CST] Test proxy auth fallback — ASK protocol verification
