@@ -1,6 +1,5 @@
 # Relay Outbox — AI Monitor
-_24/5/2026, 8:27:35 a.m. | 187s | exit:1_
+_24/5/2026, 8:52:13 a.m. | 15s | exit:0_
 
-RELAY_DIAG user=claude-agent home=/home/claude-agent task=ok resume=none
-API Error: 500 claude exited 1: Not logged in · Please run /login
-. This is a server-side issue, usually temporary — try again in a moment. If it persists, check status.claude.com.
+RELAY_DIAG user=claude-agent home=/home/claude-agent task=ok resume=c2d327fa-e9a2-4461-9e37-1d3b9b94a019
+ASK: Proxy auth fallback operativo via Max — confirmado?
