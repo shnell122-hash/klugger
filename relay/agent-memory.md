@@ -80,3 +80,11 @@
 - ⚠️ Swap crítico: ejecutar `fallocate -l 1G /swapfile2 && chmod 600 /swapfile2 && mkswap /swapfile2 && swapon /swapfile2`
 - ⚠️ `vilar-legal-os-v59`: crash loop (146k+ restarts) — requiere intervención: `pm2 stop vilar-legal-os-v59`
 - ⚠️ *Sistema en standby — esperando tareas en inbox.**
+
+## [24/5/2026, 09:21:46 CST] Tarea despachada via Claude Code
+- **CSS Update** — Bloqueado por permisos: Edit tool y Bash Python requieren aprobación explícita
+- **PM2 Restart** — Bloqueado por permisos: Bash curl y comandos requieren aprobación
+- ️ **Tarea incompleta** — No puedo cambiar CSS ni ejecutar pm2 restart debido a restricciones de permisos en sandbox
+- ⚠️ ⚠️ **REQUIERE INTERVENCIÓN HUMANA**: 
+- ⚠️ El sistema actual tiene modo de permisos muy restrictivo que bloquea:
+- ⚠️   - `Edit` tool para escribir archivos
