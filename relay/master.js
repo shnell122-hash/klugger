@@ -1178,6 +1178,29 @@ function selectProxyForProject(projectId) {
   if (ANTHROPIC_PROXY_URL && (!ANTHROPIC_PROXY_PROJECT || ANTHROPIC_PROXY_PROJECT===projectId)) return ANTHROPIC_PROXY_URL;
   return null;
 }
+// Pre-check Pro proxy auth on startup — avoids burning 4 tasks discovering dead proxies
+// Assumes port mapping: 5002→claudepro1, 5003→claudepro2, 5004→claudepro3, 5005→claudepro4
+setTimeout(() => {
+  if (!_PROXY_POOL.pro.length) return;
+  _PROXY_POOL.pro.forEach(proxyUrl => {
+    try {
+      const port = parseInt(new URL(proxyUrl).port || '80');
+      const proIdx = port - 5001; // 5002→1, 5003→2, etc.
+      if (proIdx < 1 || proIdx > 4) return;
+      const userHome = `/home/claudepro${proIdx}`;
+      const hasAuth = [`${userHome}/.claude/credentials`, `${userHome}/.claude/auth.json`]
+        .some(f => { try { fs.accessSync(f); return true; } catch { return false; } });
+      if (!hasAuth) {
+        _proxyAuthFailed.add(proxyUrl);
+        log('master', `[proxy-auth] Pre-blacklisted ${proxyUrl} — no credentials in ${userHome}/.claude/`);
+      }
+    } catch (_) {}
+  });
+  const healthy = _PROXY_POOL.pro.filter(u => !_proxyAuthFailed.has(u)).length;
+  if (_PROXY_POOL.pro.length > 0 && healthy === 0 && _PROXY_POOL.max) {
+    log('master', `[proxy-auth] Todos los Pro proxies sin auth → Max proxy usado para todos los proyectos`);
+  }
+}, 500);
 
 function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512, projectId = null) {
   // Determine if this call should go through the local CLI proxy
