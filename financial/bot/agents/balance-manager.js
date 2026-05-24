@@ -237,6 +237,12 @@ class BalanceManager {
   async confirmarPago({ clientId, monto, montoNeto, operationId = null, tipo = 'manual',
                         tipo_operacion = null, comision_pct = 0, notas = null, telegram_file_id = null }) {
     const monto_neto_real = montoNeto ?? monto;
+    // Guard: decimal(18,4) holds 14 digits before the decimal → max ~99.9 trillion
+    // Reject if monto exceeds 10 billion (input error like a CLABE sent as amount)
+    const MAX_MONTO = 10_000_000_000;
+    if (monto > MAX_MONTO || monto_neto_real > MAX_MONTO) {
+      throw new Error(`Monto $${monto.toLocaleString('es-MX')} excede el límite permitido. ¿Enviaste un número de cuenta por error?`);
+    }
     const conn = await this.pool.getConnection();
     try {
       await conn.beginTransaction();
