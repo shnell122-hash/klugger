@@ -70,3 +70,13 @@
 ## [24/5/2026, 08:27:35 CST] Test protocolo ASK
 
 ## [24/5/2026, 08:52:13 CST] Test proxy auth fallback — ASK protocol verification
+
+## [24/5/2026, 08:54:00 CST] inbox — ai-monitor
+- **Inbox ai-monitor** — Vacío (esperando tareas)
+- **Estado producción** — Todos procesos online, relay-master loop fix deployado 2026-05-20
+- **Agentes activos** — flujos (P1+session 85–93% esperado), cursor-worker, financial-bot online
+- ️ **Crítico**: Swap en servidor al 94% (1.9/2.0 GB) — requiere agregar 1GB swap
+- ️ **Pendiente PR**: `claude/onboard-ai-monitor-subproject-zXvki` → main (auth + LiteLLM)
+- ⚠️ Swap crítico: ejecutar `fallocate -l 1G /swapfile2 && chmod 600 /swapfile2 && mkswap /swapfile2 && swapon /swapfile2`
+- ⚠️ `vilar-legal-os-v59`: crash loop (146k+ restarts) — requiere intervención: `pm2 stop vilar-legal-os-v59`
+- ⚠️ *Sistema en standby — esperando tareas en inbox.**
