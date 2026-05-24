@@ -66,3 +66,5 @@
 - Deployed — `pm2 restart financial-bot` ✓ (restarts: 6, uptime: 0s → online)
 - Outbox — `relay/outbox-finbot-coordinator.md` escrito en main
 - ⚠️ `tarjetas_kevin_80000`: sesión queda en `esperando_entrega` tras la primera frase. El CLABE llega como dirección → el poll summary (texto + poll vacío) hace que `wait()` retorne `""`. El fix de `conve
+
+## [24/5/2026, 08:27:35 CST] Test protocolo ASK
