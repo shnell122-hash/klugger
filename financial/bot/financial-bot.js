@@ -102,7 +102,7 @@ const docAgent = process.env.GOOGLE_API_KEY
   ? new DocumentIntelligenceAgent(process.env.GOOGLE_API_KEY)
   : null;
 const transactionOrchestrator = DEEPSEEK_KEY
-  ? new TransactionOrchestrator(llm, { model: process.env.DEEPSEEK_PRO_MODEL ?? 'deepseek-v4-pro' })
+  ? new TransactionOrchestrator(llm, { model: process.env.DEEPSEEK_PRO_MODEL ?? 'deepseek-chat' })
   : null;
 
 // ── Transformer: log bot outgoing messages ────────────────────────────────────
@@ -512,6 +512,25 @@ bot.use(async (ctx, next) => {
   // /miid debe funcionar desde cualquier chat (incluido el privado del admin)
   const cmdText = ctx.message?.text ?? '';
   if (cmdText === '/miid' || cmdText.startsWith('/miid ')) { await next(); return; }
+
+  // Registrar el chat en DB aunque no esté en el allowlist (discovery de nuevos grupos)
+  const _msg = ctx.message ?? ctx.channelPost;
+  if (_msg) {
+    const _chatId = ctx.chat?.id;
+    const _from   = ctx.from;
+    const _isGroup = ['group','supergroup','channel'].includes(ctx.chat?.type);
+    const _titulo  = _isGroup
+      ? (ctx.chat?.title ?? null)
+      : (_from?.first_name ? `${_from.first_name}${_from.last_name ? ' ' + _from.last_name : ''}` : null);
+    if (_chatId) {
+      contextManager.upsertChat({ chatId: _chatId, titulo: _titulo, isGroup: _isGroup }).catch(() => {});
+      if (!isAllowedChat(ctx)) {
+        console.log(`[auth] chat bloqueado id=${_chatId} titulo="${_titulo}" type=${ctx.chat?.type}`);
+        return;
+      }
+    }
+  }
+
   if (!isAllowedChat(ctx)) return;
   await next();
 });
