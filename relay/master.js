@@ -1168,9 +1168,13 @@ const _PROXY_MAX_PROJECTS = new Set(
     .split(',').map(s => s.trim()).filter(Boolean)
 );
 let _proxyRRIdx = 0;
+const _proxyAuthFailed = new Set(); // URLs of Pro proxies that returned auth errors
 function selectProxyForProject(projectId) {
   if (_PROXY_POOL.max && _PROXY_MAX_PROJECTS.has(projectId)) return _PROXY_POOL.max;
-  if (_PROXY_POOL.pro.length) { const u=_PROXY_POOL.pro[_proxyRRIdx%_PROXY_POOL.pro.length]; _proxyRRIdx++; return u; }
+  // Skip Pro proxies that have returned auth errors; fall back to Max when all fail
+  const healthyPro = _PROXY_POOL.pro.filter(u => !_proxyAuthFailed.has(u));
+  if (healthyPro.length) { const u=healthyPro[_proxyRRIdx%healthyPro.length]; _proxyRRIdx++; return u; }
+  if (_PROXY_POOL.max) return _PROXY_POOL.max; // all Pro auth-failed → use Max
   if (ANTHROPIC_PROXY_URL && (!ANTHROPIC_PROXY_PROJECT || ANTHROPIC_PROXY_PROJECT===projectId)) return ANTHROPIC_PROXY_URL;
   return null;
 }
@@ -2497,6 +2501,13 @@ ${taskContent}`;
   function safeCallback(code, text) {
     if (callbackFired) return;
     callbackFired = true;
+    // Auto-blacklist Pro proxies that return auth errors → next task will use Max
+    if (code !== 0 && proxyBase && proxyBase !== _PROXY_POOL.max &&
+        (text.includes('Not logged in') || text.includes('Please run /login') ||
+         text.includes('claude exited 1: Not logged in'))) {
+      _proxyAuthFailed.add(proxyBase);
+      log(project.id, `[proxy-auth] ${proxyBase} sin auth — redirigiendo a Max en próximas tareas (healthy pro: ${_PROXY_POOL.pro.filter(u=>!_proxyAuthFailed.has(u)).length})`);
+    }
     try { fs.unlinkSync(outFile); } catch (_) {}
     callback(code, text, taskCostUsd);
   }
