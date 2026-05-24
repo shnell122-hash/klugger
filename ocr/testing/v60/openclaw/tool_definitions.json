@@ -216,5 +216,81 @@
       },
       "required": ["audio_id", "case_id"]
     }
+  },
+  {
+    "name": "generate_bulk",
+    "description": "v60: Genera múltiples artefactos en lote de forma asíncrona. Úsalo cuando el usuario pida generar muchos documentos similares a la vez (contratos, briefs, análisis) con variaciones. Para volúmenes grandes (>5) usa modo async con Celery.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "description": "ID del expediente donde guardar los artefactos generados"
+        },
+        "prompts": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Lista de prompts individuales, uno por artefacto a generar"
+        },
+        "artifact_type": {
+          "type": "string",
+          "enum": ["contract", "analysis", "summary", "brief", "checklist"],
+          "description": "Tipo de artefacto para todos los documentos del lote. Default: contract",
+          "default": "contract"
+        },
+        "base_name": {
+          "type": "string",
+          "description": "Nombre base para los artefactos (se numeran automáticamente). Ej: 'Contrato Locatario'"
+        },
+        "async_mode": {
+          "type": "boolean",
+          "description": "Si true, despacha a Celery en background y retorna task_id. Default: false para ≤5 documentos",
+          "default": false
+        }
+      },
+      "required": ["case_id", "prompts"]
+    }
+  },
+  {
+    "name": "analyze_materialidad",
+    "description": "v60: Analiza la materialidad fiscal y/o contractual del expediente o de un texto dado. Aplica estándares SAT (Art. 69-B CFF), razón de negocios (Art. 5-A CFF). Retorna score 0-100, riesgos y recomendaciones.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "description": "ID del expediente a analizar"
+        },
+        "content": {
+          "type": "string",
+          "description": "Texto a analizar (contrato, factura, descripción de operación). Si se omite, se usa el contenido del expediente."
+        },
+        "analysis_type": {
+          "type": "string",
+          "enum": ["fiscal", "contractual", "full"],
+          "description": "fiscal: razón de negocios y CFDI; contractual: cumplimiento de cláusulas; full: análisis completo incluyendo riesgo penal",
+          "default": "fiscal"
+        },
+        "context": {
+          "type": "string",
+          "description": "Contexto adicional del caso para el análisis (opcional)"
+        }
+      },
+      "required": ["case_id"]
+    }
+  },
+  {
+    "name": "generate_graph",
+    "description": "v60: Genera un grafo de relaciones del expediente en formato Mermaid (para renderizar en el chat) y Cytoscape.js (para el dashboard interactivo). Identifica entidades (personas, empresas, contratos) y sus relaciones.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "description": "ID del expediente para generar el grafo"
+        }
+      },
+      "required": ["case_id"]
+    }
   }
 ]

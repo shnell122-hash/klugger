@@ -40,16 +40,20 @@ from tools.jotform_tools import export_case_to_jotform
 def handle_tool(tool_name: str, inputs: dict, case_id: str = None) -> dict:
     """Despacha tool calls de Claude al handler correspondiente."""
     handlers = {
-        'generate_image':     _generate_image,
-        'save_artifact':      _save_artifact,
-        'append_artifact':    _append_artifact,
-        'create_case':        _create_case,
-        'search_precedents':  _search_precedents,
-        'validate_document':  _validate_document,
-        'export_to_jotform':  _export_to_jotform,
-        'list_case_contents': _list_case_contents,
-        'save_session_notes': _save_session_notes,
-        'analyze_audio':      _analyze_audio,
+        'generate_image':      _generate_image,
+        'save_artifact':       _save_artifact,
+        'append_artifact':     _append_artifact,
+        'create_case':         _create_case,
+        'search_precedents':   _search_precedents,
+        'validate_document':   _validate_document,
+        'export_to_jotform':   _export_to_jotform,
+        'list_case_contents':  _list_case_contents,
+        'save_session_notes':  _save_session_notes,
+        'analyze_audio':       _analyze_audio,
+        # v60 - nueva funcionalidad
+        'generate_bulk':       _generate_bulk,
+        'analyze_materialidad': _analyze_materialidad,
+        'generate_graph':      _generate_graph,
     }
     handler = handlers.get(tool_name)
     if not handler:
@@ -670,3 +674,72 @@ def _export_to_jotform(inputs: dict) -> dict:
         "case_id": case_id,
         "note": "Exportación enviada en background. Verificar en JotForm en unos segundos."
     }
+
+
+# ── v60 — Nuevas herramientas ─────────────────────────────────────────────────
+
+def _generate_bulk(inputs: dict) -> dict:
+    """v60: Genera múltiples artefactos en lote (sync ≤5, async >5)."""
+    from agents.bulk_generator import generate_bulk_sync, generate_bulk_async
+    from flask import session
+
+    case_id  = inputs.get('case_id', '')
+    prompts  = inputs.get('prompts', [])
+    art_type = inputs.get('artifact_type', 'contract')
+    base_nm  = inputs.get('base_name', 'Documento')
+    async_m  = inputs.get('async_mode', len(prompts) > 5)
+    user_id  = session.get('user_id', 'system')
+
+    if not case_id or not prompts:
+        return {'error': 'case_id y prompts son requeridos'}
+
+    if async_m:
+        task_id = generate_bulk_async(case_id, user_id, prompts, art_type, base_nm)
+        return {
+            'status':  'async_dispatched',
+            'task_id': task_id,
+            'count':   len(prompts),
+            'note':    f'Generando {len(prompts)} artefactos en background. Task: {task_id}',
+        }
+    else:
+        results = generate_bulk_sync(case_id, user_id, prompts, art_type, base_nm)
+        ok = sum(1 for r in results if r.get('ok'))
+        return {
+            'status':  'completed',
+            'total':   len(prompts),
+            'ok':      ok,
+            'failed':  len(prompts) - ok,
+            'results': results,
+        }
+
+
+def _analyze_materialidad(inputs: dict) -> dict:
+    """v60: Análisis de materialidad fiscal/contractual."""
+    from agents.materialidad_agent import analyze_materialidad
+
+    case_id  = inputs.get('case_id', '')
+    content  = inputs.get('content', '')
+    atype    = inputs.get('analysis_type', 'fiscal')
+    context  = inputs.get('context', '')
+
+    if not case_id:
+        return {'error': 'case_id requerido'}
+
+    # Si no viene content, usar el inventario del expediente
+    if not content:
+        inv = _list_case_contents({'case_id': case_id})
+        import json as _json
+        content = _json.dumps(inv, ensure_ascii=False)[:5000]
+
+    return analyze_materialidad(case_id, content, atype, context)
+
+
+def _generate_graph(inputs: dict) -> dict:
+    """v60: Genera grafo de relaciones del expediente."""
+    from agents.graph_agent import generate_case_graph
+
+    case_id = inputs.get('case_id', '')
+    if not case_id:
+        return {'error': 'case_id requerido'}
+
+    return generate_case_graph(case_id)

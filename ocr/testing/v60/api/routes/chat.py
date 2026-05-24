@@ -13,6 +13,185 @@ log = logging.getLogger('chat')
 # Señal que Claude emite al final de un turno masivo para auto-continuar
 _AUTO_CONTINUE = '↩️ Continúo'
 
+# ── v60 Slash command pre-processor ──────────────────────────────────────────
+# Regex para detectar slash commands al inicio del mensaje
+_SLASH_CMD = re.compile(
+    r'^/(?P<cmd>masivo|materialidad|evidencia|grafico|ultra|sonnet)\b\s*(?P<args>.*)?$',
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def _handle_slash_command(cmd: str, args: str, case_id: str, user_id: str) -> dict | None:
+    """
+    Despacha slash commands directamente a los agentes v60.
+    Retorna dict con {handled: True, response: str, task_id?: str}
+    o None si el comando no es reconocido.
+    """
+    cmd = cmd.lower()
+
+    if cmd == 'masivo':
+        return _slash_masivo(args, case_id, user_id)
+
+    if cmd == 'materialidad':
+        return _slash_materialidad(args, case_id, user_id)
+
+    if cmd == 'grafico':
+        return _slash_grafico(args, case_id, user_id)
+
+    if cmd == 'evidencia':
+        return _slash_evidencia(args, case_id, user_id)
+
+    # /ultra y /sonnet son hints de modelo, se manejan en _select_model_v60
+    return None
+
+
+def _slash_masivo(args: str, case_id: str, user_id: str) -> dict:
+    """
+    /masivo <descripción> — genera múltiples artefactos en background.
+    Ejemplo: /masivo 5 contratos de arrendamiento para locatarios del centro comercial
+    """
+    from agents.bulk_generator import generate_bulk_async, generate_bulk_sync
+
+    # Parsear cantidad: primer token numérico al inicio
+    m = re.match(r'^(\d+)\s+(.+)$', args.strip(), re.DOTALL)
+    if m:
+        count = min(int(m.group(1)), 50)   # máx 50
+        description = m.group(2).strip()
+    else:
+        count = 3
+        description = args.strip() or 'documento legal genérico'
+
+    prompts = [
+        f"Genera el documento #{i+1} de {count}: {description}. "
+        f"El documento debe ser completo, formal y en español mexicano."
+        for i in range(count)
+    ]
+
+    if count <= 5:
+        results = generate_bulk_sync(case_id, user_id, prompts, 'contract', description[:40])
+        ok = sum(1 for r in results if r.get('ok'))
+        return {
+            'handled': True,
+            'response': (
+                f"✅ Generación masiva completada: {ok}/{count} documentos guardados.\n"
+                + '\n'.join(
+                    f"- {r['artifact_name']}: {'✓' if r.get('ok') else '✗ ' + r.get('error','')}"
+                    for r in results
+                )
+            ),
+        }
+    else:
+        task_id = generate_bulk_async(case_id, user_id, prompts, 'contract', description[:40])
+        return {
+            'handled': True,
+            'task_id': task_id,
+            'response': (
+                f"⚙️ Generación masiva de {count} documentos iniciada en background.\n"
+                f"Task ID: `{task_id}`\n"
+                f"Consulta el estado en: `/api/v1/bulk/status/{task_id}`"
+            ),
+        }
+
+
+def _slash_materialidad(args: str, case_id: str, user_id: str) -> dict:
+    """
+    /materialidad [fiscal|contractual|full] — analiza materialidad del expediente.
+    """
+    from agents.materialidad_agent import analyze_materialidad
+    from openclaw.tool_router import _list_case_contents
+
+    analysis_type = 'fiscal'
+    for t in ('fiscal', 'contractual', 'full'):
+        if t in args.lower():
+            analysis_type = t
+            break
+
+    # Cargar contenido del expediente
+    contents = _list_case_contents({'case_id': case_id})
+    content_text = json.dumps(contents, ensure_ascii=False)[:5000]
+
+    result = analyze_materialidad(case_id, content_text, analysis_type)
+
+    if 'error' in result:
+        return {'handled': True, 'response': f"❌ Error en análisis: {result['error']}"}
+
+    score = result.get('score', 0)
+    verdict = result.get('verdict', 'sin_materialidad')
+    emoji = '🟢' if score >= 70 else ('🟡' if score >= 40 else '🔴')
+
+    lines = [
+        f"{emoji} **Materialidad {analysis_type}: {score}/100 — {verdict}**",
+        f"\n{result.get('summary', '')}",
+        "\n**Riesgos identificados:**",
+    ]
+    for r in result.get('risks', [])[:5]:
+        sev = {'alta': '🔴', 'media': '🟡', 'baja': '🟢'}.get(r.get('severity', ''), '•')
+        lines.append(f"  {sev} {r.get('risk', '')} ({r.get('article', '')})")
+    if result.get('recommendations'):
+        lines.append('\n**Recomendaciones:**')
+        for rec in result['recommendations'][:3]:
+            lines.append(f"  • {rec}")
+
+    return {'handled': True, 'response': '\n'.join(lines)}
+
+
+def _slash_grafico(args: str, case_id: str, user_id: str) -> dict:
+    """
+    /grafico — genera grafo Mermaid del expediente.
+    """
+    from agents.graph_agent import generate_case_graph
+
+    result = generate_case_graph(case_id)
+    if 'error' in result:
+        return {'handled': True, 'response': f"❌ Error generando grafo: {result['error']}"}
+
+    mermaid = result.get('mermaid', '')
+    summary = result.get('summary', '')
+    n = result.get('node_count', 0)
+    e = result.get('edge_count', 0)
+
+    response = (
+        f"📊 **Grafo del expediente** — {n} nodos, {e} relaciones\n\n"
+        f"{summary}\n\n"
+        f"```mermaid\n{mermaid}\n```"
+    )
+    return {'handled': True, 'response': response, 'cytoscape': result.get('cytoscape')}
+
+
+def _slash_evidencia(args: str, case_id: str, user_id: str) -> dict:
+    """
+    /evidencia — genera imágenes de capacitación usando el prompt dado.
+    Delega a generate_image tool; aquí solo reformula el mensaje.
+    """
+    prompt = args.strip() or 'imagen de capacitación legal para el expediente'
+    return {
+        'handled': False,   # No consumido — se pasa a Claude con el prompt reformulado
+        'transformed_message': (
+            f"Genera 2 imágenes de capacitación para este expediente: {prompt}. "
+            "Usa generate_image con un prompt fotorrealista detallado en inglés."
+        ),
+    }
+
+
+def _select_model_v60(message: str, artifact_type: str) -> str:
+    """v60: selección de modelo considerando /ultra y /sonnet."""
+    msg_lower = message.lower()
+    if msg_lower.startswith('/ultra'):
+        from tools.litellm_router import route_by_tier, TIER_ULTRA_CHEAP
+        return '__litellm_ultra__'   # señal para usar LiteLLM tier 0
+    if msg_lower.startswith('/sonnet'):
+        return 'claude-sonnet-4-6'
+    return None   # None = usar lógica de selección normal de v59
+
+
+# ── Rutas de estado bulk ──────────────────────────────────────────────────────
+@chat_bp.route('/api/v1/bulk/status/<task_id>', methods=['GET'])
+@require_login
+def bulk_status(task_id):
+    """Consulta estado de una tarea /masivo asíncrona."""
+    from agents.bulk_generator import get_bulk_status
+    return jsonify(get_bulk_status(task_id))
+
 # Detecta cuando Claude anuncia herramientas en texto pero no las ejecuta (stop_reason=end_turn)
 _EXECUTION_LANGUAGE = re.compile(
     r'(lanzo|ejecuto|'
@@ -952,6 +1131,46 @@ def chat_stream():
 
     if not message:
         return jsonify({"error": "message requerido"}), 400
+
+    # ── v60: pre-procesador de slash commands ─────────────────────────────────
+    slash_match = _SLASH_CMD.match(message)
+    if slash_match:
+        cmd  = slash_match.group('cmd')
+        args = (slash_match.group('args') or '').strip()
+        slash_result = _handle_slash_command(cmd, args, case_id, user_id)
+        if slash_result and slash_result.get('handled'):
+            if slash_result.get('transformed_message'):
+                message = slash_result['transformed_message']
+            else:
+                resp_text = slash_result.get('response', '')
+                def _slash_stream():
+                    yield f"data: {json.dumps({'type': 'text', 'text': resp_text})}\n\n"
+                    if slash_result.get('cytoscape'):
+                        yield f"data: {json.dumps({'type': 'cytoscape', 'data': slash_result['cytoscape']})}\n\n"
+                    if slash_result.get('task_id'):
+                        yield f"data: {json.dumps({'type': 'bulk_task', 'task_id': slash_result['task_id']})}\n\n"
+                    yield "data: [DONE]\n\n"
+                return Response(stream_with_context(_slash_stream()),
+                                content_type='text/event-stream')
+
+    # Hint de modelo v60 (/ultra delega a LiteLLM tier 0, /sonnet fuerza Sonnet)
+    _v60_model_hint = _select_model_v60(message, artifact_type)
+    if _v60_model_hint == '__litellm_ultra__':
+        from tools.litellm_router import route_by_tier, extract_text, TIER_ULTRA_CHEAP
+        clean_msg = re.sub(r'^/ultra\s*', '', message, flags=re.IGNORECASE).strip()
+        def _ultra_stream():
+            try:
+                resp = route_by_tier(TIER_ULTRA_CHEAP,
+                                     [{'role': 'user', 'content': clean_msg}],
+                                     max_tokens=4000)
+                text = extract_text(resp)
+                yield f"data: {json.dumps({'type': 'text', 'text': text})}\n\n"
+            except Exception as e:
+                yield f"data: {json.dumps({'type': 'error', 'text': str(e)})}\n\n"
+            yield "data: [DONE]\n\n"
+        return Response(stream_with_context(_ultra_stream()),
+                        content_type='text/event-stream')
+    # ── fin pre-procesador v60 ────────────────────────────────────────────────
 
     if selected_ids:
         case_context = _get_specific_context(case_id, selected_ids)
