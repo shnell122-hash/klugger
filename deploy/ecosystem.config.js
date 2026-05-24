@@ -20,9 +20,7 @@ module.exports = {
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
     },
     {
-      // Claude chat bot — Telegram direct interface with tool use (grammy + Anthropic SDK)
-      // Requires: relay/.env → TG_CLAUDE_BOT_TOKEN, TG_CLAUDE_CHAT_ID, DB_PASS
-      // Setup:    cd relay && npm install
+      // Claude chat bot — Telegram direct interface with tool use
       name:        'claude-chat-bot',
       script:      'relay/chat-agent.js',
       cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
@@ -36,8 +34,7 @@ module.exports = {
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
     },
     {
-      // DeepSeek V3 code reviewer — polls git log every 5min, alerts on bugs
-      // Cost: ~$0.002/review. Silent when OK. Requires DEEPSEEK_API_KEY in relay/.env
+      // DeepSeek V3 code reviewer — polls git log every 5min
       name:        'code-reviewer',
       script:      'relay/code-reviewer.js',
       cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
@@ -52,8 +49,6 @@ module.exports = {
     },
     {
       // Cursor Cloud Agent self-hosted worker
-      // Setup: obtener CURSOR_WORKER_TOKEN en cursor.com/dashboard/cloud-agents
-      // Agregar CURSOR_WORKER_TOKEN a relay/.env antes de arrancar
       name:        'cursor-worker',
       script:      'relay/cursor-worker.js',
       cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
@@ -67,12 +62,14 @@ module.exports = {
       out_file:    '/var/log/ai-monitor/cursor-worker-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
     },
+
+    // ── Multi-account Claude proxies (1 Max + 4 Pro) ──────────────────────────
+    // Each proxy runs claude CLI authenticated as a different account.
+    // Setup: su - <user> -c "claude auth login" once per account.
+    // Routing: relay/master.js selectProxy() routes by project/complexity.
     {
-      // Claude CLI proxy — serves POST /v1/messages using local claude --print
-      // Routes Anthropic API calls through your Pro/Max subscription ($0 per call)
-      // Requires: claude CLI installed and authenticated (claude auth login)
-      // Configure: ANTHROPIC_PROXY_URL=http://127.0.0.1:5001 in relay/.env
-      name:        'claude-proxy',
+      // Max account — coordinator, fiscalai, fiscalai-front (complex/critical)
+      name:        'claude-proxy-max',
       script:      'deploy/claude-proxy.js',
       args:        '--port 5001',
       cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
@@ -82,16 +79,97 @@ module.exports = {
       watch:       false,
       max_memory_restart: '128M',
       env: {
-        CLAUDE_BIN: process.env.CLAUDE_BIN || '/usr/local/bin/claude',
-        HOME:       '/root',   // needed to read ~/.claude/credentials
+        CLAUDE_BIN:      '/usr/local/bin/claude',
+        HOME:            '/root',
+        CLAUDE_RUN_USER: 'german',
       },
-      error_file:  '/var/log/ai-monitor/claude-proxy-error.log',
-      out_file:    '/var/log/ai-monitor/claude-proxy-out.log',
+      error_file: '/var/log/ai-monitor/claude-proxy-max-error.log',
+      out_file:   '/var/log/ai-monitor/claude-proxy-max-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
     },
     {
-      // FinBot conversation engine — MTProto simulator (Telethon) + curriculum learning
-      // Requires: financial/bot/sims/mtproto/venv + financial/.env (DB_PASS, TELEGRAM_API_ID, etc.)
+      // Pro account 1 — round-robin for standard projects
+      name:        'claude-proxy-pro-1',
+      script:      'deploy/claude-proxy.js',
+      args:        '--port 5002',
+      cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
+      exec_mode:   'fork',
+      instances:   1,
+      autorestart: true,
+      watch:       false,
+      max_memory_restart: '128M',
+      env: {
+        CLAUDE_BIN:      '/usr/local/bin/claude',
+        HOME:            '/home/claudepro1',
+        CLAUDE_RUN_USER: 'claudepro1',
+      },
+      error_file: '/var/log/ai-monitor/claude-proxy-pro1-error.log',
+      out_file:   '/var/log/ai-monitor/claude-proxy-pro1-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss',
+    },
+    {
+      // Pro account 2
+      name:        'claude-proxy-pro-2',
+      script:      'deploy/claude-proxy.js',
+      args:        '--port 5003',
+      cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
+      exec_mode:   'fork',
+      instances:   1,
+      autorestart: true,
+      watch:       false,
+      max_memory_restart: '128M',
+      env: {
+        CLAUDE_BIN:      '/usr/local/bin/claude',
+        HOME:            '/home/claudepro2',
+        CLAUDE_RUN_USER: 'claudepro2',
+      },
+      error_file: '/var/log/ai-monitor/claude-proxy-pro2-error.log',
+      out_file:   '/var/log/ai-monitor/claude-proxy-pro2-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss',
+    },
+    {
+      // Pro account 3
+      name:        'claude-proxy-pro-3',
+      script:      'deploy/claude-proxy.js',
+      args:        '--port 5004',
+      cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
+      exec_mode:   'fork',
+      instances:   1,
+      autorestart: true,
+      watch:       false,
+      max_memory_restart: '128M',
+      env: {
+        CLAUDE_BIN:      '/usr/local/bin/claude',
+        HOME:            '/home/claudepro3',
+        CLAUDE_RUN_USER: 'claudepro3',
+      },
+      error_file: '/var/log/ai-monitor/claude-proxy-pro3-error.log',
+      out_file:   '/var/log/ai-monitor/claude-proxy-pro3-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss',
+    },
+    {
+      // Pro account 4
+      name:        'claude-proxy-pro-4',
+      script:      'deploy/claude-proxy.js',
+      args:        '--port 5005',
+      cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
+      exec_mode:   'fork',
+      instances:   1,
+      autorestart: true,
+      watch:       false,
+      max_memory_restart: '128M',
+      env: {
+        CLAUDE_BIN:      '/usr/local/bin/claude',
+        HOME:            '/home/claudepro4',
+        CLAUDE_RUN_USER: 'claudepro4',
+      },
+      error_file: '/var/log/ai-monitor/claude-proxy-pro4-error.log',
+      out_file:   '/var/log/ai-monitor/claude-proxy-pro4-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss',
+    },
+
+    // ── FinBot (ruta actualizada tras migración a repo propio) ─────────────────
+    {
       name:        'conversation-engine',
       script:      'conversation_engine.py',
       interpreter: '/var/www/html/vilarkptl.com/ai-monitor/financial/bot/sims/mtproto/venv/bin/python',
@@ -104,6 +182,21 @@ module.exports = {
       env_file:    '/var/www/html/vilarkptl.com/ai-monitor/financial/.env',
       error_file:  '/root/.pm2/logs/conversation-engine-error.log',
       out_file:    '/root/.pm2/logs/conversation-engine-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss',
+    },
+    {
+      // financial-bot — migrated to own repo at /var/www/html/vilarkptl.com/financial-bot
+      name:        'financial-bot',
+      script:      'financial-bot.js',
+      cwd:         '/var/www/html/vilarkptl.com/financial-bot',
+      exec_mode:   'fork',
+      instances:   1,
+      autorestart: true,
+      watch:       false,
+      max_memory_restart: '256M',
+      env_file:    '/var/www/html/vilarkptl.com/financial-bot/.env',
+      error_file:  '/var/log/ai-monitor/financial-bot-error.log',
+      out_file:    '/var/log/ai-monitor/financial-bot-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
     },
     {
@@ -126,6 +219,6 @@ module.exports = {
       error_file:  '/var/log/ai-monitor/error.log',
       out_file:    '/var/log/ai-monitor/out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
-    }
-  ]
+    },
+  ],
 };

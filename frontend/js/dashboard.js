@@ -131,12 +131,14 @@ function refreshFeed() {
 
 // ─── Sessions ─────────────────────────────────────────────
 function renderSession(s) {
-  const cost   = costStr(s.total_cost_usd);
-  const active = s.is_active ? 'active' : '';
-  const proj   = s.project_name
+  const cost    = costStr(s.total_cost_usd);
+  const active  = s.is_active ? 'active' : '';
+  const proj    = s.project_name
     ? `<span class="proj">📁 ${esc(s.project_name)}</span>` : '';
-  const src    = s.chat_source && s.chat_source !== 'claude-code-cli'
+  const src     = s.chat_source && s.chat_source !== 'claude-code-cli'
     ? `<span style="color:var(--purple);font-size:9px">💬 ${esc(s.chat_source)}</span>` : '';
+  const resumed = s.resumed
+    ? `<span style="color:var(--green);font-size:9px" title="Sesión reanudada (--resume)">▶ resume</span>` : '';
   return `
   <div class="session-item ${active}" data-sid="${esc(s.id)}">
     <div class="sid" title="${esc(s.id)}">${shortId(s.id)}</div>
@@ -144,7 +146,7 @@ function renderSession(s) {
       <span>${esc(s.agent_user || '?')}</span>
       ${cost ? `<span class="cost">${cost}</span>` : ''}
       <span class="tools">🔩 ${s.tool_call_count || 0}</span>
-      ${proj}${src}
+      ${proj}${src}${resumed}
       <span>${providerBadge(s.api_provider)}</span>
       <span>${timeLabel(s.started_at)}</span>
     </div>
@@ -353,6 +355,27 @@ function refreshStats() {
   el('stat-cost',   '$' + todayCost.toFixed(5));
   el('stat-active', Object.values(sessions).filter(s=>s.is_active).length);
   el('stat-events', events.length);
+}
+
+let _resumeStatTs = 0;
+async function refreshResumeStats() {
+  if (Date.now() - _resumeStatTs < 60_000) return;
+  _resumeStatTs = Date.now();
+  try {
+    const r = await fetch(`${API}/api/sessions/stats/resume`);
+    if (!r.ok) return;
+    const d = await r.json();
+    const el = document.getElementById('stat-resumed');
+    if (!el) return;
+    const t = d.today || {};
+    if (t.total > 0) {
+      el.textContent = `${t.resumed}/${t.total} (${t.rate_pct}%)`;
+    } else {
+      el.textContent = '0';
+    }
+    const pill = document.getElementById('stat-resumed-pill');
+    if (pill) pill.title = `Reanudadas hoy: ${t.resumed} de ${t.total} sesiones (${t.rate_pct}%)`;
+  } catch (_) {}
 }
 
 // ─── Line Chart (Chart.js) ────────────────────────────────
@@ -977,6 +1000,7 @@ async function loadInitialData() {
     refreshFeed();
     refreshSessions();
     refreshStats();
+    refreshResumeStats();
   } catch (err) {
     console.warn('[dashboard] load error:', err.message);
     const list = document.getElementById('session-list');
@@ -986,15 +1010,20 @@ async function loadInitialData() {
 
 async function loadCosts() {
   try {
-    const r = await fetch(`${API}/api/costs`);
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const data = await r.json();
-    if (data.error) throw new Error(data.error);
-    costData = data;
-    refreshCostsPanel(costData);
+    const [r, rp] = await Promise.all([
+      fetch(`${API}/api/costs`),
+      fetch(`${API}/api/provider-costs`),
+    ]);
+    if (r.ok) {
+      const data = await r.json();
+      if (!data.error) { costData = data; refreshCostsPanel(costData); }
+    }
+    if (rp.ok) {
+      const pd = await rp.json();
+      if (!pd.error) refreshProviderCostsPanel(pd);
+    }
   } catch (err) {
     console.warn('[costs] load error:', err.message);
-    // Fallback: compute today's totals from in-memory events
     const todayCost = events.reduce((s, e) => s + (parseFloat(e.estimated_cost_usd) || 0), 0);
     const todaySessions = new Set(events.map(e => e.session_id)).size;
     refreshCostsPanel({
@@ -1002,6 +1031,62 @@ async function loadCosts() {
       week:  { total_cost_usd: todayCost, sessions: todaySessions },
       by_tool: [], by_hour: [],
     });
+  }
+}
+
+const PROVIDER_LABELS = {
+  deepseek: { name: 'DeepSeek', emoji: '🤖' },
+  gemini:   { name: 'Gemini',   emoji: '💎' },
+  grok:     { name: 'Grok/xAI', emoji: '𝕏'  },
+  anthropic:      { name: 'Anthropic API', emoji: '🟠' },
+  'anthropic-api':{ name: 'Anthropic API', emoji: '🟠' },
+};
+
+function fmtTokens(n) {
+  if (!n) return '0';
+  return n >= 1000000 ? (n/1000000).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(0)+'K' : String(n);
+}
+
+function refreshProviderCostsPanel(pd) {
+  const todayEl  = document.getElementById('provider-costs-today');
+  const monthEl  = document.getElementById('provider-costs-month');
+  const totalEl  = document.getElementById('provider-costs-month-total');
+  if (!todayEl && !monthEl) return;
+
+  // Today by provider+model
+  if (todayEl && pd.today) {
+    if (!pd.today.length) {
+      todayEl.innerHTML = '<div class="cost-row"><span class="label" style="color:var(--text-muted)">Sin cargos hoy</span><span class="val zero">$0.000000</span></div>';
+    } else {
+      todayEl.innerHTML = pd.today.map(r => {
+        const lbl = PROVIDER_LABELS[r.provider] || { name: r.provider, emoji: '🔌' };
+        const cost = parseFloat(r.cost_usd || 0);
+        return `<div class="provider-badge">
+          <span class="pname">${lbl.emoji} ${lbl.name} <small style="color:var(--text-muted)">${r.model||''}</small></span>
+          <span class="ptokens">${fmtTokens(r.input_tokens)}in / ${fmtTokens(r.output_tokens)}out</span>
+          <span class="pcost${cost===0?' zero':''}">${cost===0 ? '$0' : '$'+cost.toFixed(6)}</span>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // Month totals by provider
+  if (monthEl && pd.month) {
+    const monthTotal = pd.month.reduce((s, r) => s + parseFloat(r.cost_usd||0), 0);
+    if (totalEl) totalEl.textContent = `Total mes: $${monthTotal.toFixed(4)}`;
+    if (!pd.month.length) {
+      monthEl.innerHTML = '<div class="cost-row"><span class="label" style="color:var(--text-muted)">Sin cargos este mes</span><span class="val zero">$0.000000</span></div>';
+    } else {
+      monthEl.innerHTML = pd.month.map(r => {
+        const lbl = PROVIDER_LABELS[r.provider] || { name: r.provider, emoji: '🔌' };
+        const cost = parseFloat(r.cost_usd || 0);
+        return `<div class="provider-badge">
+          <span class="pname">${lbl.emoji} ${lbl.name}</span>
+          <span class="ptokens">${fmtTokens(r.input_tokens)}in / ${fmtTokens(r.output_tokens)}out</span>
+          <span class="pcost${cost===0?' zero':''}">${cost===0 ? '$0' : '$'+cost.toFixed(4)}</span>
+        </div>`;
+      }).join('');
+    }
   }
 }
 
@@ -1104,6 +1189,15 @@ function connectSocket() {
   socket.on('alert:resolved', ({ id }) => {
     const a = alerts.find(x => x.id === id);
     if (a) { a.resolved = 1; renderAlerts(); updateAlertsBadge(); }
+  });
+
+  // Reload provider costs panel on new real cost event
+  socket.on('provider_cost', () => {
+    if (document.getElementById('provider-costs-today')) {
+      fetch(`${API}/api/provider-costs`).then(r => r.json()).then(pd => {
+        if (!pd.error) refreshProviderCostsPanel(pd);
+      }).catch(() => {});
+    }
   });
 }
 
@@ -1997,6 +2091,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadDispatches();
   loadScreenshots();
   loadAlerts();
+  refreshResumeStats();
   document.getElementById('alerts-show-resolved')?.addEventListener('change', loadAlerts);
   connectSocket();
   refreshFeed();

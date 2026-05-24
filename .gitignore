@@ -30,3 +30,15 @@ financial/bot/sims/assets/*.xlsx
 financial/bot/sims/assets/*.xls
 financial/bot/sims/assets/*.ogg
 financial/bot/sims/assets/*.xml
+# Runtime / PM2 artifacts
+FETCH_HEAD
+relay/.verifier-dispatch-ts
+relay/chat-sessions.json
+relay/.env.bak.*
+cost-monitor.js
+dashboard-financial/.env.local
+backend/package-lock.json
+relay/package-lock.json
+relay/workspaces/
+B\[*\]
+C\[*\]

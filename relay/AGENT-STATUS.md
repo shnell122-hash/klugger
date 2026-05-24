@@ -2,40 +2,61 @@
 
 Estado compartido de agentes activos — actualizado por cada agente al terminar su sesión.
 
-_Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02 | Actualizado 2026-05-05_
+_Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02 | Actualizado 2026-05-20_
 
 ## ai-monitor (Claude Code — AI Monitor Dashboard)
 
 | Campo | Valor |
 |-------|-------|
-| Última sesión | 2026-05-09 |
+| Última sesión | 2026-05-20 |
 | Estado | ✅ Completo |
 | Rama trabajo | `claude/agent-monitoring-dashboard-4v8iq` |
 | Rama relay | `main` |
-| Commits principales | `4299fc8` (projects.json flujos+fiscalai-test), `f153a45` (telethon-bridge), `cc5f0aa` (AGENT-TREE.md migración) |
-| Usuario requerido | Sí — ver sección Pendiente |
+| PRs | #38 (loop fix), #39 (real provider costs) — ambos mergeados a main |
 
-### Cambios sesión 2026-05-09
+### Cambios sesión 2026-05-20
 
 | Archivo | Cambio | Branch |
 |---------|--------|--------|
-| `relay/projects.json` | +flujos, +fiscalai-test, deepseek_model en finbot-* | main |
-| `relay/inbox-flujos.md` | Briefing completo para agente flujos | main |
-| `relay/outbox-flujos.md` | Creado vacío | main |
-| `relay/BRIEFING-fiscalai.md` | Briefing para agente fiscalai (copiar a ryby.lease) | main |
-| `relay/chat-agent.js` | DeepSeek bypass LiteLLM + anti-alucinación + repo awareness | main |
-| `financial/telethon-bridge.py` | Bridge tests Telethon → relay (nuevo) | claude/agent-monitoring-dashboard-4v8iq |
-| `financial/run-telethon-tests.sh` | Runner con loop automático | claude/agent-monitoring-dashboard-4v8iq |
-| `financial/bot/AGENT-TREE.md` | Actualizado: DeepSeek V4 Pro + Gemini Flash | migrate-llms-deepseek-gemini |
-| `financial/bot/agents/TransactionOrchestrator.js` | Migrado Anthropic → DeepSeek OpenAI-compat | migrate-llms-deepseek-gemini |
-| `financial/bot/agents/vision-agent.js` | Migrado: Gemini Flash primario + DeepSeek Flash fallback | migrate-llms-deepseek-gemini |
-| `financial/bot/agents/invoice-agent.js` | deepseek-chat → DEEPSEEK_PRO_MODEL | migrate-llms-deepseek-gemini |
-| `financial/bot/agents/context-reader.js` | deepseek-chat → DEEPSEEK_PRO_MODEL | migrate-llms-deepseek-gemini |
-| `financial/bot/agents/response-gen.js` | deepseek-chat → DEEPSEEK_PRO_MODEL | migrate-llms-deepseek-gemini |
+| `relay/master.js` | Fix loop infinito 4289 reinicios — gitPull branch restore + initial pulledRepos share | main (PR #38) |
+| `relay/projects.json` | finbot-coordinator.branch: `main` (era `claude/financial-multiagent-system-YwtYQ`) | main (PR #38) |
+| `relay/master.js` | Real cost tracking — DeepSeek/Gemini/Grok pricing corregido, Claude Max = $0 | main (PR #39) |
+| `backend/routes/providerCosts.js` | Nuevo endpoint POST/GET `/api/provider-costs` | main (PR #39) |
+| `backend/db/migrate-v15.sql` | Nueva tabla `provider_costs` | main (PR #39) |
+| `backend/server.js` | Monta providerCostsRouter + auto-run migrations | main (PR #39) |
+| `frontend/index.html` | Panel "Costos reales por proveedor API" en tab costs | main (PR #39) |
+| `frontend/css/dashboard.css` | Estilos `.provider-badge` | main (PR #39) |
+| `frontend/js/dashboard.js` | `refreshProviderCostsPanel()` + socket `provider_cost` | main (PR #39) |
+| `relay/inbox-flujos.md` | Briefing P1+session fixes + exec_server() pattern | main (directo) |
 
 ---
 
-## Otros agentes (vacío)
+## flujos (Claude Code — flujos.fiscalai.mx / financial-bot)
+
+| Campo | Valor |
+|-------|-------|
+| Última sesión | 2026-05-20 |
+| Estado | ✅ Completo — model fixes + deploy |
+| Rama trabajo | `main` (directo) |
+| Rama relay | `main` |
+| Commit | `b41a677e` fix(models): gemini-2.0-flash + deepseek-chat for tool_choice compat |
+
+### Cambios sesión 2026-05-20
+
+- **DocumentIntelligenceAgent.js**: `gemini-1.5-flash` → `gemini-2.0-flash` (modelo deprecado)
+- **vision-agent.js**: mismo fix — gemini default actualizado
+- **financial-bot.js**: TransactionOrchestrator hardcodeado a `deepseek-chat` (deepseek-v4-pro mapeaba a reasoner → bloqueaba tool_choice)
+- **Deploy**: git plumbing → push → git checkout HEAD → pm2 restart financial-bot ✅
+
+### Score
+
+- Pre-fix sesión anterior: 77.8% (ep #1747) — debajo del 80%
+- Root causes: 177x saldo sin keywords (TO→ignorar fallback), 91x timeout
+- Post-fix esperado: 85%+ (tool_choice funciona, Gemini disponible)
+
+---
+
+## Otros agentes
 
 | Agente | Sesión/Branch | Último cambio | Estado |
 |--------|--------------|---------------|--------|
@@ -43,15 +64,8 @@ _Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02 | Actualizado 20
 | Claude Code (`claude/agent-monitoring-dashboard-4v8iq`) | 2026-05-03 | Multi-account spending, $100/proyecto/mes kill-switch, gasto histórico, migrate-v12 | ✅ Pusheado |
 | Claude Code (`claude/agent-monitoring-dashboard-4v8iq`) | 2026-05-02 12:43 | Redesign, toggle tema, SYSTEM.md, audit, Cursor integration, AGENT-STATUS.md, PR #21 → mergeado a main | ✅ En main |
 | Claude Code (`claude/onboard-ai-monitor-subproject-zXvki`) | 2026-05-02 11:35 | LiteLLM activado, auth login, kptl-credito fix | ✅ Pusheado |
-| Claude Code (`claude/financial-multiagent-system-YwtYQ`) | 2026-05-20 | Autonomy loop: dispatch_fix_if_needed → inbox-finbot-coordinator.md (threshold 85%, cooldown 20min), exec token stored, learning.py deployed — commits a23b92c, df187e3 | ✅ Deployado |
-| Claude Code (`claude/financial-multiagent-system-YwtYQ`) | 2026-05-18 | Fix set_asistente_mode at startup (score 40%→~90%): per-scenario mode switching + session stale timer — commits 28208b9, 7bc3650 | ✅ Deployado |
-| Claude Code (`claude/financial-multiagent-system-YwtYQ`) | 2026-05-18 | Fix esperando_datos_bancarios: else block prevents empty CLABE save when non-CLABE message arrives (saldo/efectivo) — score 80.4% → ~90% esperado — commit 0bd49af | ✅ Deployado |
-| Claude Code (`claude/financial-multiagent-system-YwtYQ`) | 2026-05-14 | fix deepseek-reasoner tool_choice (400 error) + 3 sim fixes re-applied to deploy/financial-llm-complete base — commit 7d65dfc | ✅ Pusheado — pendiente deploy |
-| Claude Code (`claude/financial-multiagent-system-YwtYQ`) | 2026-05-14 | Fix esperando_monto: reset on isImplicitOperacion to prevent EFECTIVO prefix contaminating SPEI tipo_entrega — commit a0bc0e2 | ✅ En main (7e942ef) |
-| Claude Code (`claude/financial-multiagent-system-YwtYQ`) | 2026-05-13 | Fix PNG comprobante detection (vision branch ampliado para imagen sin detected) + esPagoTexto outer guard (!isImplicitOperacion on full condition incl. esExplicitoPago) — commit 9f28a24 | ✅ Pusheado — pendiente deploy |
-| Claude Code (`claude/financial-multiagent-system-YwtYQ`) | 2026-05-13 | Fix crítico plateau 53%: TO-ignorar → regex fallback (ef179a5) + monto_invalido 0/-1000 (5602e43) + models fix gemini-2.0-flash + deepseek-reasoner→chat (28ca6cb) | ✅ Pusheado — parcial deploy |
-| Claude Code (`claude/financial-multiagent-system-YwtYQ`) | 2026-05-12 | LangGraph Parts 5+9: FileFlowGraph wired, SupervisorNode, semantic routing, context compaction, session drift fix — commit fe3a633 | ✅ Pusheado — pendiente deploy |
-| Claude Code (`claude/financial-multiagent-system-YwtYQ`) | 2026-05-03 | financial-bot bugs: timeout /saldo + CLABE/asistente, race condition, reconnect, keywords clabegv | ✅ En producción |
+| Claude Code (`claude/financial-multiagent-system-YwtYQ`) | 2026-05-18 | Respuesta conflictos + merge aprobado → ai-monitor | ✅ En main |
+| Claude Code (`claude/financial-multiagent-system-YwtYQ`) | 2026-05-13 | Fix crítico plateau 53%: TO-ignorar → regex fallback (ef179a5) + monto_invalido 0/-1000 (5602e43) + models fix gemini-2.0-flash + deepseek-reasoner→chat (28ca6cb) | ✅ En producción (via deploy/financial-llm-complete) |
 | relay-master / claude-code-suborq | 2026-05-03 | Nuevo proyecto activo — comunicación bidireccional confirmada | ✅ Funcionando |
 
 ---
@@ -61,16 +75,16 @@ _Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02 | Actualizado 20
 | Proceso | Estado | Notas |
 |---------|--------|-------|
 | `ai-monitor` | ✅ online | Puerto 3010 — ia.vilarkptl.com |
-| `relay-master` | ✅ online | 144 restarts (histórico acumulado) |
-| `claude-chat-bot` | ✅ online | LiteLLM key corregida esta sesión |
+| `relay-master` | ✅ online | Loop infinito (4289 reinicios) resuelto 2026-05-19 18:49 CST |
+| `claude-chat-bot` | ✅ online | LiteLLM key corregida |
 | `cursor-worker` | ✅ online | 0 restarts |
 | `litellm` | ✅ online | Puerto 4000, ~357 MB RAM |
-| `kptl-credito` | ✅ online | Fix webhook.py aplicado — era SyntaxError línea 52 |
+| `kptl-credito` | ✅ online | Fix webhook.py aplicado |
 | `kptl-credito-worker` | ⚠️ online | 213 restarts — depende de kptl-credito |
 | `vilar-legal-os-v59` | ⚠️ online | 146k+ restarts — crash loop no resuelto |
-| `financial-bot` | ✅ online | Fixes aplicados 2026-05-03 — score 73.3% → ~85% esperado |
-| `conversation-engine` | ✅ online | Tier 2, score 62.5% (ep. #52), restart 5 |
-| `claude-code-suborq` | ✅ online | Nuevo — comunicación bidireccional activa |
+| `financial-bot` | ✅ online | Model fixes en main (b41a677e) — gemini-2.0-flash + deepseek-chat para tool_choice |
+| `conversation-engine` | ✅ online | P1 fix deployado, score 62.5% ep.#52 → mejorando |
+| `claude-code-suborq` | ✅ online | Comunicación bidireccional activa |
 
 ### Memoria
 
@@ -85,26 +99,27 @@ Swap: ~1.9 GB usada / 2.0 GB total  ← CRÍTICO (94%)
 
 | Branch | Contiene | Estado |
 |--------|----------|--------|
-| `main` | Versión base — sin redesign, sin auth | ⚠️ Pendiente merge de ambos PRs |
-| `claude/agent-monitoring-dashboard-4v8iq` | Redesign glassmorphism, toggle tema, docs, audit, AGENT-STATUS | ✅ PR #21 abierto → main |
-| `claude/onboard-ai-monitor-subproject-zXvki` | Auth/login, LiteLLM integration, ESTADO-SERVIDOR (obsoleto) | ✅ Pendiente PR → main |
+| `main` | PRs #38 #39 + flujos P1+session fixes | ✅ Producción |
+| `claude/agent-monitoring-dashboard-4v8iq` | Base de trabajo german — necesita sync con main | ✅ Activo |
+| `claude/onboard-ai-monitor-subproject-zXvki` | Auth + LiteLLM | ✅ Pendiente PR → main |
+| `claude/financial-multiagent-system-YwtYQ` | Solo 1 commit relay result adelante de main | ⏳ Sin código nuevo |
+| `deploy/financial-llm-complete` | TransactionOrchestrator OpenAI + Gemini + FileFlowGraph | ✅ Mergeado a main |
 
 ---
 
 ## Archivos críticos — NO sobrescribir sin leer esto
 
 | Archivo | Quién lo tocó | Qué contiene |
-|---------|--------------|--------------|
-| `frontend/index.html` | sesión 4v8iq | Redesign glassmorphism + botón toggle |
-| `frontend/css/dashboard.css` | sesión 4v8iq | Tema claro + oscuro, variables CSS |
-| `frontend/js/dashboard.js` | sesión 4v8iq | Fix duplicate PROVIDER_COLORS |
-| `backend/server.js` | sesión zXvki | Auth middleware + login route |
-| `relay/master.js` | sesión 4v8iq | Haiku buzon, prompt caching, budget inheritance |
-| `relay/projects.json` | sesión zXvki + 4v8iq | `ai-monitor.branch = "main"` |
+|---------|--------------|-------------|
+| `frontend/index.html` | sesión 4v8iq 2026-05-20 | Provider costs panel + glassmorphism |
+| `frontend/css/dashboard.css` | sesión 4v8iq 2026-05-20 | `.provider-badge` estilos |
+| `frontend/js/dashboard.js` | sesión 4v8iq 2026-05-20 | `refreshProviderCostsPanel()` + socket |
+| `backend/server.js` | sesión zXvki + 4v8iq | Auth middleware + providerCostsRouter |
+| `relay/master.js` | sesión 4v8iq 2026-05-20 | Loop fix + real cost tracking — SOLO german/ai-monitor |
+| `relay/projects.json` | sesión 4v8iq 2026-05-20 | finbot-coordinator.branch = main |
 | `relay/.env` | sesión zXvki | LITELLM_BASE_URL + LITELLM_MASTER_KEY (corregido) |
-| `relay/AGENT-STATUS.md` | sesión 4v8iq | Este archivo — siempre actualizar |
-
-> ⚠️ `relay/ESTADO-SERVIDOR.md` (sesión zXvki) está **fusionado aquí y es obsoleto** — borrar al mergear.
+| `financial/bot/financial-bot.js` | flujos 2026-05-19 | Session cleanup timer |
+| `financial/bot/sims/mtproto/conversation_engine.py` | flujos 2026-05-19 | Per-scenario mode + ASISTENTE_CHAT_ID |
 
 ---
 
@@ -112,46 +127,24 @@ Swap: ~1.9 GB usada / 2.0 GB total  ← CRÍTICO (94%)
 
 | PR | Branch → Base | Descripción | Estado |
 |----|--------------|-------------|--------|
-| [#21](https://github.com/vilarkptl-lang/agentic-repo/pull/21) | `claude/agent-monitoring-dashboard-4v8iq` → `main` | Redesign + toggle + docs + AGENT-STATUS | ⏳ Pendiente merge |
 | (pendiente crear) | `claude/onboard-ai-monitor-subproject-zXvki` → `main` | Auth + LiteLLM | ⏳ Pendiente PR |
-
----
-
-## Advertencia git — LEER ANTES DE HACER RESET
-
-El servidor puede tener commits locales no pusheados en `main`:
-```bash
-# Verificar antes de cualquier reset:
-git -C /var/www/html/vilarkptl.com/ai-monitor log origin/main..HEAD --oneline
-
-# Si solo ves commits "relay: resultado..." → reset seguro
-# Si ves features reales → backup primero:
-git -C /var/www/html/vilarkptl.com/ai-monitor push origin HEAD:backup/server-local-2026-05-02 --force
-```
 
 ---
 
 ## Tareas pendientes
 
-### En servidor (ejecutar manualmente)
-- [ ] Mergear `claude/agent-monitoring-dashboard-4v8iq` → main y `pm2 restart relay-master` para activar P1+P2
-- [ ] Verificar IDs DeepSeek V4: `curl https://api.deepseek.com/v1/models -H "Authorization: Bearer $DEEPSEEK_API_KEY" | jq '.data[].id'`
-- [ ] Actualizar relay/.env con IDs reales: `DEEPSEEK_FLASH_MODEL=...` y `DEEPSEEK_PRO_MODEL=...`
-- [ ] Correr `mysql ai_monitoring < backend/db/migrate-v12.sql` si no se hizo
-- [ ] Agregar Admin API keys al relay/.env:
-  - `ANTHROPIC_ADMIN_KEY_GVA` (cuenta gva.server@gmail.com)
-  - `ANTHROPIC_ADMIN_KEY_LEASINGAGATA` (cuenta leasingagata@gmail.com)
+### En servidor (ejecutar manualmente si es necesario)
+- [ ] Verificar `pm2 restart conversation-engine` y `pm2 restart financial-bot` (coordinator fue despachado — confirmar logs)
+- [ ] Verificar score financial-bot en próximos episodios (esperado 85–93%)
+- [ ] `git stash clear` en servidor (182+ stashes acumulados de gitPull antiguo)
 - [ ] Detener `vilar-legal-os-v59`: `pm2 stop vilar-legal-os-v59 && pm2 delete vilar-legal-os-v59`
 - [ ] Agregar 1GB swap: `fallocate -l 1G /swapfile2 && chmod 600 /swapfile2 && mkswap /swapfile2 && swapon /swapfile2`
-- [ ] pm2-logrotate: `pm2 install pm2-logrotate && pm2 set pm2-logrotate:max_size 50M`
-- [ ] Crear y mergear PR de `claude/onboard-ai-monitor-subproject-zXvki` → main (auth + LiteLLM)
-- [ ] `git push origin main` desde servidor (commits locales sin push)
 
-### Próximas sesiones de código
-- [ ] P3: Quiet hours (11pm-8am MX) + rate limiting (3 dispatches/hora) en master.js
-- [ ] P4: `selectClaudeModel()` — routing inteligente usando `claude_model_fast`
-- [ ] P5: LiteLLM en master.js (`callViaLiteLLM()`) — copiar patrón de chat-agent.js
-- [ ] P6: Claude CLI proxy shadow test en ai-monitor (use_cli_proxy flag ya en projects.json)
+### Próximas sesiones de código (german / ai-monitor)
+- [ ] B3: multi-cuenta routing (5 cuentas Pro/Max en master.js)
+- [ ] Tests: `/dispatch` en iavilarBot + Claude Code
+- [ ] Dashboard: métricas sesiones B1 (--resume)
+- [ ] Crear PR de `claude/onboard-ai-monitor-subproject-zXvki` → main (auth + LiteLLM)
 
 ---
 

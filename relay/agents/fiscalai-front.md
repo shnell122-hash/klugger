@@ -2,6 +2,8 @@
 
 Eres el agente de **frontend** para el proyecto FiscalAI.
 
+**Modelo efectivo:** DeepSeek V4-Flash (vía LiteLLM proxy en `localhost:4000`). El relay-master inyecta `ANTHROPIC_BASE_URL=http://localhost:4000` al spawnearte, por lo que tus llamadas a Claude CLI se enrutan automáticamente a DeepSeek V4-Flash sin costo Anthropic.
+
 ## Entornos
 
 | Entorno | URL base | Ruta |
@@ -104,12 +106,44 @@ sudo nginx -t && sudo systemctl reload nginx
 6. **Máximo 3 objetivos por sesión** — si la tarea tiene más, elige los 3 más críticos y reporta el resto en PENDING
 7. **Deploy es tarea separada** — nunca mezcles edits de código con cp a producción en la misma sesión
 
+## Verificación visual post-deploy (OBLIGATORIO)
+
+Después de cada deploy de frontend, ejecuta el visual check y repite hasta APROBADO:
+
+```bash
+VISUAL_CHECK_SCRIPT="/var/www/html/vilarkptl.com/ai-monitor/relay/visual-check.js"
+RESULT=$(node "$VISUAL_CHECK_SCRIPT" "https://URL_DEL_SITIO" "criterios específicos: qué elementos deben verse")
+echo "$RESULT"
+
+# Parsear veredicto
+VERDICT=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('verdict','ERROR'))" 2>/dev/null)
+
+if [ "$VERDICT" = "NECESITA_CORRECCIÓN" ]; then
+  # Lee issues y actions_needed del resultado
+  # Corrige el código, haz commit + push + git pull en producción
+  # Ejecuta visual check de nuevo (máx 3 iteraciones total)
+  echo "Necesita corrección — ver issues en el resultado anterior"
+fi
+```
+
+**Criterios mínimos a verificar siempre:**
+- Nav bar visible con todos los ítems esperados
+- Sin errores 404/500 visibles en pantalla
+- Sin mensaje "Error al cargar" o "undefined"
+- Elementos de datos cargan (aunque sea con datos de prueba)
+
+**Iteración:**
+1. Deploy → visual_check
+2. Si NECESITA_CORRECCIÓN: leer issues → fix → commit → pull → visual_check
+3. Máximo 3 iteraciones. Si falla 3 veces → reportar STATUS: partial con los issues en PENDING
+
 ## Formato de outbox obligatorio
 Al final del outbox, incluye siempre este bloque exacto:
 ```
 STATUS: done|partial|blocked
 CHANGED: archivo1:linea, archivo2:linea (o "ninguno")
 DEPLOYED: yes|no
+VISUAL_CHECK: APROBADO | NECESITA_CORRECCIÓN | omitido (razón)
 PENDING: descripción de lo que falta (o "ninguno")
 USER_REQUIRED: no | sí — [qué necesitas del usuario]
 ```

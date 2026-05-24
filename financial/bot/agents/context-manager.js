@@ -9,6 +9,10 @@ class ContextManager {
     this.pool = pool;
   }
 
+  /**
+   * Crea o actualiza el registro de un chat.
+   * Intenta derivar el titulo del nombre del cliente o del chat de Telegram.
+   */
   async upsertChat({ chatId, clientId = null, titulo = null, isGroup = false }) {
     await this.pool.query(
       `INSERT INTO fin_chats (chat_id, client_id, titulo, is_group, ultimo_msg_at)
@@ -24,6 +28,9 @@ class ContextManager {
     );
   }
 
+  /**
+   * Actualiza el concepto/nombre descriptivo del chat (IA o manual).
+   */
   async updateConcepto(chatId, concepto) {
     await this.pool.query(
       'UPDATE fin_chats SET concepto=?, updated_at=NOW(3) WHERE chat_id=?',
@@ -31,6 +38,9 @@ class ContextManager {
     );
   }
 
+  /**
+   * Guarda un mensaje entrante o saliente del bot.
+   */
   async logMessage({ chatId, clientId = null, telegramMsgId = null,
                      fromUserId = null, fromUsername = null,
                      tipo = 'texto', texto = null, fileName = null, esBot = false }) {
@@ -44,6 +54,9 @@ class ContextManager {
     );
   }
 
+  /**
+   * Devuelve los últimos N mensajes de un chat (para contexto).
+   */
   async getRecientes(chatId, limit = 20) {
     const [rows] = await this.pool.query(
       `SELECT * FROM fin_messages
@@ -51,9 +64,12 @@ class ContextManager {
        ORDER BY created_at DESC LIMIT ?`,
       [chatId, limit]
     );
-    return rows.reverse();
+    return rows.reverse(); // cronológico
   }
 
+  /**
+   * Lista de todos los chats con info de cliente.
+   */
   async getChatList(limit = 100) {
     const [rows] = await this.pool.query(
       `SELECT fc.*, c.nombre AS client_nombre, c.saldo, c.saldo_neto,

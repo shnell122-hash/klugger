@@ -20,21 +20,18 @@ class BalanceManager {
   }
 
   /**
-   * Obtiene o crea un cliente por (telegram_user_id, chat_id).
-   * chatId=0 → cliente "universal" / legacy (sin grupo específico)
-   * chatId=-X → cliente específico de ese grupo de Telegram
+   * Obtiene o crea un cliente por su telegram_user_id.
    */
-  async getOrCreateClient(telegramUserId, username = null, chatId = 0) {
-    const cid = Number(chatId) || 0;
+  async getOrCreateClient(telegramUserId, username = null) {
     const [rows] = await this.pool.query(
-      'SELECT * FROM fin_clients WHERE telegram_user_id = ? AND chat_id = ?',
-      [telegramUserId, cid]
+      'SELECT * FROM fin_clients WHERE telegram_user_id = ?',
+      [telegramUserId]
     );
     if (rows.length > 0) return rows[0];
 
     const [result] = await this.pool.query(
-      'INSERT INTO fin_clients (telegram_user_id, chat_id, telegram_username, saldo) VALUES (?,?,?,0)',
-      [telegramUserId, cid, username]
+      'INSERT INTO fin_clients (telegram_user_id, telegram_username, saldo) VALUES (?,?,0)',
+      [telegramUserId, username]
     );
     const [newRows] = await this.pool.query(
       'SELECT * FROM fin_clients WHERE id = ?',

@@ -102,7 +102,7 @@ const docAgent = process.env.GOOGLE_API_KEY
   ? new DocumentIntelligenceAgent(process.env.GOOGLE_API_KEY)
   : null;
 const transactionOrchestrator = DEEPSEEK_KEY
-  ? new TransactionOrchestrator(llm, { model: process.env.DEEPSEEK_PRO_MODEL ?? 'deepseek-chat' })
+  ? new TransactionOrchestrator(llm, { model: 'deepseek-chat' })
   : null;
 
 // ── Transformer: log bot outgoing messages ────────────────────────────────────
@@ -822,7 +822,7 @@ bot.on('message:text', async (ctx, next) => {
   const client  = await balanceManager.getOrCreateClient(userId, ctx.from?.username);
   const session = await getOrCreateSession(chatId, client.id);
 
-  // Auto-reset de sesiones atascadas en estados intermedios por más de 5 minutos
+  // Auto-reset sesiones atascadas en estados intermedios por más de 5 minutos
   if (['esperando_datos_bancarios', 'esperando_monto', 'esperando_entrega'].includes(session.estado)) {
     const staleMs = Date.now() - new Date(session.updated_at).getTime();
     if (staleMs > 5 * 60 * 1000) {
@@ -830,14 +830,6 @@ bot.on('message:text', async (ctx, next) => {
       session.estado = 'idle';
       session.operation_draft_json = null;
     }
-  }
-
-  // Consulta de saldo — alta prioridad, responde en cualquier estado de sesión
-  const SALDO_QUERY_RE = /\b(?:saldo|cu[aá]nto\s+(?:tengo|hay|queda|disponible)|c[oó]mo\s+vamos|a\s+cu[aá]nto\s+estamos|dime\s+(?:mi\s+)?saldo)\b/i;
-  if (SALDO_QUERY_RE.test(text)) {
-    const { saldo: saldoNL } = await balanceManager.getSaldo(client.id);
-    await ctx.reply(`💰 Saldo actual: <b>$${fmt(saldoNL)}</b>`, { parse_mode: 'HTML' });
-    return;
   }
 
   // Si hay edición pendiente (el usuario está enviando el nuevo valor)
@@ -890,28 +882,27 @@ bot.on('message:text', async (ctx, next) => {
       session.estado = 'idle';
       session.operation_draft_json = null;
       // fall through: re-process as new message (saldo query, new operation, etc.)
-    } else {
-      // Si el número coincide con una de nuestras cuentas, es un comprobante de pago
-      const { ajenas, eraVuelta } = await filtrarCuentasAjenas(rawCuentas);
-      if (eraVuelta) {
-        await ctx.reply(
-          '⚠️ El número que enviaste coincide con una de nuestras cuentas bancarias.\n' +
-          'Si ya realizaste la transferencia, comparte el comprobante completo o escribe el monto pagado.'
-        );
-        return;
-      }
-      const cuentas = ajenas;
-      draft.cuentas_bancarias = cuentas;
-      await updateSession(session.id, 'esperando_datos_bancarios', draft);
-      const kb = new InlineKeyboard()
-        .text('✅ Sí, continuar', 'confirmar_cuentas')
-        .text('✏️ Corregir', 'nueva_cuenta');
-      await safeReply(ctx,
-        `✅ Cuenta guardada:\n\n${BankingManager.formatearCuentas(cuentas)}\n\n¿Es correcto?`,
-        { parse_mode: 'HTML', reply_markup: kb }
+    }
+    // Si el número coincide con una de nuestras cuentas, es un comprobante de pago
+    const { ajenas, eraVuelta } = await filtrarCuentasAjenas(rawCuentas);
+    if (eraVuelta) {
+      await ctx.reply(
+        '⚠️ El número que enviaste coincide con una de nuestras cuentas bancarias.\n' +
+        'Si ya realizaste la transferencia, comparte el comprobante completo o escribe el monto pagado.'
       );
       return;
     }
+    const cuentas = ajenas;
+    draft.cuentas_bancarias = cuentas;
+    await updateSession(session.id, 'esperando_datos_bancarios', draft);
+    const kb = new InlineKeyboard()
+      .text('✅ Sí, continuar', 'confirmar_cuentas')
+      .text('✏️ Corregir', 'nueva_cuenta');
+    await safeReply(ctx,
+      `✅ Cuenta guardada:\n\n${BankingManager.formatearCuentas(cuentas)}\n\n¿Es correcto?`,
+      { parse_mode: 'HTML', reply_markup: kb }
+    );
+    return;
   }
   if (session.estado === 'confirmando_cuentas') {
     const draft = session.operation_draft_json ? parseDraft(session.operation_draft_json) : {};
@@ -1188,7 +1179,9 @@ bot.on('message:text', async (ctx, next) => {
       });
       if (decision.accion === 'responder_info' && decision.params?.mensaje_respuesta) {
         await ctx.reply(decision.params.mensaje_respuesta);
-      } else if (decision.accion !== 'ignorar' && decision.accion !== 'responder_info') {
+      } else if (decision.accion === 'responder_info') {
+        await ctx.reply(`💰 Saldo actual: <b>$${fmt(saldoCtx)}</b>`, { parse_mode: 'HTML' });
+      } else if (decision.accion !== 'ignorar') {
         await procesarOperacion(ctx, text, client, session);
       }
     } else {

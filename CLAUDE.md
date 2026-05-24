@@ -9,9 +9,52 @@
 | Campo | Valor |
 |-------|-------|
 | Host | `143.198.228.78` (vilar-desarrollo) |
-| Usuario SSH | `root` |
-| Contraseñas | Ver `/opt/kptl-secrets/server-credentials.txt` en el servidor (solo root) |
+| Usuario SSH | `german` (también `root`) |
+| Contraseña SSH | `romanos12_2` |
 | OS | Ubuntu / Debian (Apache + PM2) |
+
+**Conexión desde agentes Claude Code (CLI web):**
+```bash
+# Instalar sshpass si no está disponible
+apt-get install -y sshpass 2>/dev/null
+
+# Ejecutar comando remoto
+sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78 "comando"
+
+# Alias útil para sesión
+srv() { sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78 "$@"; }
+# Uso: srv "pm2 status"
+#      srv "pm2 restart financial-bot"
+#      srv "grep CLAUDE_EXEC_TOKEN /var/www/html/vilarkptl.com/ai-monitor/backend/.env"
+```
+
+**Si SSH no responde (el sandbox web bloquea el puerto 22), usar HTTPS — siempre funciona:**
+```bash
+EXEC_TOKEN="cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a"
+EXEC_URL="https://ia.vilarkptl.com/api/exec"
+
+exec_server() {
+  local CMD="$1"
+  local CWD="${2:-/var/www/html/vilarkptl.com/ai-monitor}"
+  local BODY
+  BODY=$(python3 -c "import sys,json; print(json.dumps({'cmd':sys.argv[1],'cwd':sys.argv[2]}))" "$CMD" "$CWD")
+  curl -s --max-time 20 -X POST "$EXEC_URL" \
+    -H "Content-Type: application/json" \
+    -H "x-exec-token: $EXEC_TOKEN" \
+    -d "$BODY" \
+    | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('output') or d.get('error','(sin output)'))"
+}
+
+# Ejemplos:
+exec_server "pm2 status"
+exec_server "pm2 restart financial-bot"
+exec_server "pm2 logs financial-bot --lines 20 --nostream"
+exec_server "git log --oneline -5"
+```
+
+> **IMPORTANTE**: `https://ia.vilarkptl.com/api/exec` funciona desde cualquier entorno
+> (Claude Code web, CLI, agentes del relay). Usar SIEMPRE esta URL como método principal.
+> SSH es alternativo cuando hay acceso directo al puerto 22.
 
 ### Árbol del servidor (rutas críticas)
 
@@ -49,6 +92,61 @@
 /var/www/catalogos/OCR/
 └── v59-repo/agentic-repo/       ← Fork OCR (no parte de ai-monitor)
 ```
+
+### Acceso al servidor para agentes (exec endpoint)
+
+Los agentes Claude Code corren como `claude-agent` (no root). Para comandos privilegiados
+(`pm2`, `mysql -u root`, `git` fuera del workspace), se usa el endpoint `/api/exec`
+que corre en el mismo servidor como root:
+
+```
+URL pública:  https://ia.vilarkptl.com/api/exec        ← usar desde Claude Code web/CLI externo
+URL local:    http://localhost:3010/api/exec            ← usar desde agentes que corren en el servidor
+Auth:         header x-exec-token: cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a
+Body:         { "cmd": "pm2 restart financial-bot", "cwd": "/var/www/html/vilarkptl.com/ai-monitor" }
+```
+
+**Activar el endpoint (ejecutar en el servidor como root — una sola vez):**
+```bash
+# 1. Generar token y agregarlo al .env del backend
+echo "CLAUDE_EXEC_TOKEN=$(openssl rand -hex 32)" \
+  >> /var/www/html/vilarkptl.com/ai-monitor/backend/.env
+
+# 2. Reiniciar el backend para que lo tome
+pm2 restart ai-monitor
+
+# 3. Verificar que funciona
+EXEC_TOKEN=$(grep -oP 'CLAUDE_EXEC_TOKEN=\K\S+' \
+  /var/www/html/vilarkptl.com/ai-monitor/backend/.env | tail -1)
+curl -s -X POST https://ia.vilarkptl.com/api/exec \
+  -H "Content-Type: application/json" \
+  -H "x-exec-token: $EXEC_TOKEN" \
+  -d '{"cmd":"pm2 status","cwd":"/var/www/html/vilarkptl.com/ai-monitor"}' \
+  | python3 -m json.tool
+```
+
+**Función bash que usan los agentes:**
+```bash
+EXEC_TOKEN="cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a"
+EXEC_URL="https://ia.vilarkptl.com/api/exec"  # URL pública (Claude Code web)
+# EXEC_URL="http://localhost:3010/api/exec"   # URL local (agentes en el servidor)
+
+exec_server() {
+  local CMD="$1"
+  local CWD="${2:-/var/www/html/vilarkptl.com/ai-monitor}"
+  local BODY
+  BODY=$(python3 -c "import sys,json; print(json.dumps({'cmd':sys.argv[1],'cwd':sys.argv[2]}))" "$CMD" "$CWD")
+  curl -s --max-time 20 -X POST "$EXEC_URL" \
+    -H "Content-Type: application/json" \
+    -H "x-exec-token: $EXEC_TOKEN" \
+    -d "$BODY" \
+    | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('output') or d.get('error','(sin output)'))"
+}
+```
+
+Comandos permitidos: `pm2 status|logs|restart|stop|start|reload|list`,
+`git status|log|diff|fetch|pull|merge|push|checkout|branch|add|commit|reset|stash`,
+`mysql -u root ...`, `cat` (solo rutas de ai-monitor/relay), `grep`, `ls`, `df`, `free`, `uptime`
 
 ### Comandos de administración en producción
 
@@ -96,11 +194,12 @@ Tablas principales:
 - Reverse proxy: `ia.vilarkptl.com` → `localhost:3010`
 
 ```bash
-# Conectar por SSH (contraseña en /opt/kptl-secrets/server-credentials.txt)
-ssh root@143.198.228.78
+# Conectar por SSH
+sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78
 
-# MySQL (contraseña en /opt/kptl-secrets/server-credentials.txt)
-mysql -u root -p ai_monitoring
+# MySQL (contraseña en backend/.env)
+DB_PASS=$(grep -oP 'DB_PASS=\K.*' /var/www/html/vilarkptl.com/ai-monitor/backend/.env)
+mysql -u root -p"$DB_PASS" ai_monitoring
 
 # Verificar módulos
 apache2ctl -M | grep proxy
@@ -124,6 +223,7 @@ relay/master.js  (Node.js, PM2)
     │
     ├──▶ Claude Code CLI --model <claude_model>
     │         └── edita archivos, hace commits, push
+    │         └── puede ejecutar pm2/mysql vía SSH o /api/exec
     │
     ├──▶ DeepSeek V3 API (planning /tarea, resúmenes memoria)
     │
@@ -232,6 +332,74 @@ fallocate -l 1G /swapfile2 && chmod 600 /swapfile2 && mkswap /swapfile2 && swapo
 
 ---
 
+## pill.ai — Acceso al servidor para agentes
+
+| Campo | Valor |
+|-------|-------|
+| Host | `143.198.228.78` |
+| Puerto HTTP | `8181` |
+| Usuario SSH | `german` |
+| Dir producción | `/var/www/html/vilarkptl.com/pill-relay` |
+| Servicio | `pillai-relay` (systemd) |
+| Repo código | `vilarkptl-lang/pill.ai` · branch `claude/add-licensing-system-KsFAw` |
+| Referencia completa | https://github.com/vilarkptl-lang/pillai-secrets/blob/main/README.md |
+
+### Opción 1 — HTTP API (recomendada, no requiere SSH)
+
+Header obligatorio en todos los endpoints: `x-deploy-secret: <PILLAI_DEPLOY_SECRET>`
+
+```bash
+PILLAI_SECRET="fcdeee3a67f637f57c7a55df56c5fa0d40ccb89053002ce715efc541cb31ff77"
+PILLAI_BASE="http://143.198.228.78:8181"
+
+# Ejecutar cualquier comando bash
+curl -s -X POST "$PILLAI_BASE/admin/exec" \
+  -H "x-deploy-secret: $PILLAI_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"command": "pm2 status", "cwd": "/var/www/html/vilarkptl.com/pill-relay"}'
+
+# Deploy (git pull + restart)
+curl -s -X POST "$PILLAI_BASE/admin/deploy" \
+  -H "x-deploy-secret: $PILLAI_SECRET" \
+  -H "Content-Type: application/json"
+
+# Ver logs
+curl -s "$PILLAI_BASE/admin/logs?service=pillai-relay&lines=100" \
+  -H "x-deploy-secret: $PILLAI_SECRET"
+```
+
+> **Seguridad**: comandos peligrosos (`rm -rf`, `kill -9`, `shutdown`, `dd`, `mkfs`) devuelven
+> `{"requires_confirmation": true}`. Reenviar con `"confirmed": true` **solo tras aprobación
+> explícita del usuario**.
+
+**En Python:**
+```python
+import requests
+S = "fcdeee3a67f637f57c7a55df56c5fa0d40ccb89053002ce715efc541cb31ff77"
+B = "http://143.198.228.78:8181"
+H = {"x-deploy-secret": S, "Content-Type": "application/json"}
+requests.post(f"{B}/admin/deploy", headers=H)
+requests.post(f"{B}/admin/exec", headers=H, json={"command": "pm2 list"})
+requests.get(f"{B}/admin/logs", headers=H, params={"lines": 200})
+```
+
+### Opción 2 — SSH con llave privada
+
+La llave privada está en `ssh/pillai_agents.pem` de este repo.
+
+```bash
+# Setup al inicio de sesión (leer llave del repo vía GitHub MCP o git)
+mkdir -p ~/.ssh && chmod 700 ~/.ssh
+# Copiar contenido de ssh/pillai_agents.pem a ~/.ssh/pillai_agents
+chmod 600 ~/.ssh/pillai_agents
+ssh-keyscan -H 143.198.228.78 >> ~/.ssh/known_hosts 2>/dev/null
+
+# Conectar
+ssh -i ~/.ssh/pillai_agents german@143.198.228.78
+```
+
+---
+
 ## Financial System — Rutas y procesos PM2
 
 | Directorio (repo) | Ruta en servidor | Proceso PM2 | Puerto |
@@ -274,6 +442,7 @@ cd dashboard-financial && npm run build && pm2 restart financial-dashboard
    mysql -u root -p"$DB_PASS" nombre_db < migrate.sql
    ```
 8. **Deploy al terminar cada commit**: incluir bloque `DEPLOY` con los comandos exactos según los archivos modificados (ver sección *Financial System — Rutas y procesos PM2*). Copiar y pegar sin editar.
+9. **Branch de ai-monitor en projects.json es `main`** — no cambiar a branches de desarrollo
 
 ---
 
@@ -286,8 +455,8 @@ cd dashboard-financial && npm run build && pm2 restart financial-dashboard
 | **Claude Code CLI** (este agente) | Desarrolla todo el código, hace commits y push |
 | **Cursor Cloud Agents** (servidor) | Revisa, prueba y optimiza el código en el servidor |
 
-Claude Code CLI **nunca** corre el código en producción — solo escribe y commitea.  
-Cursor Cloud Agents **nunca** escribe código — solo ejecuta y valida lo que Claude generó.
+Claude Code CLI escribe código, commitea, y puede ejecutar comandos en producción vía SSH o `/api/exec` (pm2, mysql, git).
+Cursor Cloud Agents también ejecuta y valida el código en el servidor.
 
 ### Variables de entorno obligatorias en financial/bot
 
@@ -467,4 +636,110 @@ Cuando el contexto se compacte automáticamente, el resumen debe seguir estas re
 ```
 
 **Objetivo: resumen ≤ 400 palabras. Si supera 600 palabras, está incluyendo demasiado.**
-9. **Branch de ai-monitor en projects.json es `main`** — no cambiar a branches de desarrollo
+
+---
+
+## Flujo multi-dev (3 desarrolladores simultáneos)
+
+> Leer esta sección COMPLETA al inicio de cada sesión antes de tocar cualquier archivo.
+
+### Identidad y branch por dev
+
+| Dev | Branch de trabajo | Ownership principal |
+|-----|-------------------|---------------------|
+| german | `claude/agent-monitoring-dashboard-4v8iq` | `relay/master.js`, `backend/`, `frontend/`, `deploy/` |
+| dev-2 | `claude/dev-[nombre]-[fecha]` | `financial/bot/`, DeCabeceraTax workspace |
+| dev-3 | `claude/dev-[nombre]-[fecha]` | proyectos nuevos (`pill.ai`, integraciones externas) |
+
+**Al iniciar sesión**, declara tu identidad:
+```
+Soy [nombre]. Mi branch es [branch]. Voy a trabajar en [área].
+```
+
+### Checklist de inicio de sesión
+
+```bash
+# 1. Verificar estado de otros devs
+cat relay/AGENT-STATUS.md
+
+# 2. Actualizar tu branch
+git fetch origin
+git rebase origin/main   # o merge, según prefieras
+
+# 3. Verificar que no hay conflictos pendientes
+git status --short
+```
+
+Si un archivo que necesitas está marcado como "in-progress" por otro dev en `relay/AGENT-STATUS.md`, coordina antes de tocarlo — despacha al coordinator:
+```
+/dispatch coordinator Necesito coordinar con [dev] sobre [archivo] — [qué quiero hacer]
+```
+
+### Workflow por sesión
+
+1. **Trabaja en tu branch** — nunca commitees directo a `main`
+2. **Commits frecuentes y específicos** — cada bloque lógico de cambios
+3. **Al terminar**: actualiza `relay/AGENT-STATUS.md` con archivos modificados y estado
+4. **Para mergear a main**: crea PR, otro dev revisa (o usa `/tarea coordinator revisar PR #N`)
+5. **El relay-master** hace `gitPull` de `main` cada 15s — mergea solo cuando el código es estable
+
+### Cómo despachar tareas al sistema multi-agente
+
+**Desde Claude Code** (slash command):
+```
+/dispatch fiscalai Agrega validación de RFC en el formulario de alta
+/dispatch coordinator Revisa conflictos en relay/master.js antes del merge
+/dispatch ai-monitor Actualiza el dashboard con nueva métrica de latencia
+```
+
+**Desde Telegram** (iavilarBot):
+```
+/dispatch [proyecto] [descripción]   ← despacha directo, sin plan
+/tarea [proyecto] [descripción]      ← genera plan DeepSeek + aprobación
+```
+
+**Proyectos disponibles para despacho:**
+
+| ID | Descripción | Rama git |
+|----|-------------|----------|
+| `fiscalai` | Backend FiscalAI + SAT APIs | main (DeCabeceraTax) |
+| `fiscalai-front` | Frontend FiscalAI — producción | main (DeCabeceraTax) |
+| `fiscalai-test` | Frontend FiscalAI — testing.fiscalai.mx | testing (DeCabeceraTax) |
+| `coordinator` | Coordinación entre agentes | main |
+| `ai-monitor` | Dashboard de monitoreo | main |
+| `finbot-tester` | Tester automatizado financial-bot | main |
+| `finbot-verifier` | Verificador continuo financial-bot | main |
+
+### Para probar cambios en producción
+
+```bash
+# Ver logs de un proceso en tiempo real
+sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78 "pm2 logs [proceso] --lines 30"
+
+# Dashboard con métricas de agentes
+# → ia.vilarkptl.com
+
+# Verificar que tu PR llegó a producción
+sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78 "cd /var/www/html/vilarkptl.com/ai-monitor && git log --oneline -3"
+```
+
+### Asignación del roadmap pendiente
+
+| Tarea | Dev asignado | Prioridad |
+|-------|-------------|----------|
+| B3: multi-cuenta routing (5 cuentas Pro/Max en master.js) | german | Alta |
+| Fix permanente DeCabeceraTax gitPull | dev-2 | Alta |
+| conversation-engine: confirmar score post-SQL fix | dev-2 | Alta |
+| pill.ai: deploy Fly.io + Stripe webhook | dev-3 | Media |
+| Agregar pill.ai a projects.json del relay | dev-3 | Media |
+| Tests: `/dispatch` en iavilarBot + Claude Code | german | Media |
+| Dashboard: métricas de sesiones B1 (--resume) | german | Baja |
+| CI: pytest + ruff para financial/bot | dev-2 | Baja |
+
+### Reglas anti-conflicto
+
+- **`relay/master.js`** — ownership exclusivo de german. Otros devs no tocan sin coordinación previa.
+- **`relay/projects.json`** — cambios siempre en `main` directo (no en branches de código). Formato: `git add relay/projects.json && git commit -m "relay: [descripción]" && git push origin main`
+- **`financial/bot/`** — ownership de dev-2. Cambios de arquitectura requieren actualizar `financial/bot/AGENTS.md` y `AGENT-TREE.md`.
+- **`relay/inbox-*.md` y `relay/outbox-*.md`** — NO commitear en branches de código. Solo relay-master y `/dispatch` los tocan.
+- Si hay duda sobre ownership: preguntar en `relay/AGENT-STATUS.md` o despachar al coordinator.

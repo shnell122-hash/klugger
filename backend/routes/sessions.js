@@ -13,6 +13,39 @@ const PRICING = {
   cache_read:   0.30  / 1_000_000,
 };
 
+// GET /api/sessions/stats/resume — resume rate metrics (today + last 7 days by project)
+router.get('/stats/resume', async (req, res) => {
+  try {
+    const [[today]] = await db.query(
+      `SELECT
+         COUNT(*) AS total,
+         SUM(COALESCE(resumed,0)) AS resumed
+       FROM agent_sessions
+       WHERE DATE(started_at) = CURDATE()`
+    );
+    const [byProject] = await db.query(
+      `SELECT
+         project_name,
+         COUNT(*) AS total_sessions,
+         SUM(COALESCE(resumed,0)) AS resumed_sessions,
+         ROUND(SUM(COALESCE(resumed,0)) / COUNT(*) * 100, 1) AS resume_rate_pct
+       FROM agent_sessions
+       WHERE started_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+         AND project_name IS NOT NULL
+       GROUP BY project_name
+       ORDER BY total_sessions DESC`
+    );
+    const total   = parseInt(today.total   || 0);
+    const resumed = parseInt(today.resumed || 0);
+    res.json({
+      today: { total, resumed, rate_pct: total > 0 ? Math.round(resumed / total * 100) : 0 },
+      by_project: byProject,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/sessions — list recent sessions (last 50)
 router.get('/', async (req, res) => {
   try {
@@ -33,6 +66,7 @@ router.get('/', async (req, res) => {
          total_cache_write_tokens,
          ROUND(total_cost_usd, 6) AS total_cost_usd,
          is_active,
+         COALESCE(resumed, 0) AS resumed,
          TIMESTAMPDIFF(SECOND, started_at, IFNULL(ended_at, NOW())) AS duration_seconds
        FROM agent_sessions
        ORDER BY started_at DESC

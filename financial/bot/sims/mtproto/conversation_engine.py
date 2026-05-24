@@ -51,6 +51,9 @@ ROUNDS_PER_REPORT       = 5    # cuántos rounds antes de publicar resumen en Te
 # ID de Flujos AI (financial-bot) — se auto-descubre al iniciar
 BOT_USER_ID: Optional[int] = None
 
+# Chat ID permanentemente en modo asistente (puede diferir de SIM_CHAT_ID)
+ASISTENTE_CHAT_ID: Optional[int] = None
+
 # Fallos consecutivos de send_message por cuenta — auto-excluye tras SEND_FAIL_THRESHOLD
 _send_failures: dict = {}
 SEND_FAIL_THRESHOLD = 5
@@ -929,10 +932,10 @@ async def run_scenario(clients: dict, chat_entities: dict, scenario: dict,
         print(f"  [{account.upper()}] -> {messages[0][:60]}")
 
     if not dry_run:
-        # Modo correcto antes de cada escenario
-        # Si hay chat separado para asistente, solo necesitamos limpiar el chat principal
-        if use_separate_asist:
-            set_normal_mode(chat_id)   # chat principal siempre en normal
+        # Modo correcto antes de cada escenario para no contaminar entre escenarios
+        if is_asistente and ASISTENTE_CHAT_ID and ASISTENTE_CHAT_ID != chat_id:
+            # Chat separado permanentemente en asistente — redirigir mensajes allá
+            target = ASISTENTE_CHAT_ID
         elif is_asistente:
             set_asistente_mode(chat_id)
         else:
@@ -1311,8 +1314,10 @@ async def run_engine(rounds: int = 0, force_tier: int = 0, dry_run: bool = False
     Motor principal. rounds=0 -> infinito.
     """
     chat_id = get_chat_id()
-    _asist_raw = env('SIM_ASISTENTE_CHAT_ID', '')
-    asistente_chat_id = int(_asist_raw) if _asist_raw.lstrip('-').isdigit() else None
+    # Cargar ASISTENTE_CHAT_ID — si difiere de SIM_CHAT_ID, escenarios asistente van a ese chat
+    global ASISTENTE_CHAT_ID
+    asistente_raw = env("SIM_ASISTENTE_CHAT_ID")
+    ASISTENTE_CHAT_ID = int(asistente_raw) if asistente_raw else chat_id
     print(f"\n{'='*60}")
     print(f" Conversation Engine -- chat_id={chat_id}")
     if asistente_chat_id:
@@ -1360,6 +1365,11 @@ async def run_engine(rounds: int = 0, force_tier: int = 0, dry_run: bool = False
     if not active_accounts:
         print("[engine] Ninguna cuenta tiene acceso al grupo -- abortar")
         return
+
+    # Si ASISTENTE_CHAT_ID es un chat separado, garantizar modo asistente permanente en DB
+    if ASISTENTE_CHAT_ID != chat_id and not dry_run:
+        set_asistente_mode(ASISTENTE_CHAT_ID)
+        print(f"[engine] ASISTENTE_CHAT_ID={ASISTENTE_CHAT_ID} marcado permanentemente asistente en DB")
 
     main_account = next(acct for acct in ("gv", "noela", "kevin") if acct in active_accounts)
     main_client  = clients[main_account]
