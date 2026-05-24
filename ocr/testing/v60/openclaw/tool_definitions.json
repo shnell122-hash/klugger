@@ -1,0 +1,220 @@
+[
+  {
+    "name": "generate_image",
+    "description": "Genera imágenes fotorrealistas de ejemplo para material de capacitación de clientes. Úsalo cuando el usuario pida imágenes de cómo debe verse una entrega, operación, producto, camión, material, etc. Las imágenes se guardan automáticamente en el expediente.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "description": "ID del expediente donde guardar las imágenes"
+        },
+        "prompt": {
+          "type": "string",
+          "description": "Descripción detallada de la escena. Ej: 'camión de carga blanco descargando cajas de cartón en patio de bodega industrial, trabajador con chaleco naranja supervisando'"
+        },
+        "count": {
+          "type": "integer",
+          "description": "Número de imágenes a generar (1-4). Default: 2",
+          "default": 2
+        },
+        "aspect": {
+          "type": "string",
+          "enum": ["portrait", "landscape", "square"],
+          "description": "Orientación: portrait (celular vertical), landscape (horizontal), square (cuadrada). Default: portrait",
+          "default": "portrait"
+        }
+      },
+      "required": ["case_id", "prompt"]
+    }
+  },
+  {
+    "name": "save_artifact",
+    "description": "Guardar un artefacto generado (contrato, análisis, brief, checklist, html) en el expediente del caso. Usar siempre que se genere un documento significativo.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "description": "ID del caso al que pertenece el artefacto"
+        },
+        "artifact_name": {
+          "type": "string",
+          "description": "Nombre descriptivo del artefacto, ej: 'Contrato de Arrendamiento - Inmueble Polanco'"
+        },
+        "artifact_type": {
+          "type": "string",
+          "enum": ["contract", "analysis", "summary", "brief", "html", "checklist"],
+          "description": "Tipo de artefacto"
+        },
+        "content": {
+          "type": "string",
+          "description": "Contenido completo del artefacto en Markdown (o HTML si artifact_type=html)"
+        }
+      },
+      "required": ["case_id", "artifact_name", "artifact_type", "content"]
+    }
+  },
+  {
+    "name": "append_artifact",
+    "description": "Añadir contenido adicional a un artefacto ya guardado. Usar cuando el documento es demasiado largo para un solo save_artifact: primero save_artifact con la primera parte, luego append_artifact con el resto. El contenido se concatena al final del artefacto existente.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "artifact_id": {
+          "type": "string",
+          "description": "ID del artefacto a continuar (retornado por save_artifact)"
+        },
+        "case_id": {
+          "type": "string",
+          "description": "ID del caso (validación)"
+        },
+        "content_chunk": {
+          "type": "string",
+          "description": "Contenido a añadir al final del artefacto. Debe continuar naturalmente desde donde terminó el save_artifact anterior."
+        }
+      },
+      "required": ["artifact_id", "case_id", "content_chunk"]
+    }
+  },
+  {
+    "name": "create_case",
+    "description": "Crear un nuevo expediente/caso en el sistema.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "case_name": {
+          "type": "string",
+          "description": "Nombre del caso, ej: 'García vs. Inmobiliaria Norte SA'"
+        },
+        "matter_type": {
+          "type": "string",
+          "enum": ["civil", "laboral", "mercantil", "fiscal", "familiar", "penal", "administrativo", "corporativo", "inmobiliario", "general"],
+          "description": "Área del derecho"
+        },
+        "client_name": {
+          "type": "string",
+          "description": "Nombre del cliente o parte representada"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Notas iniciales del caso"
+        }
+      },
+      "required": ["case_name", "matter_type"]
+    }
+  },
+  {
+    "name": "search_precedents",
+    "description": "Buscar jurisprudencia, precedentes o casos similares en el sistema. Retorna resultados relevantes.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Términos de búsqueda legal, ej: 'rescisión contrato arrendamiento falta pago'"
+        },
+        "matter_type": {
+          "type": "string",
+          "description": "Filtrar por área del derecho (opcional)"
+        },
+        "jurisdiction": {
+          "type": "string",
+          "description": "Jurisdicción específica, ej: 'CDMX', 'Federal' (opcional)"
+        }
+      },
+      "required": ["query"]
+    }
+  },
+  {
+    "name": "validate_document",
+    "description": "Verificar que un documento cumple con los requisitos legales mínimos para su tipo.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "artifact_id": {
+          "type": "string",
+          "description": "ID del artefacto a validar"
+        },
+        "document_type": {
+          "type": "string",
+          "description": "Tipo de documento a validar, ej: 'contrato_arrendamiento', 'poder_notarial'"
+        },
+        "jurisdiction": {
+          "type": "string",
+          "description": "Jurisdicción aplicable para validación"
+        }
+      },
+      "required": ["artifact_id", "document_type"]
+    }
+  },
+  {
+    "name": "export_to_jotform",
+    "description": "Exportar datos del caso a JotForm para backup legal y seguimiento. Usar cuando el usuario solicite exportar o cuando se complete un hito importante del caso.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "description": "ID del caso a exportar"
+        },
+        "form_id": {
+          "type": "string",
+          "description": "ID del formulario JotForm destino (opcional, usa el default si no se especifica)"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Notas adicionales para incluir en la exportación"
+        }
+      },
+      "required": ["case_id"]
+    }
+  },
+  {
+    "name": "list_case_contents",
+    "description": "Obtiene inventario detallado del expediente: documentos subidos, artefactos ya generados, imágenes, notas de sesión anterior. Úsala SIEMPRE al inicio de tareas masivas para saber qué existe y evitar duplicados, y para retomar trabajo de sesiones previas.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "case_id": {"type": "string", "description": "ID del expediente"}
+      },
+      "required": ["case_id"]
+    }
+  },
+  {
+    "name": "save_session_notes",
+    "description": "Guarda notas de continuidad para que la próxima sesión sepa exactamente qué se hizo y qué falta. Úsala al terminar una tarea masiva incompleta.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "case_id": {"type": "string", "description": "ID del expediente"},
+        "notes":   {"type": "string", "description": "Estado: qué se completó, qué falta, próximos pasos exactos con referencias a documentos fuente"}
+      },
+      "required": ["case_id", "notes"]
+    }
+  },
+  {
+    "name": "analyze_audio",
+    "description": "Análisis forense vocal de un archivo de audio: transcripción con timestamps palabra por palabra, detección de pausas y vacilaciones, velocidad del habla por segmento, features acústicas (pitch F0, energía/volumen). Úsala cuando el usuario pida perfil psicológico, análisis de mendacidad, o análisis de tono/estrés vocal.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "audio_id": {
+          "type": "string",
+          "description": "artifact_id del archivo de audio en user_artifacts (obtenible con list_case_contents)"
+        },
+        "case_id": {
+          "type": "string",
+          "description": "ID del expediente"
+        },
+        "analysis_type": {
+          "type": "string",
+          "enum": ["psychological", "mendacity", "full"],
+          "description": "psychological: perfil emocional/psicológico; mendacity: marcadores de estrés/mentira; full: análisis completo con todas las métricas",
+          "default": "full"
+        }
+      },
+      "required": ["audio_id", "case_id"]
+    }
+  }
+]

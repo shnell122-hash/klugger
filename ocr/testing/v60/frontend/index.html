@@ -1,0 +1,3605 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>VILAR Legal OS v59</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer"/>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0e1a;
+  --panel:#141526;
+  --sidebar:#10111f;
+  --border:rgba(255,255,255,0.08);
+  --accent:#c47a5a;
+  --accent2:#8b5cf6;
+  --green:#34d399;
+  --red:#f87171;
+  --yellow:#fbbf24;
+  --text:#ede8e0;
+  --muted:#7a7480;
+  --hover:rgba(255,255,255,0.05);
+  --glass:rgba(20,21,38,0.75);
+  --glass-border:rgba(255,255,255,0.10);
+  --shadow:0 4px 24px rgba(0,0,0,0.45);
+  --user-bubble:rgba(196,122,90,0.18);
+}
+[data-theme="light"]{
+  --bg:#f5f0eb;
+  --panel:#fffcf8;
+  --sidebar:#faf6f1;
+  --border:rgba(0,0,0,0.09);
+  --accent:#b5622a;
+  --accent2:#7c3aed;
+  --green:#059669;
+  --red:#dc2626;
+  --yellow:#d97706;
+  --text:#2c1a0e;
+  --muted:#8a7060;
+  --hover:rgba(0,0,0,0.04);
+  --glass:rgba(255,252,248,0.80);
+  --glass-border:rgba(0,0,0,0.08);
+  --shadow:0 4px 24px rgba(0,0,0,0.12);
+  --user-bubble:rgba(181,98,42,0.14);
+}
+@media(prefers-color-scheme:light){
+  :root:not([data-theme="dark"]){
+    --bg:#f5f0eb;--panel:#fffcf8;--sidebar:#faf6f1;--border:rgba(0,0,0,0.09);
+    --accent:#b5622a;--accent2:#7c3aed;--green:#059669;--red:#dc2626;
+    --yellow:#d97706;--text:#2c1a0e;--muted:#8a7060;--hover:rgba(0,0,0,0.04);
+    --glass:rgba(255,252,248,0.80);--glass-border:rgba(0,0,0,0.08);
+    --shadow:0 4px 24px rgba(0,0,0,0.12);--user-bubble:rgba(181,98,42,0.14);
+  }
+}
+html{height:-webkit-fill-available;overflow:hidden}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);height:100vh;height:100dvh;overflow:hidden;display:flex;flex-direction:column;min-height:-webkit-fill-available;
+  background-image:radial-gradient(ellipse at 15% 10%, rgba(196,122,90,0.08) 0%, transparent 55%),
+                   radial-gradient(ellipse at 85% 85%, rgba(139,92,246,0.06) 0%, transparent 55%);
+}
+
+/* ── Header ── */
+#header{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;background:var(--glass);backdrop-filter:blur(14px) saturate(160%);-webkit-backdrop-filter:blur(14px) saturate(160%);border-bottom:1px solid var(--glass-border);flex-shrink:0;z-index:10}
+#header h1{font-size:1.05rem;font-weight:700;letter-spacing:.3px;color:var(--accent)}
+#header h1 span{color:var(--muted);font-weight:400;font-size:.82rem;margin-left:8px}
+#case-selector{display:flex;align-items:center;gap:8px}
+#case-selector select{background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:.83rem;cursor:pointer;font-family:inherit}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:.82rem;cursor:pointer;font-weight:600;transition:all .15s;letter-spacing:.2px}
+.btn:hover{opacity:.88;transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn-sm{padding:4px 10px;font-size:.76rem}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--muted)}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent);opacity:1;background:rgba(196,122,90,0.06)}
+.vw-dl-active{border-color:var(--accent)!important;color:var(--accent)!important;background:rgba(196,122,90,0.10)!important}
+.btn-danger{background:var(--red)}
+/* ── Artifact type badges ── */
+.art-badge{display:inline-block;font-size:.58rem;font-weight:700;letter-spacing:.4px;padding:1px 5px;border-radius:3px;vertical-align:middle;text-transform:uppercase;flex-shrink:0}
+.art-badge-html{background:rgba(52,211,153,0.15);color:var(--green);border:1px solid rgba(52,211,153,0.35)}
+.art-badge-md{background:rgba(147,197,253,0.12);color:#93c5fd;border:1px solid rgba(147,197,253,0.30)}
+.art-badge-sys{background:rgba(192,132,252,0.12);color:#c084fc;border:1px solid rgba(192,132,252,0.28)}
+.icon-html{background:rgba(52,211,153,0.12);color:var(--green)}
+#health-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0}
+#health-dot.ok{background:var(--green)}
+#health-dot.err{background:var(--red)}
+/* user avatar in header */
+#user-avatar{width:28px;height:28px;border-radius:50%;object-fit:cover;cursor:pointer;border:2px solid var(--border)}
+#user-info{display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--muted)}
+
+/* ── Main layout ── */
+#main{display:flex;flex:1;overflow:hidden}
+
+/* ── Left sidebar — Artifacts ── */
+#sidebar{width:300px;min-width:240px;max-width:400px;background:var(--glass);backdrop-filter:blur(14px) saturate(150%);-webkit-backdrop-filter:blur(14px) saturate(150%);border-right:1px solid var(--glass-border);display:flex;flex-direction:column;resize:horizontal;overflow:hidden}
+#sidebar-header{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+#sidebar-header h2{font-size:.82rem;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+#artifact-tabs{display:flex;gap:4px;padding:8px 10px;flex-shrink:0;border-bottom:1px solid var(--border)}
+.atab{flex:1;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:5px;padding:4px 0;font-size:.75rem;cursor:pointer;text-align:center;transition:all .15s}
+.atab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+#artifact-list{flex:1;overflow-y:auto;min-height:0;padding:6px;-webkit-overflow-scrolling:touch}
+.artifact-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;cursor:pointer;transition:background .15s;border:1px solid transparent;margin-bottom:3px}
+.artifact-item:hover{background:var(--hover)}
+.artifact-item.selected{background:var(--hover);border-color:var(--accent)}
+.artifact-item.in-ctx{border-left:3px solid var(--accent)}
+.artifact-icon{width:28px;height:28px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0}
+.icon-pdf{background:#fde68a22;color:#fbbf24}
+.icon-img{background:#bbf7d022;color:#34d399}
+.icon-doc{background:#bfdbfe22;color:#93c5fd}
+.icon-xls{background:#bbf7d022;color:#22c55e}
+.icon-txt{background:#e9d5ff22;color:#c084fc}
+.icon-sys{background:#f0abfc22;color:#e879f9}
+.artifact-info{flex:1;min-width:0}
+.artifact-name{font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.artifact-meta{font-size:.68rem;color:var(--muted);margin-top:1px}
+.artifact-cb{width:14px;height:14px;accent-color:var(--accent);flex-shrink:0}
+#artifact-actions{padding:8px 10px;border-top:1px solid var(--border);display:flex;gap:6px;flex-shrink:0}
+#upload-drop{border:2px dashed var(--border);border-radius:8px;padding:10px;text-align:center;font-size:.75rem;color:var(--muted);cursor:pointer;transition:all .15s;margin:6px 10px;flex-shrink:0}
+#upload-drop:hover,#upload-drop.drag{border-color:var(--accent);color:var(--accent);background:var(--hover)}
+#upload-input{display:none}
+#ctx-counter{font-size:.72rem;color:var(--accent);white-space:nowrap}
+
+/* ── Center — Chat ── */
+#chat-panel{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden;position:relative}
+#scroll-btn{position:absolute;right:20px;bottom:80px;width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;display:none;align-items:center;justify-content:center;cursor:pointer;font-size:1.1rem;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,.35);border:none;padding:0;line-height:1}
+#chat-header{padding:10px 16px;border-bottom:1px solid var(--glass-border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+#chat-header h2{font-size:.85rem;font-weight:600;color:var(--text)}
+#chat-messages{flex:1;overflow-y:auto;min-height:0;padding:16px;display:flex;flex-direction:column;gap:14px;-webkit-overflow-scrolling:touch}
+.msg{display:flex;gap:10px;max-width:100%}
+.msg.user{flex-direction:row-reverse}
+.msg-bubble{padding:10px 14px;border-radius:10px;font-size:.85rem;line-height:1.55;max-width:75%;word-wrap:break-word;white-space:pre-wrap}
+.msg.assistant .msg-bubble{background:var(--glass);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid var(--glass-border);box-shadow:var(--shadow)}
+.msg.user .msg-bubble{background:var(--user-bubble);border:1px solid rgba(196,122,90,0.25);color:var(--text)}
+.msg-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;flex-shrink:0;margin-top:2px}
+.msg.assistant .msg-avatar{background:linear-gradient(135deg,var(--accent2),var(--accent));color:#fff}
+.msg.user .msg-avatar{background:var(--accent);color:#fff}
+.msg-time{font-size:.65rem;color:var(--muted);margin-top:4px;display:block}
+.msg-actions{display:flex;gap:6px;margin-top:6px}
+.copy-btn,.edit-btn{background:none;border:1px solid var(--border);color:var(--muted);border-radius:5px;padding:2px 8px;font-size:.68rem;cursor:pointer;transition:all .15s;touch-action:manipulation}
+.copy-btn:hover,.edit-btn:hover{border-color:var(--accent);color:var(--accent)}
+.copy-btn.copied{border-color:var(--green);color:var(--green)}
+.msg.user .msg-actions{justify-content:flex-end}
+.msg.system{justify-content:center}
+.msg.system .msg-bubble{background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.22);color:var(--muted);font-size:.78rem;max-width:90%;font-style:normal;text-align:center;padding:7px 14px}
+.msg.system .msg-avatar{background:rgba(52,211,153,0.15);color:var(--green);font-size:.58rem;font-weight:700}
+.thinking{display:flex;gap:4px;padding:10px 14px;background:var(--panel);border:1px solid var(--border);border-radius:10px;width:fit-content}
+.thinking span{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:bounce 1.2s infinite}
+.thinking span:nth-child(2){animation-delay:.2s}
+.thinking span:nth-child(3){animation-delay:.4s}
+@keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-8px)}}
+#chat-input-area{padding:12px 16px;border-top:1px solid var(--glass-border);background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);flex-shrink:0}
+#ctx-chips{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;min-height:0}
+.ctx-chip{background:var(--accent);color:#fff;border-radius:4px;padding:2px 8px;font-size:.7rem;display:flex;align-items:center;gap:4px;cursor:default}
+.ctx-chip button{background:none;border:none;color:#fff;cursor:pointer;font-size:.8rem;line-height:1;padding:0}
+#chat-form{position:relative;background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:10px 50px 10px 14px;transition:border-color .15s}
+#chat-form:focus-within{border-color:var(--accent)}
+#chat-input{width:100%;background:transparent;border:none;color:var(--text);padding:0;font-size:.85rem;resize:none;min-height:22px;max-height:120px;outline:none;font-family:inherit;line-height:1.5}
+.send-stop-btn{position:absolute;bottom:8px;right:8px;width:32px;height:32px;border-radius:9px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:opacity .15s;font-size:.82rem;flex-shrink:0}
+#send-btn{background:var(--accent);color:#fff}
+#send-btn:hover{opacity:.82}
+#send-btn:disabled{opacity:.30;cursor:default}
+#stop-btn{background:var(--red);color:#fff;display:none}
+#stop-btn:hover{opacity:.82}
+
+/* ── Right panel — Viewer ── */
+#viewer-panel{width:380px;min-width:280px;background:var(--glass);backdrop-filter:blur(14px) saturate(150%);-webkit-backdrop-filter:blur(14px) saturate(150%);border-left:1px solid var(--glass-border);display:flex;flex-direction:column;overflow:hidden}
+#viewer-header{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+#viewer-header h2{font-size:.82rem;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+#viewer-content{flex:1;overflow-y:auto;min-height:0;padding:14px;font-size:.78rem;line-height:1.6;white-space:pre-wrap;word-wrap:break-word;-webkit-overflow-scrolling:touch}
+#viewer-content.empty{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.85rem;font-style:italic}
+#viewer-content img{max-width:100%;border-radius:6px;margin:4px 0}
+.viewer-filename{font-size:.7rem;color:var(--accent);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:6px}
+.viewer-filename > span:first-child{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-top:2px}
+
+/* ── Modal ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:100;display:flex;align-items:center;justify-content:center}
+.modal-overlay.hidden{display:none}
+.modal{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--glass-border);border-radius:16px;padding:24px;width:480px;max-width:92vw;max-height:85dvh;max-height:85vh;overflow-y:auto;-webkit-overflow-scrolling:touch;box-shadow:var(--shadow)}
+.modal h3{font-size:1rem;margin-bottom:16px;color:var(--accent)}
+.form-row{margin-bottom:12px}
+.form-row label{display:block;font-size:.78rem;color:var(--muted);margin-bottom:4px}
+.form-row input:not([type="range"]),.form-row select,.form-row textarea{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px 10px;font-size:.83rem;outline:none;font-family:inherit}
+.form-row input:not([type="range"]):focus,.form-row select:focus,.form-row textarea:focus{border-color:var(--accent)}
+input[type="range"]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:3px;background:var(--border);outline:none;margin-top:6px;cursor:pointer}
+input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;border-radius:50%;background:var(--accent);cursor:pointer;border:none}
+input[type="range"]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--accent);cursor:pointer;border:none}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+
+/* ── Toast ── */
+#toast{position:fixed;bottom:24px;right:24px;padding:10px 18px;border-radius:8px;font-size:.82rem;font-weight:600;z-index:9999;transform:translateY(20px);opacity:0;transition:all .2s;pointer-events:none}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.success{background:var(--green);color:#000}
+#toast.error{background:var(--red);color:#fff}
+#toast.info{background:var(--accent);color:#fff}
+
+/* ── Upload progress ── */
+#upload-progress{display:none;position:fixed;bottom:70px;right:24px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:.78rem;z-index:200;min-width:240px}
+.progress-bar-wrap{background:var(--bg);border-radius:4px;height:6px;margin-top:6px;overflow:hidden}
+.progress-bar{height:100%;background:var(--accent);width:0;transition:width .3s;border-radius:4px}
+
+/* ── Action badges (tool progress) ── */
+@keyframes badge-pulse{0%,100%{opacity:1;box-shadow:0 0 6px rgba(196,122,90,0.20)}50%{opacity:.72;box-shadow:0 0 14px rgba(196,122,90,0.38)}}
+@keyframes badge-spin{to{transform:rotate(360deg)}}
+.action-badge{display:inline-flex;align-items:center;gap:7px;border-radius:20px;padding:4px 13px 4px 9px;font-size:.70rem;font-weight:500;margin:4px 4px 4px 0;white-space:nowrap;transition:background .25s,border-color .25s,color .25s;letter-spacing:.15px}
+.action-badge i{font-size:.65rem;flex-shrink:0}
+.badge-spinner{display:inline-block;width:9px;height:9px;border:1.5px solid currentColor;border-top-color:transparent;border-radius:50%;animation:badge-spin .65s linear infinite;flex-shrink:0}
+.action-badge.running{background:linear-gradient(135deg,rgba(196,122,90,0.13) 0%,rgba(139,92,246,0.09) 100%);border:1px solid rgba(196,122,90,0.55);color:var(--accent);animation:badge-pulse 1.9s ease-in-out infinite}
+.action-badge.done{background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.40);color:var(--green)}
+.audio-progress-wrap{margin:0 0 8px 0;width:260px;max-width:100%}
+.audio-progress-hint{font-size:.61rem;color:var(--muted);margin-bottom:4px;letter-spacing:.1px;transition:color .2s}
+.audio-progress-bar{height:2px;background:var(--border);border-radius:2px;overflow:hidden}
+.audio-progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:2px;transition:width .6s ease}
+.tool-status-line{font-size:.61rem;color:var(--muted);margin:2px 0 6px 0;padding-left:2px;letter-spacing:.1px;min-height:14px;display:flex;align-items:center;gap:5px;transition:opacity .2s}
+.tool-status-dot{width:5px;height:5px;border-radius:50%;background:var(--accent);flex-shrink:0;animation:badge-pulse 1.6s ease-in-out infinite}
+/* ── Op-log (step-by-step operation log) ── */
+.op-log-section{margin-top:8px;padding-top:6px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:2px}
+.op-log-entry{display:flex;align-items:flex-start;gap:6px;font-size:.60rem;color:var(--muted);line-height:1.4;padding:1px 0}
+.op-log-entry.error{color:var(--red)}
+.op-log-entry.warn{color:var(--yellow)}
+.op-log-icon{flex-shrink:0;width:14px;text-align:center}
+.op-log-msg{flex:1;min-width:0}
+.op-log-detail{font-size:.57rem;color:var(--muted);opacity:.7;margin-top:1px;font-style:italic}
+/* ── Token chip ── */
+.token-chip{display:inline-flex;align-items:center;gap:5px;font-size:.60rem;color:var(--muted);background:var(--hover);border:1px solid var(--border);border-radius:8px;padding:3px 8px;margin-top:6px;white-space:nowrap}
+.token-chip .tc-model{color:var(--accent);font-weight:600}
+/* ── Diagnosis panel ── */
+.diagnosis-panel{margin-top:8px;background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.30);border-radius:8px;padding:10px;font-size:.68rem}
+.diagnosis-panel .dp-title{color:var(--red);font-weight:600;margin-bottom:6px}
+.diagnosis-panel .dp-user{color:var(--text);margin-bottom:8px}
+.diagnosis-panel details{cursor:pointer}
+.diagnosis-panel summary{color:var(--muted);font-size:.62rem;user-select:none}
+.diagnosis-panel .dp-steps{margin-top:6px;padding-left:8px;border-left:2px solid rgba(248,113,113,0.4)}
+.diagnosis-panel .dp-step{color:var(--muted);margin:2px 0;font-size:.61rem}
+.diagnosis-panel pre{background:rgba(0,0,0,.25);border-radius:4px;padding:6px 8px;font-size:.58rem;overflow-x:auto;margin-top:6px;white-space:pre-wrap;color:var(--yellow)}
+.auto-continue-pill{display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--accent);margin:8px 0;padding:5px 0;border-top:1px dashed var(--border);border-bottom:1px dashed var(--border)}
+.st{white-space:pre-wrap;word-wrap:break-word}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ── Sidebar toggle button (mobile only) ── */
+#sidebar-toggle{display:none;align-items:center;justify-content:center;background:none;border:1px solid var(--border);border-radius:6px;width:32px;height:32px;cursor:pointer;color:var(--text);font-size:1.1rem;flex-shrink:0;touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+/* ── Sidebar backdrop (mobile) ── */
+#sidebar-backdrop{display:none;position:fixed;inset:0;background:#0006;z-index:49}
+/* ── Theme toggle ── */
+#theme-btn{font-size:.9rem;padding:5px 9px}
+
+/* ── Responsive ── */
+@media(max-width:900px){#viewer-panel{display:none}}
+/* ── Mobile viewer modal ── */
+#mobile-viewer{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:var(--sidebar);z-index:200;flex-direction:column;-webkit-overflow-scrolling:touch}
+#mobile-viewer.open{display:flex}
+#mobile-viewer-header{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:var(--sidebar)}
+#mobile-viewer-content{flex:1;overflow-y:auto;padding:14px;font-size:.78rem;line-height:1.6;white-space:pre-wrap;word-wrap:break-word;-webkit-overflow-scrolling:touch}
+#mobile-viewer-content img{max-width:100%;border-radius:6px;margin:4px 0}
+@media(max-width:640px){
+  #sidebar-toggle{display:flex}
+  #header-dashboard-btn,#theme-btn,#user-name-label{display:none!important}
+  #user-info{gap:4px}
+  #user-avatar{width:24px;height:24px}
+  #sidebar{position:fixed;top:0;bottom:0;left:0;z-index:50;width:85vw!important;max-width:320px;min-width:unset;-webkit-transform:translateX(-100%);transform:translateX(-100%);-webkit-transition:-webkit-transform .25s ease;transition:transform .25s ease;will-change:transform;resize:none;overflow-y:auto}
+  #sidebar.open{-webkit-transform:translateX(0);transform:translateX(0)}
+  #sidebar-backdrop.show{display:block}
+  #header{padding:6px 10px;gap:4px;flex-wrap:nowrap;min-height:unset}
+  #header h1{font-size:.78rem;white-space:nowrap;letter-spacing:0}
+  #header h1 span{display:none}
+  #case-selector{gap:4px;min-width:0;overflow:hidden}
+  #case-selector select{max-width:100px;font-size:.72rem;padding:3px 6px}
+  .btn-sm{padding:3px 7px;font-size:.72rem;white-space:nowrap}
+  #theme-btn{padding:3px 7px;font-size:.82rem}
+  .msg-bubble{max-width:92%}
+  #chat-input-area{padding:8px 10px}
+  #chat-messages{padding:10px;gap:10px}
+  #scroll-btn{bottom:90px;right:12px}
+  /* Viewer en mobile: botones más compactos, bien envueltos */
+  #mobile-viewer-content .viewer-filename{flex-direction:column;align-items:flex-start;gap:8px}
+  #mobile-viewer-content .viewer-filename > div{width:100%;justify-content:flex-start;flex-wrap:wrap}
+  #mobile-viewer-content iframe{height:55vh!important}
+  #mobile-viewer-content pre{max-height:55vh!important}
+  /* Share toast: no solapar el input en mobile */
+  .share-toast-wrap{bottom:90px!important;width:90vw!important;left:5vw!important;transform:none!important}
+  /* Modal en mobile: full-width, altura máxima, textarea compacto */
+  .modal{width:96vw;max-width:96vw;padding:16px 14px;max-height:calc(100dvh - 50px);max-height:calc(100vh - 50px)}
+  .modal-overlay{align-items:flex-end;padding-bottom:10px}
+  #img-prompt{height:50px;min-height:50px}
+}
+/* ── Admin panel ── */
+.adm-tab{padding:8px 14px;font-size:.78rem;border:none;background:none;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.adm-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.adm-tab i{margin-right:5px}
+.adm-section{max-width:860px}
+.adm-card{background:var(--glass);border:1px solid var(--glass-border);border-radius:10px;padding:14px;margin-bottom:12px}
+.adm-card h4{font-size:.82rem;margin-bottom:10px;color:var(--accent)}
+.adm-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.adm-field{display:flex;flex-direction:column;gap:3px}
+.adm-field label{font-size:.72rem;color:var(--muted)}
+.adm-field input,.adm-field select{background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 9px;font-size:.8rem;outline:none;font-family:inherit;width:100%}
+.adm-field input:focus,.adm-field select:focus{border-color:var(--accent)}
+.adm-table{width:100%;border-collapse:collapse;font-size:.75rem}
+.adm-table th{text-align:left;padding:6px 8px;color:var(--muted);border-bottom:1px solid var(--border);font-weight:600}
+.adm-table td{padding:6px 8px;border-bottom:1px solid var(--border)}
+.adm-table tr:last-child td{border-bottom:none}
+.adm-badge{display:inline-block;font-size:.65rem;padding:1px 6px;border-radius:8px;font-weight:600}
+.adm-badge-admin{background:rgba(196,122,90,.2);color:var(--accent)}
+.adm-badge-orgadmin{background:rgba(139,92,246,.2);color:var(--accent2)}
+.adm-badge-user{background:rgba(122,116,128,.15);color:var(--muted)}
+.adm-invite-url{font-size:.68rem;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:4px 7px;word-break:break-all;color:var(--muted);margin-top:4px}
+@media(max-width:640px){
+  .adm-grid{grid-template-columns:1fr}
+  .adm-table td,.adm-table th{padding:4px 5px;font-size:.7rem}
+  .adm-section{max-width:100%}
+  #admin-panel > div:nth-child(2){overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .adm-tab{padding:7px 10px;font-size:.72rem}
+  .adm-tab i{display:none}
+}
+</style>
+</head>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<body>
+
+<!-- Header -->
+<div id="header">
+  <div style="display:flex;align-items:center;gap:10px">
+    <button id="sidebar-toggle" onclick="toggleSidebar()" title="Archivos">☰</button>
+    <div id="health-dot" title="API status"></div>
+    <h1 id="header-title">VILAR Legal OS <span>v59</span></h1>
+    <img id="org-logo" src="" alt="" style="display:none;max-height:32px;object-fit:contain">
+  </div>
+  <div id="case-selector">
+    <select id="case-select">
+      <option value="">— Seleccionar expediente —</option>
+    </select>
+    <button class="btn btn-sm" onclick="openNewCaseModal()">+ Expediente</button>
+    <button id="header-dashboard-btn" class="btn btn-ghost btn-sm" onclick="openDashboard()" title="Dashboard de costos"><i class="fa-solid fa-chart-bar"></i></button>
+    <button id="header-admin-btn" class="btn btn-ghost btn-sm" onclick="openAdminPanel()" title="Administración" style="display:none"><i class="fa-solid fa-shield-halved"></i></button>
+    <button class="btn btn-ghost btn-sm" id="theme-btn" onclick="toggleTheme()" title="Cambiar tema">☀</button>
+    <div id="user-info">
+      <img id="user-avatar" src="" alt="" style="display:none" onclick="openProfileModal()">
+      <span id="user-name-label" style="display:none"></span>
+    </div>
+  </div>
+</div>
+
+<!-- Sidebar backdrop (mobile) -->
+<div id="sidebar-backdrop" onclick="closeSidebar()"></div>
+
+<!-- Main -->
+<div id="main">
+
+  <!-- Left sidebar: Artifacts -->
+  <div id="sidebar">
+    <div id="sidebar-user-bar" style="display:flex;padding:10px 14px;border-bottom:1px solid var(--border);gap:8px;align-items:center;flex-wrap:wrap">
+      <span id="sidebar-user-name" style="font-size:.8rem;color:var(--muted);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      <button class="btn btn-ghost btn-sm" onclick="openDashboard();closeSidebar()" style="font-size:.75rem">📊 Costos</button>
+      <button class="btn btn-ghost btn-sm" onclick="toggleTheme()" style="font-size:.75rem" id="sidebar-theme-btn">☀ Tema</button>
+      <button class="btn btn-ghost btn-sm" onclick="confirmLogout()" style="font-size:.75rem">↩ Salir</button>
+    </div>
+    <div id="sidebar-header">
+      <h2>Archivos</h2>
+      <span id="ctx-counter">0 en contexto</span>
+    </div>
+    <div id="artifact-tabs">
+      <button class="atab active" data-tab="user" onclick="switchArtifactTab('user')">Subidos</button>
+      <button class="atab" data-tab="system" onclick="switchArtifactTab('system')">Generados</button>
+    </div>
+    <div id="artifact-list"></div>
+    <label id="upload-drop" for="upload-input">
+      <div>📎 Arrastra archivos o haz clic</div>
+      <div style="font-size:.68rem;margin-top:3px">PDF · JPG · DOCX · XLSX · TXT · ZIP · MP3 · MP4 · M4A · WAV</div>
+    </label>
+    <input type="file" id="upload-input" multiple accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.xls,.pptx,.ppt,.txt,.doc,.zip,.html,.htm,.mp3,.mp4,.m4a,.wav,.ogg,.webm,.aac,.flac,.mov,.avi">
+    <div id="artifact-actions">
+      <button class="btn btn-ghost btn-sm" style="flex:1" onclick="selectAllArtifacts()">Todos al ctx</button>
+      <button class="btn btn-ghost btn-sm" style="flex:1" onclick="clearContext()">Limpiar ctx</button>
+      <button class="btn btn-ghost btn-sm" style="flex:1" onclick="downloadZip()" title="Descargar todos en ZIP (cada archivo en su formato nativo)">⬇ ZIP</button>
+    </div>
+    <div style="padding:6px 10px 10px;border-top:1px solid var(--border);flex-shrink:0;display:flex;flex-direction:column;gap:5px">
+      <button class="btn btn-sm" style="width:100%;background:var(--accent2)" onclick="openImagenModal()">📷 Generar imagen</button>
+      <button class="btn btn-sm" style="width:100%;background:var(--green);color:#000" onclick="openTranscribeModal()">🎙 Transcribir video</button>
+    </div>
+  </div>
+
+  <!-- Center: Chat -->
+  <div id="chat-panel">
+    <div id="chat-header">
+      <h2 id="chat-case-title">VILAR Legal OS v59</h2>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" onclick="clearHistory()">Limpiar historial</button>
+      </div>
+    </div>
+    <button id="scroll-btn" onclick="scrollChat()" title="Ir al final">↓</button>
+    <div id="chat-messages">
+      <div class="msg assistant">
+        <div class="msg-avatar">AI</div>
+        <div>
+          <div class="msg-bubble">
+            Bienvenido a VILAR Legal OS v59. Sube documentos y úsalos como contexto para el análisis jurídico con el agente de IA.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="reconnect-bar" style="display:none;align-items:center;gap:10px;padding:8px 14px;background:rgba(196,122,90,0.15);border-top:1px solid var(--accent);font-size:.8rem;color:var(--text)">
+      <span id="reconnect-spin" style="animation:badge-spin 1s linear infinite;display:inline-block">↻</span>
+      <span>El agente siguió trabajando mientras estabas fuera.</span>
+      <button class="btn btn-sm" style="margin-left:auto;background:var(--accent);color:#fff;border:none" onclick="_doReconnect()">
+        <i class="fa-solid fa-rotate-right"></i> Recargar respuesta
+      </button>
+      <button onclick="_hideReconnectBar()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;padding:0 4px">✕</button>
+    </div>
+    <div id="chat-input-area">
+      <div id="ctx-chips"></div>
+      <form id="chat-form" onsubmit="sendMessage(event)">
+        <textarea id="chat-input" placeholder="Mensaje…" rows="1"></textarea>
+        <button type="submit" id="send-btn" class="send-stop-btn" title="Enviar"><i class="fa-solid fa-arrow-up"></i></button>
+        <button type="button" id="stop-btn" class="send-stop-btn" title="Detener generación" onclick="stopStream()"><i class="fa-solid fa-stop" style="font-size:.65rem"></i></button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Right: Viewer -->
+  <div id="viewer-panel">
+    <div id="viewer-header">
+      <h2>Visor</h2>
+      <button class="btn btn-ghost btn-sm" onclick="clearViewer()">✕</button>
+    </div>
+    <div id="viewer-content" class="empty">Selecciona un archivo para visualizarlo</div>
+  </div>
+
+</div>
+
+<!-- Modal: new case -->
+<div class="modal-overlay hidden" id="case-modal">
+  <div class="modal">
+    <h3>Nuevo Expediente</h3>
+    <div class="form-row">
+      <label>Nombre del expediente *</label>
+      <input type="text" id="nc-name" placeholder="Ej. García vs. Martínez">
+    </div>
+    <div class="form-row">
+      <label>Tipo de materia</label>
+      <select id="nc-type">
+        <option value="civil">Civil</option>
+        <option value="penal">Penal</option>
+        <option value="laboral">Laboral</option>
+        <option value="familiar">Familiar</option>
+        <option value="administrativo">Administrativo</option>
+        <option value="mercantil">Mercantil</option>
+        <option value="general" selected>General</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Cliente</label>
+      <input type="text" id="nc-client" placeholder="Nombre del cliente">
+    </div>
+    <div class="form-row">
+      <label>Email del cliente</label>
+      <input type="email" id="nc-email" placeholder="cliente@email.com">
+    </div>
+    <div class="form-row">
+      <label>Notas</label>
+      <textarea id="nc-notes" rows="3" placeholder="Notas iniciales..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('case-modal')">Cancelar</button>
+      <button class="btn" onclick="createCase()">Crear Expediente</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Modal: transcribir video -->
+<div class="modal-overlay hidden" id="transcribe-modal">
+  <div class="modal" style="width:540px">
+    <h3>🎙 Transcribir video / audio</h3>
+    <p style="font-size:.78rem;color:var(--muted);margin-bottom:14px">
+      YouTube · TikTok · Vimeo · Google Drive (público) · y más.<br>
+      Audiencias de hasta 3+ horas. El audio se guarda en el expediente.
+    </p>
+    <div class="form-row">
+      <label>URL del video *</label>
+      <input type="url" id="tx-url" placeholder="https://www.youtube.com/watch?v=...">
+    </div>
+    <div class="form-row">
+      <label>Idioma del audio</label>
+      <select id="tx-lang">
+        <option value="es" selected>Español</option>
+        <option value="en">English</option>
+        <option value="auto">Auto-detectar</option>
+        <option value="fr">Français</option>
+        <option value="pt">Português</option>
+      </select>
+    </div>
+    <div id="tx-progress-wrap" style="display:none;margin-top:10px">
+      <div id="tx-status" style="font-size:.78rem;color:var(--muted);margin-bottom:6px">Iniciando...</div>
+      <div style="background:var(--bg);border-radius:4px;height:8px;overflow:hidden">
+        <div id="tx-bar" style="height:100%;background:var(--green);width:0;transition:width .4s;border-radius:4px"></div>
+      </div>
+      <div id="tx-pct" style="font-size:.7rem;color:var(--muted);text-align:right;margin-top:3px">0%</div>
+    </div>
+    <div id="tx-result" style="display:none;margin-top:10px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;font-size:.75rem;line-height:1.5;max-height:160px;overflow-y:auto;white-space:pre-wrap"></div>
+    <div id="tx-error" style="display:none;margin-top:8px;color:var(--red);font-size:.78rem"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('transcribe-modal')">Cerrar</button>
+      <button class="btn" style="background:var(--green);color:#000" id="tx-btn" onclick="startTranscription()">Transcribir</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: generar imagen -->
+<div class="modal-overlay hidden" id="imagen-modal">
+  <div class="modal" style="width:520px">
+    <h3>📷 Generar imágenes de capacitación</h3>
+    <p style="font-size:.78rem;color:var(--muted);margin-bottom:14px">
+      Genera fotos de ejemplo estilo celular para mostrar a clientes cómo documentar entregas u operaciones.
+    </p>
+    <div style="display:flex;gap:10px">
+      <div class="form-row" style="flex:1">
+        <label>Cantidad</label>
+        <select id="img-count">
+          <option value="1">1 imagen</option>
+          <option value="2" selected>2 imágenes</option>
+          <option value="3">3 imágenes</option>
+          <option value="4">4 imágenes</option>
+        </select>
+      </div>
+      <div class="form-row" style="flex:1">
+        <label>Orientación</label>
+        <select id="img-aspect">
+          <option value="portrait" selected>Vertical (celular)</option>
+          <option value="landscape">Horizontal</option>
+          <option value="square">Cuadrada</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:10px">
+      <div style="flex:1">
+        <label style="display:flex;justify-content:space-between;font-size:.78rem;color:var(--muted);margin-bottom:4px">Desenfoque <span id="img-blur-val">1.4</span></label>
+        <input type="range" id="img-blur" min="0" max="3" step="0.1" value="1.4"
+          style="width:100%;accent-color:var(--accent)"
+          oninput="document.getElementById('img-blur-val').textContent=parseFloat(this.value).toFixed(1)">
+      </div>
+      <div style="flex:1">
+        <label style="display:flex;justify-content:space-between;font-size:.78rem;color:var(--muted);margin-bottom:4px">Calidad JPEG <span id="img-quality-val">48</span></label>
+        <input type="range" id="img-quality" min="20" max="85" step="5" value="48"
+          style="width:100%;accent-color:var(--accent)"
+          oninput="document.getElementById('img-quality-val').textContent=this.value">
+      </div>
+    </div>
+    <div class="form-row">
+      <label>Descripción de la escena *</label>
+      <textarea id="img-prompt" rows="3"
+        placeholder="Ej: camión de carga blanco descargando cajas de cartón en patio de bodega industrial, trabajador con chaleco naranja firmando albarán de entrega"></textarea>
+    </div>
+    <div id="imagen-previews" style="display:none;margin-top:10px">
+      <div style="font-size:.75rem;color:var(--muted);margin-bottom:6px">Imágenes generadas:</div>
+      <div id="imagen-grid" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+    </div>
+    <div id="imagen-status" style="font-size:.78rem;color:var(--muted);margin-top:8px;min-height:18px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('imagen-modal')">Cerrar</button>
+      <button class="btn" style="background:var(--accent2)" id="imagen-generate-btn" onclick="generateImages()">Generar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin Panel (full-screen overlay) -->
+<div id="admin-panel" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:300;flex-direction:column;overflow:hidden">
+  <div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:var(--sidebar)">
+    <div style="display:flex;align-items:center;gap:10px">
+      <i class="fa-solid fa-shield-halved" style="color:var(--accent)"></i>
+      <span style="font-weight:700;font-size:.9rem">Panel de Administración</span>
+      <span id="adm-role-badge" style="font-size:.68rem;padding:2px 7px;border-radius:10px;background:var(--accent);color:#fff"></span>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="closeAdminPanel()">✕ Cerrar</button>
+  </div>
+  <!-- Tabs -->
+  <div style="display:flex;gap:0;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--sidebar)">
+    <button class="adm-tab" data-tab="utilities" onclick="admTab('utilities')"><i class="fa-solid fa-chart-line"></i> Utilidades</button>
+    <button class="adm-tab" data-tab="submasters" onclick="admTab('submasters')"><i class="fa-solid fa-user-tie"></i> Sub Masters</button>
+    <button class="adm-tab active" data-tab="orgs" onclick="admTab('orgs')"><i class="fa-solid fa-building"></i> Organizaciones</button>
+    <button class="adm-tab" data-tab="users"   onclick="admTab('users')"><i class="fa-solid fa-users"></i> Usuarios</button>
+    <button class="adm-tab" data-tab="invites" onclick="admTab('invites')"><i class="fa-solid fa-envelope-open-text"></i> Invitaciones</button>
+    <button class="adm-tab" data-tab="cases"   onclick="admTab('cases')"><i class="fa-solid fa-folder-open"></i> Expedientes</button>
+  </div>
+  <!-- Tab content -->
+  <div id="adm-content" style="flex:1;overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch"></div>
+</div>
+
+<!-- Upload progress -->
+<div id="upload-progress">
+  <div id="upload-progress-text">Subiendo...</div>
+  <div class="progress-bar-wrap"><div class="progress-bar" id="upload-bar"></div></div>
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────
+const API = '/OCR/v59/api';
+let currentCase = null;
+let artifacts = {user: [], system: []};
+let ctxIds = new Set();        // artifact IDs selected for context
+let artifactTab = 'user';
+let chatHistory = [];
+let _abortCtrl = null;
+let _isStreaming = false;
+
+// ── Theme ─────────────────────────────────────────────────
+function _resolvedTheme() {
+  return localStorage.getItem('theme') || 'light';
+}
+function _applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('theme-btn');
+  if (btn) btn.textContent = theme === 'light' ? '🌙' : '☀';
+}
+function toggleTheme() {
+  const next = _resolvedTheme() === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('theme', next);
+  _applyTheme(next);
+}
+
+// ── Sidebar mobile ────────────────────────────────────────
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const bd = document.getElementById('sidebar-backdrop');
+  const open = sb.classList.toggle('open');
+  bd.classList.toggle('show', open);
+  // Force repaint on iOS Safari
+  sb.style.display = 'none';
+  sb.offsetHeight; // eslint-disable-line no-unused-expressions
+  sb.style.display = '';
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-backdrop').classList.remove('show');
+}
+// iOS Safari: register touchstart as backup for sidebar toggle
+(function() {
+  const btn = document.getElementById('sidebar-toggle');
+  if (btn) {
+    btn.addEventListener('touchstart', function(e) {
+      e.preventDefault();
+      toggleSidebar();
+    }, { passive: false });
+  }
+})();
+
+// ── Auth ──────────────────────────────────────────────────
+let currentUser = null;
+
+function loginWithGoogle() {
+  window.location.href = `${API}/auth/google`;
+}
+
+function openProfileModal() {
+  if (!currentUser) return;
+  document.getElementById('prof-avatar').src = currentUser.picture || '';
+  document.getElementById('prof-name').textContent  = currentUser.name  || currentUser.email;
+  document.getElementById('prof-email').textContent = currentUser.email || '';
+  document.getElementById('prof-org').textContent   = currentUser.org_id ? '🏢 Organización asignada' : '';
+  const hasPwd = !!currentUser.has_password;
+  document.getElementById('prof-pwd-hint').style.display    = hasPwd ? 'none' : '';
+  document.getElementById('prof-cur-pwd-row').style.display = hasPwd ? ''     : 'none';
+  document.getElementById('prof-pwd-msg').textContent = '';
+  document.getElementById('prof-new-pwd').value  = '';
+  document.getElementById('prof-conf-pwd').value = '';
+  if (document.getElementById('prof-cur-pwd')) document.getElementById('prof-cur-pwd').value = '';
+  document.getElementById('profile-modal').classList.remove('hidden');
+}
+
+async function confirmLogout() {
+  if (!confirm(`¿Cerrar sesión (${currentUser?.email})?`)) return;
+  await fetch(`${API}/auth/logout`, {method:'POST'});
+  currentUser = null;
+  showAuthOverlay();
+}
+
+function showAuthOverlay() {
+  const params = new URLSearchParams(window.location.search);
+  const err = params.get('auth_error');
+  if (err) {
+    const el = document.getElementById('auth-error-msg');
+    el.style.display = 'block';
+    const msgs = {
+      not_authorized:    'Acceso no autorizado. Contacta al administrador para obtener una invitación.',
+      gmail_not_allowed: 'Acceso no autorizado. Contacta al administrador para obtener una invitación.',
+      state_mismatch:    'Error de seguridad OAuth. Intenta de nuevo.',
+      token_exchange:    'Error al verificar con Google. Intenta de nuevo.',
+      userinfo:          'No se pudo obtener tu perfil de Google.',
+      no_email:          'Google no proporcionó un correo electrónico.',
+    };
+    el.textContent = msgs[err] || `Error de autenticación: ${err}`;
+  }
+  document.getElementById('auth-overlay').style.display = 'flex';
+}
+
+function hideAuthOverlay() {
+  document.getElementById('auth-overlay').style.display = 'none';
+}
+
+function _setUserUI(user) {
+  const av = document.getElementById('user-avatar');
+  const nm = document.getElementById('user-name-label');
+  if (user.picture) { av.src = user.picture; av.style.display = 'block'; }
+  nm.textContent = user.name || user.email;
+  nm.style.display = 'inline';
+  // Show admin button for master admin and org admins
+  const adminBtn = document.getElementById('header-admin-btn');
+  if (adminBtn) adminBtn.style.display = (user.is_master || user.is_sub_master || user.is_org_admin) ? '' : 'none';
+  const sbn = document.getElementById('sidebar-user-name');
+  if (sbn) sbn.textContent = user.name || user.email;
+  _applyOrgBranding(user);
+}
+
+function _applyOrgBranding(user) {
+  if (!user) return;
+  const root = document.documentElement;
+  if (user.primary_color) root.style.setProperty('--accent', user.primary_color);
+  if (user.accent_color)  root.style.setProperty('--accent2', user.accent_color);
+  const logo  = document.getElementById('org-logo');
+  const title = document.getElementById('header-title');
+  if (logo && user.logo_path) {
+    logo.onerror = () => { logo.style.display = 'none'; if (title) title.style.display = ''; };
+    logo.onload  = () => { logo.style.display = 'block'; if (title) title.style.display = 'none'; };
+    // Normalize legacy paths stored as /api/... → /OCR/v59/api/...
+    const _logoSrc = user.logo_path.startsWith('/api/') ? API + user.logo_path.slice(4) : user.logo_path;
+    logo.src = _logoSrc;
+  }
+}
+
+function _showReconnectBar() {
+  const bar = document.getElementById('reconnect-bar');
+  if (bar) bar.style.display = 'flex';
+}
+function _hideReconnectBar() {
+  const bar = document.getElementById('reconnect-bar');
+  if (bar) bar.style.display = 'none';
+}
+async function _doReconnect() {
+  _hideReconnectBar();
+  if (currentCase) await loadChatHistory();
+}
+
+async function checkAuth() {
+  try {
+    const r = await fetch(`${API}/auth/me`);
+    if (r.status === 401) { showAuthOverlay(); return false; }
+    currentUser = await r.json();
+    _setUserUI(currentUser);
+    hideAuthOverlay();
+    return true;
+  } catch {
+    showAuthOverlay();
+    return false;
+  }
+}
+
+// Interceptar 401 globales para redirigir al login
+const _origFetch = window.fetch;
+window.fetch = async function(...args) {
+  const r = await _origFetch(...args);
+  if (r.status === 401 && !args[0]?.toString().includes('/auth/')) {
+    showAuthOverlay();
+  }
+  return r;
+};
+
+// ── Dashboard ─────────────────────────────────────────────
+let _dashCharts = [];
+function _destroyDashCharts() { _dashCharts.forEach(c=>c.destroy()); _dashCharts=[]; }
+
+async function openDashboard() {
+  document.getElementById('dashboard-modal').classList.remove('hidden');
+  const el = document.getElementById('dashboard-content');
+  el.innerHTML = '<div style="text-align:center;color:var(--muted);padding:40px">Cargando...</div>';
+  _destroyDashCharts();
+  try {
+    const r = await fetch(`${API}/dashboard/costs`);
+    if (!r.ok) {
+      const txt = await r.text();
+      throw new Error(`HTTP ${r.status}: ${txt.slice(0,200)}`);
+    }
+    const d = await r.json();
+    if (d.role === 'admin')      { _renderAdminDash(el, d); }
+    else if (d.role === 'sub_master') { _renderSubMasterDash(el, d); }
+    else if (d.role === 'org_admin')  { _renderOrgAdminDash(el, d); }
+    else { _renderUserDash(el, d); }
+  } catch (err) {
+    el.innerHTML = `<div style="color:var(--red);padding:16px;font-size:.8rem;white-space:pre-wrap">Error: ${esc(err.message)}</div>`;
+  }
+}
+
+function _statCard(label, value, sub='', color='var(--accent)') {
+  return `<div style="background:var(--hover);border:1px solid var(--border);border-radius:12px;padding:16px 18px;min-width:0">
+    <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:6px">${label}</div>
+    <div style="font-size:1.45rem;font-weight:700;color:${color};line-height:1.1">${value}</div>
+    ${sub ? `<div style="font-size:.72rem;color:var(--muted);margin-top:4px">${sub}</div>` : ''}
+  </div>`;
+}
+
+function _fmtUSD(v) { return `$${(+v).toFixed(4)}`; }
+function _fmtMXN(v) { const n=(+v).toFixed(2); const[i,d]=n.split('.'); return `$${i.replace(/\B(?=(\d{3})+(?!\d))/g,',')}.${d}`; }
+function _fmtTok(v) { const n=+v; return n>=1e6?`${(n/1e6).toFixed(2)}M`:n>=1e3?`${(n/1e3).toFixed(1)}k`:String(n); }
+
+// ── Dashboard helpers ────────────────────────────────────────────────────────
+function _miniBar(series, valueKey) {
+  if (!series || !series.length) return '<span style="font-size:.65rem;color:var(--muted)">—</span>';
+  const max = Math.max(...series.map(d=>+(d[valueKey]||0)), 0.001);
+  const accent = 'var(--accent)';
+  return `<div style="display:flex;align-items:flex-end;gap:1px;height:28px">${
+    series.map(d=>{
+      const h = Math.max(2, Math.round(((+(d[valueKey]||0))/max)*24));
+      return `<div title="${d.day}" style="flex:1;min-width:2px;height:${h}px;background:${accent};border-radius:1px;opacity:.75"></div>`;
+    }).join('')
+  }</div>`;
+}
+function _artBadges(artifacts) {
+  if (!artifacts || !artifacts.length) return '';
+  return artifacts.map(a=>`<span style="font-size:.6rem;background:var(--hover);border:1px solid var(--border);border-radius:3px;padding:1px 5px;white-space:nowrap">${esc(a.type)} ×${a.count}</span>`).join(' ');
+}
+
+function _renderAdminDash(el, d) {
+  _destroyDashCharts();
+  const t    = d.totals   || {};
+  const users = d.by_user || [];
+  const keys  = d.api_keys || {};
+
+  const tok = `${_fmtTok(t.input_tokens||0)} in · ${_fmtTok(t.output_tokens||0)} out`;
+  const stats = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px">
+    ${_statCard('Costo real', `${_fmtUSD(t.cost_usd||0)} USD`, tok)}
+    ${_statCard('Precio cliente', `${_fmtMXN(t.price_mxn||0)} MXN`, `×${t.markup||5.5} · $${t.fx||19}/USD`)}
+  </div>`;
+
+  const userSections = users.map(u => {
+    const caseRows = (u.by_case||[]).map(c=>`
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:7px 10px;font-size:.78rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.case_name)}</td>
+        <td style="padding:7px 10px;font-size:.74rem;text-align:right;color:var(--muted)">${_fmtUSD(c.cost_usd)}</td>
+        <td style="padding:7px 10px;font-size:.76rem;text-align:right;color:var(--accent);font-weight:600">${_fmtMXN(c.price_mxn)}</td>
+        <td style="padding:7px 10px;font-size:.7rem;text-align:right;color:var(--muted)">${_fmtTok(c.tokens)}</td>
+        <td style="padding:7px 10px;min-width:70px">${_miniBar(c.time_series,'cost_usd')}</td>
+        <td style="padding:7px 10px;font-size:.6rem;max-width:160px">${_artBadges(c.artifacts)}</td>
+      </tr>`).join('') ||
+      '<tr><td colspan="6" style="padding:8px 10px;color:var(--muted);font-size:.75rem">Sin expedientes con costo</td></tr>';
+    const utok = _fmtTok((u.input_tokens||0)+(u.output_tokens||0));
+    return `<details style="margin-bottom:10px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+      <summary style="padding:11px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:var(--hover);list-style:none;user-select:none">
+        <div style="min-width:0;flex:1;overflow:hidden">
+          <span style="font-size:.83rem;font-weight:600">${esc(u.name||u.email)}</span>
+          <span style="font-size:.7rem;color:var(--muted);margin-left:8px;overflow:hidden;text-overflow:ellipsis">${esc(u.email)}</span>
+          ${u.role==='admin'?'<span style="font-size:.58rem;color:var(--accent);margin-left:6px;text-transform:uppercase;font-weight:700">admin</span>':''}
+        </div>
+        <div style="display:flex;gap:14px;font-size:.78rem;flex-shrink:0;margin-left:12px">
+          <span style="color:var(--muted)">${_fmtUSD(u.cost_usd)}</span>
+          <span style="color:var(--accent);font-weight:600">${_fmtMXN(u.price_mxn)}</span>
+          <span style="color:var(--muted)">${utok}</span>
+        </div>
+      </summary>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;white-space:nowrap">
+          <thead><tr style="border-bottom:1px solid var(--border);background:var(--bg)">
+            <th style="padding:5px 10px;font-size:.64rem;color:var(--muted);text-align:left">Expediente</th>
+            <th style="padding:5px 10px;font-size:.64rem;color:var(--muted);text-align:right">Costo real</th>
+            <th style="padding:5px 10px;font-size:.64rem;color:var(--muted);text-align:right">Precio MXN</th>
+            <th style="padding:5px 10px;font-size:.64rem;color:var(--muted);text-align:right">Tokens</th>
+            <th style="padding:5px 10px;font-size:.64rem;color:var(--muted)">30 días</th>
+            <th style="padding:5px 10px;font-size:.64rem;color:var(--muted)">Artefactos</th>
+          </tr></thead>
+          <tbody>${caseRows}</tbody>
+        </table>
+      </div>
+    </details>`;
+  }).join('') || '<div style="color:var(--muted);padding:20px;text-align:center">Sin usuarios con actividad</div>';
+
+  const keyRows = Object.entries(keys).map(([k,v])=>`
+    <div style="display:flex;gap:8px;padding:6px 10px;background:var(--hover);border-radius:6px;margin-bottom:5px;font-size:.72rem">
+      <span style="color:var(--muted);min-width:140px">${esc(k)}</span>
+      <code style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(v)}</code>
+    </div>`).join('');
+
+  el.innerHTML = stats + userSections +
+    `<div style="margin-top:16px"><div style="font-size:.75rem;font-weight:600;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.6px">API Keys</div>${keyRows}</div>`;
+}
+
+function _renderUserDash(el, d) {
+  const tok = `${_fmtTok(d.input_tokens||0)} in · ${_fmtTok(d.output_tokens||0)} out`;
+  const cases = d.by_case || [];
+
+  const caseCards = cases.length ? cases.map(c=>`
+    <div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <span style="font-size:.84rem;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis">${esc(c.case_name)}</span>
+        <div style="text-align:right;flex-shrink:0;margin-left:10px">
+          <div style="color:var(--accent);font-weight:700;font-size:.95rem">${_fmtMXN(c.price_mxn)} MXN</div>
+          <div style="color:var(--muted);font-size:.68rem">${_fmtTok(c.tokens)} tokens</div>
+        </div>
+      </div>
+      ${c.time_series&&c.time_series.length?`<div style="margin-bottom:8px">${_miniBar(c.time_series,'price_mxn')}</div>`:''}
+      ${c.artifacts&&c.artifacts.length?`<div style="display:flex;flex-wrap:wrap;gap:4px">${_artBadges(c.artifacts)}</div>`:''}
+    </div>`).join('') :
+    '<div style="text-align:center;color:var(--muted);padding:24px">Sin expedientes aún</div>';
+
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px">
+      ${_statCard('Tu consumo', `${_fmtMXN(d.price_mxn||0)} MXN`, 'incl. servicio')}
+      ${_statCard('Tokens usados', _fmtTok((d.input_tokens||0)+(d.output_tokens||0)), tok)}
+    </div>
+    <div style="font-size:.78rem;font-weight:600;color:var(--text);margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px">Por expediente</div>
+    ${caseCards}`;
+}
+
+function _renderSubMasterDash(el, d) {
+  const t = d.totals || {};
+  const fmxn = v => _fmtMXN(v);
+  const utilColor = v => (+v) >= 0 ? 'var(--green)' : 'var(--red)';
+  const orgCards = (d.orgs || []).map(o => `
+    <div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-weight:600;font-size:.85rem">${esc(o.org_name)}</span>
+        <span style="font-size:.75rem;color:${utilColor(o.utilidad_mxn)};font-weight:700">${fmxn(o.utilidad_mxn)} utilidad</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div style="font-size:.75rem;color:var(--muted)">Costo: <strong style="color:var(--text)">${fmxn(o.costo_mxn)}</strong></div>
+        <div style="font-size:.75rem;color:var(--muted)">Precio: <strong style="color:var(--text)">${fmxn(o.precio_mxn)}</strong></div>
+      </div>
+      ${o.users && o.users.length ? `<details style="margin-top:4px">
+        <summary style="font-size:.72rem;color:var(--muted);cursor:pointer">Ver ${o.users.length} usuario(s)</summary>
+        <table style="width:100%;border-collapse:collapse;font-size:.72rem;margin-top:6px">
+          <thead><tr style="color:var(--muted)">
+            <th style="text-align:left;padding:3px 6px">Usuario</th>
+            <th style="text-align:right;padding:3px 6px">Costo</th>
+            <th style="text-align:right;padding:3px 6px">Precio</th>
+            <th style="text-align:right;padding:3px 6px">Utilidad</th>
+          </tr></thead>
+          <tbody>${(o.users||[]).map(u => `<tr style="border-top:1px solid var(--border)">
+            <td style="padding:3px 6px">${esc(u.name)}<br><span style="color:var(--muted);font-size:.65rem">${esc(u.email)}</span></td>
+            <td style="text-align:right;padding:3px 6px">${fmxn(u.costo_mxn)}</td>
+            <td style="text-align:right;padding:3px 6px">${fmxn(u.precio_mxn)}</td>
+            <td style="text-align:right;padding:3px 6px;color:${utilColor(u.utilidad_mxn)};font-weight:600">${fmxn(u.utilidad_mxn)}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </details>` : '<div style="font-size:.72rem;color:var(--muted)">Sin uso registrado</div>'}
+    </div>`).join('');
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+      ${_statCard('Costo total', fmxn(t.costo_mxn||0), '', 'var(--muted)')}
+      ${_statCard('Precio total', fmxn(t.precio_mxn||0), '', 'var(--accent)')}
+      ${_statCard('Utilidad', fmxn(t.utilidad_mxn||0), '', utilColor(t.utilidad_mxn||0))}
+    </div>
+    <div style="font-size:.78rem;font-weight:600;color:var(--text);margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px">Por organización</div>
+    ${orgCards || '<div style="color:var(--muted);font-size:.8rem">Sin organizaciones asignadas</div>'}`;
+}
+
+function _renderOrgAdminDash(el, d) {
+  const t = d.totals || {};
+  const tok = `${_fmtTok(t.input_tokens||0)} in · ${_fmtTok(t.output_tokens||0)} out`;
+  const users = d.by_user || [];
+  const userSections = users.map(u => {
+    const caseRows = (u.by_case||[]).map(c=>`
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:7px 10px;font-size:.78rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.case_name)}</td>
+        <td style="padding:7px 10px;font-size:.76rem;text-align:right;color:var(--accent);font-weight:600">${_fmtMXN(c.price_mxn)}</td>
+        <td style="padding:7px 10px;font-size:.7rem;text-align:right;color:var(--muted)">${_fmtTok(c.tokens)}</td>
+        <td style="padding:7px 10px;font-size:.6rem;max-width:160px">${_artBadges(c.artifacts)}</td>
+      </tr>`).join('') ||
+      '<tr><td colspan="4" style="padding:8px 10px;color:var(--muted);font-size:.75rem">Sin expedientes con costo</td></tr>';
+    const utok = _fmtTok((u.input_tokens||0)+(u.output_tokens||0));
+    return `<details style="margin-bottom:10px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+      <summary style="padding:11px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:var(--hover);list-style:none;user-select:none">
+        <div style="min-width:0;flex:1;overflow:hidden">
+          <span style="font-size:.83rem;font-weight:600">${esc(u.name||u.email)}</span>
+          <span style="font-size:.7rem;color:var(--muted);margin-left:8px">${esc(u.email)}</span>
+        </div>
+        <div style="display:flex;gap:14px;font-size:.78rem;flex-shrink:0;margin-left:12px">
+          <span style="color:var(--accent);font-weight:600">${_fmtMXN(u.price_mxn)}</span>
+          <span style="color:var(--muted)">${utok}</span>
+        </div>
+      </summary>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;white-space:nowrap">
+          <thead><tr style="border-bottom:1px solid var(--border);background:var(--bg)">
+            <th style="padding:5px 10px;font-size:.64rem;color:var(--muted);text-align:left">Expediente</th>
+            <th style="padding:5px 10px;font-size:.64rem;color:var(--muted);text-align:right">Precio MXN</th>
+            <th style="padding:5px 10px;font-size:.64rem;color:var(--muted);text-align:right">Tokens</th>
+            <th style="padding:5px 10px;font-size:.64rem;color:var(--muted)">Artefactos</th>
+          </tr></thead>
+          <tbody>${caseRows}</tbody>
+        </table>
+      </div>
+    </details>`;
+  }).join('');
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px">
+      ${_statCard('Consumo org', `${_fmtMXN(t.price_mxn||0)} MXN`, tok)}
+    </div>
+    <div style="font-size:.78rem;font-weight:600;color:var(--text);margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px">Por usuario</div>
+    ${userSections || '<div style="text-align:center;color:var(--muted);padding:24px">Sin consumo registrado</div>'}`;
+}
+
+// ── Init ─────────────────────────────────────────────────
+async function initApp() {
+  healthCheck();
+  loadCases();
+  setupUpload();
+  autoResizeTextarea();
+  // Scroll-to-bottom button
+  const msgs = document.getElementById('chat-messages');
+  const scrollBtn = document.getElementById('scroll-btn');
+  if (msgs && scrollBtn) {
+    msgs.addEventListener('scroll', () => {
+      const atBottom = msgs.scrollTop + msgs.clientHeight >= msgs.scrollHeight - 80;
+      scrollBtn.style.display = atBottom ? 'none' : 'flex';
+    });
+  }
+  setInterval(healthCheck, 30000);
+  // Session persistence: reconnect bar + history reload when user returns to tab
+  let _leftWhileStreaming = false;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      // User leaving: track if a stream was active
+      if (_isStreaming) _leftWhileStreaming = true;
+    } else {
+      // User returning
+      if (_leftWhileStreaming) {
+        _leftWhileStreaming = false;
+        _showReconnectBar();
+        // Also auto-reload after brief delay so the bar is visible
+        setTimeout(() => { if (currentCase) loadChatHistory().then(_hideReconnectBar); }, 1200);
+      } else {
+        // Regular return: reload if there was a network error bubble
+        const bubbles = document.querySelectorAll('.msg-bubble');
+        const last = bubbles[bubbles.length - 1];
+        if (last && (last.textContent.includes('Conexión interrumpida') || last.textContent.includes('Load failed'))) {
+          setTimeout(() => loadChatHistory(), 800);
+        }
+      }
+    }
+  });
+  // Si viene de magic link y no tiene contraseña → abrir perfil con prompt
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('welcome') === '1' && currentUser && !currentUser.has_password) {
+    setTimeout(() => {
+      openProfileModal();
+      toast('Bienvenido. Establece una contraseña para entrar más fácilmente la próxima vez.', 'info');
+    }, 800);
+    history.replaceState({}, '', window.location.pathname);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  _applyTheme(_resolvedTheme());
+  const authed = await checkAuth();
+  if (!authed) return;
+  await initApp();
+});
+
+// ── Health ────────────────────────────────────────────────
+async function healthCheck() {
+  try {
+    const r = await fetch(`${API}/health`);
+    const dot = document.getElementById('health-dot');
+    dot.className = r.ok ? 'ok' : 'err';
+  } catch {
+    document.getElementById('health-dot').className = 'err';
+  }
+}
+
+// ── Cases ─────────────────────────────────────────────────
+async function loadCases() {
+  try {
+    const r = await fetch(`${API}/cases`);
+    const data = await r.json();
+    const sel = document.getElementById('case-select');
+    sel.innerHTML = '<option value="">— Seleccionar expediente —</option>';
+    (data.cases || []).forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.case_id;
+      opt.textContent = c.case_name;
+      sel.appendChild(opt);
+    });
+    sel.onchange = () => selectCase(sel.value);
+  } catch(e) {
+    toast('Error al cargar expedientes', 'error');
+  }
+}
+
+async function selectCase(id) {
+  if (!id) { currentCase = null; return; }
+  try {
+    const r = await fetch(`${API}/cases/${id}`);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+    if (!data.case) throw new Error('Respuesta inesperada del servidor');
+    currentCase = data.case;
+    document.getElementById('chat-case-title').textContent = currentCase.case_name;
+    ctxIds.clear();
+    chatHistory = [];
+    renderCtxChips();
+    await loadArtifacts();
+    await loadChatHistory();
+  } catch(e) {
+    console.error('selectCase:', e);
+    toast('Error al cargar expediente: ' + e.message, 'error');
+  }
+}
+
+function openNewCaseModal() { document.getElementById('case-modal').classList.remove('hidden'); }
+
+async function createCase() {
+  const name = document.getElementById('nc-name').value.trim();
+  if (!name) { toast('El nombre es requerido', 'error'); return; }
+  const body = {
+    case_name: name,
+    matter_type: document.getElementById('nc-type').value,
+    client_name: document.getElementById('nc-client').value,
+    client_email: document.getElementById('nc-email').value,
+    notes: document.getElementById('nc-notes').value
+  };
+  try {
+    const r = await fetch(`${API}/cases`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Error');
+    closeModal('case-modal');
+    toast('Expediente creado', 'success');
+    await loadCases();
+    const sel = document.getElementById('case-select');
+    sel.value = data.case_id;
+    await selectCase(data.case_id);
+  } catch(e) {
+    toast(e.message, 'error');
+  }
+}
+
+// ── Artifacts ─────────────────────────────────────────────
+async function loadArtifacts() {
+  if (!currentCase) return;
+  try {
+    const r = await fetch(`${API}/artifacts/${currentCase.case_id}`);
+    const data = await r.json();
+    artifacts.user = (data.artifacts || []).filter(a => a.source === 'user');
+    artifacts.system = (data.artifacts || []).filter(a => a.source === 'system');
+    renderArtifacts();
+  } catch(e) {
+    console.error('loadArtifacts:', e);
+  }
+}
+
+function switchArtifactTab(tab) {
+  artifactTab = tab;
+  document.querySelectorAll('.atab').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+  renderArtifacts();
+}
+
+function renderArtifacts() {
+  const list = document.getElementById('artifact-list');
+  const items = artifacts[artifactTab] || [];
+  if (!items.length) {
+    list.innerHTML = `<div style="text-align:center;color:var(--muted);font-size:.78rem;padding:20px">${artifactTab === 'user' ? 'Sin archivos subidos' : 'Sin archivos generados'}</div>`;
+    return;
+  }
+  list.innerHTML = items.map(a => {
+    const inCtx = ctxIds.has(a.artifact_id);
+    return `<div class="artifact-item${inCtx ? ' in-ctx' : ''}" id="ai-${a.artifact_id}">
+      <input type="checkbox" class="artifact-cb" ${inCtx ? 'checked' : ''} onchange="toggleCtx('${a.artifact_id}',this.checked)">
+      <div class="artifact-icon ${iconClass(a)}">${iconEmoji(a)}</div>
+      <div class="artifact-info" onclick="viewArtifact('${a.artifact_id}')" style="cursor:pointer">
+        <div class="artifact-name" title="${esc(a.filename||a.artifact_name||a.name||'')}">
+          ${esc(a.filename||a.artifact_name||a.name||'Archivo')}
+        </div>
+        <div class="artifact-meta" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+          ${artTypeBadge(a)}
+          <span>${fmtSize(a.file_size_bytes)}</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:2px;flex-shrink:0">
+        ${a.source === 'system' ? `<button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.75rem;padding:2px 3px" onclick="downloadArtifact('${a.artifact_id}','docx')" title="Descargar Word">⬇</button>` : ''}
+        <button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.8rem;padding:2px 3px"
+          onclick="deleteArtifact('${a.artifact_id}')" title="Eliminar">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+  updateCtxCounter();
+}
+
+function _isXls(m) { return m.includes('spreadsheet') || m.includes('excel') || m.includes('xlsx') || m.includes('xls'); }
+function _isDoc(m) { return m.includes('word') || m.includes('docx') || m.includes('msword'); }
+function _isPpt(m) { return m.includes('presentation') || m.includes('powerpoint') || m.includes('pptx'); }
+function iconClass(a) {
+  const m = a.mime_type || '';
+  const t = a.artifact_type || '';
+  if (m.includes('pdf')) return 'icon-pdf';
+  if (m.startsWith('image/')) return 'icon-img';
+  if (m.startsWith('audio/') || m.startsWith('video/')) return 'icon-doc';
+  if (_isXls(m)) return 'icon-xls';
+  if (_isDoc(m) || _isPpt(m)) return 'icon-doc';
+  if (t === 'html' || m === 'text/html') return 'icon-html';
+  if (a.source === 'system') return 'icon-sys';
+  return 'icon-txt';
+}
+function iconEmoji(a) {
+  const m = a.mime_type || '';
+  const t = a.artifact_type || '';
+  if (m.includes('pdf')) return '<i class="fa-solid fa-file-pdf"></i>';
+  if (m.startsWith('image/')) return '<i class="fa-solid fa-image"></i>';
+  if (m.startsWith('audio/')) return '<i class="fa-solid fa-file-audio"></i>';
+  if (m.startsWith('video/')) return '<i class="fa-solid fa-file-video"></i>';
+  if (_isXls(m)) return '<i class="fa-solid fa-file-excel"></i>';
+  if (_isDoc(m)) return '<i class="fa-solid fa-file-word"></i>';
+  if (_isPpt(m)) return '<i class="fa-solid fa-file-powerpoint"></i>';
+  if (t === 'html' || m === 'text/html') return '<i class="fa-solid fa-code"></i>';
+  if (a.source === 'system') return '<i class="fa-solid fa-robot"></i>';
+  return '<i class="fa-solid fa-file-lines"></i>';
+}
+const _ART_TYPE_LABEL = {
+  html:'HTML', analysis:'Análisis', contract:'Contrato',
+  brief:'Escrito', session_notes:'Notas', md:'Markdown', markdown:'Markdown'
+};
+function artTypeBadge(a) {
+  const t = (a.artifact_type || '').toLowerCase();
+  const m = (a.mime_type || '').toLowerCase();
+  if (t === 'html' || m === 'text/html')
+    return `<span class="art-badge art-badge-html">HTML</span>`;
+  if (a.source === 'system') {
+    const lbl = _ART_TYPE_LABEL[t] || t || 'IA';
+    return `<span class="art-badge art-badge-sys">${esc(lbl)}</span>`;
+  }
+  // Badges para archivos de usuario con tipo reconocible
+  if (_isXls(m)) return `<span class="art-badge" style="background:#bbf7d022;color:#22c55e;border:1px solid #22c55e44">XLSX</span>`;
+  if (_isDoc(m)) return `<span class="art-badge" style="background:#bfdbfe22;color:#93c5fd;border:1px solid #93c5fd44">DOCX</span>`;
+  if (_isPpt(m)) return `<span class="art-badge" style="background:#fde68a22;color:#fbbf24;border:1px solid #fbbf2444">PPTX</span>`;
+  if (m.includes('pdf')) return `<span class="art-badge" style="background:#fde68a22;color:#fbbf24;border:1px solid #fbbf2444">PDF</span>`;
+  return '';
+}
+function fmtSize(b) {
+  if (!b) return '';
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(1) + ' MB';
+}
+
+function toggleCtx(id, checked) {
+  if (checked) ctxIds.add(id); else ctxIds.delete(id);
+  const el = document.getElementById(`ai-${id}`);
+  if (el) el.classList.toggle('in-ctx', checked);
+  renderCtxChips();
+  updateCtxCounter();
+}
+
+function selectAllArtifacts() {
+  (artifacts[artifactTab] || []).forEach(a => ctxIds.add(a.artifact_id));
+  renderArtifacts();
+  renderCtxChips();
+}
+
+function clearContext() {
+  ctxIds.clear();
+  renderArtifacts();
+  renderCtxChips();
+}
+
+function renderCtxChips() {
+  const all = [...artifacts.user, ...artifacts.system];
+  const chips = document.getElementById('ctx-chips');
+  chips.innerHTML = [...ctxIds].map(id => {
+    const a = all.find(x => x.artifact_id === id);
+    const name = a ? (a.filename || a.artifact_name || id) : id;
+    return `<div class="ctx-chip">${esc(name.substring(0,22))} <button onclick="toggleCtx('${id}',false)">✕</button></div>`;
+  }).join('');
+}
+
+function updateCtxCounter() {
+  document.getElementById('ctx-counter').textContent = `${ctxIds.size} en contexto`;
+}
+
+function closeMobileViewer() {
+  document.getElementById('mobile-viewer').classList.remove('open');
+}
+
+async function viewArtifact(id) {
+  const all = [...artifacts.user, ...artifacts.system];
+  const a = all.find(x => x.artifact_id === id);
+  if (!a) return;
+  let vc;
+  if (window.innerWidth <= 900) {
+    document.getElementById('mobile-viewer').classList.add('open');
+    vc = document.getElementById('mobile-viewer-content');
+  } else {
+    vc = document.getElementById('viewer-content');
+  }
+  vc.className = '';
+  const name = a.filename || a.artifact_name || 'Archivo';
+
+  if (a.mime_type && a.mime_type.includes('image')) {
+    const dlBtn = `<a class="btn btn-ghost btn-sm" href="${API}/artifacts/file/${id}" download="${esc(name)}" title="Descargar imagen">⬇ JPG</a>`;
+    const degradeControls = a.source === 'system' ? `
+      <div style="margin-top:10px;padding:8px;background:var(--panel);border-radius:8px;display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;gap:10px">
+          <div style="flex:1">
+            <label style="font-size:.72rem;color:var(--muted);display:flex;justify-content:space-between">Desenfoque <span id="vw-blur-val">1.4</span></label>
+            <input type="range" id="vw-blur" min="0" max="3" step="0.1" value="1.4"
+              oninput="document.getElementById('vw-blur-val').textContent=parseFloat(this.value).toFixed(1)">
+          </div>
+          <div style="flex:1">
+            <label style="font-size:.72rem;color:var(--muted);display:flex;justify-content:space-between">Calidad JPEG <span id="vw-quality-val">48</span></label>
+            <input type="range" id="vw-quality" min="20" max="85" step="5" value="48"
+              oninput="document.getElementById('vw-quality-val').textContent=this.value">
+          </div>
+        </div>
+        <button class="btn btn-sm" style="background:var(--accent2)" onclick="degradeImage('${id}')">Degradar imagen</button>
+      </div>` : '';
+    const header = `<div class="viewer-filename"><span>${esc(name)}</span>${dlBtn}</div>`;
+    vc.innerHTML = header + `<img id="vw-img-${id}" src="${API}/artifacts/file/${id}" alt="${esc(name)}" style="max-width:100%;border-radius:6px;margin-top:6px">` + degradeControls;
+    return;
+  }
+
+  // ── xlsx viewer (SheetJS) ────────────────────────────────────────────────────
+  const _xlsMime = a.mime_type && (a.mime_type.includes('spreadsheet') || a.mime_type.includes('ms-excel'));
+  const _xlsExt  = /\.xlsx?$/i.test(a.filename || '');
+  if ((_xlsMime || _xlsExt) && typeof XLSX !== 'undefined') {
+    const dlBtn = `<a class="btn btn-ghost btn-sm" href="${API}/artifacts/file/${id}" download="${esc(name)}">⬇ Excel</a>`;
+    const hdr   = `<div class="viewer-filename"><span>${esc(name)}</span>${dlBtn}</div>`;
+    vc.innerHTML = hdr + `<div style="color:var(--muted);padding:16px;font-size:.8rem">Cargando hoja de cálculo…</div>`;
+    try {
+      const resp = await fetch(`${API}/artifacts/file/${id}`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const buf  = await resp.arrayBuffer();
+      const wb   = XLSX.read(new Uint8Array(buf), {type: 'array'});
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const tbl  = XLSX.utils.sheet_to_html(ws, {id: 'xlsx-tbl', editable: false});
+      vc.innerHTML = hdr + `<div style="overflow:auto;max-height:580px;font-size:.76rem;margin-top:4px">
+        <style>#xlsx-tbl{border-collapse:collapse;width:100%;background:var(--panel)}
+        #xlsx-tbl td,#xlsx-tbl th{border:1px solid var(--border);padding:3px 8px;white-space:nowrap;color:var(--text)}</style>
+        ${tbl}</div>`;
+    } catch (e) {
+      vc.innerHTML = hdr + `<div style="color:var(--red);padding:16px">Error al cargar xlsx: ${esc(String(e))}</div>`;
+    }
+    return;
+  }
+
+  if (a.source === 'system') {
+    const isHtml   = a.artifact_type === 'html' || /\.html?$/i.test(a.artifact_name || '');
+    const shareSlug = a.share_slug || null;
+    const shareBtn = shareSlug
+      ? `<button class="btn btn-ghost btn-sm" onclick="shareArtifact('${shareSlug}')" title="Copiar URL pública para compartir" style="border-color:var(--green);color:var(--green)"><i class="fa-solid fa-link"></i> Compartir</button>`
+      : `<button class="btn btn-ghost btn-sm" onclick="shareArtifactById('${id}')" title="Obtener URL pública" style="border-color:var(--green);color:var(--green)"><i class="fa-solid fa-link"></i> Compartir</button>`;
+    const dlBtns = `<div style="display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap;align-items:center">
+      ${isHtml ? `<button class="btn btn-ghost btn-sm" id="vw-tab-preview" onclick="switchHtmlView('preview')" style="font-weight:bold">👁 Preview</button><button class="btn btn-ghost btn-sm" id="vw-tab-code" onclick="switchHtmlView('code')">Código</button><button class="btn btn-sm" id="vw-copy-code" onclick="copyViewerCode()" title="Copiar código HTML al portapapeles" style="display:none;background:var(--accent2);color:#fff;border:none;cursor:pointer"><i class="fa-regular fa-copy"></i> Copiar</button><div style="width:1px;background:var(--border);margin:0 2px;align-self:stretch"></div>` : ''}
+      <button id="vw-dl-html" class="btn btn-ghost btn-sm${isHtml ? '' : ' vw-dl-active'}" onclick="downloadArtifact('${id}','html')" title="Descargar HTML">HTML</button>
+      <button id="vw-dl-md" class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','md')" title="Descargar Markdown">MD</button>
+      <button id="vw-dl-docx" class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','docx')" title="Descargar Word">Word</button>
+      <button id="vw-dl-pdf" class="btn btn-ghost btn-sm" onclick="downloadArtifact('${id}','pdf')" title="Descargar PDF">PDF</button>
+      <div style="width:1px;background:var(--border);margin:0 2px;align-self:stretch"></div>
+      ${shareBtn}
+    </div>`;
+    const header = `<div class="viewer-filename">${esc(name)}${dlBtns}</div>`;
+    let content = a.content || '';
+    if (!content) {
+      try {
+        const r = await fetch(`${API}/artifacts/${id}/text`);
+        const d = await r.json();
+        content = d.text || '';
+      } catch { content = ''; }
+    }
+    if (isHtml && content) {
+      vc.innerHTML = header +
+        `<iframe id="vw-html-iframe" sandbox="allow-scripts allow-same-origin"
+           style="width:100%;height:600px;border:1px solid var(--border);border-radius:6px;background:#fff;display:block"></iframe>
+         <pre id="vw-html-code" style="display:none;white-space:pre-wrap;font-size:.72rem;overflow:auto;max-height:600px;padding:10px;background:var(--panel);border-radius:6px;margin-top:0">${esc(content)}</pre>`;
+      document.getElementById('vw-html-iframe').srcdoc = content;
+      return;
+    }
+    vc.innerHTML = header + `<div style="white-space:normal">${mdToHtml(content || '(Sin contenido)')}</div>`;
+    return;
+  }
+
+  const header = `<div class="viewer-filename"><span>${esc(name)}</span><span>${fmtSize(a.file_size_bytes)}</span></div>`;
+  if (a.extracted_text) {
+    vc.innerHTML = header + esc(a.extracted_text);
+    return;
+  }
+  // fetch text
+  try {
+    const r = await fetch(`${API}/artifacts/${id}/text`);
+    const d = await r.json();
+    vc.innerHTML = header + esc(d.text || '(Sin texto extraído)');
+  } catch {
+    vc.innerHTML = header + '(No disponible)';
+  }
+}
+
+function switchHtmlView(tab) {
+  const iframe   = document.getElementById('vw-html-iframe');
+  const code     = document.getElementById('vw-html-code');
+  const btnP     = document.getElementById('vw-tab-preview');
+  const btnC     = document.getElementById('vw-tab-code');
+  const copyBtn  = document.getElementById('vw-copy-code');
+  const dlPdf    = document.getElementById('vw-dl-pdf');
+  const dlHtml   = document.getElementById('vw-dl-html');
+  if (tab === 'preview') {
+    if (iframe)   iframe.style.display   = 'block';
+    if (code)     code.style.display     = 'none';
+    if (btnP)     btnP.style.fontWeight  = 'bold';
+    if (btnC)     btnC.style.fontWeight  = '';
+    if (copyBtn)  copyBtn.style.display  = 'none';
+    if (dlPdf)    dlPdf.classList.add('vw-dl-active');
+    if (dlHtml)   dlHtml.classList.remove('vw-dl-active');
+  } else {
+    if (iframe)   iframe.style.display   = 'none';
+    if (code)     code.style.display     = 'block';
+    if (btnP)     btnP.style.fontWeight  = '';
+    if (btnC)     btnC.style.fontWeight  = 'bold';
+    if (copyBtn)  copyBtn.style.display  = 'inline-flex';
+    if (dlHtml)   dlHtml.classList.add('vw-dl-active');
+    if (dlPdf)    dlPdf.classList.remove('vw-dl-active');
+  }
+}
+
+function copyViewerCode() {
+  const pre = document.getElementById('vw-html-code');
+  if (!pre) return;
+  const text = pre.textContent;
+  const btn  = document.getElementById('vw-copy-code');
+  const orig = btn ? btn.innerHTML : '';
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> Copiado'; setTimeout(() => { btn.innerHTML = orig; }, 2000); }
+    }).catch(() => _fallbackCopy(text));
+  } else {
+    _fallbackCopy(text);
+    if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> Copiado'; setTimeout(() => { btn.innerHTML = orig; }, 2000); }
+  }
+}
+
+function shareArtifact(slug) {
+  const url = `${window.location.origin}/caso/${slug}`;
+  _copyShareUrl(url);
+}
+
+async function shareArtifactById(id) {
+  // Mostrar panel inmediatamente (dentro del gesto) con estado de carga
+  const div = _showSharePanel('⏳ Generando enlace…', null);
+  try {
+    const r = await fetch(`${API}/artifacts/${id}/share-slug`);
+    const d = await r.json();
+    const slug = d.share_slug;
+    if (slug) {
+      const url = `${window.location.origin}/caso/${slug}`;
+      // Actualizar panel con URL real
+      _updateSharePanel(div, url);
+      // Intentar copy async (funciona en Chromium; Safari muestra el panel igualmente)
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).catch(()=>{});
+      }
+      // Actualizar en memoria para que próximos clicks sean sincrónicos
+      const art = [...artifacts.user, ...artifacts.system].find(a => a.artifact_id === id);
+      if (art) art.share_slug = slug;
+    } else {
+      _updateSharePanel(div, null, 'No se pudo generar enlace. Regenera el documento.');
+    }
+  } catch(e) {
+    _updateSharePanel(div, null, 'Error al obtener enlace.');
+  }
+}
+
+function _showSharePanel(msg, url) {
+  // Cerrar panel anterior si existe
+  document.querySelectorAll('.share-toast-wrap').forEach(el => el.remove());
+  const div = document.createElement('div');
+  div.className = 'share-toast-wrap';
+  div.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--green);border-radius:10px;padding:12px 16px;z-index:9999;max-width:min(480px,90vw);box-shadow:var(--shadow);min-width:240px';
+  _renderShareContent(div, msg, url);
+  document.body.appendChild(div);
+  setTimeout(() => { if (div.parentNode) div.remove(); }, 12000);
+  return div;
+}
+function _updateSharePanel(div, url, errMsg) {
+  if (!div || !div.parentNode) return;
+  if (url) {
+    _renderShareContent(div, url ? '✅ Enlace listo' : '', url);
+  } else {
+    _renderShareContent(div, errMsg || 'Error', null);
+  }
+}
+function _renderShareContent(div, label, url) {
+  div.innerHTML =
+    `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:${url?'8px':'0'}">` +
+      `<span style="font-size:.75rem;color:var(--muted)">${label}</span>` +
+      `<button onclick="this.closest('.share-toast-wrap').remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;line-height:1;padding:0">×</button>` +
+    `</div>` +
+    (url ?
+      `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">` +
+        `<code style="font-size:.70rem;color:var(--green);word-break:break-all;flex:1;min-width:0;cursor:pointer" onclick="navigator.clipboard&&navigator.clipboard.writeText('${url}')">${url}</code>` +
+        `<a href="${url}" target="_blank" rel="noopener" style="color:var(--accent);font-size:.78rem;white-space:nowrap;text-decoration:none;font-weight:600;flex-shrink:0">Abrir ↗</a>` +
+      `</div>`
+    : '')
+  ;
+}
+
+function _copyShareUrl(url) {
+  // execCommand sincrónicamente dentro del gesto del usuario
+  let copied = false;
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = url;
+    ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;pointer-events:none';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select(); ta.setSelectionRange(0, 99999);
+    copied = document.execCommand('copy');
+    document.body.removeChild(ta);
+  } catch(e) { copied = false; }
+  if (!copied && navigator.clipboard) navigator.clipboard.writeText(url).catch(()=>{});
+  _showSharePanel(copied ? '✅ URL copiada' : '🔗 Compartir enlace', url);
+}
+
+async function degradeImage(id) {
+  const blur    = parseFloat(document.getElementById('vw-blur').value);
+  const quality = parseInt(document.getElementById('vw-quality').value);
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = 'Degradando…';
+  try {
+    const r = await fetch(`${API}/artifacts/${id}/degrade`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({blur, quality})
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Error');
+    // Forzar recarga de la imagen en el visor
+    const img = document.getElementById(`vw-img-${id}`);
+    if (img) img.src = `${API}/artifacts/file/${id}?t=${Date.now()}`;
+    toast('Imagen degradada correctamente', 'success');
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Degradar imagen';
+  }
+}
+
+async function downloadArtifact(id, fmt) {
+  const all = [...artifacts.user, ...artifacts.system];
+  const a   = all.find(x => x.artifact_id === id);
+  if (a && a.mime_type && a.mime_type.includes('image')) {
+    window.open(`${API}/artifacts/file/${id}`, '_blank');
+    return;
+  }
+  const fname = (a ? (a.artifact_name || a.name || 'documento') : 'documento')
+    .replace(/\s+/g, '_');
+  toast('Preparando descarga…', 'info');
+  try {
+    const resp = await fetch(`${API}/artifacts/${id}/download?fmt=${fmt}`);
+    const ct = resp.headers.get('content-type') || '';
+    if (!resp.ok || ct.startsWith('text/plain')) {
+      const text = await resp.text();
+      toast('Error: ' + (text.split('\n')[0] || 'fallo al descargar'), 'error');
+      return;
+    }
+    const blob = await resp.blob();
+    const url  = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href  = url;
+    link.download = `${fname}.${fmt}`;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    toast('Error de red al descargar', 'error');
+  }
+}
+
+function downloadZip() {
+  if (!currentCase) { toast('Selecciona un expediente primero', 'error'); return; }
+  window.open(`${API}/artifacts/${currentCase.case_id}/zip`, '_blank');
+}
+
+async function deleteArtifact(id) {
+  if (!confirm('¿Eliminar este archivo?')) return;
+  try {
+    const r = await fetch(`${API}/artifacts/${id}`, {method:'DELETE'});
+    if (!r.ok) throw new Error();
+    ctxIds.delete(id);
+    await loadArtifacts();
+    renderCtxChips();
+    toast('Archivo eliminado', 'success');
+  } catch {
+    toast('Error al eliminar', 'error');
+  }
+}
+
+function clearViewer() {
+  const vc = document.getElementById('viewer-content');
+  vc.className = 'empty';
+  vc.textContent = 'Selecciona un archivo para visualizarlo';
+}
+
+// ── Upload ────────────────────────────────────────────────
+function setupUpload() {
+  const drop = document.getElementById('upload-drop');
+  const inp = document.getElementById('upload-input');
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+  drop.addEventListener('drop', e => {
+    e.preventDefault();
+    drop.classList.remove('drag');
+    if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files);
+  });
+  inp.addEventListener('change', () => { if (inp.files.length) uploadFiles(inp.files); inp.value = ''; });
+}
+
+async function uploadFiles(files) {
+  if (!currentCase) { toast('Selecciona un expediente primero', 'error'); return; }
+  const prog = document.getElementById('upload-progress');
+  const bar  = document.getElementById('upload-bar');
+  const txt  = document.getElementById('upload-progress-text');
+  prog.style.display = 'block';
+  bar.style.width = '30%';
+  const n = files.length;
+  txt.textContent = n === 1 ? `Subiendo ${files[0].name}…` : `Subiendo ${n} archivos…`;
+
+  // Enviar todos en un solo request (mucho más rápido que N requests)
+  const fd = new FormData();
+  fd.append('case_id', currentCase.case_id);
+  for (const f of files) fd.append('files', f);
+
+  let ok = 0, errs = [];
+  try {
+    bar.style.width = '60%';
+    const r = await fetch(`${API}/upload`, {method:'POST', body: fd});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+    for (const res of (d.results || [])) {
+      if (res.status === 'ok') ok++;
+      else if (res.error) errs.push(`${res.filename}: ${res.error}`);
+    }
+  } catch(e) {
+    toast(`Error al subir: ${e.message}`, 'error');
+  }
+  bar.style.width = '100%';
+  setTimeout(() => { prog.style.display = 'none'; bar.style.width = '0'; }, 700);
+  await loadArtifacts();
+  if (ok)   toast(`${ok} archivo(s) subido(s)`, 'success');
+  if (errs.length) errs.forEach(e => toast(e, 'error'));
+}
+
+// ── Chat ──────────────────────────────────────────────────
+async function loadChatHistory() {
+  if (!currentCase) return;
+  const msgs = document.getElementById('chat-messages');
+  msgs.innerHTML = '';
+  chatHistory = [];
+  try {
+    const r = await fetch(`${API}/chat/history/${currentCase.case_id}`);
+    const data = await r.json();
+    (data.history || []).forEach(m => {
+      chatHistory.push({role: m.role, content: m.content});
+      appendMessage(m.role, m.content, m.created_at);
+    });
+    scrollChat();
+  } catch(e) {
+    console.error('loadChatHistory:', e);
+  }
+}
+
+// icon HTML + running label + done label
+const TOOL_META = {
+  'save_artifact':     {icon:'<i class="fa-solid fa-floppy-disk"></i>',      running:'Guardando artefacto',    done:'Artefacto guardado'},
+  'append_artifact':   {icon:'<i class="fa-solid fa-file-circle-plus"></i>',  running:'Añadiendo contenido',    done:'Contenido añadido'},
+  'generate_image':    {icon:'<i class="fa-solid fa-wand-magic-sparkles"></i>',running:'Generando imagen',      done:'Imagen generada'},
+  'create_case':       {icon:'<i class="fa-solid fa-folder-plus"></i>',       running:'Creando expediente',     done:'Expediente creado'},
+  'search_precedents': {icon:'<i class="fa-solid fa-scale-balanced"></i>',    running:'Buscando precedentes',   done:'Búsqueda completada'},
+  'validate_document': {icon:'<i class="fa-solid fa-circle-check"></i>',      running:'Validando documento',    done:'Documento validado'},
+  'export_to_jotform': {icon:'<i class="fa-solid fa-file-export"></i>',       running:'Exportando a JotForm',   done:'Exportado'},
+  'list_case_contents':{icon:'<i class="fa-solid fa-folder-open"></i>',       running:'Leyendo expediente',     done:'Expediente leído'},
+  'save_session_notes':{icon:'<i class="fa-solid fa-note-sticky"></i>',       running:'Guardando notas',        done:'Notas guardadas'},
+  'read_file':         {icon:'<i class="fa-solid fa-file-lines"></i>',        running:'Leyendo documento',      done:'Documento leído'},
+  'bash':              {icon:'<i class="fa-solid fa-terminal"></i>',          running:'Ejecutando comando',     done:'Comando ejecutado'},
+  'search':            {icon:'<i class="fa-solid fa-magnifying-glass"></i>',  running:'Buscando información',   done:'Búsqueda completada'},
+  'analyze_audio':     {icon:'<i class="fa-solid fa-microphone-lines"></i>',  running:'Analizando audio',       done:'Análisis completado'},
+};
+// Texto de estado inicial por herramienta — visible desde el primer instante de tool_start
+const TOOL_STATUS_INIT = {
+  'save_artifact':     'Guardando en base de datos…',
+  'generate_image':    'Enviando prompt a Flux.1 (fal.ai)…',
+  'create_case':       'Creando expediente…',
+  'search_precedents': 'Buscando jurisprudencia y precedentes…',
+  'validate_document': 'Verificando requisitos legales…',
+  'export_to_jotform': 'Exportando datos del caso…',
+  'list_case_contents':'Consultando inventario del expediente…',
+  'save_session_notes':'Guardando notas de sesión…',
+  'read_file':         'Leyendo contenido del documento…',
+  'analyze_audio':     'Subiendo audio a Whisper API…',
+};
+
+// Legacy compat
+const TOOL_LABELS = Object.fromEntries(
+  Object.entries(TOOL_META).map(([k,v])=>[k, v.icon + ' ' + v.running])
+);
+
+function setStreamingUI(streaming) {
+  _isStreaming = streaming;
+  const sendBtn = document.getElementById('send-btn');
+  const stopBtn = document.getElementById('stop-btn');
+  sendBtn.style.display = streaming ? 'none' : 'flex';
+  stopBtn.style.display = streaming ? 'flex' : 'none';
+}
+
+function stopStream() {
+  if (_abortCtrl) { _abortCtrl.abort(); _abortCtrl = null; }
+}
+
+// ── Contexto por lenguaje natural / comando /ctx ──────────────────────────
+
+function _parseCtxFilter(str) {
+  const s = str.toLowerCase().trim();
+  const spec = { all:false, types:[], sources:[], nameQuery:null, contentQuery:null, recent:null };
+  // "todos" puede aparecer en cualquier lugar de la cadena
+  const hasTodos = /\btodos?\b|\ball\b/.test(s);
+  if (/\bhtml\b/.test(s))                       spec.types.push('html');
+  if (/\bpdf\b/.test(s))                        spec.types.push('pdf');
+  if (/\baudio\b|\bvoz\b|\bsonido\b|\bmp3\b|\bwav\b/.test(s)) spec.types.push('audio');
+  if (/\bimagen(?:es)?\b|\bfoto\b|\bimg\b|\bjpg\b|\bpng\b/.test(s)) spec.types.push('image');
+  if (/\bword\b|\bdocx\b/.test(s))              spec.types.push('word');
+  if (/\b(?:md|markdown|análisis|analisis|contrato|escrito|brief)\b/.test(s)) spec.types.push('md');
+  if (/\bgenerados?\b|\bsistema\b|\bde\s+ia\b|\bclaude\b/.test(s)) spec.sources.push('system');
+  if (/\bsubidos?\b|\busuario\b|\bm[ií]os?\b|\bpropios?\b/.test(s)) spec.sources.push('user');
+  const recM = s.match(/(?:recientes?|[uú]ltimos?)\s*:?\s*(\d+)/);
+  if (recM) spec.recent = parseInt(recM[1]);
+  const contM = s.match(/(?:contenido|contengan?|contienen?|mencionan?|digan?|con\s+)\s*:?\s*"?([^"]+)"?\s*$/i);
+  if (contM) { spec.contentQuery = contM[1].trim(); return spec; }
+  const nameM = s.match(/(?:nombre|llamad[ao]s?|que\s+se\s+llam[ae]n?)\s*:?\s*"?([^"]+)"?\s*$/i);
+  if (nameM) { spec.nameQuery = nameM[1].trim(); return spec; }
+  // "todos" detectado (con o sin tipo adicional) → usar como "todos [del tipo]"
+  if (hasTodos) { spec.all = true; return spec; }
+  // Sin filtros reconocidos → búsqueda por nombre
+  if (!spec.types.length && !spec.sources.length && !spec.recent)
+    spec.nameQuery = str.trim();
+  return spec;
+}
+
+function _parseCtxCommand(text) {
+  // Comando explícito
+  const explM = text.match(/^\/ctx\s+(.*)/i);
+  if (explM) return _parseCtxFilter(explM[1].trim());
+  // Lenguaje natural español: "añade/incluye/agrega/pon/toma ... contexto" o "contexto: ..."
+  const nlM = text.match(
+    /^(?:a[gñ]rega|a[nñ]ade|incluye|pon|toma|usa|selecciona|activa)\s+(?:en\s+el\s+|al?\s+)?(?:contexto\s+)?(.+?)(?:\s+(?:en\s+)?(?:al?\s+)?contexto)?$/i
+  ) || text.match(/^contexto\s*:\s*(.+)/i) || text.match(/^\/ctx\s+(.*)/i);
+  if (nlM) return _parseCtxFilter(nlM[1].trim());
+  return null;
+}
+
+async function _applyCtxFilter(spec) {
+  const all = [...artifacts.user, ...artifacts.system];
+  let matched = spec.all ? all : all.filter(a => {
+    const m = (a.mime_type || '').toLowerCase();
+    const t = (a.artifact_type || '').toLowerCase();
+    const typeOk = !spec.types.length || (
+      (spec.types.includes('html')  && (t==='html'  || m.includes('html'))) ||
+      (spec.types.includes('pdf')   && m.includes('pdf'))  ||
+      (spec.types.includes('audio') && (m.startsWith('audio/') || m.startsWith('video/'))) ||
+      (spec.types.includes('image') && m.startsWith('image/')) ||
+      (spec.types.includes('word')  && (m.includes('word') || m.includes('docx'))) ||
+      (spec.types.includes('md')    && !['html'].includes(t) && a.source==='system')
+    );
+    const srcOk = !spec.sources.length || spec.sources.includes(a.source==='system'?'system':'user');
+    const nm = (a.filename || a.artifact_name || a.name || '').toLowerCase();
+    const nameOk = !spec.nameQuery || nm.includes(spec.nameQuery.toLowerCase());
+    return typeOk && srcOk && nameOk;
+  });
+  if (spec.recent) matched = matched.slice(0, spec.recent);
+  if (spec.contentQuery && currentCase) {
+    try {
+      const r  = await fetch(`${API}/artifacts/search`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({case_id: currentCase.case_id, q: spec.contentQuery})
+      });
+      const d  = await r.json();
+      const hit = new Set((d.results||[]).map(x => x.artifact_id));
+      matched = matched.length ? matched.filter(a => hit.has(a.artifact_id))
+                               : all.filter(a => hit.has(a.artifact_id));
+    } catch { /* ignorar error de red */ }
+  }
+  return matched;
+}
+
+function _appendSysMsg(html) {
+  const msgs = document.getElementById('chat-messages');
+  const d = document.createElement('div');
+  d.className = 'msg system';
+  d.innerHTML = `<div class="msg-avatar">CTX</div><div><div class="msg-bubble">${html}</div></div>`;
+  msgs.appendChild(d);
+  scrollChat();
+}
+
+async function sendMessage(e) {
+  e.preventDefault();
+  if (_isStreaming) return;
+  const inp = document.getElementById('chat-input');
+  const rawText = inp.value.trim();
+  if (!rawText) return;
+
+  // ── Interceptar comando de contexto ──────────────────────────────────────
+  // Orden: primero multi-oración (evita que el regex NL capture todo el texto),
+  // luego mensaje completo como comando, y si no, texto normal para Claude.
+  let ctxSpec  = null;
+  let chatText = null;
+
+  // Caso 1: "Primera oración = contexto. Resto = instrucción para Claude."
+  const sentM = rawText.match(/^(.+?[.!?])\s+([^\s].+)$/s);
+  if (sentM) {
+    const firstSpec = _parseCtxCommand(sentM[1].trim());
+    if (firstSpec) { ctxSpec = firstSpec; chatText = sentM[2].trim(); }
+  }
+
+  // Caso 2: el mensaje completo es un comando de contexto (sin instrucción adicional)
+  if (!ctxSpec) {
+    ctxSpec  = _parseCtxCommand(rawText);
+    chatText = ctxSpec ? null : rawText;
+  }
+
+  if (ctxSpec) {
+    inp.value = ''; inp.style.height = 'auto';
+    const matched = await _applyCtxFilter(ctxSpec);
+    if (!matched.length) {
+      _appendSysMsg('Sin artefactos que coincidan con ese filtro.');
+      if (!chatText) return;
+    } else {
+      let added = 0;
+      matched.forEach(a => { if (!ctxIds.has(a.artifact_id)) { ctxIds.add(a.artifact_id); added++; } });
+      renderArtifacts(); renderCtxChips();
+      const names = matched.slice(0,4).map(a => `<b>${esc(a.filename||a.artifact_name||a.name||'?')}</b>`).join(', ');
+      const more  = matched.length > 4 ? ` y ${matched.length-4} más` : '';
+      _appendSysMsg(`✅ ${added} artefacto${added!==1?'s':''} agregado${added!==1?'s':''} al contexto: ${names}${more}`);
+      if (!chatText) return;
+    }
+    // Hay chatText → continuar y enviar a Claude (inp ya vaciado arriba)
+  } else {
+    inp.value = ''; inp.style.height = 'auto';
+  }
+
+  const text = chatText || rawText;
+  closeSidebar();
+
+  appendMessage('user', text);
+  chatHistory.push({role:'user', content: text});
+  scrollChat();
+
+  // Crear burbuja de streaming
+  const msgs = document.getElementById('chat-messages');
+  const streamDiv = document.createElement('div');
+  streamDiv.className = 'msg assistant';
+  const mid = 'msg-' + (++_msgCounter);
+  streamDiv.innerHTML = `
+    <div class="msg-avatar">AI</div>
+    <div style="flex:1;min-width:0">
+      <div class="msg-bubble" id="stream-bubble-${mid}">
+        <div id="text-wrap-${mid}">
+          <div class="thinking"><span></span><span></span><span></span></div>
+        </div>
+      </div>
+      <span class="msg-time">${new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}</span>
+      <div class="msg-actions" id="copy-row-${mid}" style="opacity:0;pointer-events:none;transition:opacity .2s">
+        <button class="copy-btn" data-mid="${mid}" onclick="copyMsg(this)">Copiar</button>
+      </div>
+    </div>`;
+  msgs.appendChild(streamDiv);
+  scrollChat();
+
+  const bubble   = document.getElementById(`stream-bubble-${mid}`);
+  const textWrap = document.getElementById(`text-wrap-${mid}`);
+  let fullText = '';
+  let currentTextEl = null;
+  let hasText = false;
+  let hasError = false;
+  let artifactSaved = false;
+  let badgeCount = 0;
+  const _toolTimers = {};    // { badgeId: { tid, wrap } }
+  const _toolStatusEls = {}; // { toolName: statusLineEl } — para actualizar vía tool_status
+
+  function ensureText() {
+    if (!currentTextEl) {
+      currentTextEl = document.createElement('div');
+      currentTextEl.className = 'st';
+      textWrap.appendChild(currentTextEl);
+    }
+    return currentTextEl;
+  }
+
+  _abortCtrl = new AbortController();
+  setStreamingUI(true);
+
+  try {
+    const res = await fetch(`${API}/v1/chat/stream`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      signal: _abortCtrl.signal,
+      body: JSON.stringify({
+        case_id: currentCase ? currentCase.case_id : '',
+        message: text,
+        selected_artifacts: [...ctxIds],
+        history: chatHistory.slice(-20)
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+
+    outer: while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, {stream: true});
+
+      const parts = buf.split('\n\n');
+      buf = parts.pop();
+
+      for (const part of parts) {
+        const line = part.trim();
+        if (!line.startsWith('data: ')) continue;
+        const payload = line.slice(6).trim();
+        if (payload === '[DONE]') break outer;
+
+        let evt;
+        try { evt = JSON.parse(payload); } catch { continue; }
+
+        if (evt.type === 'text') {
+          if (!hasText) { textWrap.innerHTML = ''; hasText = true; currentTextEl = null; _currentSectionText = ''; }
+          fullText += evt.text;
+          _currentSectionText += evt.text;
+          ensureText().innerHTML = mdToHtml(_currentSectionText);
+          scrollChat();
+
+        } else if (evt.type === 'tool_start') {
+          // Guardia contra duplicados: tool_start ahora se emite en content_block_start
+          // y puede llegar una segunda vez como fallback — ignorar si ya existe
+          if (_toolStatusEls[evt.tool]) continue;
+
+          // Freeze current text section
+          currentTextEl = null;
+          _currentSectionText = '';
+          const m = TOOL_META[evt.tool];
+          const badge = document.createElement('div');
+          badge.className = 'action-badge running';
+          badge.id = `badge-${mid}-${badgeCount++}`;
+          badge.dataset.tool = evt.tool;
+          badge.innerHTML = `<span class="badge-spinner"></span>${m ? m.icon : '<i class="fa-solid fa-gear"></i>'} ${m ? m.running : evt.tool}`;
+          bubble.appendChild(badge);
+
+          // Línea de estado dinámica para TODAS las herramientas
+          const statusLine = document.createElement('div');
+          statusLine.className = 'tool-status-line';
+          const _isMaster = currentUser?.is_master === true;
+          const _rawInit  = TOOL_STATUS_INIT[evt.tool] || 'Procesando…';
+          const initMsg   = _isMaster ? _rawInit
+            : _rawInit.replace('Flux.1 (fal.ai)', 'motor de generación').replace('Whisper API', 'transcripción');
+          statusLine.innerHTML = `<span class="tool-status-dot"></span><span>${initMsg}</span>`;
+          bubble.appendChild(statusLine);
+          _toolStatusEls[evt.tool] = statusLine;
+
+          // Barra de progreso adicional para tools lentas
+          if (evt.tool === 'analyze_audio') {
+            const wrap = document.createElement('div');
+            wrap.className = 'audio-progress-wrap';
+            wrap.innerHTML = `<div class="audio-progress-bar" style="margin-top:4px"><div class="audio-progress-fill"></div></div>`;
+            bubble.appendChild(wrap);
+            let pct = 0;
+            const fill = wrap.querySelector('.audio-progress-fill');
+            const tid = setInterval(() => {
+              pct = pct + (88 - pct) * 0.016;
+              fill.style.width = pct.toFixed(1) + '%';
+            }, 600);
+            _toolTimers[badge.id] = { tid, wrap };
+          }
+          scrollChat();
+
+        } else if (evt.type === 'tool_result') {
+          const badge = bubble.querySelector(`.action-badge[data-tool="${evt.tool}"].running`);
+          if (badge) {
+            // Complete progress bar if present
+            if (_toolTimers[badge.id]) {
+              const { tid, wrap } = _toolTimers[badge.id];
+              clearInterval(tid);
+              const fill = wrap.querySelector('.audio-progress-fill');
+              if (fill) { fill.style.transition = 'width .25s ease'; fill.style.width = '100%'; }
+              setTimeout(() => wrap.remove(), 700);
+              delete _toolTimers[badge.id];
+            }
+            const m = TOOL_META[evt.tool];
+            badge.className = 'action-badge done';
+            badge.innerHTML = `${m ? m.icon : '<i class="fa-solid fa-circle-check"></i>'} ${m ? m.done : evt.tool + ' ✓'}`;
+          }
+          // Limpiar la línea de estado de esta herramienta
+          if (_toolStatusEls[evt.tool]) {
+            _toolStatusEls[evt.tool].remove();
+            delete _toolStatusEls[evt.tool];
+          }
+          if (evt.tool === 'save_artifact' || evt.tool === 'append_artifact' || evt.tool === 'generate_image') artifactSaved = true;
+          currentTextEl = null;
+          _currentSectionText = '';
+
+        } else if (evt.type === 'op_log') {
+          // Crear sección de log si no existe
+          let logSec = bubble.querySelector('.op-log-section');
+          if (!logSec) {
+            logSec = document.createElement('div');
+            logSec.className = 'op-log-section';
+            bubble.appendChild(logSec);
+          }
+          const entry = document.createElement('div');
+          entry.className = `op-log-entry${evt.level === 'error' ? ' error' : evt.level === 'warn' ? ' warn' : ''}`;
+          entry.innerHTML = `<span class="op-log-icon">${esc(evt.icon || '•')}</span>
+            <span class="op-log-msg">${esc(evt.msg)}${evt.detail ? `<div class="op-log-detail">${esc(evt.detail)}</div>` : ''}</span>`;
+          logSec.appendChild(entry);
+          scrollChat();
+
+        } else if (evt.type === 'token_usage') {
+          // Actualizar o crear token chip (solo mostrar el último acumulado)
+          let chip = bubble.querySelector('.token-chip');
+          if (!chip) {
+            chip = document.createElement('div');
+            chip.className = 'token-chip';
+            bubble.appendChild(chip);
+          }
+          const inK  = (evt.input  / 1000).toFixed(1);
+          const outK = (evt.output / 1000).toFixed(1);
+          let cost = '';
+          if (currentUser?.is_master && evt.cost_usd != null) {
+            cost = `· $${evt.cost_usd.toFixed(4)}`;
+          } else if (currentUser?.is_sub_master && evt.costo_mxn != null) {
+            cost = `· ${_fmtMXN(evt.costo_mxn)} costo · ${_fmtMXN(evt.precio_mxn)} precio`;
+          } else if (evt.price_mxn != null) {
+            cost = `· ${_fmtMXN(evt.price_mxn)} MXN`;
+          }
+          const isMaster = currentUser?.is_master === true;
+          const modelLabel = isMaster ? esc(evt.model) : 'Agente IA';
+          chip.innerHTML = `📊 <span class="tc-model">${modelLabel}</span> · ${inK}k→${outK}k ${cost}`;
+
+        } else if (evt.type === 'diagnosis') {
+          const panel = document.createElement('div');
+          panel.className = 'diagnosis-panel';
+          const steps = (evt.dev_steps || []).map(s => `<div class="dp-step">• ${esc(s)}</div>`).join('');
+          const fix   = evt.fix_code ? `<pre>${esc(evt.fix_code)}</pre>` : '';
+          panel.innerHTML = `
+            <div class="dp-title">⚠️ Error detectado</div>
+            <div class="dp-user">${esc(evt.user_msg || 'Error interno')}</div>
+            <details>
+              <summary>🔍 Diagnóstico técnico (para el desarrollador)</summary>
+              <div class="dp-steps">${steps}</div>
+              ${fix}
+            </details>`;
+          bubble.appendChild(panel);
+          scrollChat();
+
+        } else if (evt.type === 'tool_status') {
+          // Actualizar el texto de la línea de estado de la herramienta en curso
+          const el = _toolStatusEls[evt.tool];
+          if (el) {
+            const spans = el.querySelectorAll('span');
+            const textSpan = spans[spans.length - 1]; // último span = texto
+            if (textSpan) textSpan.textContent = evt.msg;
+            scrollChat();
+          }
+
+        } else if (evt.type === 'auto_continue') {
+          currentTextEl = null;
+          _currentSectionText = '';
+          const pill = document.createElement('div');
+          pill.className = 'auto-continue-pill';
+          pill.textContent = '↩️ Continuando automáticamente...';
+          bubble.appendChild(pill);
+          scrollChat();
+
+        } else if (evt.type === 'error') {
+          hasError = true;
+          bubble.innerHTML = `<span style="color:var(--red)">⚠️ ${esc(evt.text)}</span>`;
+        }
+      }
+    }
+
+    // Render final: solo actualizar el textWrap — badges y status lines sobreviven
+    if (!hasError) {
+      const displayText = fullText ||
+        (artifactSaved ? '✅ Artefacto guardado. Puedes verlo en la pestaña **Generados**.' : '');
+      textWrap.innerHTML = mdToHtml(displayText) ||
+        '<span style="color:var(--muted)">(sin respuesta)</span>';
+      const copyRow = document.getElementById(`copy-row-${mid}`);
+      if (copyRow) { copyRow.style.opacity = '1'; copyRow.style.pointerEvents = 'auto'; }
+    }
+    _msgStore.set(mid, fullText);
+    chatHistory.push({role:'assistant', content: fullText});
+
+    if (artifactSaved) {
+      await loadArtifacts();
+      switchArtifactTab('system');
+      toast('Artefactos guardados — ver tab Generados', 'info');
+    }
+    scrollChat();
+
+  } catch(err) {
+    const isUserStop = err.name === 'AbortError';
+    const isNetworkAbort = !isUserStop && /load failed|network|aborted|failed to fetch/i.test(err.message);
+    if ((isUserStop || isNetworkAbort) && fullText) {
+      bubble.innerHTML = mdToHtml(fullText) +
+        `<div style="font-size:.7rem;color:var(--muted);margin-top:6px">${isUserStop ? '⬛ Generación detenida' : '⚠️ Conexión interrumpida — respuesta parcial'}</div>`;
+      _msgStore.set(mid, fullText);
+      chatHistory.push({role:'assistant', content: fullText});
+      const copyRow = document.getElementById(`copy-row-${mid}`);
+      if (copyRow) { copyRow.style.opacity='1'; copyRow.style.pointerEvents='auto'; }
+    } else if (isNetworkAbort) {
+      bubble.innerHTML = '<span style="color:var(--muted)">⚠️ Conexión interrumpida. Recargando historial…</span>';
+      setTimeout(() => loadChatHistory(), 1500);
+    } else if (!isUserStop) {
+      bubble.innerHTML = `<span style="color:var(--red)">Error: ${esc(err.message)}</span>`;
+    }
+    scrollChat();
+  } finally {
+    // Clean up any stuck progress timers (e.g. user pressed stop mid-analysis)
+    Object.values(_toolTimers).forEach(({ tid, wrap }) => {
+      clearInterval(tid);
+      if (wrap) wrap.remove();
+    });
+    Object.values(_toolStatusEls).forEach(el => el && el.remove());
+    setStreamingUI(false);
+    _abortCtrl = null;
+    _currentSectionText = '';
+    // Si un artefacto fue guardado (incluso si la conexión se cortó después),
+    // siempre recargar la pestaña Generados
+    if (artifactSaved) {
+      await loadArtifacts();
+      switchArtifactTab('system');
+    }
+  }
+}
+
+// (visibilitychange is handled in initApp)
+
+// Texto acumulado de la sección actual de streaming
+let _currentSectionText = '';
+
+// ── Message store (para copy seguro) ─────────────────────
+const _msgStore = new Map();
+let _msgCounter = 0;
+
+function appendMessage(role, content, ts) {
+  const msgs = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  const time = ts ? new Date(ts).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'}) :
+    new Date().toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'});
+  const mid = 'msg-' + (++_msgCounter);
+  _msgStore.set(mid, content);
+  let actions = '';
+  if (role === 'assistant') {
+    actions = `<div class="msg-actions"><button class="copy-btn" data-mid="${mid}" onclick="copyMsg(this)">Copiar</button></div>`;
+  } else {
+    actions = `<div class="msg-actions"><button class="copy-btn" data-mid="${mid}" onclick="copyMsg(this)">Copiar</button><button class="edit-btn" data-mid="${mid}" onclick="editMsg(this)">Editar</button></div>`;
+  }
+  div.innerHTML = `
+    <div class="msg-avatar">${role === 'user' ? 'Tú' : 'AI'}</div>
+    <div>
+      <div class="msg-bubble">${role === 'assistant' ? mdToHtml(content) : esc(content)}</div>
+      <span class="msg-time">${time}</span>
+      ${actions}
+    </div>`;
+  msgs.appendChild(div);
+}
+
+function copyMsg(btn) {
+  const text = _msgStore.get(btn.dataset.mid) || btn.closest('.msg').querySelector('.msg-bubble').innerText;
+  const finish = () => {
+    btn.textContent = '✓ Copiado';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copiar'; btn.classList.remove('copied'); }, 2000);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(finish).catch(() => _fallbackCopy(text, finish));
+  } else {
+    _fallbackCopy(text, finish);
+  }
+}
+
+function editMsg(btn) {
+  const text = _msgStore.get(btn.dataset.mid) || btn.closest('.msg').querySelector('.msg-bubble').innerText;
+  const inp = document.getElementById('chat-input');
+  if (!inp) return;
+  inp.value = text;
+  inp.style.height = 'auto';
+  inp.style.height = Math.min(inp.scrollHeight, 180) + 'px';
+  inp.focus();
+  inp.setSelectionRange(inp.value.length, inp.value.length);
+  // Highlight the button briefly
+  btn.textContent = '✓ En input';
+  setTimeout(() => { btn.textContent = 'Editar'; }, 1500);
+}
+
+function _fallbackCopy(text, cb) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  ta.setSelectionRange(0, 99999);
+  try { document.execCommand('copy'); if (cb) cb(); } catch(e) { toast('No se pudo copiar', 'error'); }
+  document.body.removeChild(ta);
+}
+
+function scrollChat() {
+  const msgs = document.getElementById('chat-messages');
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+async function clearHistory() {
+  if (!currentCase) return;
+  if (!confirm('¿Limpiar el historial de chat?')) return;
+  try {
+    await fetch(`${API}/chat/history/${currentCase.case_id}`, {method:'DELETE'});
+    chatHistory = [];
+    document.getElementById('chat-messages').innerHTML = '';
+    toast('Historial limpiado', 'success');
+  } catch {
+    toast('Error al limpiar historial', 'error');
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function mdToHtml(s) {
+  if (!s || !s.trim()) return '';
+  const e = t => String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const lines = s.split('\n');
+  let html = '';
+  let inList = false, listType = '';
+
+  const closeList = () => {
+    if (inList) { html += listType === 'ul' ? '</ul>' : '</ol>'; inList = false; listType = ''; }
+  };
+
+  const inlineFormat = t => e(t)
+    .replace(/\*\*\*(.+?)\*\*\*/g,'<strong><em>$1</em></strong>')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/`([^`]+)`/g,'<code style="background:var(--bg);padding:1px 5px;border-radius:3px;font-size:.82em">$1</code>');
+
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+
+    // Fenced code block
+    if (l.startsWith('```')) {
+      closeList();
+      let code = '';
+      i++;
+      while (i < lines.length && !lines[i].startsWith('```')) { code += e(lines[i]) + '\n'; i++; }
+      html += `<pre style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;overflow-x:auto;font-size:.78rem;margin:6px 0"><code>${code}</code></pre>`;
+      continue;
+    }
+
+    // Headers
+    const hm = l.match(/^(#{1,4})\s+(.+)/);
+    if (hm) { closeList(); const n=hm[1].length; const sz=['1.05rem','1rem','.95rem','.9rem'][n-1]; html+=`<div style="font-size:${sz};font-weight:700;margin:10px 0 4px;color:var(--text)">${inlineFormat(hm[2])}</div>`; continue; }
+
+    // HR
+    if (/^---+$/.test(l.trim())) { closeList(); html += '<hr style="border:none;border-top:1px solid var(--border);margin:10px 0">'; continue; }
+
+    // Table row
+    if (l.includes('|') && l.trim().startsWith('|')) {
+      closeList();
+      if (/^\|[\s\-|]+\|$/.test(l.trim())) continue; // separator row
+      const cells = l.trim().replace(/^\||\|$/g,'').split('|').map(c=>c.trim());
+      html += `<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);font-size:.82rem">${cells.map(c=>`<span style="flex:1">${inlineFormat(c)}</span>`).join('')}</div>`;
+      continue;
+    }
+
+    // Unordered list
+    const ulm = l.match(/^(\s*)[*\-+]\s+(.+)/);
+    if (ulm) {
+      if (!inList || listType !== 'ul') { closeList(); html += '<ul style="margin:4px 0 4px 16px;padding:0">'; inList=true; listType='ul'; }
+      html += `<li style="margin:2px 0;font-size:.84rem">${inlineFormat(ulm[2])}</li>`;
+      continue;
+    }
+
+    // Ordered list
+    const olm = l.match(/^\d+\.\s+(.+)/);
+    if (olm) {
+      if (!inList || listType !== 'ol') { closeList(); html += '<ol style="margin:4px 0 4px 16px;padding:0">'; inList=true; listType='ol'; }
+      html += `<li style="margin:2px 0;font-size:.84rem">${inlineFormat(olm[1])}</li>`;
+      continue;
+    }
+
+    closeList();
+    if (l.trim() === '') { html += '<br>'; }
+    else { html += `<span style="display:block;margin:1px 0">${inlineFormat(l)}</span>`; }
+  }
+  closeList();
+  return html;
+}
+
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+// ── Video transcription ───────────────────────────────────
+let _txPollTimer = null;
+
+function openTranscribeModal() {
+  if (!currentCase) { toast('Selecciona un expediente primero', 'error'); return; }
+  document.getElementById('tx-url').value = '';
+  document.getElementById('tx-progress-wrap').style.display = 'none';
+  document.getElementById('tx-result').style.display = 'none';
+  document.getElementById('tx-error').style.display = 'none';
+  document.getElementById('tx-bar').style.width = '0';
+  document.getElementById('tx-btn').disabled = false;
+  document.getElementById('tx-btn').textContent = 'Transcribir';
+  document.getElementById('transcribe-modal').classList.remove('hidden');
+}
+
+async function startTranscription() {
+  const url  = document.getElementById('tx-url').value.trim();
+  const lang = document.getElementById('tx-lang').value;
+  if (!url) { toast('Pega la URL del video primero', 'error'); return; }
+
+  const btn = document.getElementById('tx-btn');
+  btn.disabled = true;
+  btn.textContent = 'Procesando...';
+  document.getElementById('tx-error').style.display = 'none';
+  document.getElementById('tx-result').style.display = 'none';
+  document.getElementById('tx-progress-wrap').style.display = 'block';
+  _txSetProgress(3, 'Iniciando...');
+
+  try {
+    const r = await fetch(`${API}/transcribe`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ case_id: currentCase.case_id, url, language: lang })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+    _txPoll(d.job_id);
+  } catch(e) {
+    _txError(e.message);
+    btn.disabled = false;
+    btn.textContent = 'Transcribir';
+  }
+}
+
+function _txSetProgress(pct, msg) {
+  document.getElementById('tx-bar').style.width = pct + '%';
+  document.getElementById('tx-pct').textContent = pct + '%';
+  document.getElementById('tx-status').textContent = msg;
+}
+
+function _txError(msg) {
+  const el = document.getElementById('tx-error');
+  el.textContent = 'Error: ' + msg;
+  el.style.display = 'block';
+  _txSetProgress(0, 'Error');
+  document.getElementById('tx-btn').disabled = false;
+  document.getElementById('tx-btn').textContent = 'Reintentar';
+  if (_txPollTimer) { clearTimeout(_txPollTimer); _txPollTimer = null; }
+}
+
+function _txPoll(jobId) {
+  _txPollTimer = setTimeout(async () => {
+    try {
+      const r = await fetch(`${API}/transcribe/${jobId}`);
+      const d = await r.json();
+      _txSetProgress(d.progress || 0, d.message || '...');
+
+      if (d.status === 'done') {
+        const resultEl = document.getElementById('tx-result');
+        resultEl.textContent = `✓ ${d.message}\n\nTítulo: ${d.title || ''}\nSegmentos: ${d.segments || ''}\nPalabras: ${(d.word_count||0).toLocaleString()}`;
+        resultEl.style.display = 'block';
+        document.getElementById('tx-btn').disabled = false;
+        document.getElementById('tx-btn').textContent = 'Nueva transcripción';
+        await loadArtifacts();
+        switchArtifactTab('system');
+        toast('Transcripción lista — ver pestaña Generados', 'success');
+      } else if (d.status === 'error') {
+        _txError(d.error || 'Error desconocido');
+      } else {
+        _txPoll(jobId);  // sigue polling
+      }
+    } catch(e) {
+      _txPoll(jobId);    // reintento silencioso en error de red
+    }
+  }, 2500);
+}
+
+// ── Image generation ──────────────────────────────────────
+function openImagenModal() {
+  if (!currentCase) { toast('Selecciona un expediente primero', 'error'); return; }
+  document.getElementById('imagen-previews').style.display = 'none';
+  document.getElementById('imagen-grid').innerHTML = '';
+  document.getElementById('imagen-status').textContent = '';
+  document.getElementById('img-prompt').value = '';
+  document.getElementById('imagen-modal').classList.remove('hidden');
+}
+
+async function generateImages() {
+  const prompt = document.getElementById('img-prompt').value.trim();
+  if (!prompt) { toast('Describe la escena primero', 'error'); return; }
+
+  const btn = document.getElementById('imagen-generate-btn');
+  const status = document.getElementById('imagen-status');
+  btn.disabled = true;
+  btn.textContent = 'Generando…';
+  status.textContent = currentUser?.is_master === true
+    ? 'Llamando a Flux.1 — esto tarda 10-30 segundos…'
+    : 'Generando imagen, esto puede tardar 10-30 segundos…';
+
+  const count   = parseInt(document.getElementById('img-count').value);
+  const aspect  = document.getElementById('img-aspect').value;
+  const blur    = parseFloat(document.getElementById('img-blur').value);
+  const quality = parseInt(document.getElementById('img-quality').value);
+
+  try {
+    const r = await fetch(`${API}/imagen/generate`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ case_id: currentCase.case_id, prompt, count, aspect, blur, quality })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+
+    const grid = document.getElementById('imagen-grid');
+    grid.innerHTML = '';
+    (data.images || []).forEach(img => {
+      const a = document.createElement('a');
+      a.href   = img.url;
+      a.target = '_blank';
+      const el = document.createElement('img');
+      el.src   = img.url;
+      el.style.cssText = 'width:120px;height:160px;object-fit:cover;border-radius:6px;cursor:pointer;border:1px solid var(--border)';
+      el.onclick = e => { e.preventDefault(); viewArtifact(img.artifact_id); closeSidebar(); };
+      grid.appendChild(el);
+    });
+    document.getElementById('imagen-previews').style.display = 'block';
+    status.textContent = `${data.count} imagen(es) guardadas en el expediente.`;
+    await loadArtifacts();
+    switchArtifactTab('system');
+    toast(`${data.count} imagen(es) generadas`, 'success');
+  } catch(e) {
+    status.textContent = `Error: ${e.message}`;
+    toast(e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Generar';
+  }
+}
+
+let toastTimer;
+function toast(msg, type = 'info') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ''; }, 3000);
+}
+
+function autoResizeTextarea() {
+  const ta = document.getElementById('chat-input');
+  ta.addEventListener('input', () => {
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
+  });
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      document.getElementById('chat-form').dispatchEvent(new Event('submit', {cancelable:true}));
+    }
+  });
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.classList.add('hidden'); });
+});
+
+// ── Admin Panel ──────────────────────────────────────────────────────────────
+let _admOrgs = [], _admUsers = [], _admInvites = [], _admCurrentTab = 'orgs';
+
+function openAdminPanel() {
+  document.getElementById('admin-panel').style.display = 'flex';
+  const isMaster  = currentUser?.is_master === true;
+  const isSubMstr = currentUser?.is_sub_master === true;
+  const isOrgAdm  = currentUser?.is_org_admin === true;
+  const badge = document.getElementById('adm-role-badge');
+  if (isMaster) {
+    badge.textContent = 'Master Admin';
+    badge.style.background = 'var(--accent)';
+  } else if (isSubMstr) {
+    badge.textContent = 'Administrador';
+    badge.style.background = '#1e40af';  /* azul oscuro — distinto del master */
+  } else {
+    badge.textContent = 'Org Admin';
+    badge.style.background = 'var(--accent)';
+  }
+  // Visibility rules per tab
+  document.querySelectorAll('.adm-tab').forEach(t => {
+    const tab = t.dataset.tab;
+    if (tab === 'utilities')  t.style.display = isSubMstr ? '' : 'none';
+    if (tab === 'submasters') t.style.display = isMaster  ? '' : 'none';
+    if (tab === 'orgs')       t.style.display = isMaster  ? '' : 'none';
+    if (tab === 'users')      t.style.display = (isMaster || isSubMstr || isOrgAdm) ? '' : 'none';
+    if (tab === 'invites')    t.style.display = (isMaster || isSubMstr || isOrgAdm) ? '' : 'none';
+    if (tab === 'cases')      t.style.display = (isMaster || isSubMstr || isOrgAdm) ? '' : 'none';
+  });
+  if (isMaster)       admTab('orgs');
+  else if (isSubMstr) admTab('invites');
+  else                admTab('invites');
+}
+
+function closeAdminPanel() {
+  document.getElementById('admin-panel').style.display = 'none';
+}
+
+function admTab(tab) {
+  _admCurrentTab = tab;
+  document.querySelectorAll('.adm-tab').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === tab));
+  if (tab === 'utilities')  admLoadUtilities();
+  if (tab === 'submasters') admLoadSubMasters();
+  if (tab === 'orgs')       admLoadOrgs();
+  if (tab === 'users')      admLoadUsers();
+  if (tab === 'invites')    admLoadInvites();
+  if (tab === 'cases')      admLoadCases();
+}
+
+// ── Utilities (Sub Master) ─────────────────────────────────────
+async function admLoadUtilities() {
+  const c = document.getElementById('adm-content');
+  c.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Cargando…</div>';
+  try {
+    const r = await fetch(`${API}/dashboard/costs`);
+    const d = await r.json();
+    if (!r.ok) {
+      c.innerHTML = `<div style="color:var(--red);padding:16px">Error al cargar utilidades</div>`; return;
+    }
+    const wrap = document.createElement('div');
+    wrap.className = 'adm-section';
+    if (d.role === 'sub_master') {
+      _renderSubMasterDash(wrap, d);
+    } else if (d.role === 'org_admin') {
+      _renderOrgAdminDash(wrap, d);
+    } else {
+      wrap.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Sin datos de utilidades disponibles</div>';
+    }
+    c.innerHTML = '';
+    c.appendChild(wrap);
+  } catch(e) {
+    c.innerHTML = `<div style="color:var(--red);padding:16px">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+// ── Sub Masters (Master Admin only) ───────────────────────────
+let _admSubMasters = [], _admAllOrgsForSM = [];
+
+async function admLoadSubMasters() {
+  const c = document.getElementById('adm-content');
+  c.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Cargando…</div>';
+  try {
+    const r = await fetch(`${API}/admin/sub-masters`);
+    const d = await r.json();
+    _admSubMasters    = d.sub_masters    || [];
+    _admAllOrgsForSM  = d.all_orgs       || [];
+    const orgOpts = _admAllOrgsForSM.map(o => `<option value="${o.org_id}">${esc(o.org_name)}${o.sub_master_id ? ' ✓' : ''}</option>`).join('');
+    const smRows = _admSubMasters.map(sm => {
+      const assignedIds = (sm.org_ids || '').split(',').filter(Boolean);
+      const assignedNames = (sm.org_names || '').split('|').filter(Boolean).join(', ');
+      return `<tr style="border-top:1px solid var(--border)">
+        <td style="padding:6px 8px">${esc(sm.name)}<br><span style="font-size:.7rem;color:var(--muted)">${esc(sm.email)}</span></td>
+        <td style="padding:6px 8px;font-size:.75rem">${_fmtMXN(sm.cost_mxn_per_usd || 0)}/USD</td>
+        <td style="padding:6px 8px;font-size:.75rem">${_fmtMXN(sm.price_mxn_per_usd || 0)}/USD</td>
+        <td style="padding:6px 8px;font-size:.72rem;color:var(--muted)">${esc(assignedNames || '—')}</td>
+        <td style="padding:6px 8px">
+          <button class="btn btn-ghost btn-sm" style="font-size:.65rem" onclick="admEditSubMaster('${sm.user_id}')">Editar</button>
+        </td>
+      </tr>`;
+    }).join('');
+    c.innerHTML = `
+      <div class="adm-section">
+        <div class="adm-card" style="margin-bottom:14px">
+          <h4 style="margin:0 0 10px;font-size:.82rem"><i class="fa-solid fa-user-tie"></i> Promover usuario a Sub Master</h4>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end">
+            <div class="adm-field">
+              <label>Correo del usuario</label>
+              <input id="sm-email" type="email" placeholder="usuario@dominio.com"
+                style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.78rem;width:100%">
+            </div>
+            <button class="btn btn-sm" style="background:var(--accent);align-self:end" onclick="admPromoteToSubMaster()">Promover</button>
+            <div class="adm-field" style="grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
+              <div>
+                <label style="font-size:.7rem;color:var(--muted)">Costo MXN/USD (su costo)</label>
+                <input id="sm-new-cost" type="number" step="0.01" placeholder="19.00"
+                  style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.78rem;width:100%">
+              </div>
+              <div>
+                <label style="font-size:.7rem;color:var(--muted)">Precio MXN/USD (lo que cobra)</label>
+                <input id="sm-new-price" type="number" step="0.01" placeholder="104.50"
+                  style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.78rem;width:100%">
+              </div>
+            </div>
+          </div>
+        </div>
+        ${smRows ? `<table style="width:100%;border-collapse:collapse;font-size:.78rem">
+          <thead><tr style="color:var(--muted);font-size:.7rem;text-transform:uppercase">
+            <th style="text-align:left;padding:4px 8px">Usuario</th>
+            <th style="text-align:left;padding:4px 8px">Costo/USD</th>
+            <th style="text-align:left;padding:4px 8px">Precio/USD</th>
+            <th style="text-align:left;padding:4px 8px">Orgs asignadas</th>
+            <th></th>
+          </tr></thead>
+          <tbody>${smRows}</tbody>
+        </table>` : '<div style="color:var(--muted);font-size:.8rem">Sin sub masters configurados</div>'}
+      </div>
+      <!-- Edit modal overlay -->
+      <div id="sm-edit-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;align-items:center;justify-content:center">
+        <div style="background:var(--panel);border-radius:12px;padding:20px;width:min(480px,94vw);max-height:80vh;overflow-y:auto">
+          <h4 style="margin:0 0 14px;font-size:.88rem" id="sm-edit-title">Configurar Sub Master</h4>
+          <input type="hidden" id="sm-edit-id">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div class="adm-field">
+              <label>Costo MXN por USD de API</label>
+              <input id="sm-edit-cost" type="number" step="0.01" placeholder="19.00"
+                style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.78rem;width:100%">
+            </div>
+            <div class="adm-field">
+              <label>Precio MXN por USD de API</label>
+              <input id="sm-edit-price" type="number" step="0.01" placeholder="104.50"
+                style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.78rem;width:100%">
+            </div>
+          </div>
+          <div class="adm-field" style="margin-bottom:10px">
+            <label>Notas internas (no visibles al sub master)</label>
+            <input id="sm-edit-notes" type="text" placeholder="Ej: Cliente incorp.com.mx - contrato 2025"
+              style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.78rem;width:100%">
+          </div>
+          <div class="adm-field" style="margin-bottom:14px">
+            <label>Organizaciones asignadas</label>
+            <select id="sm-edit-orgs" multiple style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px;font-size:.78rem;width:100%;min-height:80px">
+              ${orgOpts}
+            </select>
+            <div style="font-size:.67rem;color:var(--muted);margin-top:3px">Mantén Ctrl/Cmd para seleccionar múltiples</div>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('sm-edit-overlay').style.display='none'">Cancelar</button>
+            <button class="btn btn-sm" style="background:var(--accent)" onclick="admSaveSubMaster()">Guardar</button>
+          </div>
+        </div>
+      </div>`;
+  } catch(e) {
+    c.innerHTML = `<div style="color:var(--red);padding:16px">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+async function admPromoteToSubMaster() {
+  const email = document.getElementById('sm-email')?.value?.trim();
+  if (!email) { toast('Ingresa el correo del usuario', 'error'); return; }
+  const cost  = parseFloat(document.getElementById('sm-new-cost')?.value)  || null;
+  const price = parseFloat(document.getElementById('sm-new-price')?.value) || null;
+  const r = await fetch(`${API}/admin/sub-masters/promote`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({email, cost_mxn_per_usd: cost, price_mxn_per_usd: price})
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) { toast(d.error || 'Error al promover', 'error'); return; }
+  document.getElementById('sm-email').value   = '';
+  document.getElementById('sm-new-cost').value  = '';
+  document.getElementById('sm-new-price').value = '';
+  const msg = d.pending
+    ? `Invitación marcada — ${d.name} será Sub Master al registrarse`
+    : `${d.name || email} promovido a Sub Master`;
+  toast(msg, 'success');
+  admLoadSubMasters();
+}
+
+function admEditSubMaster(sm_id) {
+  const sm = _admSubMasters.find(s => s.user_id === sm_id);
+  if (!sm) return;
+  document.getElementById('sm-edit-id').value    = sm_id;
+  document.getElementById('sm-edit-title').textContent = `Sub Master: ${sm.name}`;
+  document.getElementById('sm-edit-cost').value  = sm.cost_mxn_per_usd  || '';
+  document.getElementById('sm-edit-price').value = sm.price_mxn_per_usd || '';
+  document.getElementById('sm-edit-notes').value = sm.notes || '';
+  const assignedIds = (sm.org_ids || '').split(',').filter(Boolean);
+  const sel = document.getElementById('sm-edit-orgs');
+  if (sel) Array.from(sel.options).forEach(o => { o.selected = assignedIds.includes(o.value); });
+  document.getElementById('sm-edit-overlay').style.display = 'flex';
+}
+
+async function admSaveSubMaster() {
+  const sm_id = document.getElementById('sm-edit-id').value;
+  const cost  = parseFloat(document.getElementById('sm-edit-cost').value)  || null;
+  const price = parseFloat(document.getElementById('sm-edit-price').value) || null;
+  const notes = document.getElementById('sm-edit-notes').value;
+  const sel   = document.getElementById('sm-edit-orgs');
+  const org_ids = sel ? Array.from(sel.selectedOptions).map(o => o.value) : [];
+  const r = await fetch(`${API}/admin/sub-masters/${sm_id}`, {
+    method: 'PUT', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({cost_mxn_per_usd: cost, price_mxn_per_usd: price, notes, org_ids})
+  });
+  if (!r.ok) { toast((await r.json()).error || 'Error', 'error'); return; }
+  toast('Sub Master actualizado', 'success');
+  document.getElementById('sm-edit-overlay').style.display = 'none';
+  admLoadSubMasters();
+}
+
+// ── Organizations ──────────────────────────────────────────────
+async function admLoadOrgs() {
+  const c = document.getElementById('adm-content');
+  c.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Cargando…</div>';
+  const r = await fetch(`${API}/admin/organizations`);
+  if (!r.ok) { c.innerHTML = `<div style="color:var(--red)">Error: ${(await r.json()).error}</div>`; return; }
+  _admOrgs = (await r.json()).organizations || [];
+  c.innerHTML = `
+    <div class="adm-section">
+      <div class="adm-card">
+        <h4><i class="fa-solid fa-plus"></i> Nueva Organización</h4>
+        <div class="adm-grid">
+          <div class="adm-field"><label>Nombre *</label><input id="adm-org-name" placeholder="Empresa S.A."></div>
+          <div class="adm-field"><label>Dominio de correo</label><input id="adm-org-domain" placeholder="empresa.com"></div>
+          <div class="adm-field"><label>Color primario</label><input id="adm-org-color1" type="color" value="#c47a5a"></div>
+          <div class="adm-field"><label>Color acento</label><input id="adm-org-color2" type="color" value="#8b5cf6"></div>
+          <div class="adm-field"><label>Presupuesto mensual (MXN)</label><input id="adm-org-budget" type="number" placeholder="Sin límite"></div>
+          <div class="adm-field"><label>Límite de tokens</label><input id="adm-org-tokens" type="number" placeholder="Sin límite"></div>
+        </div>
+        <div style="margin-top:10px;text-align:right">
+          <button class="btn btn-sm" style="background:var(--accent)" onclick="admCreateOrg()">Crear organización</button>
+        </div>
+      </div>
+      <h4 style="font-size:.8rem;color:var(--muted);margin-bottom:8px">${_admOrgs.length} organizaciones</h4>
+      ${_admOrgs.map(o => `
+        <div class="adm-card" style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+            <div>
+              <strong style="font-size:.85rem">${esc(o.org_name)}</strong>
+              ${o.domain ? `<span style="font-size:.7rem;color:var(--muted);margin-left:6px">@${esc(o.domain)}</span>` : ''}
+              <div style="font-size:.7rem;color:var(--muted);margin-top:2px">
+                ${o.member_count||0} usuarios ·
+                ${o.monthly_budget_mxn ? `$${parseFloat(o.monthly_budget_mxn).toLocaleString()} MXN/mes` : 'Sin límite presupuestal'} ·
+                ${o.token_limit ? `${o.token_limit.toLocaleString()} tokens` : 'Sin límite tokens'}
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0;align-items:center">
+              <span style="width:14px;height:14px;border-radius:50%;background:${esc(o.primary_color||'#c47a5a')};display:inline-block"></span>
+              <span style="width:14px;height:14px;border-radius:50%;background:${esc(o.accent_color||'#8b5cf6')};display:inline-block"></span>
+              <button class="btn btn-ghost btn-sm" style="font-size:.65rem" title="Usar logo de esta org en el encabezado" onclick="admSetMyBranding('${o.org_id}')"><i class="fa-solid fa-paintbrush"></i></button>
+              <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="admDeleteOrg('${o.org_id}','${esc(o.org_name)}')"><i class="fa-solid fa-trash-can"></i></button>
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+async function admCreateOrg() {
+  const body = {
+    org_name:           document.getElementById('adm-org-name').value.trim(),
+    domain:             document.getElementById('adm-org-domain').value.trim(),
+    primary_color:      document.getElementById('adm-org-color1').value,
+    accent_color:       document.getElementById('adm-org-color2').value,
+    monthly_budget_mxn: document.getElementById('adm-org-budget').value || null,
+    token_limit:        document.getElementById('adm-org-tokens').value || null,
+  };
+  if (!body.org_name) { toast('Nombre requerido','error'); return; }
+  const r = await fetch(`${API}/admin/organizations`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d = await r.json();
+  if (!r.ok) { toast(d.error,'error'); return; }
+  toast('Organización creada','success');
+  admLoadOrgs();
+}
+
+async function admDeleteOrg(id, name) {
+  if (!confirm(`¿Eliminar organización "${name}"? Los usuarios quedarán sin org asignada.`)) return;
+  const r = await fetch(`${API}/admin/organizations/${id}`, {method:'DELETE'});
+  if (!r.ok) { toast((await r.json()).error,'error'); return; }
+  toast('Organización eliminada','success');
+  admLoadOrgs();
+}
+
+async function admSetMyBranding(orgId) {
+  const r = await fetch(`${API}/admin/set-my-branding`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({org_id: orgId})
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) { toast(d.error || 'Error', 'error'); return; }
+  if (currentUser) {
+    currentUser.org_id       = orgId;
+    currentUser.primary_color = d.primary_color;
+    currentUser.accent_color  = d.accent_color;
+    currentUser.logo_path     = d.logo_path;
+    _applyOrgBranding(currentUser);
+  }
+  toast('Branding aplicado al encabezado', 'success');
+}
+
+// ── Users ──────────────────────────────────────────────────────
+async function admLoadUsers() {
+  const c = document.getElementById('adm-content');
+  c.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Cargando…</div>';
+  const isMaster  = currentUser?.is_master === true;
+  const isSubMstr = currentUser?.is_sub_master === true;
+  const [usersR, myOrgR] = await Promise.all([
+    fetch(`${API}/admin/users`),
+    !isMaster ? fetch(`${API}/admin/my-org`) : Promise.resolve(null),
+  ]);
+  if (!usersR.ok) { c.innerHTML = `<div style="color:var(--red)">Error</div>`; return; }
+  _admUsers = (await usersR.json()).users || [];
+  const myOrgData = (myOrgR && myOrgR.ok) ? await myOrgR.json() : {};
+  // Sub master puede tener varias orgs asignadas
+  const myOrgs = isSubMstr
+    ? (myOrgData.orgs || (myOrgData.org ? [myOrgData.org] : []))
+    : (myOrgData.org ? [myOrgData.org] : []);
+  const myOrg = myOrgs[0] || null;  // backward compat para la tabla
+  const orgOptions = _admOrgs.map(o => `<option value="${o.org_id}">${esc(o.org_name)}</option>`).join('');
+  const _orgCard = (org, idx) => `
+    <div class="adm-card" style="margin-bottom:14px">
+      <h4 style="margin:0 0 10px;font-size:.82rem"><i class="fa-solid fa-building"></i> ${esc(org.org_name)} — Configuración de la organización</h4>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="adm-field">
+          <label>Presupuesto mensual (MXN)</label>
+          <input id="adm-myorg-budget-${idx}" type="number" placeholder="Sin límite"
+            value="${org.monthly_budget_mxn||''}"
+            style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.78rem;width:100%">
+        </div>
+        <div class="adm-field">
+          <label>Límite de tokens (org)</label>
+          <input id="adm-myorg-tokens-${idx}" type="number" placeholder="Sin límite"
+            value="${org.token_limit||''}"
+            style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.78rem;width:100%">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+        <div class="adm-field">
+          <label>Color primario</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input id="adm-myorg-color1-${idx}" type="color" value="${org.primary_color||'#c47a5a'}"
+              oninput="document.getElementById('adm-myorg-color1-hex-${idx}').value=this.value"
+              style="width:36px;height:28px;border:1px solid var(--border);border-radius:4px;padding:1px;background:var(--bg);cursor:pointer">
+            <input id="adm-myorg-color1-hex-${idx}" type="text" value="${org.primary_color||'#c47a5a'}"
+              oninput="document.getElementById('adm-myorg-color1-${idx}').value=this.value"
+              style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.78rem">
+          </div>
+        </div>
+        <div class="adm-field">
+          <label>Color acento</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input id="adm-myorg-color2-${idx}" type="color" value="${org.accent_color||'#8b5cf6'}"
+              oninput="document.getElementById('adm-myorg-color2-hex-${idx}').value=this.value"
+              style="width:36px;height:28px;border:1px solid var(--border);border-radius:4px;padding:1px;background:var(--bg);cursor:pointer">
+            <input id="adm-myorg-color2-hex-${idx}" type="text" value="${org.accent_color||'#8b5cf6'}"
+              oninput="document.getElementById('adm-myorg-color2-${idx}').value=this.value"
+              style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.78rem">
+          </div>
+        </div>
+      </div>
+      <div style="text-align:right;margin-top:8px">
+        <button class="btn btn-sm" onclick="admSaveMyOrg('${org.org_id}',${idx})" style="background:var(--accent)">Guardar</button>
+      </div>
+      <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">
+        <label style="font-size:.74rem;color:var(--muted);display:block;margin-bottom:6px"><i class="fa-solid fa-image"></i> Logo de la organización</label>
+        ${org.logo_path ? `<img src="${esc(org.logo_path)}" alt="Logo" style="max-height:52px;max-width:180px;object-fit:contain;border-radius:6px;margin-bottom:8px;display:block;background:var(--hover);padding:4px">` : '<div style="font-size:.74rem;color:var(--muted);margin-bottom:6px">Sin logo configurado</div>'}
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <input type="file" id="adm-logo-file-${idx}" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+            style="font-size:.74rem;color:var(--text);width:100%">
+          <button id="adm-logo-btn-${idx}" class="btn btn-sm" onclick="admUploadLogo('${org.org_id}',${idx})" style="background:#7c3aed;color:#fff;width:100%">
+            <i class="fa-solid fa-upload"></i> Subir logo
+          </button>
+        </div>
+        <div style="font-size:.68rem;color:var(--muted);margin-top:4px">PNG, JPG, SVG · máx 2 MB · reemplaza el título en el encabezado</div>
+      </div>
+    </div>`;
+  const orgLimitsCard = myOrgs.map((o, i) => _orgCard(o, i)).join('');
+  c.innerHTML = `
+    <div class="adm-section">
+      ${orgLimitsCard}
+      <div style="overflow-x:auto">
+        <table class="adm-table">
+          <thead><tr>
+            <th>Usuario</th><th>Correo</th>
+            ${isMaster ? '<th>Organización</th>' : ''}
+            <th>Rol</th><th>Activo</th><th>Tokens</th>
+            <th title="¿Puede crear expedientes?">Crear exp.</th>
+            <th title="Qué expedientes puede ver">Acceso</th>
+            <th></th>
+          </tr></thead>
+          <tbody>
+            ${_admUsers.map(u => `
+              <tr id="adm-user-${u.user_id}">
+                <td style="white-space:nowrap">
+                  ${u.picture ? `<img src="${u.picture}" style="width:22px;height:22px;border-radius:50%;vertical-align:middle;margin-right:5px">` : ''}
+                  ${esc(u.name||'')}
+                </td>
+                <td style="color:var(--muted)">${esc(u.email)}</td>
+                ${isMaster ? `<td>
+                  <select onchange="admUpdateUser('${u.user_id}',{org_id:this.value})" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 5px;font-size:.72rem">
+                    <option value="">— Sin org —</option>${orgOptions}
+                  </select>
+                </td>` : ''}
+                <td>
+                  <span class="adm-badge ${u.role==='admin'?'adm-badge-admin':u.is_org_admin?'adm-badge-orgadmin':'adm-badge-user'}">
+                    ${u.role==='admin'?'Master':u.is_org_admin?'Org Admin':'Usuario'}
+                  </span>
+                  ${u.role!=='admin'?`<button class="btn btn-ghost btn-sm" style="font-size:.65rem;padding:1px 5px;margin-left:3px" onclick="admToggleOrgAdmin('${u.user_id}',${u.is_org_admin?0:1})">${u.is_org_admin?'Quitar admin':'Hacer admin'}</button>`:''}
+                </td>
+                <td>
+                  <button class="btn btn-ghost btn-sm" style="font-size:.65rem" onclick="admToggleApproved('${u.user_id}',${u.approved?0:1})">
+                    ${u.approved?'<i class="fa-solid fa-circle-check" style="color:var(--green)"></i>':'<i class="fa-solid fa-circle-xmark" style="color:var(--red)"></i>'}
+                  </button>
+                </td>
+                <td><input type="number" value="${u.token_limit||''}" placeholder="∞" style="width:70px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 5px;font-size:.72rem"
+                  onchange="admUpdateUser('${u.user_id}',{token_limit:this.value||null})"></td>
+                <td style="text-align:center">
+                  <button class="btn btn-ghost btn-sm" style="font-size:.65rem" onclick="admToggleCanCreate('${u.user_id}',${u.can_create_cases?0:1})" title="${u.can_create_cases?'Sí, puede crear':'No puede crear'}">
+                    ${u.can_create_cases!==false&&u.can_create_cases!==0?'<i class="fa-solid fa-circle-check" style="color:var(--green)"></i>':'<i class="fa-solid fa-circle-xmark" style="color:var(--red)"></i>'}
+                  </button>
+                </td>
+                <td>
+                  <select onchange="admSetCaseAccess('${u.user_id}',this.value)" style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 5px;font-size:.72rem" data-access="${u.case_access||'all'}">
+                    <option value="all">Todos</option>
+                    <option value="assigned">Asignados</option>
+                  </select>
+                  ${(u.case_access==='assigned')?`<button class="btn btn-ghost btn-sm" style="font-size:.65rem;padding:1px 5px;margin-left:3px" onclick="admManageUserCases('${u.user_id}','${esc(u.name||u.email)}')"><i class="fa-solid fa-list-check"></i></button>`:''}
+                </td>
+                <td>
+                  <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="admDeleteUser('${u.user_id}','${esc(u.email)}')"><i class="fa-solid fa-trash-can"></i></button>
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  // Set org select values
+  _admUsers.forEach(u => {
+    const orgSel = document.querySelector(`#adm-user-${u.user_id} select`);
+    if (orgSel && u.org_id && orgSel.name !== 'case_access') orgSel.value = u.org_id;
+    // Set case_access select
+    const row = document.getElementById(`adm-user-${u.user_id}`);
+    if (row) {
+      const selects = row.querySelectorAll('select');
+      selects.forEach(s => {
+        if (s.dataset.access !== undefined) s.value = u.case_access || 'all';
+        else if (u.org_id) s.value = u.org_id;
+      });
+    }
+  });
+}
+
+async function admSaveMyOrg(orgId, idx = 0) {
+  const sfx    = idx !== undefined ? `-${idx}` : '';
+  const budget = document.getElementById(`adm-myorg-budget${sfx}`)?.value;
+  const tokens = document.getElementById(`adm-myorg-tokens${sfx}`)?.value;
+  const color1 = document.getElementById(`adm-myorg-color1-hex${sfx}`)?.value ||
+                 document.getElementById(`adm-myorg-color1${sfx}`)?.value;
+  const color2 = document.getElementById(`adm-myorg-color2-hex${sfx}`)?.value ||
+                 document.getElementById(`adm-myorg-color2${sfx}`)?.value;
+  const body   = {monthly_budget_mxn: budget || null, token_limit: tokens || null};
+  if (color1) body.primary_color = color1;
+  if (color2) body.accent_color  = color2;
+  if (orgId) body.org_id = orgId;
+  const r = await fetch(`${API}/admin/my-org`, {
+    method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+  });
+  if (!r.ok) { toast((await r.json()).error || 'Error', 'error'); return; }
+  toast('Guardado', 'success');
+  if (color1 || color2) {
+    if (currentUser) {
+      if (color1) currentUser.primary_color = color1;
+      if (color2) currentUser.accent_color  = color2;
+      _applyOrgBranding(currentUser);
+    }
+  }
+}
+
+async function admUploadLogo(orgId, idx = 0) {
+  const sfx = orgId ? `-${idx}` : '';
+  const inp = document.getElementById(`adm-logo-file${sfx}`);
+  if (!inp || !inp.files[0]) { toast('Selecciona una imagen primero', 'error'); return; }
+  const btn = document.getElementById(`adm-logo-btn${sfx}`);
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Subiendo…'; }
+  try {
+    const fd = new FormData();
+    fd.append('logo', inp.files[0]);
+    if (orgId) fd.append('org_id', orgId);
+    const url = orgId ? `${API}/admin/my-org/logo?org_id=${encodeURIComponent(orgId)}` : `${API}/admin/my-org/logo`;
+    const r = await fetch(url, {method: 'POST', body: fd});
+    let d = {};
+    try { d = await r.json(); } catch { d = {error: `Error HTTP ${r.status}`}; }
+    if (!r.ok) { toast(d.error || 'Error al subir logo', 'error'); return; }
+    toast('Logo actualizado', 'success');
+    if (currentUser) _applyOrgBranding({...currentUser, logo_path: d.logo_path});
+    admLoadUsers();
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-upload"></i> Subir logo'; }
+  }
+}
+
+async function admUpdateUser(user_id, patch) {
+  const r = await fetch(`${API}/admin/users/${user_id}`, {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)});
+  if (!r.ok) toast((await r.json()).error,'error');
+  else toast('Guardado','success');
+}
+
+async function admToggleOrgAdmin(user_id, val) {
+  await admUpdateUser(user_id, {is_org_admin: val});
+  admLoadUsers();
+}
+
+async function admToggleApproved(user_id, val) {
+  await admUpdateUser(user_id, {approved: val});
+  admLoadUsers();
+}
+
+async function admDeleteUser(user_id, email) {
+  if (!confirm(`¿Eliminar usuario ${email}?`)) return;
+  const r = await fetch(`${API}/admin/users/${user_id}`, {method:'DELETE'});
+  if (!r.ok) { toast((await r.json()).error,'error'); return; }
+  toast('Usuario eliminado','success');
+  admLoadUsers();
+}
+
+async function admToggleCanCreate(user_id, val) {
+  await admUpdateUser(user_id, {can_create_cases: val});
+  admLoadUsers();
+}
+
+async function admSetCaseAccess(user_id, val) {
+  await admUpdateUser(user_id, {case_access: val});
+  admLoadUsers();
+}
+
+// Modal: gestionar expedientes asignados a un usuario
+async function admManageUserCases(user_id, userName) {
+  // Cargar expedientes asignados + todos los de la org
+  const [assignedR, allCasesR] = await Promise.all([
+    fetch(`${API}/admin/users/${user_id}/cases`),
+    fetch(`${API}/admin/cases`),
+  ]);
+  const assigned = assignedR.ok ? (await assignedR.json()).cases || [] : [];
+  const allCases = allCasesR.ok ? (await allCasesR.json()).cases || [] : [];
+  const assignedIds = new Set(assigned.map(c => c.case_id));
+  const available = allCases.filter(c => !assignedIds.has(c.case_id));
+
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = `
+    <div style="background:var(--sidebar);border-radius:10px;padding:24px;width:100%;max-width:500px;max-height:80vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="margin:0;font-size:1rem">Expedientes asignados a <em>${esc(userName)}</em></h3>
+        <button onclick="this.closest('[style*=fixed]').remove()" style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer">✕</button>
+      </div>
+      <div id="adm-uca-list" style="margin-bottom:16px">
+        ${assigned.length === 0
+          ? '<p style="color:var(--muted);font-size:.8rem">Ningún expediente asignado aún.</p>'
+          : assigned.map(c => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+              <span style="font-size:.85rem">${esc(c.case_name)}</span>
+              <button class="btn btn-ghost btn-sm" style="color:var(--red);font-size:.7rem" onclick="admRemoveUserCase('${user_id}','${c.case_id}',this)"><i class="fa-solid fa-xmark"></i> Quitar</button>
+            </div>`).join('')}
+      </div>
+      ${available.length > 0 ? `
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="adm-uca-add-sel" style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 8px;font-size:.8rem">
+          <option value="">— Agregar expediente —</option>
+          ${available.map(c => `<option value="${c.case_id}">${esc(c.case_name)}</option>`).join('')}
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="admAddUserCase('${user_id}')">Agregar</button>
+      </div>` : '<p style="color:var(--muted);font-size:.75rem">Todos los expedientes ya están asignados.</p>'}
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+async function admAddUserCase(user_id) {
+  const sel = document.getElementById('adm-uca-add-sel');
+  if (!sel || !sel.value) return;
+  const case_id = sel.value;
+  const caseName = sel.options[sel.selectedIndex].text;
+  const r = await fetch(`${API}/admin/users/${user_id}/cases`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({case_id})
+  });
+  if (!r.ok) { toast((await r.json()).error || 'Error', 'error'); return; }
+  toast('Expediente asignado', 'success');
+  // Re-open modal with fresh data
+  const modal = sel.closest('[style*=fixed]');
+  if (modal) modal.remove();
+  const u = _admUsers.find(x => x.user_id === user_id);
+  admManageUserCases(user_id, u ? (u.name || u.email) : user_id);
+}
+
+async function admRemoveUserCase(user_id, case_id, btn) {
+  const r = await fetch(`${API}/admin/users/${user_id}/cases/${case_id}`, {method:'DELETE'});
+  if (!r.ok) { toast((await r.json()).error || 'Error', 'error'); return; }
+  toast('Acceso revocado', 'success');
+  // Remove row from modal
+  btn.closest('div').remove();
+}
+
+// ── Invitations ────────────────────────────────────────────────
+async function admLoadInvites() {
+  const c = document.getElementById('adm-content');
+  c.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Cargando…</div>';
+  try {
+  const isMaster  = currentUser?.is_master === true;
+  const isSubMstr = currentUser?.is_sub_master === true;
+  const [invR, orgR] = await Promise.all([
+    fetch(`${API}/admin/invitations`),
+    isMaster    ? fetch(`${API}/admin/organizations`) :
+    isSubMstr   ? fetch(`${API}/admin/sm/my-orgs`)   : Promise.resolve(null)
+  ]);
+  if (!invR.ok) { c.innerHTML = `<div style="color:var(--red)">Error ${invR.status}: ${(await invR.text()).substring(0,200)}</div>`; return; }
+  _admInvites = (await invR.json()).invitations || [];
+  if (orgR && orgR.ok) {
+    const od = await orgR.json();
+    _admOrgs = od.organizations || od.orgs || [];
+  }
+  const orgOptions = _admOrgs.map(o => `<option value="${o.org_id}">${esc(o.org_name)}</option>`).join('');
+  // Logo cards for sub master (shown at top of invites tab)
+  const smLogoCards = isSubMstr ? _admOrgs.map((org, i) => `
+    <div class="adm-card" style="margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        ${org.logo_path ? `<img src="${esc(org.logo_path)}" alt="Logo" style="max-height:40px;max-width:120px;object-fit:contain;border-radius:4px;background:var(--hover);padding:3px">` : ''}
+        <span style="font-size:.8rem;font-weight:600"><i class="fa-solid fa-image"></i> Marca: ${esc(org.org_name)}</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="file" id="adm-inv-logo-file-${i}" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+          style="font-size:.72rem;color:var(--text);flex:1;min-width:0">
+        <button id="adm-inv-logo-btn-${i}" class="btn btn-sm" onclick="admUploadInvLogo('${org.org_id}',${i})"
+          style="background:#7c3aed;color:#fff;white-space:nowrap">
+          <i class="fa-solid fa-upload"></i> Subir logo
+        </button>
+      </div>
+    </div>`).join('') : '';
+  c.innerHTML = `
+    <div class="adm-section">
+      ${smLogoCards}
+      <div class="adm-card">
+        <h4><i class="fa-solid fa-paper-plane"></i> Nueva Invitación (Magic Link)</h4>
+        <div class="adm-grid">
+          <div class="adm-field"><label>Correo del invitado *</label><input id="adm-inv-email" type="email" placeholder="usuario@empresa.com"></div>
+          <div class="adm-field"><label>Rol</label>
+            <select id="adm-inv-role">
+              <option value="user">Usuario</option>
+              <option value="org_admin">Admin de Organización</option>
+              ${isMaster ? '<option value="master_admin">Master Admin</option>' : ''}
+            </select>
+          </div>
+          ${(isMaster || isSubMstr) ? `<div class="adm-field" style="grid-column:1/-1"><label>Organización</label>
+            <select id="adm-inv-org"><option value="">— Sin organización —</option>${orgOptions}</select>
+          </div>` : ''}
+        </div>
+        <div style="margin-top:10px;text-align:right">
+          <button class="btn btn-sm" style="background:var(--accent2)" onclick="admCreateInvite()"><i class="fa-solid fa-link"></i> Generar enlace</button>
+        </div>
+        <div id="adm-inv-result" style="display:none;margin-top:10px">
+          <div style="font-size:.72rem;color:var(--muted);margin-bottom:4px">Enlace generado (válido ${7} días) — compártelo al usuario:</div>
+          <div class="adm-invite-url" id="adm-inv-url"></div>
+          <button class="btn btn-sm btn-ghost" style="margin-top:6px" onclick="admCopyInvite()"><i class="fa-regular fa-copy"></i> Copiar enlace</button>
+        </div>
+      </div>
+      <h4 style="font-size:.8rem;color:var(--muted);margin-bottom:8px">${_admInvites.length} invitaciones</h4>
+      ${_admInvites.map(i => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--glass);border:1px solid var(--glass-border);border-radius:8px;margin-bottom:6px;gap:10px;flex-wrap:wrap">
+          <div>
+            <span style="font-size:.8rem;font-weight:600">${esc(i.email||'Cualquier correo')}</span>
+            <span class="adm-badge ${i.role==='master_admin'?'adm-badge-admin':i.role==='org_admin'?'adm-badge-orgadmin':'adm-badge-user'}" style="margin-left:6px">${i.role}</span>
+            ${i.org_name ? `<span style="font-size:.7rem;color:var(--muted);margin-left:5px">${esc(i.org_name)}</span>` : ''}
+            <div style="font-size:.68rem;color:var(--muted);margin-top:2px">${i.used?'<span style="color:var(--green)">Usada</span>':'Pendiente'} · Expira: ${(i.expires_at||'').substring(0,10)}</div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+            ${!i.used ? `<button class="btn btn-ghost btn-sm" onclick="admCopyInviteUrl('${esc(i.url||'')}')"><i class="fa-regular fa-copy"></i></button>` : ''}
+            <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="admRevokeInvite('${i.invite_id}')"><i class="fa-solid fa-trash-can"></i></button>
+          </div>
+        </div>`).join('')}
+    </div>`;
+  } catch(e) {
+    c.innerHTML = `<div style="color:var(--red);padding:12px">Error al cargar invitaciones: ${esc(String(e))}</div>`;
+  }
+}
+
+async function admCreateInvite() {
+  const isMaster  = currentUser?.is_master === true;
+  const isSubMstr = currentUser?.is_sub_master === true;
+  const body = {
+    email:  document.getElementById('adm-inv-email').value.trim(),
+    role:   document.getElementById('adm-inv-role').value,
+    org_id: (isMaster || isSubMstr) ? (document.getElementById('adm-inv-org')?.value || null) : null,
+  };
+  if (!body.email) { toast('Correo requerido','error'); return; }
+  const r = await fetch(`${API}/admin/invitations`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d = await r.json();
+  if (!r.ok) { toast(d.error,'error'); return; }
+  document.getElementById('adm-inv-url').textContent = d.url;
+  document.getElementById('adm-inv-result').style.display = 'block';
+  toast('Enlace generado — cópialo y compártelo con el usuario', 'success');
+}
+
+async function admUploadInvLogo(orgId, idx) {
+  const inp = document.getElementById(`adm-inv-logo-file-${idx}`);
+  if (!inp || !inp.files[0]) { toast('Selecciona una imagen primero', 'error'); return; }
+  const btn = document.getElementById(`adm-inv-logo-btn-${idx}`);
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
+  try {
+    const fd = new FormData();
+    fd.append('logo', inp.files[0]);
+    const r = await fetch(`${API}/admin/my-org/logo?org_id=${encodeURIComponent(orgId)}`, {method:'POST', body:fd});
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { toast(d.error || 'Error al subir logo', 'error'); return; }
+    toast('Logo actualizado', 'success');
+    if (currentUser && d.logo_path) _applyOrgBranding({...currentUser, logo_path: d.logo_path});
+    admLoadInvites();
+  } catch(e) { toast('Error: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-upload"></i> Subir logo'; }
+  }
+}
+
+function admCopyInvite() {
+  const url = document.getElementById('adm-inv-url').textContent;
+  admCopyInviteUrl(url);
+}
+
+function admCopyInviteUrl(url) {
+  navigator.clipboard.writeText(url).then(() => toast('Enlace copiado','success')).catch(() => {
+    prompt('Copia el enlace:', url);
+  });
+}
+
+async function admRevokeInvite(invite_id) {
+  if (!confirm('¿Revocar esta invitación?')) return;
+  await fetch(`${API}/admin/invitations/${invite_id}`, {method:'DELETE'});
+  toast('Invitación revocada','success');
+  admLoadInvites();
+}
+
+// ── Cases (admin) ──────────────────────────────────────────────
+let _admCases = [];
+async function admLoadCases() {
+  const c = document.getElementById('adm-content');
+  c.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Cargando…</div>';
+  const isMaster = currentUser && currentUser.role === 'admin';
+  const [caseR, orgR] = await Promise.all([
+    fetch(`${API}/admin/cases`),
+    isMaster ? fetch(`${API}/admin/organizations`) : Promise.resolve(null)
+  ]);
+  if (!caseR.ok) { c.innerHTML = `<div style="color:var(--red)">Error al cargar expedientes</div>`; return; }
+  _admCases = (await caseR.json()).cases || [];
+  if (orgR) _admOrgs = ((await orgR.json()).organizations) || [];
+
+  const orgOptions = _admOrgs.map(o =>
+    `<option value="${o.org_id}">${esc(o.org_name)}</option>`).join('');
+
+  c.innerHTML = `
+    <div class="adm-section">
+      <div style="margin-bottom:10px;display:flex;align-items:center;gap:8px">
+        <input id="adm-cases-filter" placeholder="Filtrar por nombre o correo…"
+          oninput="admFilterCases()"
+          style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 10px;font-size:.8rem;outline:none">
+        <span style="font-size:.75rem;color:var(--muted)" id="adm-cases-count">${_admCases.length} expedientes</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="adm-table" id="adm-cases-table">
+          <thead><tr>
+            <th>Expediente</th>
+            <th>Propietario actual</th>
+            <th>Organización</th>
+            <th>Estado</th>
+            <th></th>
+          </tr></thead>
+          <tbody id="adm-cases-tbody">
+            ${_admCases.map(cs => admCaseRow(cs, orgOptions, isMaster)).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function admCaseRow(cs, orgOptions, isMaster) {
+  const orgSel = `<select onchange="admAssignCaseOrg('${cs.case_id}',this.value)"
+    style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:3px 6px;font-size:.75rem;max-width:160px">
+    <option value="">— Sin org —</option>
+    ${orgOptions.replace(`value="${cs.org_id}"`, `value="${cs.org_id}" selected`)}
+  </select>`;
+  const ownerCell = isMaster
+    ? `<input value="${esc(cs.owner_email||'')}" onblur="admAssignCaseOwner('${cs.case_id}',this.value)"
+        style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:3px 6px;font-size:.75rem;width:170px">`
+    : `<span style="color:var(--muted);font-size:.75rem">${esc(cs.owner_email||'—')}</span>`;
+  const statusBadge = cs.status === 'active'
+    ? `<span class="adm-badge adm-badge-admin">activo</span>`
+    : `<span class="adm-badge adm-badge-user">${esc(cs.status)}</span>`;
+  return `<tr data-name="${esc((cs.case_name||'').toLowerCase())}" data-owner="${esc((cs.owner_email||'').toLowerCase())}">
+    <td style="font-weight:500">${esc(cs.case_name||'Sin nombre')}</td>
+    <td>${ownerCell}</td>
+    <td>${orgSel}</td>
+    <td>${statusBadge}</td>
+    <td style="white-space:nowrap">
+      ${cs.status==='active'
+        ? `<button class="btn btn-ghost btn-sm" style="font-size:.68rem;padding:2px 7px" onclick="admCaseStatus('${cs.case_id}','closed')">Cerrar</button>`
+        : `<button class="btn btn-ghost btn-sm" style="font-size:.68rem;padding:2px 7px" onclick="admCaseStatus('${cs.case_id}','active')">Reabrir</button>`}
+    </td>
+  </tr>`;
+}
+
+function admFilterCases() {
+  const q = document.getElementById('adm-cases-filter').value.toLowerCase();
+  let shown = 0;
+  document.querySelectorAll('#adm-cases-tbody tr').forEach(tr => {
+    const match = !q || tr.dataset.name.includes(q) || tr.dataset.owner.includes(q);
+    tr.style.display = match ? '' : 'none';
+    if (match) shown++;
+  });
+  document.getElementById('adm-cases-count').textContent = `${shown} expedientes`;
+}
+
+async function admAssignCaseOrg(case_id, org_id) {
+  const r = await fetch(`${API}/admin/cases/${case_id}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({org_id: org_id || null})
+  });
+  if (!r.ok) { toast((await r.json()).error || 'Error al asignar', 'error'); return; }
+  toast('Organización actualizada','success');
+}
+
+async function admAssignCaseOwner(case_id, email) {
+  const r = await fetch(`${API}/admin/cases/${case_id}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({owner_email: email.trim() || null})
+  });
+  if (!r.ok) { toast((await r.json()).error || 'Error al asignar', 'error'); return; }
+  toast('Propietario actualizado','success');
+}
+
+async function admCaseStatus(case_id, status) {
+  const r = await fetch(`${API}/admin/cases/${case_id}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({status})
+  });
+  if (!r.ok) { toast((await r.json()).error || 'Error', 'error'); return; }
+  toast(status === 'active' ? 'Expediente reabierto' : 'Expediente cerrado', 'success');
+  admLoadCases();
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.classList.add('hidden'); });
+});
+
+async function requestMagicLink() {
+  const emailEl = document.getElementById('auth-req-email');
+  const msgEl   = document.getElementById('auth-req-msg');
+  const email   = (emailEl.value || '').trim();
+  if (!email || !email.includes('@')) {
+    msgEl.style.display = 'block';
+    msgEl.style.color   = 'var(--red)';
+    msgEl.innerHTML     = 'Ingresa un correo válido.';
+    return;
+  }
+  msgEl.style.display = 'block';
+  msgEl.style.color   = 'var(--muted)';
+  msgEl.innerHTML     = 'Generando enlace…';
+  try {
+    const r = await fetch(`${API}/auth/request-link`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email})
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      msgEl.style.color = 'var(--red)';
+      msgEl.innerHTML   = d.error || 'Error al generar enlace.';
+    } else if (d.invite_url) {
+      // Email no disponible — mostrar link directamente en pantalla
+      msgEl.style.color = 'var(--green)';
+      msgEl.innerHTML   = `${d.msg}<br><a href="${d.invite_url}"
+        style="display:inline-block;margin-top:8px;background:var(--accent);color:#fff;
+               padding:8px 18px;border-radius:6px;text-decoration:none;font-weight:600;font-size:.82rem">
+        Entrar ahora →</a>`;
+      emailEl.value = '';
+    } else {
+      msgEl.style.color = 'var(--green)';
+      msgEl.innerHTML   = d.msg || 'Enlace enviado. Revisa tu correo.';
+      emailEl.value = '';
+    }
+  } catch {
+    msgEl.style.color = 'var(--red)';
+    msgEl.innerHTML   = 'Error de red. Intenta de nuevo.';
+  }
+}
+
+async function loginWithPassword() {
+  const email = (document.getElementById('auth-pwd-email').value || '').trim();
+  const pwd   = (document.getElementById('auth-pwd-pass').value  || '');
+  const msgEl = document.getElementById('auth-pwd-msg');
+  if (!email || !pwd) {
+    msgEl.style.display = 'block'; msgEl.style.color = 'var(--red)';
+    msgEl.textContent = 'Ingresa correo y contraseña.'; return;
+  }
+  msgEl.style.display = 'block'; msgEl.style.color = 'var(--muted)';
+  msgEl.textContent = 'Verificando…';
+  try {
+    const r = await fetch(`${API}/auth/login-password`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email, password: pwd})
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      msgEl.style.color = 'var(--red)';
+      msgEl.textContent = d.error || 'Error al iniciar sesión.';
+    } else {
+      hideAuthOverlay();
+      await initApp();
+    }
+  } catch {
+    msgEl.style.color = 'var(--red)';
+    msgEl.textContent = 'Error de red. Intenta de nuevo.';
+  }
+}
+
+async function savePassword() {
+  const newPwd  = (document.getElementById('prof-new-pwd').value  || '').trim();
+  const curPwd  = (document.getElementById('prof-cur-pwd')?.value || '').trim();
+  const confPwd = (document.getElementById('prof-conf-pwd').value || '').trim();
+  const msgEl   = document.getElementById('prof-pwd-msg');
+  if (newPwd !== confPwd) {
+    msgEl.style.color = 'var(--red)'; msgEl.textContent = 'Las contraseñas no coinciden.'; return;
+  }
+  if (newPwd.length < 8) {
+    msgEl.style.color = 'var(--red)'; msgEl.textContent = 'Mínimo 8 caracteres.'; return;
+  }
+  const body = {password: newPwd};
+  if (curPwd) body.current_password = curPwd;
+  const r = await fetch(`${API}/auth/set-password`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  });
+  const d = await r.json();
+  if (!r.ok) {
+    msgEl.style.color = 'var(--red)'; msgEl.textContent = d.error || 'Error.';
+  } else {
+    msgEl.style.color = 'var(--green)'; msgEl.textContent = '¡Contraseña guardada!';
+    currentUser.has_password = true;
+    document.getElementById('prof-cur-pwd-row') && (document.getElementById('prof-cur-pwd-row').style.display = '');
+    document.getElementById('prof-pwd-hint') && (document.getElementById('prof-pwd-hint').style.display = 'none');
+    document.getElementById('prof-new-pwd').value = '';
+    document.getElementById('prof-conf-pwd').value = '';
+    if (document.getElementById('prof-cur-pwd')) document.getElementById('prof-cur-pwd').value = '';
+  }
+}
+</script>
+<!-- Auth overlay -->
+<div id="auth-overlay" style="display:none;position:fixed;inset:0;z-index:500;background:var(--bg);
+  background-image:radial-gradient(ellipse at 20% 20%, rgba(196,122,90,0.12) 0%, transparent 55%),
+                   radial-gradient(ellipse at 80% 80%, rgba(139,92,246,0.08) 0%, transparent 55%);
+  display:none;flex-direction:column;align-items:center;justify-content:center;gap:28px">
+  <div style="text-align:center">
+    <div style="font-size:2rem;margin-bottom:8px">⚖️</div>
+    <h1 style="font-size:1.6rem;font-weight:700;color:var(--accent);letter-spacing:.3px">VILAR Legal OS</h1>
+    <p style="color:var(--muted);font-size:.88rem;margin-top:6px">Plataforma de análisis jurídico con IA</p>
+  </div>
+  <div style="background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    border:1px solid var(--glass-border);border-radius:20px;padding:36px 44px;
+    box-shadow:var(--shadow);text-align:center;max-width:380px;width:90vw">
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:24px;line-height:1.6">
+      Inicia sesión con tu cuenta de Google para acceder a tus expedientes.
+    </p>
+    <button onclick="loginWithGoogle()" style="display:inline-flex;align-items:center;gap:12px;
+      background:#fff;color:#3c4043;border:1px solid #dadce0;border-radius:10px;
+      padding:12px 24px;font-size:.9rem;font-weight:500;cursor:pointer;font-family:inherit;
+      transition:box-shadow .15s;width:100%;justify-content:center">
+      <img src="https://www.google.com/favicon.ico" width="18" height="18" alt="">
+      Continuar con Google
+    </button>
+    <div id="auth-error-msg" style="display:none;margin-top:14px;color:var(--red);font-size:.78rem"></div>
+    <!-- Login con contraseña -->
+    <div style="margin-top:18px;border-top:1px solid var(--border);padding-top:16px">
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:10px;text-align:center">¿Tienes contraseña?</p>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <input id="auth-pwd-email" type="email" placeholder="correo@empresa.com"
+          style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 12px;font-size:.82rem;outline:none;font-family:inherit">
+        <div style="display:flex;gap:6px">
+          <input id="auth-pwd-pass" type="password" placeholder="Contraseña"
+            style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 12px;font-size:.82rem;outline:none;font-family:inherit"
+            onkeydown="if(event.key==='Enter')loginWithPassword()">
+          <button onclick="loginWithPassword()"
+            style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:.82rem;cursor:pointer;font-family:inherit">
+            Entrar
+          </button>
+        </div>
+      </div>
+      <div id="auth-pwd-msg" style="display:none;margin-top:6px;font-size:.76rem;text-align:center"></div>
+    </div>
+    <!-- Solicitar magic link por correo -->
+    <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:10px;text-align:center">
+        ¿Primera vez o sin contraseña?
+      </p>
+      <div style="display:flex;gap:6px">
+        <input id="auth-req-email" type="email" placeholder="tu@correo.com"
+          style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);
+                 border-radius:8px;padding:9px 12px;font-size:.82rem;outline:none;font-family:inherit"
+          onkeydown="if(event.key==='Enter')requestMagicLink()">
+        <button onclick="requestMagicLink()"
+          style="background:var(--accent2);color:#fff;border:none;border-radius:8px;
+                 padding:9px 16px;font-size:.82rem;cursor:pointer;white-space:nowrap;font-family:inherit">
+          Enviar enlace
+        </button>
+      </div>
+      <div id="auth-req-msg" style="display:none;margin-top:8px;font-size:.76rem;text-align:center"></div>
+    </div>
+  </div>
+  <p style="font-size:.72rem;color:var(--muted)">v59 · Solo usuarios autorizados</p>
+</div>
+
+<!-- Profile modal -->
+<div class="modal-overlay hidden" id="profile-modal">
+  <div class="modal" style="max-width:420px;width:96vw">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="font-size:.95rem;font-weight:700">Mi perfil</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('profile-modal')">✕</button>
+    </div>
+    <!-- User info -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+      <img id="prof-avatar" src="" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid var(--border)">
+      <div>
+        <div id="prof-name" style="font-weight:600;font-size:.9rem"></div>
+        <div id="prof-email" style="font-size:.78rem;color:var(--muted)"></div>
+        <div id="prof-org" style="font-size:.72rem;color:var(--accent);margin-top:2px"></div>
+      </div>
+    </div>
+    <!-- Password section -->
+    <div>
+      <h4 style="font-size:.8rem;font-weight:700;margin-bottom:10px;color:var(--accent)">
+        <i class="fa-solid fa-lock"></i> Contraseña
+      </h4>
+      <div id="prof-pwd-hint" style="font-size:.78rem;color:var(--muted);margin-bottom:10px;padding:8px;background:rgba(196,122,90,.08);border-radius:6px;border-left:3px solid var(--accent)">
+        Establece una contraseña para poder entrar sin magic link la próxima vez.
+      </div>
+      <div id="prof-cur-pwd-row" style="display:none;margin-bottom:8px">
+        <label style="font-size:.74rem;color:var(--muted);display:block;margin-bottom:3px">Contraseña actual</label>
+        <input id="prof-cur-pwd" type="password" placeholder="••••••••"
+          style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 10px;font-size:.82rem;outline:none;font-family:inherit;box-sizing:border-box">
+      </div>
+      <div style="margin-bottom:8px">
+        <label style="font-size:.74rem;color:var(--muted);display:block;margin-bottom:3px">Nueva contraseña</label>
+        <input id="prof-new-pwd" type="password" placeholder="Mínimo 8 caracteres"
+          style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 10px;font-size:.82rem;outline:none;font-family:inherit;box-sizing:border-box">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:.74rem;color:var(--muted);display:block;margin-bottom:3px">Confirmar contraseña</label>
+        <input id="prof-conf-pwd" type="password" placeholder="Repite la contraseña"
+          style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 10px;font-size:.82rem;outline:none;font-family:inherit;box-sizing:border-box">
+      </div>
+      <div id="prof-pwd-msg" style="font-size:.76rem;margin-bottom:8px;min-height:18px"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <button class="btn btn-ghost btn-sm" onclick="confirmLogout()" style="color:var(--red)">↩ Cerrar sesión</button>
+        <button class="btn btn-sm" onclick="savePassword()" style="background:var(--accent);color:#fff;border:none">Guardar contraseña</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Dashboard modal -->
+<div class="modal-overlay hidden" id="dashboard-modal" style="padding:0;align-items:stretch;justify-content:flex-end">
+  <div onclick="closeModal('dashboard-modal')" style="position:absolute;inset:0"></div>
+  <div style="position:relative;width:min(860px,100vw);height:100vh;overflow-y:auto;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--panel);z-index:10">
+      <h3 style="font-size:1rem;color:var(--accent);font-weight:600">📊 Dashboard de costos</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('dashboard-modal')">✕</button>
+    </div>
+    <div id="dashboard-content" style="padding:20px;flex:1">
+      <div style="text-align:center;color:var(--muted);padding:40px">Cargando...</div>
+    </div>
+  </div>
+</div>
+
+<!-- Mobile viewer modal (direct child of body to avoid iOS overflow:hidden issues) -->
+<div id="mobile-viewer">
+  <div id="mobile-viewer-header">
+    <span style="font-size:.82rem;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)">Visor</span>
+    <button class="btn btn-ghost btn-sm" onclick="closeMobileViewer()">✕ Cerrar</button>
+  </div>
+  <div id="mobile-viewer-content"></div>
+</div>
+</body>
+</html>
