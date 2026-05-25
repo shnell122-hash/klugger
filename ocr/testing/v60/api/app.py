@@ -1,4 +1,7 @@
 import sys, os, logging
+import eventlet
+eventlet.monkey_patch()
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 logging.basicConfig(
@@ -11,6 +14,7 @@ from datetime import timedelta
 from flask import Flask
 from flask_cors import CORS
 from flask_session import Session
+from flask_socketio import SocketIO
 from dotenv import load_dotenv
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -49,6 +53,19 @@ Session(app)
 
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
+# Socket.io — real-time artifact & task events
+socketio = SocketIO(
+    app,
+    cors_allowed_origins='*',
+    async_mode='eventlet',
+    logger=False,
+    engineio_logger=False,
+)
+
+# Expose socketio globally so routes can emit events
+import builtins
+builtins._vilar_socketio = socketio  # type: ignore
+
 app.register_blueprint(upload_bp)
 app.register_blueprint(chat_bp)
 app.register_blueprint(cases_bp)
@@ -82,4 +99,4 @@ def health():
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5006))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    socketio.run(app, host='0.0.0.0', port=port, debug=False)

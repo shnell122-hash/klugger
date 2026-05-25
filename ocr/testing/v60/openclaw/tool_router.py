@@ -103,6 +103,24 @@ def _save_artifact(inputs: dict) -> dict:
         tail = content[-200:].strip().lower()
         incomplete = not tail.endswith('</html>')
 
+    # Emit real-time event via Socket.io if available
+    try:
+        sio = getattr(__builtins__, '_vilar_socketio', None) if isinstance(__builtins__, dict) \
+              else globals().get('__builtins__', {}).__dict__.get('_vilar_socketio') \
+              if hasattr(globals().get('__builtins__', {}), '__dict__') else None
+        if sio is None:
+            import builtins as _bi
+            sio = getattr(_bi, '_vilar_socketio', None)
+        if sio:
+            sio.emit('artifact:new', {
+                'artifact_id':   art_id,
+                'artifact_name': inputs['artifact_name'],
+                'artifact_type': inputs['artifact_type'],
+                'case_id':       inputs['case_id'],
+            })
+    except Exception:
+        pass
+
     return {
         "status":       "saved",
         "artifact_id":  art_id,
