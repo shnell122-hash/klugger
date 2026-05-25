@@ -13,5 +13,9 @@ module.exports = {
     error_file: '/home/german/.pm2/logs/vilar-legal-os-v60-error.log',
     out_file:   '/home/german/.pm2/logs/vilar-legal-os-v60-out.log',
     log_date_format: 'YYYY-MM-DD HH:mm:ss',
+    env: {
+      PORT: '5006',
+      APP_BASE_PATH: '/testing/v60',
+    },
   }]
 };
