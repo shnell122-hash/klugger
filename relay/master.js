@@ -3320,9 +3320,12 @@ function gitPull(repoPath, branch) {
           { stdio: 'pipe', timeout: 30000 }
         );
         if (ffResult.status !== 0) {
-          // ff-only failed → rebase local commits on top of origin (handles ep#XXXX divergence)
+          log(projectId, `gitPull: ff-only falló → merge con origin/${branch}`);
+          // Stash any local modifications (staged/unstaged) so merge can proceed cleanly
+          try { execSync(`cd ${repoPath} && git stash push -u --quiet 2>/dev/null || true`, { stdio: 'pipe', timeout: 10000 }); } catch (_) {}
+          // Merge origin into local — prefer origin for conflicts, never rewrite local commits
           execSync(
-            `cd ${repoPath} && git rebase origin/${branch} --quiet 2>/dev/null || (git rebase --abort 2>/dev/null; git reset --hard origin/${branch} --quiet)`,
+            `cd ${repoPath} && git merge origin/${branch} -X theirs --no-edit --quiet 2>/dev/null || (git merge --abort 2>/dev/null; true)`,
             { stdio: 'pipe', timeout: 30000 }
           );
         }
