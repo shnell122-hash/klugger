@@ -2148,6 +2148,23 @@ function checkBackendReload() {
   }
 }
 
+// Auto-run npm install in relay/ when package.json changes
+const RELAY_PKG     = path.join(__dirname, 'package.json');
+let _relayPkgHash   = fileHash(RELAY_PKG);
+
+function checkRelayDeps() {
+  const newHash = fileHash(RELAY_PKG);
+  if (!newHash || newHash === _relayPkgHash) return;
+  _relayPkgHash = newHash;
+  log(null, '📦 relay/package.json actualizado — ejecutando npm install');
+  try {
+    execSync('npm install --prefer-offline 2>&1', { cwd: __dirname, stdio: 'pipe', timeout: 120000 });
+    log(null, '📦 npm install completado');
+  } catch (e) {
+    log(null, `⚠️ npm install falló — ${e.message?.slice(0, 100)}`);
+  }
+}
+
 // ─── Lock per project (parallel execution allowed) ────────
 // Uses PID check instead of time-based expiry so stale locks from dead
 // relay-master instances are cleaned up immediately on next poll.
@@ -3634,6 +3651,7 @@ async function processProject(project, hashes, pulledRepos = new Set()) {
     pulledRepos.add(project.repo);
     checkSelfReload();    // restart relay-master if master.js changed on disk
     checkBackendReload(); // restart ai-monitor backend if server.js changed on disk
+    checkRelayDeps();     // npm install if relay/package.json changed
   }
 
   const currentHash = fileHash(project.inbox);

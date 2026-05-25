@@ -109,8 +109,13 @@ async function main() {
 
   let browser;
   try {
+    // Prefer system Chromium to avoid a 150 MB download on the server
+    const systemChrome = process.env.CHROMIUM_PATH ||
+      ['/usr/bin/chromium-browser', '/usr/bin/chromium', '/usr/bin/google-chrome']
+        .find(p => { try { require('fs').accessSync(p); return true; } catch { return false; } });
     browser = await playwright.chromium.launch({
       headless: true,
+      executablePath: systemChrome || undefined,
       args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
     });
     const page = await browser.newPage();
