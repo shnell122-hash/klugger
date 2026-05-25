@@ -98,5 +98,5 @@ def health():
 
 
 if __name__ == '__main__':
-    port = int(os.getenv('PORT', 5006))
+    port = int(os.getenv('PORT', 5007))
     socketio.run(app, host='0.0.0.0', port=port, debug=False)

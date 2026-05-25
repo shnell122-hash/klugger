@@ -14,7 +14,7 @@ module.exports = {
     out_file:   '/home/german/.pm2/logs/vilar-legal-os-v60-out.log',
     log_date_format: 'YYYY-MM-DD HH:mm:ss',
     env: {
-      PORT: '5006',
+      PORT: '5007',
       APP_BASE_PATH: '/testing/v60',
     },
   }]
