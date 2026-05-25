@@ -2119,8 +2119,22 @@ function checkSelfReload() {
 }
 
 // Auto-restart the Express backend (ai-monitor PM2 process) when server.js changes.
-const BACKEND_JS = path.join(__dirname, '..', 'backend', 'server.js');
+const BACKEND_JS           = path.join(__dirname, '..', 'backend', 'server.js');
+const BACKEND_RESTART_FLAG = path.join(__dirname, '.backend-needs-restart');
 let _backendHash = fileHash(BACKEND_JS);
+
+// One-shot restart on startup if flag file is present (placed by deploy scripts)
+if (fs.existsSync(BACKEND_RESTART_FLAG)) {
+  setTimeout(() => {
+    try {
+      fs.unlinkSync(BACKEND_RESTART_FLAG);
+      execSync('pm2 restart ai-monitor', { stdio: 'pipe', timeout: 10000 });
+      log(null, '🔄 backend/ai-monitor reiniciado por flag .backend-needs-restart');
+    } catch (e) {
+      log(null, `⚠️ backend restart-flag error: ${e.message?.slice(0, 80)}`);
+    }
+  }, 5000);
+}
 
 function checkBackendReload() {
   const newHash = fileHash(BACKEND_JS);
