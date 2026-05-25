@@ -100,11 +100,11 @@ test('returns 200 with array of active agents', async () => {
   assert.ok(Array.isArray(body), 'body should be array');
 });
 
-test('each agent entry has id and active_count', async () => {
+test('each agent entry has id and status', async () => {
   const { body } = await get('/api/relay/agents');
   for (const agent of (body || [])) {
-    assert.ok(agent.id !== undefined,           `agent missing id`);
-    assert.ok(agent.active_count !== undefined, `agent '${agent.id}' missing active_count`);
+    assert.ok(agent.id     !== undefined, `agent missing id`);
+    assert.ok(agent.status !== undefined, `agent '${agent.id}' missing status`);
   }
 });
 
