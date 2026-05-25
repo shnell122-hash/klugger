@@ -2118,6 +2118,22 @@ function checkSelfReload() {
   }
 }
 
+// Auto-restart the Express backend (ai-monitor PM2 process) when server.js changes.
+const BACKEND_JS = path.join(__dirname, '..', 'backend', 'server.js');
+let _backendHash = fileHash(BACKEND_JS);
+
+function checkBackendReload() {
+  const newHash = fileHash(BACKEND_JS);
+  if (!newHash || newHash === _backendHash) return;
+  _backendHash = newHash;
+  try {
+    execSync('pm2 restart ai-monitor', { stdio: 'pipe', timeout: 10000 });
+    log(null, '🔄 backend/server.js actualizado — ai-monitor reiniciado');
+  } catch (e) {
+    log(null, `⚠️ checkBackendReload: pm2 restart falló — ${e.message?.slice(0, 80)}`);
+  }
+}
+
 // ─── Lock per project (parallel execution allowed) ────────
 // Uses PID check instead of time-based expiry so stale locks from dead
 // relay-master instances are cleaned up immediately on next poll.
@@ -3602,7 +3618,8 @@ async function processProject(project, hashes, pulledRepos = new Set()) {
   if (project.repo && project.branch && !pulledRepos.has(project.repo)) {
     gitPull(project.repo, project.branch);
     pulledRepos.add(project.repo);
-    checkSelfReload();  // restart if master.js changed on disk
+    checkSelfReload();    // restart relay-master if master.js changed on disk
+    checkBackendReload(); // restart ai-monitor backend if server.js changed on disk
   }
 
   const currentHash = fileHash(project.inbox);
