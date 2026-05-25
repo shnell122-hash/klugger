@@ -8,11 +8,32 @@ _Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02 | Actualizado 20
 
 | Campo | Valor |
 |-------|-------|
-| Última sesión | 2026-05-20 |
+| Última sesión | 2026-05-25 |
 | Estado | ✅ Completo |
 | Rama trabajo | `claude/agent-monitoring-dashboard-4v8iq` |
 | Rama relay | `main` |
-| PRs | #38 (loop fix), #39 (real provider costs) — ambos mergeados a main |
+| Último commit main | `35471b9 fix: .backend-needs-restart flag` |
+
+### Cambios sesión 2026-05-25
+
+| Archivo | Cambio | Estado |
+|---------|--------|--------|
+| `relay/master.js` | `checkBackendReload()` — auto-restart backend cuando server.js cambia | main ✅ |
+| `relay/master.js` | `.backend-needs-restart` flag — reinicio one-shot del backend al startup | main ✅ |
+| `relay/master.js` | `gitPull`: rebase → merge con `-X theirs` + stash (evita pérdida de historial local) | main ✅ |
+| `relay/.backend-needs-restart` | Flag para reinicio one-shot del backend ai-monitor | main ✅ |
+| `frontend/index.html` | `#resume-breakdown` — sección de tasa de reanudación por proyecto | main ✅ |
+| `frontend/js/dashboard.js` | `refreshResumeStats()`: pobla breakdown de by_project (barras + colores) | main ✅ |
+| `tests/dispatch.test.js` | Suite de tests: projects.json + /api/relay/dispatch + /api/sessions/stats/resume | main ✅ |
+| `.claude/settings.json` | Removida restricción `Bash(gh *)` del allow list | main ✅ |
+
+### Pendiente sesión 2026-05-25
+
+- [ ] Playwright: instalar en servidor (`npm install -g playwright && playwright install chromium`)
+- [ ] DeCabeceraTax: merge conflict auto-resuelto en próximo ciclo gitPull (relay ya tiene fix)
+- [ ] Verificar exec endpoint restaurado y DeCabeceraTax limpio
+
+---
 
 ### Cambios sesión 2026-05-20
 
