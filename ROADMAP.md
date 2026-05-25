@@ -5,7 +5,7 @@
 
 ---
 
-## Día 0–1 — Estabilidad Operacional (BLOQUEANTE)
+## Por qué está armado así
 
 El orden responde a tres preguntas en secuencia:
 
@@ -422,7 +422,7 @@ Para proyectos con `ignore_quiet_hours: true`.
 
 ---
 
-## Día 3–4 — Optimizaciones LLM y Visual
+## Calificación proyectada
 
 | Después de | AI Monitor | vs Claude Code |
 |------------|-----------|----------------|

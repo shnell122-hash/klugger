@@ -1168,12 +1168,39 @@ const _PROXY_MAX_PROJECTS = new Set(
     .split(',').map(s => s.trim()).filter(Boolean)
 );
 let _proxyRRIdx = 0;
+const _proxyAuthFailed = new Set(); // URLs of Pro proxies that returned auth errors
 function selectProxyForProject(projectId) {
   if (_PROXY_POOL.max && _PROXY_MAX_PROJECTS.has(projectId)) return _PROXY_POOL.max;
-  if (_PROXY_POOL.pro.length) { const u=_PROXY_POOL.pro[_proxyRRIdx%_PROXY_POOL.pro.length]; _proxyRRIdx++; return u; }
+  // Skip Pro proxies that have returned auth errors; fall back to Max when all fail
+  const healthyPro = _PROXY_POOL.pro.filter(u => !_proxyAuthFailed.has(u));
+  if (healthyPro.length) { const u=healthyPro[_proxyRRIdx%healthyPro.length]; _proxyRRIdx++; return u; }
+  if (_PROXY_POOL.max) return _PROXY_POOL.max; // all Pro auth-failed → use Max
   if (ANTHROPIC_PROXY_URL && (!ANTHROPIC_PROXY_PROJECT || ANTHROPIC_PROXY_PROJECT===projectId)) return ANTHROPIC_PROXY_URL;
   return null;
 }
+// Pre-check Pro proxy auth on startup — avoids burning 4 tasks discovering dead proxies
+// Assumes port mapping: 5002→claudepro1, 5003→claudepro2, 5004→claudepro3, 5005→claudepro4
+setTimeout(() => {
+  if (!_PROXY_POOL.pro.length) return;
+  _PROXY_POOL.pro.forEach(proxyUrl => {
+    try {
+      const port = parseInt(new URL(proxyUrl).port || '80');
+      const proIdx = port - 5001; // 5002→1, 5003→2, etc.
+      if (proIdx < 1 || proIdx > 4) return;
+      const userHome = `/home/claudepro${proIdx}`;
+      const hasAuth = [`${userHome}/.claude/credentials`, `${userHome}/.claude/auth.json`]
+        .some(f => { try { fs.accessSync(f); return true; } catch { return false; } });
+      if (!hasAuth) {
+        _proxyAuthFailed.add(proxyUrl);
+        log('master', `[proxy-auth] Pre-blacklisted ${proxyUrl} — no credentials in ${userHome}/.claude/`);
+      }
+    } catch (_) {}
+  });
+  const healthy = _PROXY_POOL.pro.filter(u => !_proxyAuthFailed.has(u)).length;
+  if (_PROXY_POOL.pro.length > 0 && healthy === 0 && _PROXY_POOL.max) {
+    log('master', `[proxy-auth] Todos los Pro proxies sin auth → Max proxy usado para todos los proyectos`);
+  }
+}, 500);
 
 function callAnthropicDirect(systemPrompt, userMessage, maxTokens = 512, projectId = null) {
   // Determine if this call should go through the local CLI proxy
@@ -2091,6 +2118,22 @@ function checkSelfReload() {
   }
 }
 
+// Auto-restart the Express backend (ai-monitor PM2 process) when server.js changes.
+const BACKEND_JS = path.join(__dirname, '..', 'backend', 'server.js');
+let _backendHash = fileHash(BACKEND_JS);
+
+function checkBackendReload() {
+  const newHash = fileHash(BACKEND_JS);
+  if (!newHash || newHash === _backendHash) return;
+  _backendHash = newHash;
+  try {
+    execSync('pm2 restart ai-monitor', { stdio: 'pipe', timeout: 10000 });
+    log(null, '🔄 backend/server.js actualizado — ai-monitor reiniciado');
+  } catch (e) {
+    log(null, `⚠️ checkBackendReload: pm2 restart falló — ${e.message?.slice(0, 80)}`);
+  }
+}
+
 // ─── Lock per project (parallel execution allowed) ────────
 // Uses PID check instead of time-based expiry so stale locks from dead
 // relay-master instances are cleaned up immediately on next poll.
@@ -2497,6 +2540,13 @@ ${taskContent}`;
   function safeCallback(code, text) {
     if (callbackFired) return;
     callbackFired = true;
+    // Auto-blacklist Pro proxies that return auth errors → next task will use Max
+    if (code !== 0 && proxyBase && proxyBase !== _PROXY_POOL.max &&
+        (text.includes('Not logged in') || text.includes('Please run /login') ||
+         text.includes('claude exited 1: Not logged in'))) {
+      _proxyAuthFailed.add(proxyBase);
+      log(project.id, `[proxy-auth] ${proxyBase} sin auth — redirigiendo a Max en próximas tareas (healthy pro: ${_PROXY_POOL.pro.filter(u=>!_proxyAuthFailed.has(u)).length})`);
+    }
     try { fs.unlinkSync(outFile); } catch (_) {}
     callback(code, text, taskCostUsd);
   }
@@ -3280,7 +3330,21 @@ function gitPull(repoPath, branch) {
 
     try {
       if (originalBranch === branch) {
-        execSync(`cd ${repoPath} && git merge origin/${branch} --ff-only --quiet 2>/dev/null || true`, { stdio: 'pipe', timeout: 30000 });
+        // Try fast-forward first; if diverged (local has extra commits), rebase onto origin
+        const ffResult = require('child_process').spawnSync(
+          'bash', ['-c', `cd ${repoPath} && git merge origin/${branch} --ff-only --quiet 2>&1`],
+          { stdio: 'pipe', timeout: 30000 }
+        );
+        if (ffResult.status !== 0) {
+          log(projectId, `gitPull: ff-only falló → merge con origin/${branch}`);
+          // Stash any local modifications (staged/unstaged) so merge can proceed cleanly
+          try { execSync(`cd ${repoPath} && git stash push -u --quiet 2>/dev/null || true`, { stdio: 'pipe', timeout: 10000 }); } catch (_) {}
+          // Merge origin into local — prefer origin for conflicts, never rewrite local commits
+          execSync(
+            `cd ${repoPath} && git merge origin/${branch} -X theirs --no-edit --quiet 2>/dev/null || (git merge --abort 2>/dev/null; true)`,
+            { stdio: 'pipe', timeout: 30000 }
+          );
+        }
       } else {
         execSync(`cd ${repoPath} && git checkout -B ${branch} origin/${branch} --quiet -f 2>/dev/null || true`, { stdio: 'pipe', timeout: 10000 });
       }
@@ -3302,9 +3366,10 @@ function gitPull(repoPath, branch) {
   // Fix .git/objects ownership so Claude agents (non-root) can commit.
   // relay-master runs as root → git pull creates objects owned by root →
   // agent (running as CLAUDE_USER) hits EACCES on next commit attempt.
+  // Also chown the full working tree so agents can write project files (Edit tool).
   if (CLAUDE_USER && CLAUDE_USER !== 'root') {
     try {
-      execSync(`chown -R ${CLAUDE_USER} ${repoPath}/.git 2>/dev/null || true`, { stdio: 'pipe', timeout: 5000 });
+      execSync(`chown -R ${CLAUDE_USER} ${repoPath} 2>/dev/null || true`, { stdio: 'pipe', timeout: 10000 });
     } catch (_) {}
   }
 }
@@ -3553,7 +3618,8 @@ async function processProject(project, hashes, pulledRepos = new Set()) {
   if (project.repo && project.branch && !pulledRepos.has(project.repo)) {
     gitPull(project.repo, project.branch);
     pulledRepos.add(project.repo);
-    checkSelfReload();  // restart if master.js changed on disk
+    checkSelfReload();    // restart relay-master if master.js changed on disk
+    checkBackendReload(); // restart ai-monitor backend if server.js changed on disk
   }
 
   const currentHash = fileHash(project.inbox);

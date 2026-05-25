@@ -273,7 +273,7 @@
     "id": "gemini-flash",
     "name": "Gemini Flash Agent",
     "runner": "gemini",
-    "model": "gemini-3.5-flash",
+    "model": "gemini-2.0-flash",
     "github_label": "agent:gemini-flash",
     "mode": "llm-direct",
     "use_cli_proxy": false,

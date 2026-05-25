@@ -365,16 +365,35 @@ async function refreshResumeStats() {
     const r = await fetch(`${API}/api/sessions/stats/resume`);
     if (!r.ok) return;
     const d = await r.json();
-    const el = document.getElementById('stat-resumed');
-    if (!el) return;
+
+    // Header pill — today's totals
+    const statEl = document.getElementById('stat-resumed');
     const t = d.today || {};
-    if (t.total > 0) {
-      el.textContent = `${t.resumed}/${t.total} (${t.rate_pct}%)`;
-    } else {
-      el.textContent = '0';
+    if (statEl) {
+      statEl.textContent = t.total > 0 ? `${t.resumed}/${t.total} (${t.rate_pct}%)` : '0';
     }
     const pill = document.getElementById('stat-resumed-pill');
     if (pill) pill.title = `Reanudadas hoy: ${t.resumed} de ${t.total} sesiones (${t.rate_pct}%)`;
+
+    // Per-project breakdown — last 7 days
+    const breakdown = document.getElementById('resume-breakdown');
+    const rows      = document.getElementById('resume-breakdown-rows');
+    if (!breakdown || !rows) return;
+    const byProject = d.by_project || [];
+    if (!byProject.length) { breakdown.style.display = 'none'; return; }
+    breakdown.style.display = '';
+    rows.innerHTML = byProject.map(p => {
+      const rate = parseFloat(p.resume_rate_pct || 0);
+      const bar  = Math.round(rate);
+      const color = rate > 40 ? 'var(--green)' : rate > 15 ? 'var(--yellow,#f0a500)' : 'var(--text-muted)';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:11px">
+        <span style="min-width:110px;color:var(--text)">${esc(p.project_name)}</span>
+        <div style="flex:1;background:var(--border);border-radius:3px;height:5px">
+          <div style="width:${bar}%;background:${color};height:5px;border-radius:3px"></div>
+        </div>
+        <span style="min-width:60px;text-align:right;color:${color}">${p.resumed_sessions}/${p.total_sessions} (${rate}%)</span>
+      </div>`;
+    }).join('');
   } catch (_) {}
 }
 
