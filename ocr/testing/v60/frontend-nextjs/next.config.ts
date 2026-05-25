@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
       // Proxy API and socket.io directly to Flask (bypasses basePath in sources)
       {
         source: '/api/:path*',
-        destination: 'http://localhost:5007/api/:path*',
+        destination: 'http://localhost:5008/api/:path*',
       },
     ];
   },
