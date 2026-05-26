@@ -2103,6 +2103,90 @@ async function tgUsersDelete(id) {
   } catch (e) { alert('Error: ' + e.message); }
 }
 
+// ─── Pipeline stats ───────────────────────────────────────
+let pipelineStats = [];
+
+async function loadPipelineStats() {
+  const days = document.getElementById('pipeline-days')?.value || 7;
+  try {
+    const r = await fetch(`${API}/api/relay/dispatch/stats?days=${days}`);
+    if (!r.ok) return;
+    pipelineStats = await r.json();
+    renderPipelineStats(pipelineStats);
+  } catch (err) {
+    console.warn('[pipeline] load error:', err.message);
+  }
+}
+
+function renderPipelineStats(stats) {
+  const container = document.getElementById('pipeline-stats');
+  const healthEl  = document.getElementById('coordinator-health');
+  const pillEl    = document.getElementById('stat-coordinator');
+  if (!container) return;
+
+  const coord = stats.find(s => s.project === 'coordinator');
+  if (coord) {
+    const pct = parseFloat(coord.success_rate_pct || 0);
+    const color = pct >= 70 ? 'var(--green)' : pct >= 40 ? 'var(--yellow)' : 'var(--red)';
+    const icon  = pct >= 70 ? '✅' : pct >= 40 ? '⚠️' : '🔴';
+    if (pillEl) {
+      pillEl.textContent = pct.toFixed(1) + '%';
+      pillEl.style.color = color;
+    }
+    if (healthEl) {
+      healthEl.innerHTML = `
+        <div style="margin:8px 0 4px;padding:8px 12px;border-radius:8px;background:var(--glass-deep);border:1px solid var(--border);display:flex;align-items:center;gap:10px;font-size:12px">
+          <span style="font-size:15px">${icon}</span>
+          <span style="flex:1">Coordinator — <b style="color:${color}">${pct.toFixed(1)}%</b> éxito
+            <span style="color:var(--text-muted)"> · ${coord.total} tareas · ${coord.stuck} atascadas · avg ${coord.avg_min_completed ? parseFloat(coord.avg_min_completed).toFixed(1) + 'm' : '—'}</span>
+          </span>
+          ${pct < 40 ? '<span style="color:var(--red);font-weight:600;font-size:11px">⚠ crítico</span>' : ''}
+        </div>`;
+    }
+  } else if (healthEl) {
+    healthEl.innerHTML = '';
+  }
+
+  if (!stats.length) {
+    container.innerHTML = `<div class="empty-state"><span class="emoji">📊</span>Sin datos de pipeline aún</div>`;
+    return;
+  }
+
+  container.innerHTML = stats.map(s => {
+    const total   = parseInt(s.total || 1);
+    const done    = parseInt(s.completed || 0);
+    const failed  = parseInt(s.failed || 0);
+    const stuck   = parseInt(s.stuck || 0);
+    const pct     = parseFloat(s.success_rate_pct || 0);
+    const pctColor = pct >= 70 ? 'var(--green)' : pct >= 40 ? 'var(--yellow)' : 'var(--red)';
+    const donePct  = Math.round((done  / total) * 100);
+    const failPct  = Math.round((failed / total) * 100);
+    const stuckPct = Math.round((stuck / total) * 100);
+    const icon     = PROJECT_ICONS[s.project] || '🤖';
+    const avgMin   = s.avg_min_completed ? parseFloat(s.avg_min_completed).toFixed(1) + 'm' : '—';
+    return `
+    <div style="padding:10px 14px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-size:14px">${icon}</span>
+        <span style="flex:1;font-size:12px;font-weight:600;color:var(--text)">${esc(s.project)}</span>
+        <span style="font-size:13px;font-weight:700;color:${pctColor}">${pct.toFixed(1)}%</span>
+      </div>
+      <div style="display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--border);margin-bottom:6px">
+        <div style="width:${donePct}%;background:var(--green);transition:width .4s"></div>
+        <div style="width:${failPct}%;background:var(--red);transition:width .4s"></div>
+        <div style="width:${stuckPct}%;background:var(--yellow);transition:width .4s"></div>
+      </div>
+      <div style="display:flex;gap:12px;font-size:10px;color:var(--text-muted)">
+        <span style="color:var(--green)">✓ ${done} ok</span>
+        <span style="color:var(--red)">✗ ${failed} falló</span>
+        <span style="color:var(--yellow)">⏳ ${stuck} atascado</span>
+        <span>${total} total</span>
+        <span style="margin-left:auto">avg ${avgMin}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 // ─── Init ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   initTabs();
@@ -2115,6 +2199,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadScreenshots();
   loadAlerts();
   refreshResumeStats();
+  loadPipelineStats();
   document.getElementById('alerts-show-resolved')?.addEventListener('change', loadAlerts);
   connectSocket();
   refreshFeed();
