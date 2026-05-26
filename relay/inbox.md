@@ -1,5 +1,5 @@
 # Tarea despachada via Telegram
 
-pm2 status
+which claude || echo "no instalado"
 
-_Despachada por: Israel — 2026-05-26T23:39:31.793Z_
+_Despachada por: Israel — 2026-05-26T23:49:19.301Z_
