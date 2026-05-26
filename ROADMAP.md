@@ -1,7 +1,150 @@
 # ROADMAP — AI Monitor / Agentic Relay System
 
-> Actualizado: 2026-05-20 (revisión v2 — ajustes german)
+> Actualizado: 2026-05-26 (v3 — P0 pipeline reliability + Frontend Next.js)
 > Objetivo: plataforma autónoma 24/7 que iguala y supera a Claude Code
+
+---
+
+## Diagnóstico real del pipeline (2026-05-26)
+
+**El output de calidad cuando las tareas ejecutan es EQUIVALENTE a Claude Code directo.**
+El problema es el pipeline — no el modelo.
+
+### Success rate por proyecto (últimos 30 días)
+
+| Proyecto | Total tareas | Completadas | Fallidas | **Atascadas** | **Success rate** |
+|----------|-------------|-------------|----------|----------------|-----------------|
+| coordinator | 97 | 18 | 20 | 59 | **18.6%** 🔴 |
+| ai-monitor | 9 | 4 | 0 | 5 | **44%** 🟡 |
+| finbot-tester | 4 | 2 | 1 | 1 | **50%** 🟡 |
+| fiscalai | 5 | 3 | 0 | 2 | **60%** 🟡 |
+| finbot-verifier | 2 | 0 | 0 | 2 | **0%** 🔴 |
+
+### Calidad de sesiones que SÍ completan (equivalente a Claude Code)
+
+| Proyecto | Sesiones completadas | Avg tools/sesión | Completion rate |
+|----------|---------------------|------------------|-----------------|
+| relay-flujos | 6/6 | 89 | 100% ✅ |
+| relay-finbot-tester | 13/15 | 80 | 87% ✅ |
+| relay-finbot-verifier | 40/41 | 58 | 97% ✅ |
+| relay-ai-monitor | 22/22 | 28 | 100% ✅ |
+
+**Causa raíz de las tareas atascadas**: tareas quedan en `dispatched/pending` para siempre.
+No hay expiración automática, no hay retry, no hay alerta en tiempo real.
+
+**Objetivo**: llevar success rate a ≥85% en 7 días consecutivos.
+
+---
+
+## P0 — Pipeline reliability · Bloquea adopción de devs
+
+### P0.1 — Auto-expirar tareas atascadas ✅ 2026-05-26
+- Tareas en `dispatched/pending` por >30 min → `failed` automáticamente
+- Telegram alert: proyecto, título, tiempo atascado
+- Backend: `POST /api/relay/dispatch/expire-stuck`
+- Relay: `checkStuckDispatchTasks()` corre cada ciclo (15s)
+
+### P0.2 — Retry en outbox push ✅ 2026-05-26
+- 3 intentos con backoff 5s antes de fallar definitivamente
+- Cubre git conflicts transitorios en el servidor
+
+### P0.3 — Filtro de calidad en dispatcher ✅ 2026-05-26
+- Tareas ≤3 palabras o sin instrucción accionable → rechazo 400
+- Evita "Mensaje de FiscalAI via Buzón" sin cuerpo que atasca coordinator
+- Coordinator: max 5 tareas activas simultáneas
+
+---
+
+## P1 — Visibilidad · Para que devs confíen en el sistema
+
+### P1.1 — Dashboard: panel Pipeline Reliability · Target: 2026-06-01
+- Por proyecto: funnel Dispatched → Picked up → Completed
+- Success rate 24h / 7 días con color coding (verde ≥80%, amarillo 50-80%, rojo <50%)
+
+### P1.2 — Coordinator health metric · Target: 2026-06-01
+- Indicador en dashboard: "Coordinator: 18.6% ⚠️"
+- Alert automática cuando coordinator cae bajo 40%
+
+### P1.3 — Stuck task alert en relay_alerts · Target: 2026-06-01
+- Escribir `relay_alerts` tipo `stuck_task` cuando una tarea expira
+- Visible en tab Alertas del dashboard
+
+---
+
+## P2 — Quality parity proof
+
+### P2.1 — Per-task quality score
+- Agregar `files_changed`, `commits_made` a dispatch_tasks (parsear de result_summary)
+- Mostrar en dashboard: "3 archivos cambiados, 1 commit, 8 min"
+
+### P2.2 — A/B comparison panel
+- Misma tarea → relay vs Claude Code directo: tool calls, duration, cost diff
+
+---
+
+## Frontend — Relay Monitor Dashboard (Next.js)
+
+**Branch**: `claude/financial-multiagent-system-YwtYQ`
+**Directorio**: `relay-dashboard/` bajo agentic-repo
+
+**Stack** (igual que flujos.fiscalai.mx):
+- Next.js 15 + React 19 + TypeScript + Tailwind CSS
+- Socket.io-client 4.7 (tiempo real con backend puerto 3010)
+- Recharts (gráficas de costos y trend)
+
+**Paleta de colores** (igual que flujos.fiscalai.mx globals.css):
+```
+--bg:      #0a0a0f
+--surface: #111118
+--border:  #1e1e2e
+--muted:   #3a3a5c
+--accent:  #7c3aed  (purple)
+--green:   #10b981
+--yellow:  #f59e0b
+--red:     #ef4444
+```
+
+**Estructura de tabs** (heredada de frontend/ actual):
+- Header: stat pills (costo hoy, activas, success rate, reanudadas)
+- Tab 1 **Pipeline**: funnel por proyecto + success rate (P1.1)
+- Tab 2 **Sesiones**: agent_sessions — herramienta counts, duración, costo
+- Tab 3 **Dispatches**: dispatch_tasks en tiempo real vía Socket.io
+- Tab 4 **Costos**: por proveedor / proyecto / trend (Recharts)
+- Tab 5 **Alertas**: relay_alerts + stuck tasks
+
+**Deploy**: pm2 `relay-dashboard`, puerto 3030
+
+**Progreso**:
+- [x] Scaffold Next.js 15 + Tailwind + Socket.io · 2026-05-26
+- [x] Globals CSS con paleta flujos + Inter + JetBrains Mono · 2026-05-26
+- [x] Layout raíz + Header con stat pills · 2026-05-26
+- [x] Socket.io provider + hooks de datos · 2026-05-26
+- [x] Tab Pipeline: funnel + success rate por proyecto · 2026-05-26
+- [ ] Tab Sesiones: tabla con filtros
+- [ ] Tab Dispatches: tabla en tiempo real
+- [ ] Tab Costos: charts Recharts
+- [ ] Tab Alertas: feed
+- [ ] Deploy servidor (puerto 3030, pm2: relay-dashboard)
+- [ ] Testing en servidor hasta ≥85% success rate
+
+---
+
+## Plan de testing en servidor (hasta 85% success rate)
+
+```bash
+# Correr después de cada release P0/P1:
+BACKEND=https://ia.vilarkptl.com node tests/dispatch.test.js
+
+# Verificar success rate de últimos 7 días vía DB:
+# SELECT project, ROUND(100.0*SUM(status='completed')/COUNT(*),1) as rate
+# FROM dispatch_tasks WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+# GROUP BY project ORDER BY rate;
+
+# Test de carga: 5 tareas a coordinator en secuencia
+# Esperar ≥4 completadas (≥80% success)
+```
+
+**Criterio de aceptación**: ≥85% en 7 días consecutivos → activar B3 multi-cuenta.
 
 ---
 

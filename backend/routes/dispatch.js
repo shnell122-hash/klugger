@@ -87,6 +87,17 @@ router.post('/dispatch', async (req, res) => {
     return res.status(409).json({ error: 'max sub-task depth (3) reached — cannot dispatch deeper' });
   }
 
+  // P0.3 — content quality filter: reject tasks with no actionable instruction
+  const taskTrimmed = task.trim();
+  const wordCount   = taskTrimmed.split(/\s+/).filter(Boolean).length;
+  if (wordCount < 4) {
+    return res.status(400).json({ error: 'task too short — must be at least 4 words with a clear instruction' });
+  }
+  // Reject bare relay-forward headers with no body (common cause of coordinator overload)
+  if (/^(Mensaje de .+ via Buz[oó]n|Forwarded message|Re:\s*)$/im.test(taskTrimmed) && wordCount < 10) {
+    return res.status(400).json({ error: 'task is a relay forward without actionable body — add specific instructions' });
+  }
+
   const projects = readProjects();
   const target   = projects.find(p => p.id === project);
   if (!target) {
@@ -94,6 +105,18 @@ router.post('/dispatch', async (req, res) => {
   }
   if (!target.active || !target.inbox) {
     return res.status(409).json({ error: `Project '${project}' has no active inbox` });
+  }
+
+  // P0.3 — coordinator concurrency limit: max 5 active tasks
+  if (project === 'coordinator') {
+    try {
+      const [[{ active_count }]] = await db.query(
+        `SELECT COUNT(*) AS active_count FROM dispatch_tasks WHERE project = 'coordinator' AND status IN ('pending','dispatched')`
+      );
+      if (parseInt(active_count) >= 5) {
+        return res.status(429).json({ error: 'coordinator has 5 active tasks — wait for completion before dispatching more' });
+      }
+    } catch (_) {}
   }
 
   // Extract title from task (first # heading)
@@ -192,6 +215,84 @@ router.post('/dispatch/:id/dispatched', async (req, res) => {
     );
   } catch (_) {}
   res.json({ ok: true });
+});
+
+// ── POST /api/relay/dispatch/:id/expire ──────────────────────
+// P0.1 — marks a stuck task as failed with an expiry reason
+router.post('/dispatch/:id/expire', async (req, res) => {
+  const { reason } = req.body || {};
+  const note = reason || 'expired: stuck in dispatched/pending';
+
+  const queue = readQueue();
+  const idx   = queue.findIndex(d => d.id === req.params.id);
+  if (idx !== -1) {
+    queue[idx] = { ...queue[idx], status: 'failed', completed_at: new Date().toISOString(), result_summary: note };
+    writeQueue(queue);
+  }
+  try {
+    await db.query(
+      `UPDATE dispatch_tasks SET status = 'failed', completed_at = NOW(),
+         result_items = ? WHERE id = ? AND status IN ('pending','dispatched')`,
+      [JSON.stringify([note]), req.params.id]
+    );
+  } catch (dbErr) {
+    console.error('[dispatch] expire error (non-fatal):', dbErr.message);
+  }
+  const io = req.app.get('io');
+  if (io) io.emit('dispatch:complete', { id: req.params.id, status: 'failed', exit_code: -1, reason: note });
+  res.json({ ok: true, expired: true });
+});
+
+// ── POST /api/relay/dispatch/expire-stuck ────────────────────
+// Bulk-expire all tasks stuck in dispatched/pending for > max_age_minutes
+router.post('/dispatch/expire-stuck', async (req, res) => {
+  const maxAgeMin = parseInt(req.body?.max_age_minutes ?? 30, 10);
+  try {
+    const [rows] = await db.query(
+      `SELECT id, project, title, status, dispatched_at, created_at FROM dispatch_tasks
+       WHERE status IN ('pending','dispatched')
+         AND COALESCE(dispatched_at, created_at) < DATE_SUB(NOW(), INTERVAL ? MINUTE)`,
+      [maxAgeMin]
+    );
+    if (!rows.length) return res.json({ ok: true, expired: 0 });
+    const ids = rows.map(r => r.id);
+    await db.query(
+      `UPDATE dispatch_tasks SET status = 'failed', completed_at = NOW(),
+         result_items = ? WHERE id IN (${ids.map(() => '?').join(',')})`,
+      [JSON.stringify([`auto-expired: stuck >${maxAgeMin}min`]), ...ids]
+    );
+    const io = req.app.get('io');
+    if (io) ids.forEach(id => io.emit('dispatch:complete', { id, status: 'failed', exit_code: -1, reason: 'expired' }));
+    res.json({ ok: true, expired: ids.length, ids });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/relay/dispatch/stats ────────────────────────────
+// Pipeline reliability stats per project (last N days)
+router.get('/dispatch/stats', async (req, res) => {
+  const days = parseInt(req.query.days ?? 7, 10);
+  try {
+    const [rows] = await db.query(
+      `SELECT
+         project,
+         COUNT(*) AS total,
+         SUM(status = 'completed') AS completed,
+         SUM(status = 'failed') AS failed,
+         SUM(status IN ('pending','dispatched')) AS stuck,
+         ROUND(100.0 * SUM(status = 'completed') / COUNT(*), 1) AS success_rate_pct,
+         ROUND(AVG(CASE WHEN status = 'completed' THEN duration_sec END) / 60, 1) AS avg_min_completed
+       FROM dispatch_tasks
+       WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+       GROUP BY project
+       ORDER BY total DESC`,
+      [days]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── POST /api/relay/dispatch/:id/complete ────────────────────

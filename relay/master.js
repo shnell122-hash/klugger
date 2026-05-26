@@ -3430,15 +3430,36 @@ function gitPushOutbox(repoPath, branch, outboxPath, timestamp, outboxContent) {
     // Validate agent commits before pushing (catches node_modules, .env, etc.)
     validateAndCleanCommits(repoPath, branch);
 
-    execSync(
-      `cd ${repoPath} && git add ${outboxPath} && git diff --cached --quiet || git commit -m "relay: resultado ${timestamp}" --quiet && git push origin HEAD:${branch} --quiet`,
-      { stdio: 'pipe', timeout: 30000 }
-    );
-    log(projectId, `outbox push OK → ${branch}`);
+    // P0.2 — retry outbox push up to 3 times with 5s backoff
+    let pushOk = false;
+    let lastPushErr = '';
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        execSync(
+          `cd ${repoPath} && git add ${outboxPath} && git diff --cached --quiet || git commit -m "relay: resultado ${timestamp}" --quiet && git push origin HEAD:${branch} --quiet`,
+          { stdio: 'pipe', timeout: 30000 }
+        );
+        pushOk = true;
+        break;
+      } catch (pushErr) {
+        lastPushErr = pushErr.message?.slice(0, 200) || 'unknown';
+        if (attempt < 3) {
+          log(projectId, `outbox push intento ${attempt} falló — reintentando en 5s`);
+          try { execSync(`cd ${repoPath} && git fetch origin ${branch} --quiet && git merge origin/${branch} -X ours --no-edit --quiet 2>/dev/null || true`, { stdio: 'pipe', timeout: 15000 }); } catch (_) {}
+          await new Promise(r => setTimeout(r, 5000));
+        }
+      }
+    }
+    if (pushOk) {
+      log(projectId, `outbox push OK → ${branch}`);
+    } else {
+      throw new Error(lastPushErr);
+    }
   } catch (err) {
     const msg = err.message?.slice(0, 300) || 'unknown error';
-    log(projectId, `ERROR: outbox push falló: ${msg}`);
+    log(projectId, `ERROR: outbox push falló (3 intentos): ${msg}`);
     tg(`⚠️ <b>Outbox push falló — ${projectId}</b>\n<code>${msg}</code>`);
+    postToMonitor('/api/relay/alerts', { alert_type: 'outbox_push_failed', project_id: projectId, severity: 'warning', title: `Outbox push falló — ${projectId}`, details: msg });
   } finally {
     // Restore original branch to avoid leaving master.js at an unexpected version
     if (originalBranch && originalBranch !== branch) {
@@ -3634,6 +3655,61 @@ function checkOutboxWatchdog(projects) {
     // Remove from watchdog to avoid repeat alerts
     delete DISPATCH_TIMES[projectId];
   }
+}
+
+// ─── P0.1 Stuck dispatch task auto-expiry ────────────────
+// Tasks stuck in dispatched/pending for >30 min are marked failed.
+const STUCK_TASK_MS = parseInt(process.env.STUCK_TASK_MS || '1800000'); // 30 min
+const _expiredTasks = new Set(); // avoid double-expiring same task
+
+async function checkStuckDispatchTasks() {
+  let tasks = [];
+  try {
+    const res = await postToMonitorAsync('GET', '/api/relay/dispatch');
+    if (!res) return;
+    tasks = JSON.parse(res);
+  } catch (_) { return; }
+
+  const now = Date.now();
+  for (const task of tasks) {
+    if (!['dispatched', 'pending'].includes(task.status)) continue;
+    if (_expiredTasks.has(task.id)) continue;
+    const age = now - new Date(task.dispatched_at || task.created_at).getTime();
+    if (age < STUCK_TASK_MS) continue;
+
+    _expiredTasks.add(task.id);
+    const ageMin = Math.round(age / 60000);
+    log(null, `STUCK: tarea ${task.id.slice(0,8)} (${task.project}) atascada ${ageMin}min — expirando`);
+
+    try { await postToMonitorAsync('POST', `/api/relay/dispatch/${task.id}/expire`, { reason: `atascada ${ageMin} min sin respuesta` }); } catch (_) {}
+
+    tg(`⏱ <b>Tarea expirada — ${task.project}</b>\n<i>${(task.title || '').slice(0, 120)}</i>\nAtascada <b>${ageMin} min</b> en estado ${task.status}\nID: <code>${task.id.slice(0,8)}</code>`);
+    postToMonitor('/api/relay/alerts', { alert_type: 'stuck_task', project_id: task.project, severity: 'warning', title: `Tarea atascada ${ageMin}min — ${task.project}`, details: `id=${task.id} status=${task.status} title=${task.title?.slice(0,100)}` });
+  }
+}
+
+// Async helper for GET requests to monitor API
+function postToMonitorAsync(method, urlPath, body) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(MONITOR_API + urlPath);
+    const isHttps = url.protocol === 'https:';
+    const lib = isHttps ? https : http;
+    const bodyStr = body ? JSON.stringify(body) : '';
+    const opts = {
+      hostname: url.hostname, port: url.port || (isHttps ? 443 : 80),
+      path: url.pathname + url.search, method,
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(bodyStr) },
+    };
+    const req = lib.request(opts, res => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => resolve(data));
+    });
+    req.setTimeout(10000, () => { req.destroy(); reject(new Error('timeout')); });
+    req.on('error', reject);
+    if (bodyStr) req.write(bodyStr);
+    req.end();
+  });
 }
 
 // ─── Process one project inbox ────────────────────────────
@@ -4480,6 +4556,11 @@ ${activeProjects.map(p => `  • ${p.name}`).join('\n')}
     // Check outbox watchdog (detects stuck agents)
     try { checkOutboxWatchdog(projects); } catch (e) {
       log(null, `ERROR watchdog: ${e.message}`);
+    }
+
+    // P0.1 — expire stuck dispatch tasks (>30 min in dispatched/pending)
+    try { await checkStuckDispatchTasks(); } catch (e) {
+      log(null, `ERROR checkStuckDispatchTasks: ${e.message}`);
     }
 
     // Phase 1: git pulls — sequential + deduped to avoid .git/index.lock conflicts
