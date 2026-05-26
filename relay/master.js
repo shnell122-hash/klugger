@@ -3446,7 +3446,7 @@ function gitPushOutbox(repoPath, branch, outboxPath, timestamp, outboxContent) {
         if (attempt < 3) {
           log(projectId, `outbox push intento ${attempt} falló — reintentando en 5s`);
           try { execSync(`cd ${repoPath} && git fetch origin ${branch} --quiet && git merge origin/${branch} -X ours --no-edit --quiet 2>/dev/null || true`, { stdio: 'pipe', timeout: 15000 }); } catch (_) {}
-          await new Promise(r => setTimeout(r, 5000));
+          try { execSync('sleep 5', { stdio: 'pipe', timeout: 8000 }); } catch (_) {}
         }
       }
     }
