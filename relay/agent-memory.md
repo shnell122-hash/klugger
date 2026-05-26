@@ -90,3 +90,14 @@
 - ⚠️   - `Edit` tool para escribir archivos
 
 ## [26/5/2026, 17:40:38 CST] Tarea despachada via Telegram
+
+## [26/5/2026, 17:50:14 CST] Tarea despachada via Telegram
+- ️ **Ejecución bloqueada** — El endpoint `/api/exec` requiere aprobación de permisos explícita para ejecutar (curl POST).
+- **Contexto:**
+- - Comando: `which claude || echo no-instalado`
+- - Endpoint: `https://ia.vilarkptl.com/api/exec`
+- - Token: Configurado (EXEC_TOKEN válido)
+- - Bloqueador: Sistema de permisos en sandbox requiere aprobación
+- ⚠️ Sistema de permisos muy restrictivo — no permite ejecutar curl sin aprobación explícita, incluso para diagnósticos simples
+- ⚠️ Para que ia-monitor funcione como orquestador autónomo, se necesita allowlist de comandos en `.claude/settings.json` para:
+- ⚠️   - `curl` a endpoints internos
