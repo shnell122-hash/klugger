@@ -591,7 +591,7 @@ function initTabs() {
 }
 
 function switchRightTab(tab) {
-  ['agents','screenshots','sessions','costs','providers','projects','alerts','conversations','tg-users','platform','api-admin','scores'].forEach(t => {
+  ['agents','screenshots','sessions','costs','providers','projects','alerts','conversations','tg-users','platform','api-admin','scores','pipeline'].forEach(t => {
     const el = document.getElementById(t + '-panel');
     if (el) el.classList.toggle('visible', t === tab);
   });
@@ -606,6 +606,7 @@ function switchRightTab(tab) {
   if (tab === 'platform')      { loadPlatform(); loadProxyQuota(); }
   if (tab === 'api-admin')     loadApiAdmin();
   if (tab === 'scores')        loadScores();
+  if (tab === 'pipeline')      loadPipelineStats();
 }
 
 // ─── Screenshots panel ────────────────────────────────────
@@ -1197,6 +1198,9 @@ function connectSocket() {
     const counter = document.getElementById('agents-count');
     const pending = dispatches.filter(x => x.status === 'pending' || x.status === 'dispatched').length;
     if (counter) counter.textContent = `${dispatches.length} tareas · ${pending} activas`;
+    // Refresh pipeline if visible
+    const pipelinePanel = document.getElementById('pipeline-panel');
+    if (pipelinePanel && pipelinePanel.classList.contains('visible')) loadPipelineStats();
   });
 
   socket.on('alert:new', alert => {
