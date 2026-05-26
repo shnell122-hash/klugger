@@ -101,3 +101,16 @@
 - ⚠️ Sistema de permisos muy restrictivo — no permite ejecutar curl sin aprobación explícita, incluso para diagnósticos simples
 - ⚠️ Para que ia-monitor funcione como orquestador autónomo, se necesita allowlist de comandos en `.claude/settings.json` para:
 - ⚠️   - `curl` a endpoints internos
+
+## [26/5/2026, 17:51:58 CST] Tarea despachada via Telegram
+- **Archivo existe** — `/home/claude-agent/.claude/settings.json` leído correctamente
+- **Configuración actual:**
+- ```json
+- {
+-   "hooks": {
+-     "PreToolUse": [hook pre-command],
+-     "PostToolUse": [hook post-command],
+-     "Stop": [hook stop-command]
+- ⚠️ **Crítico:** Sin `"permissions"` en settings.json, ia-monitor NO puede funcionar como orquestador autónomo
+- ⚠️ Necesaria intervención: agregar allowlist de permisos vía `/update-config` para:
+- ⚠️   - `curl` a endpoints internos (`ia.vilarkptl.com`, `localhost:3010`)
