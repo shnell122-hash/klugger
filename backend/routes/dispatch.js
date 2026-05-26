@@ -184,6 +184,33 @@ router.get('/dispatch', async (req, res) => {
   }
 });
 
+// ── GET /api/relay/dispatch/stats ────────────────────────────
+// Pipeline reliability stats per project (last N days)
+// MUST be before /dispatch/:id to avoid Express matching 'stats' as :id
+router.get('/dispatch/stats', async (req, res) => {
+  const days = parseInt(req.query.days ?? 7, 10);
+  try {
+    const [rows] = await db.query(
+      `SELECT
+         project,
+         COUNT(*) AS total,
+         SUM(status = 'completed') AS completed,
+         SUM(status = 'failed') AS failed,
+         SUM(status IN ('pending','dispatched')) AS stuck,
+         ROUND(100.0 * SUM(status = 'completed') / COUNT(*), 1) AS success_rate_pct,
+         ROUND(AVG(CASE WHEN status = 'completed' THEN duration_sec END) / 60, 1) AS avg_min_completed
+       FROM dispatch_tasks
+       WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+       GROUP BY project
+       ORDER BY total DESC`,
+      [days]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── GET /api/relay/dispatch/:id ───────────────────────────────
 router.get('/dispatch/:id', async (req, res) => {
   try {
@@ -264,32 +291,6 @@ router.post('/dispatch/expire-stuck', async (req, res) => {
     const io = req.app.get('io');
     if (io) ids.forEach(id => io.emit('dispatch:complete', { id, status: 'failed', exit_code: -1, reason: 'expired' }));
     res.json({ ok: true, expired: ids.length, ids });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ── GET /api/relay/dispatch/stats ────────────────────────────
-// Pipeline reliability stats per project (last N days)
-router.get('/dispatch/stats', async (req, res) => {
-  const days = parseInt(req.query.days ?? 7, 10);
-  try {
-    const [rows] = await db.query(
-      `SELECT
-         project,
-         COUNT(*) AS total,
-         SUM(status = 'completed') AS completed,
-         SUM(status = 'failed') AS failed,
-         SUM(status IN ('pending','dispatched')) AS stuck,
-         ROUND(100.0 * SUM(status = 'completed') / COUNT(*), 1) AS success_rate_pct,
-         ROUND(AVG(CASE WHEN status = 'completed' THEN duration_sec END) / 60, 1) AS avg_min_completed
-       FROM dispatch_tasks
-       WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-       GROUP BY project
-       ORDER BY total DESC`,
-      [days]
-    );
-    res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
