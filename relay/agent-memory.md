@@ -166,3 +166,5 @@
 - ⚠️ 1. **Curl bloqueado** — Todos los comandos remotos requieren aprobación manual
 
 ## [26/5/2026, 19:17:58 CST] Test pipeline — pm2 relay-master
+
+## [26/5/2026, 19:43:38 CST] Test pipeline — disk usage
