@@ -303,7 +303,38 @@ def logout():
 def me():
     if 'user_id' not in session:
         return jsonify({'authenticated': False}), 401
-    org_id = session.get('org_id')
+
+    # Always refresh role/permission flags from DB so that admin promotions
+    # take effect immediately without requiring the user to log out/in.
+    user_id = session['user_id']
+    db_row = query(
+        "SELECT org_id, is_org_admin, is_sub_master, token_limit, "
+        "can_create_cases, case_access FROM users WHERE user_id=%s",
+        (user_id,)
+    ) or {}
+    is_org_admin  = bool(db_row.get('is_org_admin', 0))
+    is_sub_master = bool(db_row.get('is_sub_master', 0))
+    org_id        = db_row.get('org_id') or session.get('org_id')
+    token_limit   = db_row.get('token_limit') or session.get('token_limit')
+    can_create    = bool(db_row.get('can_create_cases', 1))
+    case_access   = db_row.get('case_access') or session.get('case_access', 'all')
+
+    # Patch session if any flag changed (keeps backend routes in sync)
+    changed = (
+        session.get('is_org_admin')     != is_org_admin  or
+        session.get('is_sub_master')    != is_sub_master or
+        session.get('org_id')           != org_id        or
+        session.get('can_create_cases') != can_create    or
+        session.get('case_access')      != case_access
+    )
+    if changed:
+        session['is_org_admin']    = is_org_admin
+        session['is_sub_master']   = is_sub_master
+        session['org_id']          = org_id
+        session['token_limit']     = token_limit
+        session['can_create_cases']= can_create
+        session['case_access']     = case_access
+
     org_branding = {}
     if org_id:
         org_row = query(
@@ -331,13 +362,13 @@ def me():
         'picture':       session.get('user_pic', ''),
         'role':          session['user_role'],
         'is_master':        session.get('user_email', '') in ADMIN_EMAILS,
-        'is_sub_master':    session.get('is_sub_master', False),
-        'is_org_admin':     session.get('is_org_admin', False),
+        'is_sub_master':    is_sub_master,
+        'is_org_admin':     is_org_admin,
         'org_id':           org_id,
-        'token_limit':      session.get('token_limit'),
+        'token_limit':      token_limit,
         'has_password':     session.get('has_password', False),
-        'can_create_cases': session.get('can_create_cases', True),
-        'case_access':      session.get('case_access', 'all'),
+        'can_create_cases': can_create,
+        'case_access':      case_access,
         **org_branding,
     })
 
