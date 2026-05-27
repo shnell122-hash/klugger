@@ -3662,6 +3662,15 @@ function checkOutboxWatchdog(projects) {
 const STUCK_TASK_MS = parseInt(process.env.STUCK_TASK_MS || '1800000'); // 30 min
 const _expiredTasks = new Set(); // avoid double-expiring same task
 
+// Fix: the backend API returns MySQL local-time datetimes with an incorrect 'Z' UTC suffix.
+// Stripping 'Z' makes Node.js parse the string as server local time (CST = UTC-6),
+// which correctly reflects when the task was created.  Without this fix, tasks appear
+// 6 hours older than they are and get immediately expired.
+function parseDbTs(str) {
+  if (!str) return null;
+  return new Date(str.replace(/Z$/, ''));   // parse as local, not UTC
+}
+
 async function checkStuckDispatchTasks() {
   let tasks = [];
   try {
@@ -3674,7 +3683,8 @@ async function checkStuckDispatchTasks() {
   for (const task of tasks) {
     if (!['dispatched', 'pending'].includes(task.status)) continue;
     if (_expiredTasks.has(task.id)) continue;
-    const age = now - new Date(task.dispatched_at || task.created_at).getTime();
+    const ref = parseDbTs(task.dispatched_at || task.created_at);
+    const age = ref ? now - ref.getTime() : 0;
     if (age < STUCK_TASK_MS) continue;
 
     _expiredTasks.add(task.id);
