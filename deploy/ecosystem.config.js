@@ -209,7 +209,7 @@ module.exports = {
       instances:   1,
       autorestart: true,
       watch:       false,
-      max_memory_restart: '256M',
+      max_memory_restart: '512M',  // Next.js needs >256M; was causing 95 OOM restarts/13h
       env: {
         NODE_ENV:              'production',
         NEXT_PUBLIC_API_URL:   'https://ia.vilarkptl.com',
