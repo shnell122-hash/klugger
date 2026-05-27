@@ -200,6 +200,25 @@ module.exports = {
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
     },
     {
+      // Relay Monitor Dashboard — Next.js 15, port 3030
+      name:        'relay-dashboard',
+      script:      'node_modules/.bin/next',
+      args:        'start -p 3030',
+      cwd:         '/var/www/html/vilarkptl.com/ai-monitor/relay-dashboard',
+      exec_mode:   'fork',
+      instances:   1,
+      autorestart: true,
+      watch:       false,
+      max_memory_restart: '256M',
+      env: {
+        NODE_ENV:              'production',
+        NEXT_PUBLIC_API_URL:   'https://ia.vilarkptl.com',
+      },
+      error_file:  '/var/log/ai-monitor/relay-dashboard-error.log',
+      out_file:    '/var/log/ai-monitor/relay-dashboard-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss',
+    },
+    {
       name:        'ai-monitor',
       script:      'backend/server.js',
       cwd:         '/var/www/html/vilarkptl.com/ai-monitor',
