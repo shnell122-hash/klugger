@@ -1,5 +1,5 @@
-# Test pipeline — pm2 relay-master
-Verifica que relay-master está online ejecutando pm2 list. Reporta en tu outbox: uptime y restarts del proceso relay-master.
+# Test pipeline — health check
+Lee el archivo backend/server.js y confirma en tu outbox que el endpoint GET /api/health existe y responde. No cambies ningún archivo.
 STATUS: done
 CHANGED: (ninguno)
 DEPLOYED: no
