@@ -95,9 +95,11 @@ function isQuietHour() {
   return mxHour >= 23 || mxHour < 8;
 }
 
-// ── Rate limiting por proyecto (máx 3 dispatches/hora) ────────────────────────
+// ── Rate limiting por proyecto (máx 10 dispatches/hora) ───────────────────────
+// Con 5 cuentas Claude (Max + 4 Pro), el límite anterior de 3/h era demasiado
+// restrictivo. 10/h permite uso intensivo sin bloquear test suites ni dispatches legítimos.
 const DISPATCH_TIMESTAMPS = new Map();
-const DISPATCH_RATE_LIMIT = parseInt(process.env.DISPATCH_RATE_LIMIT || '3');
+const DISPATCH_RATE_LIMIT = parseInt(process.env.DISPATCH_RATE_LIMIT || '10');
 const DISPATCH_WINDOW_MS  = 60 * 60 * 1000;
 
 function isRateLimited(projectId) {
