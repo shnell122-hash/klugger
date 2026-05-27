@@ -1,6 +1,7 @@
 import sys, os, logging
-import eventlet
-eventlet.monkey_patch()
+# eventlet removed — using threading mode for stability
+# (eventlet monkey_patch caused KeyboardInterrupt during import due to PM2 signal propagation;
+#  also, PM2 master environment has PORT=3010 which was overriding the .env — fixed with override=True)
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -18,7 +19,8 @@ from flask_socketio import SocketIO
 from dotenv import load_dotenv
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
+# override=True ensures .env values (PORT=5008) win over inherited PM2 env vars
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env'), override=True)
 
 from routes.upload     import upload_bp
 from routes.chat       import chat_bp
@@ -54,10 +56,11 @@ Session(app)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # Socket.io — real-time artifact & task events
+# Using threading mode (not eventlet) for stability in this testing environment
 socketio = SocketIO(
     app,
     cors_allowed_origins='*',
-    async_mode='eventlet',
+    async_mode='threading',
     logger=False,
     engineio_logger=False,
 )
@@ -99,4 +102,5 @@ def health():
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5008))
-    socketio.run(app, host='0.0.0.0', port=port, debug=False)
+    # allow_unsafe_werkzeug=True required for threading mode in Flask-SocketIO
+    socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
