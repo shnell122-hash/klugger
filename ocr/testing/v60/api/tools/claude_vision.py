@@ -13,7 +13,8 @@ _client = None
 def _get_client():
     global _client
     if _client is None:
-        _client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
+        proxy_url = os.getenv('CLAUDE_PROXY_URL', 'http://127.0.0.1:5001')
+        _client = anthropic.Anthropic(api_key='claude-proxy', base_url=proxy_url)
     return _client
 
 

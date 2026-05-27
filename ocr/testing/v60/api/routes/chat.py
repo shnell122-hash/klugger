@@ -909,20 +909,16 @@ def _run_agentic_loop(client, model, max_tokens, system, init_messages, case_id,
         text_this_round = ""
         t_round = time.time()
 
-        with client.messages.stream(
+        final_msg = client.messages.create(
             model=model,
             max_tokens=max_tokens,
             system=system,
             tools=TOOL_DEFS,
             messages=messages,
-        ) as stream:
-            for event in stream:
-                if (hasattr(event, 'type')
-                        and event.type == 'content_block_delta'
-                        and hasattr(event, 'delta')
-                        and getattr(event.delta, 'type', None) == 'text_delta'):
-                    text_this_round += event.delta.text
-            final_msg = stream.get_final_message()
+        )
+        for _block in final_msg.content:
+            if getattr(_block, 'type', None) == 'text':
+                text_this_round += getattr(_block, 'text', '')
 
         u = final_msg.usage
         cached = getattr(u, 'cache_read_input_tokens', 0)
@@ -1051,7 +1047,10 @@ def chat():
     _cache_last_msg(messages)   # cachea historial completo antes del turno actual
     messages.append({"role": "user", "content": message})
 
-    client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
+    client = anthropic.Anthropic(
+        api_key='claude-proxy',
+        base_url=os.getenv('CLAUDE_PROXY_URL', 'http://127.0.0.1:5001'),
+    )
     model  = _select_model(artifact_type, message)
 
     t0 = time.time()
@@ -1211,7 +1210,10 @@ def chat_stream():
     _cache_last_msg(messages)   # cachea historial completo antes del turno actual
     messages.append({"role": "user", "content": message})
 
-    client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
+    client = anthropic.Anthropic(
+        api_key='claude-proxy',
+        base_url=os.getenv('CLAUDE_PROXY_URL', 'http://127.0.0.1:5001'),
+    )
     model  = _select_model(artifact_type, message)
     q: queue.Queue = queue.Queue()   # ilimitado — worker escribe, SSE lee
     t_start = time.time()
@@ -1346,57 +1348,27 @@ def chat_stream():
                         q.put(('tool_status', {'tool': _gen_tool[0], 'msg': msg}))
                         _gen_status_at[0] = now
 
-                with client.messages.stream(**stream_kwargs) as stream:
-                    for event in stream:
-                        etype = getattr(event, 'type', None)
-
-                        # Anunciar tool call en cuanto Claude lo declara (antes del JSON)
-                        if etype == 'content_block_start':
-                            cb = getattr(event, 'content_block', None)
-                            if cb and getattr(cb, 'type', None) == 'tool_use':
-                                tname = cb.name
-                                if tname not in _early_tools:
-                                    _early_tools.add(tname)
-                                    q.put(('tool_start', tname))
-                                    _steps_e = _STATUS_STEPS.get(tname, [])
-                                    init_msg = _GEN_STATUS.get(tname, [(0, None)])[0][1]
-                                    if init_msg:
-                                        q.put(('tool_status', {'tool': tname, 'msg': _pub_msg(init_msg)}))
-                                    _ka_time[0]       = time.time()
-                                    _gen_tool[0]      = tname
-                                    _gen_start[0]     = time.time()
-                                    _gen_status_at[0] = time.time()
-
-                        elif etype == 'content_block_stop':
-                            _gen_tool[0] = None   # terminó de generar el JSON
-
-                        elif etype == 'content_block_delta' and hasattr(event, 'delta'):
-                            dtype = getattr(event.delta, 'type', None)
-                            if dtype == 'text_delta':
-                                chunk = event.delta.text
-                                if t_first[0] is None:
-                                    t_first[0] = time.time()
-                                    log.info('first token %.2fs', t_first[0] - t_start)
-                                    emit_op('📡', f'Primer token en {t_first[0]-t_start:.1f}s — generando respuesta…')
-                                text_this_round += chunk
-                                accumulated.append(chunk)
-                                _text_chars[0] += len(chunk)
-                                q.put(('text', chunk))
-                                _ka_time[0] = time.time()
-                                # Op-log progresivo durante generación larga de texto
-                                _now_t = time.time()
-                                if _now_t - _text_oplog_at[0] >= 30:
-                                    _elapsed_t = _now_t - t_round
-                                    _words_so_far = len(text_this_round.split())
-                                    emit_op('✍️', f'Generando — {_words_so_far:,} palabras · {_elapsed_t:.0f}s',
-                                            detail='Redactando análisis completo…')
-                                    _text_oplog_at[0] = _now_t
-                            elif dtype == 'input_json_delta':
-                                # Claude construyendo el JSON del tool call — mantener SSE vivo
-                                _maybe_keepalive()
-                                _maybe_gen_status()
-
-                    final_msg = stream.get_final_message()
+                # Claude proxy no soporta streaming — llamada bloqueante con keepalive periódico
+                emit_op('📡', 'Consultando modelo vía proxy…', detail='La respuesta llegará completa al terminar')
+                q.put(('keepalive', None))
+                _t_req = time.time()
+                final_msg = client.messages.create(**stream_kwargs)
+                t_first[0] = time.time()
+                log.info('proxy response %.2fs', t_first[0] - t_start)
+                for _blk in final_msg.content:
+                    if getattr(_blk, 'type', None) == 'text':
+                        chunk = getattr(_blk, 'text', '')
+                        if chunk:
+                            text_this_round += chunk
+                            accumulated.append(chunk)
+                            _text_chars[0] += len(chunk)
+                            q.put(('text', chunk))
+                            _ka_time[0] = time.time()
+                    elif getattr(_blk, 'type', None) == 'tool_use':
+                        tname = getattr(_blk, 'name', '')
+                        if tname and tname not in _early_tools:
+                            _early_tools.add(tname)
+                            q.put(('tool_start', tname))
 
                 u = final_msg.usage
                 cached = getattr(u, 'cache_read_input_tokens', 0)
