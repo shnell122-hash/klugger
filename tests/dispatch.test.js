@@ -122,10 +122,13 @@ test('missing task → 400', async () => {
   assert.equal(status, 400, `expected 400, got ${status}`);
 });
 
-test('unknown project → 404', async () => {
+test('unknown project → 404 (P0.3: task must pass quality filter first, so use long task text)', async () => {
+  // P0.3 quality filter runs before project lookup.
+  // Short tasks (≤3 words) return 400 even for unknown projects.
+  // Use a long, actionable task text to bypass P0.3 and reach the 404.
   const { status } = await post('/api/relay/dispatch', {
     project: '__nonexistent_project_for_test__',
-    task: 'test task',
+    task: 'Verifica que el endpoint GET /api/health del servidor responde con status 200 y reporta el resultado.',
   });
   assert.equal(status, 404, `expected 404, got ${status}`);
 });
@@ -139,17 +142,17 @@ test('depth > 3 → 409', async () => {
   assert.equal(status, 409, `expected 409, got ${status}`);
 });
 
-test('valid coordinator dispatch → 200 with id', async () => {
+test('valid coordinator dispatch → 200 or 429 with id', async () => {
   const { status, body } = await post('/api/relay/dispatch', {
     project:   'coordinator',
-    task:      '# Test dispatch\n\nNOP — automated test. Ignore this task.',
+    task:      '# Test dispatch\n\nNOP — automated test. Ignore this task and mark as done immediately.',
     requester: 'tests/dispatch.test.js',
-    depth:     3, // max allowed depth so relay-master won't execute it
+    depth:     3, // max allowed depth so relay-master won't recurse
   });
-  // 200 or 409 (if coordinator has no active inbox) are both acceptable
+  // 200 = dispatch accepted; 429 = coordinator at max active tasks (P0.3 limit)
   assert.ok(
-    status === 200 || status === 409,
-    `expected 200 or 409, got ${status}: ${JSON.stringify(body)}`
+    status === 200 || status === 429,
+    `expected 200 or 429, got ${status}: ${JSON.stringify(body)}`
   );
   if (status === 200) {
     assert.ok(body.id, 'response should include id');
