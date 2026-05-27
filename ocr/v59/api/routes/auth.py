@@ -304,36 +304,45 @@ def me():
     if 'user_id' not in session:
         return jsonify({'authenticated': False}), 401
 
-    # Always refresh role/permission flags from DB so that admin promotions
-    # take effect immediately without requiring the user to log out/in.
     user_id = session['user_id']
-    db_row = query(
-        "SELECT org_id, is_org_admin, is_sub_master, token_limit, "
-        "can_create_cases, case_access FROM users WHERE user_id=%s",
+
+    # ── Step 1: Refresh critical role flags (minimal query — only well-known cols)
+    # Split into two queries so that a missing optional column never silently
+    # zeroes-out the role flags.
+    core_row = query(
+        "SELECT org_id, is_org_admin, is_sub_master, token_limit "
+        "FROM users WHERE user_id=%s",
         (user_id,)
     ) or {}
-    is_org_admin  = bool(db_row.get('is_org_admin', 0))
-    is_sub_master = bool(db_row.get('is_sub_master', 0))
-    org_id        = db_row.get('org_id') or session.get('org_id')
-    token_limit   = db_row.get('token_limit') or session.get('token_limit')
-    can_create    = bool(db_row.get('can_create_cases', 1))
-    case_access   = db_row.get('case_access') or session.get('case_access', 'all')
+    is_org_admin  = bool(core_row.get('is_org_admin', 0))
+    is_sub_master = bool(core_row.get('is_sub_master', 0))
+    org_id        = core_row.get('org_id') or session.get('org_id')
+    token_limit   = core_row.get('token_limit') or session.get('token_limit')
 
-    # Patch session if any flag changed (keeps backend routes in sync)
-    changed = (
-        session.get('is_org_admin')     != is_org_admin  or
-        session.get('is_sub_master')    != is_sub_master or
-        session.get('org_id')           != org_id        or
-        session.get('can_create_cases') != can_create    or
-        session.get('case_access')      != case_access
-    )
-    if changed:
+    # ── Step 2: Refresh optional columns (may not exist on older schema)
+    try:
+        opt_row = query(
+            "SELECT can_create_cases, case_access FROM users WHERE user_id=%s",
+            (user_id,)
+        ) or {}
+        can_create  = bool(opt_row.get('can_create_cases', 1))
+        case_access = opt_row.get('case_access') or session.get('case_access', 'all')
+    except Exception:
+        can_create  = session.get('can_create_cases', True)
+        case_access = session.get('case_access', 'all')
+
+    # ── Step 3: Patch session if any flag changed (keeps backend routes in sync)
+    if (session.get('is_org_admin')  != is_org_admin  or
+            session.get('is_sub_master') != is_sub_master or
+            session.get('org_id')        != org_id):
         session['is_org_admin']    = is_org_admin
         session['is_sub_master']   = is_sub_master
         session['org_id']          = org_id
         session['token_limit']     = token_limit
         session['can_create_cases']= can_create
         session['case_access']     = case_access
+        log.info('me(): refreshed role flags uid=%s sub=%s org_adm=%s',
+                 user_id, is_sub_master, is_org_admin)
 
     org_branding = {}
     if org_id:
