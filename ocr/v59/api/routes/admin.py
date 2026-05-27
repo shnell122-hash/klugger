@@ -489,7 +489,7 @@ def list_users():
     if _is_master():
         rows = query(
             "SELECT u.user_id, u.email, u.name, u.picture, u.role, u.org_id, "
-            "       u.is_org_admin, u.approved, u.token_limit, o.org_name "
+            "       u.is_org_admin, u.is_sub_master, u.approved, u.token_limit, o.org_name "
             "FROM users u LEFT JOIN organizations o ON u.org_id=o.org_id "
             "ORDER BY u.created_at DESC",
             many=True
@@ -497,7 +497,7 @@ def list_users():
     else:
         rows = query(
             "SELECT u.user_id, u.email, u.name, u.picture, u.role, u.org_id, "
-            "       u.is_org_admin, u.approved, u.token_limit, o.org_name "
+            "       u.is_org_admin, u.is_sub_master, u.approved, u.token_limit, o.org_name "
             "FROM users u LEFT JOIN organizations o ON u.org_id=o.org_id "
             "WHERE u.org_id=%s ORDER BY u.created_at DESC",
             (_my_org(),), many=True
