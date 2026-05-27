@@ -915,6 +915,7 @@ def _run_agentic_loop(client, model, max_tokens, system, init_messages, case_id,
             system=system,
             tools=TOOL_DEFS,
             messages=messages,
+            timeout=600,  # bypass SDK's streaming-required check for large max_tokens
         )
         for _block in final_msg.content:
             if getattr(_block, 'type', None) == 'text':
@@ -1352,7 +1353,7 @@ def chat_stream():
                 emit_op('📡', 'Consultando modelo vía proxy…', detail='La respuesta llegará completa al terminar')
                 q.put(('keepalive', None))
                 _t_req = time.time()
-                final_msg = client.messages.create(**stream_kwargs)
+                final_msg = client.messages.create(**stream_kwargs, timeout=600)
                 t_first[0] = time.time()
                 log.info('proxy response %.2fs', t_first[0] - t_start)
                 for _blk in final_msg.content:
