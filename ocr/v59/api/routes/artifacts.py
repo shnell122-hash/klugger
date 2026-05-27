@@ -3,7 +3,7 @@ import io
 import re
 import uuid
 import zipfile
-from flask import Blueprint, request, jsonify, send_file, Response
+from flask import Blueprint, request, jsonify, send_file, Response, session
 from tools.db import query, execute
 
 artifacts_bp = Blueprint('artifacts', __name__)
@@ -146,6 +146,9 @@ def delete_artifact_compat(artifact_id):
 
 @artifacts_bp.route('/api/v1/artifacts', methods=['GET'])
 def list_artifacts():
+    if 'user_id' not in session:
+        return jsonify({'error': 'No autenticado', 'authenticated': False}), 401
+
     case_id       = request.args.get('case_id', '')
     limit         = min(int(request.args.get('limit', 60)), 200)
     src_filter    = request.args.get('type', 'all')      # all | user | system

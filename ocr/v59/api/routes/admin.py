@@ -609,7 +609,8 @@ def list_invitations():
             many=True
         ) or []
     elif _is_sub_master():
-        org_ids = _sm_org_ids()
+        # Include both assigned orgs AND the sub-master's own org
+        org_ids = list(set(_sm_org_ids() + ([_my_org()] if _my_org() else [])))
         if not org_ids:
             rows = []
         else:
