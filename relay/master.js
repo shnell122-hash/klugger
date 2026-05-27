@@ -3459,7 +3459,7 @@ function gitPushOutbox(repoPath, branch, outboxPath, timestamp, outboxContent) {
     const msg = err.message?.slice(0, 300) || 'unknown error';
     log(projectId, `ERROR: outbox push falló (3 intentos): ${msg}`);
     tg(`⚠️ <b>Outbox push falló — ${projectId}</b>\n<code>${msg}</code>`);
-    postToMonitor('/api/relay/alerts', { alert_type: 'outbox_push_failed', project_id: projectId, severity: 'warning', title: `Outbox push falló — ${projectId}`, details: msg });
+    postToMonitor('/api/alerts', { alert_type: 'outbox_push_failed', project_id: projectId, severity: 'warning', title: `Outbox push falló — ${projectId}`, details: msg });
   } finally {
     // Restore original branch to avoid leaving master.js at an unexpected version
     if (originalBranch && originalBranch !== branch) {
@@ -3684,7 +3684,7 @@ async function checkStuckDispatchTasks() {
     try { await postToMonitorAsync('POST', `/api/relay/dispatch/${task.id}/expire`, { reason: `atascada ${ageMin} min sin respuesta` }); } catch (_) {}
 
     tg(`⏱ <b>Tarea expirada — ${task.project}</b>\n<i>${(task.title || '').slice(0, 120)}</i>\nAtascada <b>${ageMin} min</b> en estado ${task.status}\nID: <code>${task.id.slice(0,8)}</code>`);
-    postToMonitor('/api/relay/alerts', { alert_type: 'stuck_task', project_id: task.project, severity: 'warning', title: `Tarea atascada ${ageMin}min — ${task.project}`, details: `id=${task.id} status=${task.status} title=${task.title?.slice(0,100)}` });
+    postToMonitor('/api/alerts', { alert_type: 'stuck_task', project_id: task.project, severity: 'warning', title: `Tarea atascada ${ageMin}min — ${task.project}`, details: `id=${task.id} status=${task.status} title=${task.title?.slice(0,100)}` });
   }
 }
 
