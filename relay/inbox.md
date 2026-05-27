@@ -1,5 +1,5 @@
-# Test pipeline — disk and memory check
-Ejecuta df -h y free -h en el servidor y reporta en tu outbox el espacio libre en / y la RAM disponible. No hagas ningún cambio.
+# Test pipeline — pm2 relay-master
+Verifica que relay-master está online ejecutando pm2 list. Reporta en tu outbox: uptime y restarts del proceso relay-master.
 STATUS: done
 CHANGED: (ninguno)
 DEPLOYED: no
