@@ -1,5 +1,5 @@
-# Test pipeline — disk usage
-Ejecuta df -h y free -h en el servidor. Reporta espacio en disco disponible y RAM libre en tu outbox. No hagas ningún cambio.
+# Test pipeline — health check
+Lee el archivo backend/server.js y confirma en tu outbox que el endpoint GET /api/health existe y responde. No cambies ningún archivo.
 STATUS: done
 CHANGED: (ninguno)
 DEPLOYED: no
