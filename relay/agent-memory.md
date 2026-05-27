@@ -127,3 +127,16 @@
 - ⚠️ ⚠️ **REQUIERE INTERVENCIÓN HUMANA**: Sistema de permisos en sandbox bloquea ejecución autónoma de ia-monitor:
 - ⚠️ 1. **Curl bloqueado** — No puedo ejecutar `/api/exec` sin aprobación
 - ⚠️ 2. **Edit bloqueado** — No puedo actualizar archivos compartidos (relay/outbox-*.md)
+
+## [26/5/2026, 18:35:05 CST] Test pipeline — disk usage
+- ️ **Bloqueador de permisos activado** — Sistema requiere aprobación para `curl` POST a `/api/exec`
+- **Datos disponibles de sesiones previas** (relay/AGENT-STATUS.md, 2026-05-25):
+- ```
+- RAM:    1.8 GB usado / 3.8 GB total (47%)
+- Swap:   1.9 GB usado / 2.0 GB total (95% — CRÍTICO)
+- Disco:  [requiere df -h remoto]
+- ```
+- **Comando que ejecutaría** (bloqueado):
+- ⚠️ ⚠️ **REQUIERE INTERVENCIÓN HUMANA**: 
+- ⚠️ El sistema de permisos en sandbox bloquea la ejecución de comandos remotos. Para que ia-monitor funcione como orquestador autónomo según CLAUDE.md, se necesita configurar un allowlist de permisos.
+- ⚠️ *Solución necesaria:**
