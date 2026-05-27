@@ -1,5 +1,5 @@
-# Tarea despachada via Telegram
-
-cat ~/.claude/settings.json || echo "no existe"
-
-_Despachada por: Israel — 2026-05-26T23:51:14.340Z_
+# Test pipeline — health check
+Lee el archivo backend/server.js y confirma en tu outbox que el endpoint GET /api/health existe y responde. No cambies ningún archivo.
+STATUS: done
+CHANGED: (ninguno)
+DEPLOYED: no
