@@ -3746,21 +3746,11 @@ async function processProject(project, hashes, pulledRepos = new Set()) {
   if (!currentHash) return;
   if (hashes[project.id] === currentHash) return;  // no change — check BEFORE rate limit
 
-  // Rate limit only counts when there's actually a new task to execute
-  if (isRateLimited(project.id)) {
-    log(project.id, `Rate limit: >${DISPATCH_RATE_LIMIT} dispatches/h — tarea diferida`);
-    // Notify Telegram at most once per project per hour (not every 15s)
-    const alertKey = `ratelimit_${project.id}`;
-    const lastAlert = PROVIDER_LAST_ALERT[alertKey] || 0;
-    if (Date.now() - lastAlert > DISPATCH_WINDOW_MS) {
-      PROVIDER_LAST_ALERT[alertKey] = Date.now();
-      tg(`⏸ Rate limit en ${project.id} — max ${DISPATCH_RATE_LIMIT} dispatches/h alcanzado`);
-    }
-    return;
-  }
-
-  // Changed! Try to acquire per-project lock (other projects run in parallel)
-  if (!acquireLock(project.id)) {
+  // Check if another task for this project is already running.
+  // Do this BEFORE rate limit so in-flight tasks don't drain the rate-limit counter.
+  // (Bug: previously every 15s cycle while a task ran would call isRateLimited, rapidly
+  //  exhausting the per-project budget and blocking new tasks even after the running one finished.)
+  if (ACTIVE_TASKS.has(project.id)) {
     const elapsed    = Date.now() - (TASK_START_TIMES[project.id] || Date.now());
     const elapsedMin = Math.round(elapsed / 60000);
     const lastWarn   = LAST_RUNNING_WARN[project.id] || 0;
@@ -3777,6 +3767,26 @@ Si crees que está colgado:
   ✍️ O escribe una nueva tarea para interrumpir`);
     }
     log(project.id, `Tarea en curso — ${elapsedMin}min transcurridos`);
+    return;
+  }
+
+  // Rate limit only counts when there's actually a new task to execute (and none is running)
+  if (isRateLimited(project.id)) {
+    log(project.id, `Rate limit: >${DISPATCH_RATE_LIMIT} dispatches/h — tarea diferida`);
+    // Notify Telegram at most once per project per hour (not every 15s)
+    const alertKey = `ratelimit_${project.id}`;
+    const lastAlert = PROVIDER_LAST_ALERT[alertKey] || 0;
+    if (Date.now() - lastAlert > DISPATCH_WINDOW_MS) {
+      PROVIDER_LAST_ALERT[alertKey] = Date.now();
+      tg(`⏸ Rate limit en ${project.id} — max ${DISPATCH_RATE_LIMIT} dispatches/h alcanzado`);
+    }
+    return;
+  }
+
+  // Acquire per-project lock (ACTIVE_TASKS.has was false above, so this should succeed)
+  if (!acquireLock(project.id)) {
+    // Shouldn't happen (race condition guard), but handle gracefully
+    log(project.id, 'Lock race — saltando');
     return;
   }
 
