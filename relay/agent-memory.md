@@ -168,3 +168,14 @@
 ## [26/5/2026, 19:17:58 CST] Test pipeline — pm2 relay-master
 
 ## [26/5/2026, 19:43:38 CST] Test pipeline — disk usage
+
+## [26/5/2026, 19:58:41 CST] Test pipeline — health check
+- **Curl bloqueado por restricción de permisos** — El sistema requiere aprobación explícita para ejecutar `curl` incluso a localhost
+- **Comando que intenté:**
+- ```bash
+- curl -s -w "\nStatus: %{http_code}\n" http://localhost:3010/api/health
+- ```
+- **Bloqueador:** Sistema de permisos en sandbox reclama aprobación para `curl` — incluso llamadas a localhost requieren permiso.
+- ⚠️ ⚠️ **REQUIERE INTERVENCIÓN HUMANA**: 
+- ⚠️ El sistema de permisos sigue bloqueando todas las tareas. He intentado:
+- ⚠️ Ejecutar `pm2 list` (bloqueado)
