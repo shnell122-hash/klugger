@@ -114,3 +114,16 @@
 - ⚠️ **Crítico:** Sin `"permissions"` en settings.json, ia-monitor NO puede funcionar como orquestador autónomo
 - ⚠️ Necesaria intervención: agregar allowlist de permisos vía `/update-config` para:
 - ⚠️   - `curl` a endpoints internos (`ia.vilarkptl.com`, `localhost:3010`)
+
+## [26/5/2026, 18:22:54 CST] Test pipeline — disk usage
+- **Tarea bloqueada por permisos** — Ejecución remota requiere aprobación explícita
+- - Bloqueador 1: `curl` a `/api/exec` requiere aprobación de Bash
+- - Bloqueador 2: `Edit` tool para escribir outbox requiere aprobación explícita
+- ️ **Datos de recurso disponibles** (AGENT-STATUS.md 2026-05-25):
+- ```
+- RAM:  ~1.8 GB usada / 3.8 GB total (47%)
+- Swap: ~1.9 GB usada / 2.0 GB total (95% crítico)
+- ```
+- ⚠️ ⚠️ **REQUIERE INTERVENCIÓN HUMANA**: Sistema de permisos en sandbox bloquea ejecución autónoma de ia-monitor:
+- ⚠️ 1. **Curl bloqueado** — No puedo ejecutar `/api/exec` sin aprobación
+- ⚠️ 2. **Edit bloqueado** — No puedo actualizar archivos compartidos (relay/outbox-*.md)
