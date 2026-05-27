@@ -1,7 +1,5 @@
-# Test pipeline — health check
-Confirma en tu outbox que el backend responde correctamente ejecutando:
-  curl -s http://localhost:3010/api/health
-Reporta el status code y la respuesta JSON. No cambies ningún archivo.
+# Test pipeline — disk and memory check
+Ejecuta df -h y free -h en el servidor y reporta en tu outbox el espacio libre en / y la RAM disponible. No hagas ningún cambio.
 STATUS: done
 CHANGED: (ninguno)
 DEPLOYED: no
