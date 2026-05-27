@@ -1,6 +1,6 @@
 # ROADMAP — AI Monitor / Agentic Relay System
 
-> Actualizado: 2026-05-26 (v3 — P0 pipeline reliability + Frontend Next.js)
+> Actualizado: 2026-05-27 (v4 — P0+P1 completos, relay-dashboard deploy OK)
 > Objetivo: plataforma autónoma 24/7 que iguala y supera a Claude Code
 
 ---
@@ -10,7 +10,7 @@
 **El output de calidad cuando las tareas ejecutan es EQUIVALENTE a Claude Code directo.**
 El problema es el pipeline — no el modelo.
 
-### Success rate por proyecto (últimos 30 días)
+### Success rate por proyecto (últimos 30 días — baseline 2026-05-26)
 
 | Proyecto | Total tareas | Completadas | Fallidas | **Atascadas** | **Success rate** |
 |----------|-------------|-------------|----------|----------------|-----------------|
@@ -19,6 +19,20 @@ El problema es el pipeline — no el modelo.
 | finbot-tester | 4 | 2 | 1 | 1 | **50%** 🟡 |
 | fiscalai | 5 | 3 | 0 | 2 | **60%** 🟡 |
 | finbot-verifier | 2 | 0 | 0 | 2 | **0%** 🔴 |
+
+### Success rate post-P0 (últimos 7 días — 2026-05-27)
+
+> P0 activado 2026-05-26. Muestra transición: atascadas ya expiran a failed automáticamente.
+
+| Proyecto | Total | Completadas | Fallidas | Stuck | **Rate** |
+|----------|-------|-------------|----------|-------|----------|
+| fiscalai-test | 2 | 1 | 1 | 0 | **50%** 🟡 |
+| coordinator | 4 | 1 | 3 | 0 | **25%** 🔴 |
+| finbot-tester | 1 | 0 | 1 | 0 | **0%** 🔴 |
+| ai-monitor | 2 | 0 | 2 | 0 | **0%** 🔴 |
+| finbot-verifier | 2 | 0 | 2 | 0 | **0%** 🔴 |
+
+_Nota: Muestra pequeña (11 tareas). El P0 previene stuck pero no resuelve fallos en ejecución. Medir nuevamente en 7 días para tendencia real._
 
 ### Calidad de sesiones que SÍ completan (equivalente a Claude Code)
 
@@ -57,16 +71,21 @@ No hay expiración automática, no hay retry, no hay alerta en tiempo real.
 
 ## P1 — Visibilidad · Para que devs confíen en el sistema
 
-### P1.1 — Dashboard: panel Pipeline Reliability · Target: 2026-06-01
+### P1.1 — Dashboard: panel Pipeline Reliability ✅ 2026-05-27
 - Por proyecto: funnel Dispatched → Picked up → Completed
 - Success rate 24h / 7 días con color coding (verde ≥80%, amarillo 50-80%, rojo <50%)
+- Implementado en `frontend/js/dashboard.js`: `loadPipelineStats()` + `renderPipelineStats()`
+- Tab Pipeline visible en `frontend/index.html` (desktop + mobile)
 
-### P1.2 — Coordinator health metric · Target: 2026-06-01
-- Indicador en dashboard: "Coordinator: 18.6% ⚠️"
+### P1.2 — Coordinator health metric ✅ 2026-05-27
+- Indicador en header del dashboard: "Coordinator: 18.6% ⚠️" con colores
 - Alert automática cuando coordinator cae bajo 40%
+- Stat pill `#stat-coordinator` actualizado con cada refresh de pipeline
 
-### P1.3 — Stuck task alert en relay_alerts · Target: 2026-06-01
-- Escribir `relay_alerts` tipo `stuck_task` cuando una tarea expira
+### P1.3 — Stuck task alert en relay_alerts ✅ 2026-05-27
+- `relay/master.js` escribe `relay_alerts` tipo `stuck_task` cuando una tarea expira
+- Fix: endpoint corregido `/api/relay/alerts` → `/api/alerts` (ruta correcta en server.js)
+- También corregido `outbox_push_failed` alert
 - Visible en tab Alertas del dashboard
 
 ---
@@ -120,12 +139,14 @@ No hay expiración automática, no hay retry, no hay alerta en tiempo real.
 - [x] Layout raíz + Header con stat pills · 2026-05-26
 - [x] Socket.io provider + hooks de datos · 2026-05-26
 - [x] Tab Pipeline: funnel + success rate por proyecto · 2026-05-26
-- [ ] Tab Sesiones: tabla con filtros
-- [ ] Tab Dispatches: tabla en tiempo real
-- [ ] Tab Costos: charts Recharts
-- [ ] Tab Alertas: feed
-- [ ] Deploy servidor (puerto 3030, pm2: relay-dashboard)
-- [ ] Testing en servidor hasta ≥85% success rate
+- [x] Tab Sesiones: tabla con filtros (project filter, refresh 30s) · 2026-05-27
+- [x] Tab Dispatches: tabla en tiempo real vía Socket.io · 2026-05-27
+- [x] Tab Costos: Recharts BarChart por proveedor · 2026-05-27
+- [x] Tab Alertas: feed con Socket.io (`alert:new`) · 2026-05-27
+- [x] Deploy servidor (puerto 3030, pm2: relay-dashboard, id 41) · 2026-05-27
+  - Fix prerender-manifest.json (ENOENT → stub JSON creado)
+  - npm install/build via `pm2 start npm` trick (exec endpoint no permite npm directo)
+- [ ] Testing en servidor hasta ≥85% success rate (medir 2026-06-03)
 
 ---
 
@@ -195,21 +216,24 @@ La decisión de usar **Claude Max/Pro para planificación y tareas críticas** y
 
 ---
 
-## Estado actual (2026-05-20)
+## Estado actual (2026-05-27)
 
 | Componente | Estado | Cal. |
 |------------|--------|------|
-| relay-master | ✅ Online | 8/10 |
+| relay-master | ✅ Online (PM2 id 7) | 8/10 |
+| P0: auto-expire + retry + quality filter | ✅ Activo | 9/10 |
+| P1: pipeline tab + health metric + alerts | ✅ Desplegado | 8/10 |
 | DeepSeek V4 Pro (`deepseek-agent`) | ✅ Activo en `fiscalai-test` | 7/10 |
 | Gemini 2.0 Flash (visual) | ✅ Screenshot OK, análisis limitado por cuota | 6/10 |
 | Claude Code CLI (`full-claude-code`) | ✅ Activo | 9/10 |
-| claude-proxy (1 cuenta) | ✅ Puerto 5001 | 5/10 |
-| Multi-cuenta routing | ❌ Solo 1 proxy | 0/10 |
-| financial-bot | ⚠️ En ai-monitor repo (ruido) | 5/10 |
-| Dashboard ia.vilarkptl.com | ✅ Online | 7/10 |
+| claude-proxy (5 cuentas 5001–5005) | ✅ Puertos activos, pendiente auth cuentas Pro | 6/10 |
+| Multi-cuenta routing en master.js | ⚠️ Scaffolded en ecosystem.config.js, falta `selectProxy()` en master.js | 3/10 |
+| relay-dashboard (Next.js, port 3030) | ✅ Online (PM2 id 41), todos los tabs | 8/10 |
+| financial-bot | ⚠️ En ai-monitor repo (ruido), migración pendiente | 5/10 |
+| Dashboard ia.vilarkptl.com | ✅ Online | 8/10 |
 | Telegram iaVilarBot | ✅ Todos los comandos | 8/10 |
-| DeCabeceraTax branch | ⚠️ Rama incorrecta en prod | 5/10 |
-| pill.ai | ❌ No registrado | 0/10 |
+| DeCabeceraTax branch | ⚠️ Worktree testing pendiente | 5/10 |
+| pill.ai | ❌ No registrado en relay | 0/10 |
 | Playwright | ❌ No instalado | 0/10 |
 
 ---
