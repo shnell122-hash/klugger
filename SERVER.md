@@ -1,7 +1,7 @@
 # SERVER.md — Conexión al servidor para agentes vilarkptl-lang
 
 > Referencia universal para cualquier agente Claude Code en cualquier repositorio de `vilarkptl-lang`.
-> Copia este archivo o referencia la URL para conectar un agente nuevo al servidor de producción.
+> Última actualización: 2026-05-28
 
 ---
 
@@ -10,223 +10,255 @@
 | Campo | Valor |
 |-------|-------|
 | IP | `143.198.228.78` |
-| Dominio | `ia.vilarkptl.com` |
-| OS | Ubuntu/Debian |
+| Dominio principal | `ia.vilarkptl.com` |
+| OS | Ubuntu 22.04.4 LTS |
 | Usuario SSH | `german` |
 | Contraseña SSH | `romanos12_2` |
 
 ---
 
-## Método 1 — Exec endpoint HTTP (recomendado, siempre funciona)
+## Método 1 — exec-lite (RECOMENDADO — systemd, siempre up)
 
-El método principal. Funciona desde Claude Code web, CLI, y cualquier entorno que tenga acceso a internet.
+Servicio independiente de Node.js corriendo como systemd. **No depende de PM2 ni de `ai-monitor`.**
+Sobrevive crashes del backend y reinicios del servidor.
 
 ```bash
 EXEC_TOKEN="cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a"
-EXEC_URL="https://ia.vilarkptl.com/api/exec"
+EXEC_URL="https://ia.vilarkptl.com/exec-lite"
 
 exec_server() {
   local CMD="$1"
   local CWD="${2:-/var/www/html/vilarkptl.com/ai-monitor}"
   local BODY
   BODY=$(python3 -c "import sys,json; print(json.dumps({'cmd':sys.argv[1],'cwd':sys.argv[2]}))" "$CMD" "$CWD")
-  curl -s --max-time 20 -X POST "$EXEC_URL" \
+  curl -s --max-time 30 -X POST "$EXEC_URL" \
     -H "Content-Type: application/json" \
     -H "x-exec-token: $EXEC_TOKEN" \
     -d "$BODY" \
     | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('output') or d.get('error','(sin output)'))"
 }
+
+# Verificar que está up:
+curl -s https://ia.vilarkptl.com/exec-lite/health
+# → {"ok":true,"service":"exec-lite","pid":...}
 ```
 
-### Ejemplos de uso
+> **Nota**: exec-lite requiere Apache activo. Si Apache está caído, la URL interna es:
+> `http://127.0.0.1:3099` (solo desde dentro del servidor).
+
+### Reinstalar exec-lite en el servidor
+
+```bash
+# Ejecutar en el servidor (SSH o consola del VPS):
+cd /var/www/html/vilarkptl.com/ai-monitor
+cp deploy/exec-lite.service /etc/systemd/system/exec-lite.service
+systemctl daemon-reload && systemctl enable --now exec-lite
+systemctl status exec-lite   # debe mostrar "active (running)"
+```
+
+---
+
+## Método 2 — /api/exec (depende de ai-monitor)
+
+Fallback. Solo funciona cuando el proceso `ai-monitor` (PM2) está corriendo.
+
+```bash
+EXEC_TOKEN="cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a"
+EXEC_URL="https://ia.vilarkptl.com/api/exec"
+# (misma función exec_server — solo cambiar EXEC_URL)
+```
+
+---
+
+## Método 3 — SSH directo
+
+Usar cuando Apache está caído o para sesiones interactivas largas.
+**Nota: el sandbox de Claude Code web bloquea el puerto 22 saliente.** Solo funciona desde CLI local.
+
+```bash
+apt-get install -y sshpass 2>/dev/null
+sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78 "pm2 status"
+
+# Alias de sesión:
+srv() { sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78 "$@"; }
+srv "pm2 restart ai-monitor"
+```
+
+---
+
+## Apache
+
+Apache expone todos los servicios en `ia.vilarkptl.com` (:443). Si está caído, nada es accesible externamente.
+
+```bash
+# Ver estado
+exec_server "systemctl status apache2 --no-pager"
+
+# Iniciar si está caído
+# (requiere SSH o consola del VPS — exec-lite necesita Apache para funcionar externamente)
+systemctl start apache2
+
+# Recargar config (sin downtime)
+exec_server "systemctl reload apache2"
+```
+
+### Rutas Apache → puertos internos
+
+| Ruta pública | Puerto | Servicio |
+|---|---|---|
+| `ia.vilarkptl.com/exec-lite` | `:3099` | exec-lite (systemd) |
+| `ia.vilarkptl.com/dash` | `:3030` | relay-dashboard (Next.js) |
+| `ia.vilarkptl.com/api/exec` | `:3010` | ai-monitor backend |
+| `ia.vilarkptl.com/` | `:3010` | ai-monitor frontend |
+
+Config: `deploy/apache-ia.vilarkptl.com.conf` → `/etc/apache2/sites-available/ia.vilarkptl.com.conf`
+
+---
+
+## Ejemplos de uso
 
 ```bash
 exec_server "pm2 status"
 exec_server "pm2 restart financial-bot"
 exec_server "pm2 logs relay-master --lines 30 --nostream"
-exec_server "git log --oneline -5" "/var/www/html/vilarkptl.com/ai-monitor"
-exec_server "git pull origin main"  "/var/www/html/vilarkptl.com/ai-monitor"
+exec_server "git log --oneline -5"
+exec_server "git fetch origin main && git reset --hard origin/main"
+exec_server "free -h"
+exec_server "df -h"
 ```
 
-### Comandos permitidos por el endpoint
+### Comandos permitidos
 
 | Categoría | Comandos |
 |-----------|----------|
-| PM2 | `status`, `logs`, `restart`, `stop`, `start`, `reload`, `list` |
-| Git | `status`, `log`, `diff`, `fetch`, `pull`, `merge`, `push`, `checkout`, `branch`, `add`, `commit`, `reset`, `stash` |
-| MySQL | `mysql -u root ...` (contraseña en `.env`) |
-| Archivos | `cat` (solo rutas de ai-monitor/relay), `grep`, `ls` |
-| Sistema | `df`, `free`, `uptime` |
-
-> Los comandos destructivos (`rm -rf`, `kill -9`, `shutdown`) están bloqueados salvo confirmación explícita.
+| PM2 | `status`, `logs`, `restart`, `stop`, `start`, `reload`, `list`, `show` |
+| Git | `status`, `log`, `diff`, `fetch`, `pull`, `merge`, `push`, `checkout`, `branch`, `add`, `commit`, `reset`, `stash`, `remote` |
+| MySQL | `mysql -u root ...` |
+| Archivos | `cat`, `grep`, `ls`, `cp`, `mkdir`, `find`, `chmod`, `chown` |
+| Sistema | `df`, `free`, `uptime`, `node`, `npm`, `systemctl status/restart/reload` |
 
 ---
 
-## Método 2 — SSH directo
-
-Usar cuando el Método 1 no está disponible o para sesiones interactivas.
-
-```bash
-# Instalar sshpass si no está disponible
-apt-get install -y sshpass 2>/dev/null
-
-# Ejecutar comando remoto
-sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78 "pm2 status"
-
-# Alias útil para la sesión
-srv() { sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.228.78 "$@"; }
-srv "pm2 restart ai-monitor"
-srv "cd /var/www/html/vilarkptl.com/ai-monitor && git log --oneline -3"
-```
-
----
-
-## Árbol de directorios del servidor
+## Árbol de directorios
 
 ```
 /var/www/html/vilarkptl.com/
-└── ai-monitor/                  ← Repo principal (este repo)
-    ├── backend/
-    │   ├── server.js            ← Express + Socket.io, puerto 3010
-    │   ├── .env                 ← DB_HOST, DB_USER, DB_PASS, DB_NAME=ai_monitoring
-    │   └── routes/
-    ├── frontend/                ← Dashboard estático en ia.vilarkptl.com
-    ├── relay/
-    │   ├── master.js            ← Orquestador PM2: relay-master
-    │   ├── projects.json        ← Config de proyectos/agentes
-    │   ├── agents/              ← Prompts por agente (*.md)
-    │   ├── .env                 ← TELEGRAM_BOT_TOKEN, ANTHROPIC_API_KEY, etc.
-    │   └── workspaces/          ← Repos clonados por agente
-    │       ├── fiscalai/
-    │       ├── fiscalai-front/
-    │       ├── coordinator/
-    │       └── ai-monitor/
-    └── deploy/
-        └── ecosystem.config.js  ← PM2 config
+├── ai-monitor/                  ← Repo vilarkptl-lang/agentic-repo (main)
+│   ├── backend/server.js        ← Express + Socket.io, puerto 3010
+│   ├── backend/.env             ← DB_HOST, DB_PASS, CLAUDE_EXEC_TOKEN
+│   ├── relay/master.js          ← Orquestador PM2: relay-master
+│   ├── relay/projects.json      ← Config de agentes
+│   ├── relay/.env               ← ANTHROPIC_API_KEY, TELEGRAM_BOT_TOKEN, etc.
+│   ├── relay/workspaces/        ← Repos clonados por agente
+│   ├── relay-dashboard/         ← Next.js, puerto 3030
+│   ├── dashboard-financial/     ← Next.js, puerto 3020
+│   ├── financial/bot/           ← financial-bot
+│   └── deploy/
+│       ├── ecosystem.config.js  ← PM2 config (todos los procesos)
+│       ├── exec-lite.js         ← Exec relay systemd (puerto 3099)
+│       └── exec-lite.service    ← systemd unit
+│
+├── pill-relay/                  ← Proyecto pill.ai
+└── financial-bot/               ← financial-bot repo propio
 
-/var/www/html/vilarkptl.com/pill-relay/   ← Proyecto pill.ai
-/var/www/html/cpanel-repo/credit-agents/  ← Proyecto credit-agents
+/var/www/catalogos/
+├── OCR/v59/                     ← App producción vilar-legal-os-v59
+├── OCR/v59-repo/
+│   └── ocr-ruby-lease/          ← Repo vilarkptl-lang/ocr-ruby-lease (main)
+└── testing/v60/                 ← App testing vilar-legal-os-v60
 ```
 
 ---
 
-## Procesos PM2 activos
-
-| Proceso | Puerto | Descripción |
-|---------|--------|-------------|
-| `ai-monitor` | 3010 | Backend Express + Socket.io — dashboard ia.vilarkptl.com |
-| `relay-master` | interno | Orquestador de agentes Claude Code |
-| `financial-bot` | interno | Bot financiero Telegram |
-| `financial-dashboard` | 3020 | Dashboard financiero Next.js |
-| `claude-chat-bot` | interno | Bot Telegram directo |
-| `code-reviewer` | interno | Auto-review DeepSeek V3 |
-| `cursor-worker` | interno | Cursor Cloud Agent worker |
-| `litellm` | 4000 | LLM proxy con fallback chains |
+## Procesos PM2 clave
 
 ```bash
-# Ver todos los procesos
-exec_server "pm2 status"
-
-# Reiniciar un proceso
-exec_server "pm2 restart ai-monitor"
-exec_server "pm2 restart relay-master"
-exec_server "pm2 restart financial-bot"
-exec_server "pm2 restart financial-dashboard"
+exec_server "pm2 status"   # lista completa
 ```
+
+| ID | Proceso | Puerto | Repo | Estado usual |
+|----|---------|--------|------|---|
+| 14 | `ai-monitor` | 3010 | agentic-repo | online |
+| 7  | `relay-master` | — | agentic-repo | online |
+| 25 | `claude-proxy-max` | 5001 | agentic-repo | online |
+| 26-29 | `claude-proxy-pro-1..4` | 5002-5005 | agentic-repo | online (sin auth) |
+| 8  | `claude-chat-bot` | — | agentic-repo | online |
+| 9  | `code-reviewer` | — | agentic-repo | online |
+| 15 | `cursor-worker` | — | agentic-repo | online |
+| 41 | `relay-dashboard` | 3030 | agentic-repo | online |
+| 44 | `financial-bot` | — | financial-bot | online |
+| 43 | `financial-dashboard` | 3020 | agentic-repo | online |
+| 23 | `vilar-legal-os-v59` | 5005 | ocr-ruby-lease | online |
+| 36 | `vilar-legal-os-v60-testing` | 5008 | ocr-ruby-lease | online |
+| 33 | `vilar-v60-nextjs` | 3060 | ocr-ruby-lease | online |
+| 1  | `api-ekatena-prod` | — | — | online |
+| 20 | `kptl-credito` | — | — | online |
+
+**Procesos con errores conocidos** (no críticos para ai-monitor):
+- `analisis-wp` (24) — errored
+- `conversation-engine` (16) — errored
 
 ---
 
 ## Base de datos MySQL
 
-| Campo | Valor |
-|-------|-------|
-| Motor | MySQL / MariaDB |
-| DB name | `ai_monitoring` |
-| Credenciales | `/var/www/html/vilarkptl.com/ai-monitor/backend/.env` |
-
 ```bash
-# Leer contraseña del .env (SIEMPRE usar esta forma — nunca -p interactivo)
+# Leer contraseña del .env (NUNCA usar -p interactivo)
 exec_server "grep -oP 'DB_PASS=\K.*' /var/www/html/vilarkptl.com/ai-monitor/backend/.env"
 
 # Ejecutar query
-exec_server "DB_PASS=\$(grep -oP 'DB_PASS=\K.*' /var/www/html/vilarkptl.com/ai-monitor/backend/.env) && mysql -u root -p\"\$DB_PASS\" ai_monitoring -e 'SHOW TABLES'"
+exec_server "DB_PASS=\$(grep -oP 'DB_PASS=\K.*' backend/.env) && mysql -u root -p\"\$DB_PASS\" ai_monitoring -e 'SHOW TABLES'"
 
-# Aplicar migración SQL
+# Aplicar migración
 exec_server "DB_PASS=\$(grep -oP 'DB_PASS=\K.*' backend/.env) && mysql -u root -p\"\$DB_PASS\" ai_monitoring < backend/db/migrate-vN.sql"
 ```
+
+| Campo | Valor |
+|-------|-------|
+| Motor | MySQL / MariaDB |
+| DB principal | `ai_monitoring` |
+| Credenciales | `backend/.env` → `DB_PASS` |
 
 ---
 
 ## Deploy por subsistema
 
 ```bash
-# ── Actualizar repo desde main ────────────────────────────────────────────────
+# Actualizar repo desde main
 exec_server "git fetch origin main && git reset --hard origin/main"
 
-# ── Solo backend (cambios en backend/**) ──────────────────────────────────────
+# Solo backend
 exec_server "pm2 restart ai-monitor"
 
-# ── Solo relay-master (cambios en relay/master.js) ────────────────────────────
+# Solo relay-master
 exec_server "pm2 restart relay-master"
 
-# ── Solo financial-bot (cambios en financial/bot/**) ──────────────────────────
-exec_server "pm2 restart financial-bot"
+# Aplicar nuevo ecosystem.config.js (B3, nuevos procesos)
+exec_server "pm2 reload /var/www/html/vilarkptl.com/ai-monitor/deploy/ecosystem.config.js"
 
-# ── Solo dashboard-financial (cambios en dashboard-financial/**) ──────────────
+# relay-dashboard (build requerido tras cambios)
+exec_server "cd relay-dashboard && npm install && npm run build && pm2 restart relay-dashboard" \
+  "/var/www/html/vilarkptl.com/ai-monitor"
+
+# financial-dashboard
 exec_server "cd dashboard-financial && npm run build && pm2 restart financial-dashboard" \
   "/var/www/html/vilarkptl.com/ai-monitor"
 ```
 
 ---
 
-## Registrar un proyecto nuevo en el relay
-
-Para que el relay-master despache tareas a un agente nuevo, agrégalo en `relay/projects.json`:
-
-```json
-{
-  "id": "mi-proyecto",
-  "name": "Mi Proyecto",
-  "active": true,
-  "inbox": true,
-  "claude_model": "claude-sonnet-4-6",
-  "url": "https://mi-proyecto.com",
-  "github": "vilarkptl-lang/mi-repo",
-  "branch": "main",
-  "workspace": "/var/www/html/vilarkptl.com/ai-monitor/relay/workspaces/mi-proyecto"
-}
-```
-
-Luego committea y pushea a `main`:
-```bash
-git add relay/projects.json
-git commit -m "relay: agregar proyecto mi-proyecto"
-git push origin main
-```
-
-El relay-master detecta el cambio en el próximo ciclo (≤15 segundos).
-
----
-
-## Despachar tareas vía API
+## Despachar tareas al relay
 
 ```bash
-# Desde cualquier agente o script — despacha una tarea inmediatamente
+# Desde cualquier agente
 curl -s -X POST https://ia.vilarkptl.com/api/relay/dispatch \
   -H 'Content-Type: application/json' \
-  -d '{"project":"fiscalai","task":"Descripción detallada de la tarea","requester":"mi-agente"}'
-
-# Desde bash (función exec_server)
-exec_server "curl -s -X POST http://localhost:3010/api/relay/dispatch \
-  -H 'Content-Type: application/json' \
-  -d '{\"project\":\"coordinator\",\"task\":\"Tarea de coordinación\",\"requester\":\"mi-agente\"}'"
+  -d '{"project":"fiscalai","task":"Descripción de la tarea","requester":"mi-agente"}'
 ```
 
-### Proyectos disponibles para despacho
-
-| ID | Modelo | Descripción |
-|----|--------|-------------|
-| `coordinator` | claude-haiku-4-5 | Coordina entre agentes |
+| Proyecto | Modelo | Descripción |
+|----------|--------|-------------|
+| `coordinator` | claude-haiku-4-5 | Coordinación entre agentes |
 | `fiscalai` | claude-sonnet-4-6 | Backend FiscalAI + SAT |
 | `fiscalai-front` | claude-sonnet-4-6 | Frontend FiscalAI |
 | `ai-monitor` | claude-haiku-4-5 | Dashboard de monitoreo |
@@ -235,95 +267,47 @@ exec_server "curl -s -X POST http://localhost:3010/api/relay/dispatch \
 
 ---
 
-## pill.ai — Servidor alternativo (HTTP API)
-
-```bash
-PILLAI_SECRET="fcdeee3a67f637f57c7a55df56c5fa0d40ccb89053002ce715efc541cb31ff77"
-PILLAI_BASE="http://143.198.228.78:8181"
-
-# Ejecutar comando
-curl -s -X POST "$PILLAI_BASE/admin/exec" \
-  -H "x-deploy-secret: $PILLAI_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{"command": "pm2 status", "cwd": "/var/www/html/vilarkptl.com/pill-relay"}'
-
-# Deploy (git pull + restart)
-curl -s -X POST "$PILLAI_BASE/admin/deploy" \
-  -H "x-deploy-secret: $PILLAI_SECRET" \
-  -H "Content-Type: application/json"
-
-# Ver logs
-curl -s "$PILLAI_BASE/admin/logs?lines=100" \
-  -H "x-deploy-secret: $PILLAI_SECRET"
-```
-
----
-
-## LiteLLM proxy (modelos disponibles)
+## LiteLLM proxy
 
 ```
-URL:        http://localhost:4000   (interno) / https://ia.vilarkptl.com/llm (externo)
-Master key: sk-litellm-11b2ccee224b47d82ba9b8e3677aa915
+URL interna:  http://localhost:4000
+Master key:   sk-litellm-11b2ccee224b47d82ba9b8e3677aa915
 ```
 
-| Chain | Modelos (en orden de fallback) |
-|-------|-------------------------------|
+| Chain | Fallback |
+|-------|---------|
 | `kptl-chat` | claude-sonnet → DeepSeek V3 → GPT-4o |
 | `kptl-chat-fast` | claude-haiku → GPT-4o-mini → Gemini Flash |
 | `kptl-reasoning` | DeepSeek R1 → Claude Opus |
 
 ---
 
-## Variables de entorno críticas
+## Solución de problemas
 
-```bash
-# Ver las variables del relay
-exec_server "cat /var/www/html/vilarkptl.com/ai-monitor/relay/.env"
-
-# Variables en relay/.env:
-# ANTHROPIC_API_KEY     ← Claude Code CLI
-# DEEPSEEK_API_KEY      ← DeepSeek V3 / R1
-# GOOGLE_API_KEY        ← Gemini
-# TELEGRAM_BOT_TOKEN    ← @iaVilarBot
-# LITELLM_BASE_URL      ← http://localhost:4000
-# LITELLM_MASTER_KEY    ← sk-litellm-...
-
-# Variables en financial/bot/ (nombres exactos — no cambiar):
-# process.env.ANTHROPIC_API_KEY   → TransactionOrchestrator, VisionAgent
-# process.env.GOOGLE_API_KEY      → DocumentIntelligenceAgent (gemini-1.5-flash)
-# process.env.DEEPSEEK_API_KEY    → InvoiceAgent, ContextReader, ResponseGen
-```
+| Síntoma | Diagnóstico | Fix |
+|---------|-------------|-----|
+| exec-lite no responde en HTTPS | Apache caído | `systemctl start apache2` (SSH o consola VPS) |
+| `/api/exec` da "Connection refused" | ai-monitor caído | `exec_server "pm2 restart ai-monitor"` vía exec-lite |
+| SSH timeout desde Claude Code web | Sandbox bloquea :22 | Usar exec-lite (Método 1) |
+| Dashboard no carga | ai-monitor o Apache caído | Ver logs: `exec_server "pm2 logs ai-monitor --lines 20 --nostream"` |
+| Relay no despacha | relay-master bloqueado | `exec_server "pm2 restart relay-master"` |
+| OOM / swap lleno | RAM: 3.8 GB total | `exec_server "fallocate -l 1G /swapfile2 && chmod 600 /swapfile2 && mkswap /swapfile2 && swapon /swapfile2"` |
+| relay-dashboard crashea | OOM a 256M | Ya corregido a 512M en ecosystem.config.js |
 
 ---
 
-## Verificación rápida de conexión
+## Verificación rápida
 
 ```bash
-# ¿Está el servidor respondiendo?
-curl -s https://ia.vilarkptl.com/api/health | python3 -m json.tool
+# ¿exec-lite up?
+curl -s https://ia.vilarkptl.com/exec-lite/health
 
-# ¿Están los procesos corriendo?
+# ¿Procesos corriendo?
 exec_server "pm2 list"
 
-# ¿Cuánto swap libre hay? (crítico — servidor tiene 3.8 GB RAM)
+# ¿Memoria disponible?
 exec_server "free -h"
 
 # ¿Últimos commits en producción?
 exec_server "git log --oneline -5"
 ```
-
----
-
-## Solución de problemas comunes
-
-| Problema | Diagnóstico | Fix |
-|----------|-------------|-----|
-| Dashboard no carga | `exec_server "pm2 logs ai-monitor --lines 20 --nostream"` | `exec_server "pm2 restart ai-monitor"` |
-| Relay no despacha | `exec_server "pm2 logs relay-master --lines 30 --nostream"` | `exec_server "pm2 restart relay-master"` |
-| OOM / swap lleno | `exec_server "free -h"` | `exec_server "fallocate -l 1G /swapfile2 && chmod 600 /swapfile2 && mkswap /swapfile2 && swapon /swapfile2"` |
-| Financial dashboard roto | Build log: `exec_server "pm2 logs financial-dashboard --lines 20 --nostream"` | `exec_server "cd dashboard-financial && npm run build && pm2 restart financial-dashboard" "/var/www/html/vilarkptl.com/ai-monitor"` |
-| SSH bloqueado (port 22) | — | Usar Método 1 (exec endpoint HTTPS) |
-
----
-
-*Última actualización: 2026-05-26 · Repositorio: `vilarkptl-lang/agentic-repo`*
