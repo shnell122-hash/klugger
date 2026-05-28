@@ -13,7 +13,54 @@ log = logging.getLogger('chat')
 # Señal que Claude emite al final de un turno masivo para auto-continuar
 _AUTO_CONTINUE = '↩️ Continúo'
 
-# ── v60 Slash command pre-processor ──────────────────────────────────────────
+# ── Proxy tool-use protocol ───────────────────────────────────────────────────
+# When claude-proxy is active (CLAUDE_PROXY_URL set), native API tool_use is not
+# supported. Instead we inject this text into the system prompt and parse
+# <USE_TOOL> blocks from Claude's text response.
+_USE_TOOL_RE = re.compile(r'<USE_TOOL>\s*(.*?)\s*</USE_TOOL>', re.DOTALL)
+
+_PROXY_TOOL_PROTOCOL = """
+## HERRAMIENTAS DE SISTEMA (PROXY MODE)
+
+Cuando necesites guardar un artefacto o ejecutar una acción, incluye EXACTAMENTE este bloque en tu respuesta:
+
+<USE_TOOL>
+{"name": "NOMBRE", "input": {PARÁMETROS}}
+</USE_TOOL>
+
+Herramientas disponibles:
+
+save_artifact — Guardar documento en el expediente (úsalo SIEMPRE que generes un documento significativo)
+  Campos: case_id (string), artifact_name (string), artifact_type (contract|analysis|html|summary|brief|checklist), content (string con el documento completo en Markdown o HTML)
+
+append_artifact — Añadir contenido a un artefacto ya guardado (documentos muy largos)
+  Campos: artifact_id (string del artefacto creado), content_chunk (string con la parte adicional)
+
+list_case_contents — Ver documentos en el expediente
+  Campos: case_id (string)
+
+search_artifacts — Buscar en documentos del expediente
+  Campos: case_id (string), query (string)
+
+Reglas:
+- Una sola <USE_TOOL> por mensaje
+- JSON válido dentro del bloque
+- Genera el documento COMPLETO en el campo "content" de save_artifact
+- El sistema ejecutará la herramienta y confirmará el resultado en el siguiente turno
+"""
+
+
+def _parse_proxy_tool_calls(text: str) -> list:
+    """Extract and parse USE_TOOL JSON blocks from Claude's text response."""
+    calls = []
+    for m in _USE_TOOL_RE.finditer(text):
+        try:
+            calls.append(json.loads(m.group(1)))
+        except (json.JSONDecodeError, ValueError):
+            pass
+    return calls
+
+
 # Regex para detectar slash commands al inicio del mensaje
 _SLASH_CMD = re.compile(
     r'^/(?P<cmd>masivo|materialidad|evidencia|grafico|ultra|sonnet)\b\s*(?P<args>.*)?$',
@@ -904,6 +951,12 @@ def _run_agentic_loop(client, model, max_tokens, system, init_messages, case_id,
     final_text = ""
     all_tool_results = []
     t0 = time.time()
+    _proxy_mode = bool(os.getenv('CLAUDE_PROXY_URL'))
+
+    # In proxy mode inject the text-based tool protocol into the system prompt
+    _sys = list(system)
+    if _proxy_mode:
+        _sys.append({"type": "text", "text": _PROXY_TOOL_PROTOCOL})
 
     for iteration in range(max_iterations):
         text_this_round = ""
@@ -912,10 +965,10 @@ def _run_agentic_loop(client, model, max_tokens, system, init_messages, case_id,
         final_msg = client.messages.create(
             model=model,
             max_tokens=max_tokens,
-            system=system,
+            system=_sys,
             tools=TOOL_DEFS,
             messages=messages,
-            timeout=600,  # bypass SDK's streaming-required check for large max_tokens
+            timeout=600,
         )
         for _block in final_msg.content:
             if getattr(_block, 'type', None) == 'text':
@@ -929,42 +982,66 @@ def _run_agentic_loop(client, model, max_tokens, system, init_messages, case_id,
                  time.time() - t_round)
         _log_usage(user_id, case_id, model, u)
 
-        final_text += text_this_round
+        if _proxy_mode:
+            # Text-based tool protocol: parse <USE_TOOL> blocks from response
+            tool_calls = _parse_proxy_tool_calls(text_this_round)
+            clean_text = _USE_TOOL_RE.sub('', text_this_round).strip()
+            final_text += clean_text
 
-        # Si no hay tool calls, terminamos
-        if final_msg.stop_reason != 'tool_use':
-            break
+            if not tool_calls:
+                break
 
-        # Construir el turno del asistente con todos los content blocks
-        assistant_content = []
-        for b in final_msg.content:
-            if b.type == 'text':
-                assistant_content.append({"type": "text", "text": b.text})
-            elif b.type == 'tool_use':
-                assistant_content.append({
-                    "type": "tool_use",
-                    "id": b.id,
-                    "name": b.name,
-                    "input": dict(b.input),
+            messages.append({"role": "assistant", "content": text_this_round})
+            result_lines = []
+            for tc in tool_calls:
+                name   = tc.get('name', '')
+                inputs = tc.get('input', {})
+                if not inputs.get('case_id') and case_id:
+                    inputs['case_id'] = case_id
+                t_tool = time.time()
+                result = handle_tool(name, inputs, case_id)
+                log.info('proxy tool %s: %.2fs result=%s', name, time.time() - t_tool,
+                         str(result)[:80])
+                all_tool_results.append({"tool": name, "result": result})
+                result_lines.append(
+                    f'Resultado de {name}: {json.dumps(result, ensure_ascii=False)}'
+                )
+            messages.append({"role": "user", "content": '\n'.join(result_lines)})
+        else:
+            # Native Anthropic API tool_use protocol
+            final_text += text_this_round
+
+            if final_msg.stop_reason != 'tool_use':
+                break
+
+            assistant_content = []
+            for b in final_msg.content:
+                if b.type == 'text':
+                    assistant_content.append({"type": "text", "text": b.text})
+                elif b.type == 'tool_use':
+                    assistant_content.append({
+                        "type": "tool_use",
+                        "id": b.id,
+                        "name": b.name,
+                        "input": dict(b.input),
+                    })
+
+            tool_result_content = []
+            for b in final_msg.content:
+                if b.type != 'tool_use':
+                    continue
+                t_tool = time.time()
+                result = handle_tool(b.name, dict(b.input), case_id)
+                log.info('tool %s took %.2fs', b.name, time.time() - t_tool)
+                all_tool_results.append({"tool": b.name, "result": result})
+                tool_result_content.append({
+                    "type": "tool_result",
+                    "tool_use_id": b.id,
+                    "content": json.dumps(result, ensure_ascii=False),
                 })
 
-        # Ejecutar cada tool y recolectar resultados
-        tool_result_content = []
-        for b in final_msg.content:
-            if b.type != 'tool_use':
-                continue
-            t_tool = time.time()
-            result = handle_tool(b.name, dict(b.input), case_id)
-            log.info('tool %s took %.2fs', b.name, time.time() - t_tool)
-            all_tool_results.append({"tool": b.name, "result": result})
-            tool_result_content.append({
-                "type": "tool_result",
-                "tool_use_id": b.id,
-                "content": json.dumps(result, ensure_ascii=False),
-            })
-
-        messages.append({"role": "assistant", "content": assistant_content})
-        messages.append({"role": "user", "content": tool_result_content})
+            messages.append({"role": "assistant", "content": assistant_content})
+            messages.append({"role": "user", "content": tool_result_content})
 
     log.info('agentic_loop done total=%.2fs words=%d', time.time() - t0, len(final_text.split()))
     return final_text, all_tool_results
@@ -1283,18 +1360,23 @@ def chat_stream():
                 text_this_round = ""
                 t_round = time.time()
 
+                _proxy_sys = list(_system_blocks)
+                if os.getenv('CLAUDE_PROXY_URL'):
+                    _proxy_sys.append({"type": "text", "text": _PROXY_TOOL_PROTOCOL})
                 stream_kwargs = dict(
                     model=_model,
                     max_tokens=max_tokens,
-                    system=_system_blocks,
+                    system=_proxy_sys,
                     tools=_agent_tools,
                     messages=current_messages,
                 )
-                if _force_tool:
-                    # Forzar al modelo a ejecutar AL MENOS una herramienta
+                if _force_tool and not os.getenv('CLAUDE_PROXY_URL'):
+                    # tool_choice=any only valid for native API, not proxy
                     stream_kwargs["tool_choice"] = {"type": "any"}
                     _force_tool = False
                     log.info('tool_choice=any forced at iteration %d', iteration)
+                else:
+                    _force_tool = False
 
                 _ka_time         = [time.time()]  # último keepalive/text emitido
                 _early_tools     = set()          # tools ya anunciadas en content_block_start
@@ -1408,6 +1490,38 @@ def chat_stream():
                     # Regular user: server-computed MXN price, no raw USD
                     _tok['price_mxn'] = round(cost_ * _USER_MARKUP * _MXN_PER_USD, 2)
                 q.put(('token_usage', _tok))
+
+                # ── Proxy mode: text-based tool protocol ─────────────────────
+                if os.getenv('CLAUDE_PROXY_URL'):
+                    proxy_calls = _parse_proxy_tool_calls(text_this_round)
+                    if proxy_calls:
+                        emit_op('🔧', f'{len(proxy_calls)} herramienta(s) detectada(s) vía proxy',
+                                detail=', '.join(c.get('name', '?') for c in proxy_calls))
+                        current_messages.append({"role": "assistant", "content": text_this_round})
+                        result_lines = []
+                        for pc in proxy_calls:
+                            pname   = pc.get('name', '')
+                            pinputs = pc.get('input', {})
+                            if not pinputs.get('case_id') and case_id:
+                                pinputs['case_id'] = case_id
+                            q.put(('tool_start', pname))
+                            emit_op('🔧', f'Ejecutando: {pname}',
+                                    detail=str(list(pinputs.keys())))
+                            t_ptool = time.time()
+                            presult = handle_tool(pname, pinputs, case_id)
+                            log.info('proxy stream tool %s: %.2fs', pname, time.time() - t_ptool)
+                            q.put(('tool_result', {'tool': pname, 'result': presult}))
+                            emit_op('✅', f'{pname} completado', detail=str(presult)[:80])
+                            result_lines.append(
+                                f'Resultado de {pname}: '
+                                f'{json.dumps(presult, ensure_ascii=False)}'
+                            )
+                        current_messages.append({
+                            "role": "user",
+                            "content": '\n'.join(result_lines),
+                        })
+                        continue   # next iteration with tool results in context
+                    break  # no tool calls in proxy mode → done
 
                 if final_msg.stop_reason != 'tool_use':
                     # ── Detectar truncamiento de tool call por max_tokens ─────────
