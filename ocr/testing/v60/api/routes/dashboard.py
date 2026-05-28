@@ -22,6 +22,7 @@ def _pmxn(cost_usd) -> float:
 
 
 @dashboard_bp.route('/api/dashboard/costs')
+@dashboard_bp.route('/api/v1/dashboard')
 @require_login
 def costs():
     user_id    = session.get('user_id')

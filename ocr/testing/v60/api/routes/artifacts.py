@@ -17,6 +17,7 @@ MIMES = {
 
 
 @artifacts_bp.route('/api/artifacts/<case_id>', methods=['GET'])
+@artifacts_bp.route('/api/v1/artifacts/<case_id>', methods=['GET'])
 def list_artifacts_by_case(case_id):
     """Frontend-compatible: case_id as path param."""
     src_filter    = request.args.get('type', 'all')

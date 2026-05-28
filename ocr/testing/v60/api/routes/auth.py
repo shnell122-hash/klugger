@@ -345,8 +345,9 @@ def me():
 # ── Password login ────────────────────────────────────────────────────────────
 
 @auth_bp.route('/api/auth/login-password', methods=['POST'])
+@auth_bp.route('/api/auth/login', methods=['POST'])
 def login_password():
-    """Login con email + contraseña."""
+    """Login con email + contraseña. /api/auth/login is the alias used by v60 Next.js frontend."""
     body     = request.get_json(force=True, silent=True) or {}
     email    = (body.get('email') or '').strip().lower()
     password = (body.get('password') or '')
@@ -371,7 +372,11 @@ def login_password():
 
     _load_user_session(row['user_id'], email, row.get('name', ''), row.get('picture', ''), row.get('role', 'user'))
     log.info('password login ok: %s', email)
-    return jsonify({'ok': True})
+    return jsonify({'ok': True, 'user': {
+        'id': row['user_id'], 'email': email,
+        'name': row.get('name', ''), 'role': row.get('role', 'user'),
+        'org_id': row.get('org_id'),
+    }})
 
 
 @auth_bp.route('/api/auth/set-password', methods=['POST'])
