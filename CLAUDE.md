@@ -449,6 +449,56 @@ cd dashboard-financial && npm run build && pm2 restart financial-dashboard
 
 ---
 
+## ⛔ Prohibido en el servidor — reglas anti-catástrofe
+
+> Estas reglas nacieron de incidentes reales. Violarlas puede tumbar Apache o todos los servicios.
+
+### Archivos de configuración Apache
+
+**NUNCA** escribir configs de Apache con `node -e "require('fs').writeFileSync(..., contenido)"` cuando el contenido viene como argumento CLI.
+Los argumentos CLI no interpretan `\n` — el archivo queda en una sola línea y Apache no arranca.
+
+```bash
+# ❌ MAL — genera archivo con \n literales, Apache no arranca
+node -e "require('fs').writeFileSync('/etc/apache2/sites-enabled/foo.conf', '<VirtualHost *:443>\n    ServerName...')"
+
+# ✅ BIEN — usar el archivo del repo como fuente de verdad
+cp deploy/apache-foo.conf /etc/apache2/sites-enabled/foo.conf
+apache2ctl configtest && systemctl reload apache2
+```
+
+**Siempre** verificar con `apache2ctl configtest` antes de recargar Apache. Si hay error de sintaxis, Apache cae al hacer reload/restart.
+
+### git reset --hard en el servidor
+
+**NUNCA** hacer `git reset --hard origin/main` en el servidor sin antes verificar branches activos:
+
+```bash
+# Verificar antes de reset:
+git log --oneline HEAD..origin/main   # qué falta del remoto
+git log --oneline origin/main..HEAD   # qué tiene el servidor que no está en remoto
+# Si hay commits locales no pusheados → mergear o pushar ANTES del reset
+```
+
+### Configs de Apache — flujo correcto
+
+1. El archivo fuente de verdad vive en `deploy/apache-*.conf` del repo
+2. Modificar ahí, commitear, pushear
+3. En el servidor: `git pull` + `cp deploy/apache-X.conf /etc/apache2/sites-enabled/X.conf`
+4. `apache2ctl configtest && systemctl reload apache2`
+5. **Nunca** editar directamente `/etc/apache2/sites-enabled/` sin actualizar el repo
+
+### No sobreescribir servicios systemd activos sin reload
+
+Después de modificar `deploy/exec-lite.js` y hacer git pull en el servidor, el proceso systemd sigue corriendo el código viejo hasta que se reinicie:
+
+```bash
+# Después de git pull con cambios en deploy/exec-lite.js:
+systemctl restart exec-lite
+```
+
+---
+
 ## Financial-Bot — Flujo de desarrollo (LEER ANTES DE TOCAR financial/)
 
 ### Roles

@@ -282,6 +282,62 @@ Master key:   sk-litellm-11b2ccee224b47d82ba9b8e3677aa915
 
 ---
 
+## ⛔ Prohibido — reglas anti-catástrofe para agentes
+
+> Incidentes reales documentados. No omitir.
+
+### 1. Nunca escribir configs Apache con `node -e writeFileSync` + contenido como argumento CLI
+
+Los args CLI no interpretan `\n` → el archivo queda en una línea → Apache no arranca al reload/restart.
+
+```bash
+# ❌ DESTRUYE el config de Apache
+node -e "require('fs').writeFileSync('/etc/apache2/sites-enabled/foo.conf', '<VirtualHost>\n...')"
+
+# ✅ CORRECTO — copiar desde el repo
+cp /var/www/html/vilarkptl.com/ai-monitor/deploy/apache-foo.conf /etc/apache2/sites-enabled/foo.conf
+apache2ctl configtest && systemctl reload apache2
+```
+
+### 2. Siempre `apache2ctl configtest` antes de reload/restart
+
+Un error de sintaxis en cualquier config habilitada tira Apache completo (todos los sitios caen).
+
+```bash
+apache2ctl configtest   # debe decir "Syntax OK" antes de continuar
+systemctl reload apache2
+```
+
+### 3. Nunca `git reset --hard origin/main` sin verificar commits locales
+
+```bash
+# Antes del reset, verificar:
+git log --oneline origin/main..HEAD   # commits locales no pusheados
+# Si hay commits → pushearlos o mergearlos ANTES del reset
+```
+
+### 4. Los configs Apache viven en `deploy/` — nunca editar `/etc/apache2/` directamente
+
+Flujo obligatorio:
+1. Editar `deploy/apache-NOMBRE.conf` en el repo
+2. Commit + push
+3. En servidor: `git pull` → `cp deploy/apache-NOMBRE.conf /etc/apache2/sites-enabled/NOMBRE.conf`
+4. `apache2ctl configtest && systemctl reload apache2`
+
+Archivos fuente de verdad:
+- `deploy/apache-ia.vilarkptl.com.conf` → HTTP :80
+- `deploy/apache-ia.vilarkptl.com-le-ssl.conf` → HTTPS :443
+- `deploy/apache-ocr.ruby.lease.conf` → ocr.ruby.lease HTTPS
+
+### 5. Después de `git pull` con cambios en `deploy/exec-lite.js` → reiniciar el servicio
+
+```bash
+systemctl restart exec-lite
+# Verificar: curl https://ia.vilarkptl.com/exec-lite/health
+```
+
+---
+
 ## Solución de problemas
 
 | Síntoma | Diagnóstico | Fix |
