@@ -15,7 +15,7 @@ const ALLOWED = [
   /^cd \/var\/www\/html\/vilarkptl\.com\//,
   /^node -e /,
   /^mysql -u root/,
-  /^systemctl (status|restart|stop|start) /,
+  /^systemctl (status|restart|reload|stop|start) /,
   /^journalctl /,
   /^df /,
   /^free /,
