@@ -1,0 +1,21 @@
+[Unit]
+Description=exec-lite — standalone exec relay for Claude Code agents
+Documentation=https://github.com/vilarkptl-lang/agentic-repo/blob/main/deploy/exec-lite.js
+After=network.target
+# Does NOT depend on ai-monitor or PM2 — survives their crashes
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/html/vilarkptl.com/ai-monitor
+ExecStart=/usr/bin/node /var/www/html/vilarkptl.com/ai-monitor/deploy/exec-lite.js
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=exec-lite
+# Keep running even if the main app crashes
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target

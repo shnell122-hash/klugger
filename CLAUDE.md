@@ -28,10 +28,13 @@ srv() { sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.
 #      srv "grep CLAUDE_EXEC_TOKEN /var/www/html/vilarkptl.com/ai-monitor/backend/.env"
 ```
 
-**Si SSH no responde (el sandbox web bloquea el puerto 22), usar HTTPS — siempre funciona:**
+**Si SSH no responde (el sandbox web bloquea el puerto 22), usar HTTPS:**
 ```bash
 EXEC_TOKEN="cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a"
-EXEC_URL="https://ia.vilarkptl.com/api/exec"
+# Usar exec-lite (systemd, siempre up) como URL principal:
+EXEC_URL="https://ia.vilarkptl.com/exec-lite"
+# Fallback si exec-lite no responde: /api/exec (depende de ai-monitor)
+# EXEC_URL="https://ia.vilarkptl.com/api/exec"
 
 exec_server() {
   local CMD="$1"
