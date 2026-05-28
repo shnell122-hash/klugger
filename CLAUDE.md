@@ -1,6 +1,29 @@
 # VILAR Legal OS — Notas de desarrollo para Claude
 
-## Servidor de producción
+## URLs de entornos
+
+| Entorno | URL pública | Puerto interno | PM2 |
+|---------|------------|----------------|-----|
+| **Producción v59** | https://ocr.ruby.lease/OCR/v59/ | 5005 | `vilar-legal-os-v59` |
+| **Testing v60** | https://ocr.ruby.lease/testing/v60/ | Flask 5008 / Next.js 3060 | `vilar-legal-os-v60-testing` / `vilar-v60-nextjs` |
+| **GitHub** | https://github.com/vilarkptl-lang/agentic-repo/tree/claude/ocr-v59-implementation-vOcPD | — | — |
+| **Claude proxy Max** | http://127.0.0.1:5001 (interno) | 5001 | `claude-proxy-max` |
+
+## REGLA: Siempre entregar links al terminar
+
+Al completar cualquier tarea de desarrollo, **siempre incluir en el mensaje final**:
+
+```
+### Links de deploy
+- Producción: https://ocr.ruby.lease/OCR/v59/
+- Testing v60: https://ocr.ruby.lease/testing/v60/
+- GitHub (rama): https://github.com/vilarkptl-lang/agentic-repo/tree/claude/ocr-v59-implementation-vOcPD
+- Commit: https://github.com/vilarkptl-lang/agentic-repo/commit/<SHA>
+```
+
+Incluir solo los links relevantes para la tarea realizada. Si solo se modificó testing, omitir producción; si solo se hizo commit sin deploy, omitir los links de entorno.
+
+
 
 | Campo | Valor |
 |-------|-------|
