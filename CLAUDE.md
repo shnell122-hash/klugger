@@ -4,7 +4,7 @@
 
 | Entorno | URL pública | Puerto interno | PM2 |
 |---------|------------|----------------|-----|
-| **Producción v59** | https://ocr.ruby.lease/OCR/v59/ | 5005 | `vilar-legal-os-v59` |
+| **Producción v59** | https://ocr.ruby.lease/OCR/v59/frontend/ | 5005 | `vilar-legal-os-v59` |
 | **Testing v60** | https://ocr.ruby.lease/testing/v60/ | Flask 5008 / Next.js 3060 | `vilar-legal-os-v60-testing` / `vilar-v60-nextjs` |
 | **GitHub** | https://github.com/vilarkptl-lang/agentic-repo/tree/claude/ocr-v59-implementation-vOcPD | — | — |
 | **Claude proxy Max** | http://127.0.0.1:5001 (interno) | 5001 | `claude-proxy-max` |
@@ -15,7 +15,7 @@ Al completar cualquier tarea de desarrollo, **siempre incluir en el mensaje fina
 
 ```
 ### Links de deploy
-- Producción: https://ocr.ruby.lease/OCR/v59/
+- Producción: https://ocr.ruby.lease/OCR/v59/frontend/
 - Testing v60: https://ocr.ruby.lease/testing/v60/
 - GitHub (rama): https://github.com/vilarkptl-lang/agentic-repo/tree/claude/ocr-v59-implementation-vOcPD
 - Commit: https://github.com/vilarkptl-lang/agentic-repo/commit/<SHA>
@@ -30,10 +30,13 @@ Incluir solo los links relevantes para la tarea realizada. Si solo se modificó 
 | Host | `143.198.228.78` (ocr.ruby.lease) |
 | Usuario SSH | `german` |
 | Contraseña SSH | `romanos12_2` |
-| App path | `/var/www/catalogos/OCR/v59/` |
+| App path v59 | `/var/www/catalogos/OCR/v59/` |
+| App path v60 | `/var/www/catalogos/testing/v60/` |
 | Repo path | `/var/www/catalogos/OCR/v59-repo/agentic-repo/` |
 | Branch activo | `claude/ocr-v59-implementation-vOcPD` |
-| Puerto Flask | `5005` |
+| Puerto Flask v59 | `5005` |
+| Puerto Flask v60 | `5008` |
+| Puerto Next.js v60 | `3060` |
 
 ## Conexión al servidor desde agentes Claude Code
 
