@@ -6,7 +6,7 @@
 |---------|------------|----------------|-----|
 | **Producción v59** | https://ocr.ruby.lease/OCR/v59/frontend/ | 5005 | `vilar-legal-os-v59` |
 | **Testing v60** | https://ocr.ruby.lease/testing/v60/ | Flask 5008 / Next.js 3060 | `vilar-legal-os-v60-testing` / `vilar-v60-nextjs` |
-| **GitHub** | https://github.com/vilarkptl-lang/agentic-repo/tree/claude/ocr-v59-implementation-vOcPD | — | — |
+| **GitHub** | https://github.com/vilarkptl-lang/ocr-ruby-lease | — | — |
 | **Claude proxy Max** | http://127.0.0.1:5001 (interno) | 5001 | `claude-proxy-max` |
 
 ## REGLA: Siempre entregar links al terminar
@@ -17,8 +17,8 @@ Al completar cualquier tarea de desarrollo, **siempre incluir en el mensaje fina
 ### Links de deploy
 - Producción: https://ocr.ruby.lease/OCR/v59/frontend/
 - Testing v60: https://ocr.ruby.lease/testing/v60/
-- GitHub (rama): https://github.com/vilarkptl-lang/agentic-repo/tree/claude/ocr-v59-implementation-vOcPD
-- Commit: https://github.com/vilarkptl-lang/agentic-repo/commit/<SHA>
+- GitHub: https://github.com/vilarkptl-lang/ocr-ruby-lease
+- Commit: https://github.com/vilarkptl-lang/ocr-ruby-lease/commit/<SHA>
 ```
 
 Incluir solo los links relevantes para la tarea realizada. Si solo se modificó testing, omitir producción; si solo se hizo commit sin deploy, omitir los links de entorno.
@@ -32,8 +32,8 @@ Incluir solo los links relevantes para la tarea realizada. Si solo se modificó 
 | Contraseña SSH | `romanos12_2` |
 | App path v59 | `/var/www/catalogos/OCR/v59/` |
 | App path v60 | `/var/www/catalogos/testing/v60/` |
-| Repo path | `/var/www/catalogos/OCR/v59-repo/agentic-repo/` |
-| Branch activo | `claude/ocr-v59-implementation-vOcPD` |
+| Repo path | `/var/www/catalogos/OCR/v59-repo/ocr-ruby-lease/` |
+| Branch activo | `main` |
 | Puerto Flask v59 | `5005` |
 | Puerto Flask v60 | `5008` |
 | Puerto Next.js v60 | `3060` |
@@ -56,7 +56,7 @@ srv() { sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.
 ```bash
 EXEC_TOKEN="cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a"
 EXEC_URL="https://ia.vilarkptl.com/api/exec"
-OCR_REPO="/var/www/catalogos/OCR/v59-repo/agentic-repo"
+OCR_REPO="/var/www/catalogos/OCR/v59-repo/ocr-ruby-lease"
 
 exec_server() {
   local CMD="$1"
@@ -80,20 +80,20 @@ exec_server "pm2 restart vilar-legal-os-v59"
 
 ```bash
 # Copiar archivo individual
-exec_server "node -e \"require('fs').copyFileSync('/var/www/catalogos/OCR/v59-repo/agentic-repo/ocr/v59/api/routes/admin.py','/var/www/catalogos/OCR/v59/api/routes/admin.py')\""
+exec_server "node -e \"require('fs').copyFileSync('/var/www/catalogos/OCR/v59-repo/ocr-ruby-lease/ocr/v59/api/routes/admin.py','/var/www/catalogos/OCR/v59/api/routes/admin.py')\""
 
 # Copiar todos los archivos del deploy (one-liner completo)
-exec_server "node -e \"const fs=require('fs'); const S='/var/www/catalogos/OCR/v59-repo/agentic-repo/ocr/v59'; const D='/var/www/catalogos/OCR/v59'; ['api/routes/admin.py','api/routes/chat.py','api/routes/artifacts.py','api/routes/upload.py','api/routes/dashboard.py','api/routes/auth.py','api/app.py','frontend/index.html','openclaw/tool_definitions.json','openclaw/tool_router.py','openclaw/soul-v59.md'].forEach(f=>{fs.copyFileSync(S+'/'+f,D+'/'+f);console.log('copied',f);});\""
+exec_server "node -e \"const fs=require('fs'); const S='/var/www/catalogos/OCR/v59-repo/ocr-ruby-lease/ocr/v59'; const D='/var/www/catalogos/OCR/v59'; ['api/routes/admin.py','api/routes/chat.py','api/routes/artifacts.py','api/routes/upload.py','api/routes/dashboard.py','api/routes/auth.py','api/app.py','frontend/index.html','openclaw/tool_definitions.json','openclaw/tool_router.py','openclaw/soul-v59.md'].forEach(f=>{fs.copyFileSync(S+'/'+f,D+'/'+f);console.log('copied',f);});\""
 
-# git pull usa HTTPS (la remote SSH no funciona desde el sandbox):
-exec_server "git pull https://github.com/vilarkptl-lang/agentic-repo.git claude/ocr-v59-implementation-vOcPD"
+# git pull desde el nuevo repo:
+exec_server "git pull https://github.com/vilarkptl-lang/ocr-ruby-lease.git main"
 ```
 
 ## Deploy one-liner
 
 ```bash
-cd /var/www/catalogos/OCR/v59-repo/agentic-repo && \
-git pull origin claude/ocr-v59-implementation-vOcPD && \
+cd /var/www/catalogos/OCR/v59-repo/ocr-ruby-lease && \
+git pull origin main && \
 cp ocr/v59/api/routes/chat.py        /var/www/catalogos/OCR/v59/api/routes/chat.py && \
 cp ocr/v59/api/routes/artifacts.py   /var/www/catalogos/OCR/v59/api/routes/artifacts.py && \
 cp ocr/v59/api/routes/imagen.py      /var/www/catalogos/OCR/v59/api/routes/imagen.py && \
