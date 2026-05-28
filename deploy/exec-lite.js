@@ -55,14 +55,17 @@ function readBody(req) {
 }
 
 const server = http.createServer(async (req, res) => {
+  // Normalize double-slashes from Apache proxy path stripping
+  const url = req.url.replace(/\/\/+/g, '/');
+
   // Health check (no auth needed)
-  if (req.method === 'GET' && (req.url === '/health' || req.url === '/exec-lite/health')) {
+  if (req.method === 'GET' && (url === '/health' || url === '/exec-lite/health')) {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ ok: true, service: 'exec-lite', pid: process.pid }));
   }
 
   // Only POST /exec or /exec-lite
-  if (req.method !== 'POST' || !req.url.match(/^\/(exec-lite\/?)?$/)) {
+  if (req.method !== 'POST' || !url.match(/^\/(exec-lite\/?)?$/)) {
     res.writeHead(404);
     return res.end(JSON.stringify({ error: 'not found' }));
   }
