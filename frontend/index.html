@@ -58,6 +58,10 @@
       <span class="label">Reanudadas</span>
       <span class="value" id="stat-resumed">—</span>
     </div>
+    <div class="stat-pill" id="stat-coordinator-pill" title="Coordinator — tasa de éxito 7 días">
+      <span class="label">Coordinator</span>
+      <span class="value" id="stat-coordinator">—</span>
+    </div>
   </div>
 
   <div class="header-right">
@@ -83,6 +87,7 @@
   <button class="tab-btn platform-tab" data-panel="platform">Plataforma</button>
   <button class="tab-btn" data-panel="api-admin">API Admin</button>
   <button class="tab-btn" data-panel="scores">Scores</button>
+  <button class="tab-btn" data-panel="pipeline">Pipeline</button>
 </div>
 
 <!-- ── Main ── -->
@@ -117,6 +122,7 @@
       <button class="rtab platform-tab" data-rtab="platform">Plataforma</button>
       <button class="rtab" data-rtab="api-admin">API Admin</button>
       <button class="rtab" data-rtab="scores">Scores</button>
+      <button class="rtab" data-rtab="pipeline">Pipeline</button>
     </div>
 
     <!-- Agents panel -->
@@ -474,6 +480,23 @@
       <div id="scores-load-more" style="padding:12px 14px;text-align:center;display:none">
         <button class="btn-sm" onclick="loadMoreScores()">Cargar más</button>
       </div>
+    </div>
+
+    <!-- Pipeline reliability -->
+    <div id="pipeline-panel">
+      <div class="panel-header">
+        <span class="title">Pipeline — Confiabilidad</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <select id="pipeline-days" style="background:var(--input-bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;font-family:var(--font)" onchange="loadPipelineStats()">
+            <option value="1">Hoy</option>
+            <option value="7" selected>7 días</option>
+            <option value="30">30 días</option>
+          </select>
+          <button class="btn-sm" onclick="loadPipelineStats()">↻ Refresh</button>
+        </div>
+      </div>
+      <div id="coordinator-health" style="padding:0 14px 0"></div>
+      <div id="pipeline-stats"></div>
     </div>
 
   </div>

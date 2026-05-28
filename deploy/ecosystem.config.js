@@ -15,6 +15,17 @@ module.exports = {
       autorestart: true,
       watch:       false,
       max_memory_restart: '256M',
+      env: {
+        // B3 multi-account Claude proxy pool (1 Max + 4 Pro)
+        // Each proxy must be running: pm2 start deploy/claude-proxy.js -- --port 500x
+        CLAUDE_PROXY_MAX:          'http://127.0.0.1:5001',
+        CLAUDE_PROXY_PRO_1:        'http://127.0.0.1:5002',
+        CLAUDE_PROXY_PRO_2:        'http://127.0.0.1:5003',
+        CLAUDE_PROXY_PRO_3:        'http://127.0.0.1:5004',
+        CLAUDE_PROXY_PRO_4:        'http://127.0.0.1:5005',
+        // Projects that always get the Max proxy (priority tasks)
+        CLAUDE_PROXY_MAX_PROJECTS: 'coordinator,fiscalai,fiscalai-front',
+      },
       error_file:  '/var/log/ai-monitor/relay-master-error.log',
       out_file:    '/var/log/ai-monitor/relay-master-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss',

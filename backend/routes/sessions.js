@@ -46,6 +46,23 @@ router.get('/stats/resume', async (req, res) => {
   }
 });
 
+// GET /api/sessions/recent — list recent sessions with configurable limit
+router.get('/recent', async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit ?? 50, 10), 500);
+  try {
+    const [rows] = await db.query(
+      `SELECT id, started_at, ended_at, project_name, chat_source,
+              tool_call_count, ROUND(total_cost_usd, 6) AS total_cost_usd,
+              is_active, COALESCE(resumed, 0) AS resumed
+       FROM agent_sessions ORDER BY started_at DESC LIMIT ?`,
+      [limit]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/sessions — list recent sessions (last 50)
 router.get('/', async (req, res) => {
   try {

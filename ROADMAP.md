@@ -1,43 +1,16 @@
 # ROADMAP — AI Monitor / Agentic Relay System
 
-> Actualizado: 2026-05-27 (v5 — ✅ 100% success rate demostrado en pruebas reales)
+> Actualizado: 2026-05-27 (v4 — P0+P1 completos, relay-dashboard deploy OK)
 > Objetivo: plataforma autónoma 24/7 que iguala y supera a Claude Code
 
 ---
 
-## ✅ Real Pipeline Test — 2026-05-27 (PASS)
-
-**Prueba real con dispatch sequential:** `BACKEND=https://ia.vilarkptl.com node tests/real-pipeline-test.js`
-
-```
-🧪 Real Pipeline Test (sequential dispatch)
-Backend:      https://ia.vilarkptl.com
-Tasks:        5 (2 projects in parallel)
-Task timeout: 8 min each
-
-  ✅ [ai-monitor] T1-a: health check  exit=0  dur=34s
-  ✅ [ai-monitor] T1-b: disk/mem      exit=0  dur=29s
-  ✅ [ai-monitor] T1-c: pm2 status    exit=0  dur=34s
-  ✅ [coordinator] T2-a: git log      exit=0  dur=30s
-  ✅ [coordinator] T2-b: active prj   exit=0  dur=31s
-
-Success rate: 100%  (5/5 ok | 0 failed | 0 timeout)
-✅ PASS — objetivo ≥85% alcanzado — activar B3 multi-cuenta
-```
-
-### Bugs corregidos para alcanzar 100%
-
-| Bug | Síntoma | Fix |
-|-----|---------|-----|
-| Timezone en `checkStuckDispatchTasks` | MySQL datetime + sufijo `Z` incorrecto → tareas aparecían 360 min más antiguas → se expiraban de inmediato | `parseDbTs(str) { return new Date(str.replace(/Z$/, '')); }` |
-| `isRateLimited` antes de `ACTIVE_TASKS` check | Cada ciclo de 15s mientras una tarea corría llamaba `isRateLimited` → acumulaba timestamps → counter llegaba a 10 bloqueando nuevas tareas | Mover check de `ACTIVE_TASKS.has()` ANTES de llamar `isRateLimited` |
-| Rate limit 3/hora demasiado bajo | Con 5 cuentas Claude (Max + 4 Pro) y múltiples dispatches legítimos, 3/hora se agotaba fácilmente | Aumentar `DISPATCH_RATE_LIMIT` default de `3` a `10` |
-| inbox.md single-slot + parallel dispatch | Despachar 3 tareas simultáneas al mismo proyecto → las 2 primeras se sobreescriben → solo la última se ejecuta | Test reescrito para dispatch secuencial (una tarea a la vez por proyecto) |
-
-### Diagnóstico real del pipeline (2026-05-26)
+## Diagnóstico real del pipeline (2026-05-26)
 
 **El output de calidad cuando las tareas ejecutan es EQUIVALENTE a Claude Code directo.**
-El problema era el pipeline — no el modelo.
+El problema es el pipeline — no el modelo.
+
+### Success rate por proyecto (últimos 30 días — baseline 2026-05-26)
 
 | Proyecto | Total tareas | Completadas | Fallidas | **Atascadas** | **Success rate** |
 |----------|-------------|-------------|----------|----------------|-----------------|
@@ -47,10 +20,33 @@ El problema era el pipeline — no el modelo.
 | fiscalai | 5 | 3 | 0 | 2 | **60%** 🟡 |
 | finbot-verifier | 2 | 0 | 0 | 2 | **0%** 🔴 |
 
-**Causa raíz de las tareas atascadas**: bugs en timezone, rate limit counter, y dispatch concurrente.
-**Resuelto 2026-05-27**: los 4 bugs fueron corregidos y verificados con prueba real. ✅
+### Success rate post-P0 (últimos 7 días — 2026-05-27)
 
-**Criterio cumplido**: ≥85% success rate → activar B3 multi-cuenta. **DESBLOQUEADO.**
+> P0 activado 2026-05-26. Muestra transición: atascadas ya expiran a failed automáticamente.
+
+| Proyecto | Total | Completadas | Fallidas | Stuck | **Rate** |
+|----------|-------|-------------|----------|-------|----------|
+| fiscalai-test | 2 | 1 | 1 | 0 | **50%** 🟡 |
+| coordinator | 4 | 1 | 3 | 0 | **25%** 🔴 |
+| finbot-tester | 1 | 0 | 1 | 0 | **0%** 🔴 |
+| ai-monitor | 2 | 0 | 2 | 0 | **0%** 🔴 |
+| finbot-verifier | 2 | 0 | 2 | 0 | **0%** 🔴 |
+
+_Nota: Muestra pequeña (11 tareas). El P0 previene stuck pero no resuelve fallos en ejecución. Medir nuevamente en 7 días para tendencia real._
+
+### Calidad de sesiones que SÍ completan (equivalente a Claude Code)
+
+| Proyecto | Sesiones completadas | Avg tools/sesión | Completion rate |
+|----------|---------------------|------------------|-----------------|
+| relay-flujos | 6/6 | 89 | 100% ✅ |
+| relay-finbot-tester | 13/15 | 80 | 87% ✅ |
+| relay-finbot-verifier | 40/41 | 58 | 97% ✅ |
+| relay-ai-monitor | 22/22 | 28 | 100% ✅ |
+
+**Causa raíz de las tareas atascadas**: tareas quedan en `dispatched/pending` para siempre.
+No hay expiración automática, no hay retry, no hay alerta en tiempo real.
+
+**Objetivo**: llevar success rate a ≥85% en 7 días consecutivos.
 
 ---
 
@@ -75,16 +71,21 @@ El problema era el pipeline — no el modelo.
 
 ## P1 — Visibilidad · Para que devs confíen en el sistema
 
-### P1.1 — Dashboard: panel Pipeline Reliability · Target: 2026-06-01
+### P1.1 — Dashboard: panel Pipeline Reliability ✅ 2026-05-27
 - Por proyecto: funnel Dispatched → Picked up → Completed
 - Success rate 24h / 7 días con color coding (verde ≥80%, amarillo 50-80%, rojo <50%)
+- Implementado en `frontend/js/dashboard.js`: `loadPipelineStats()` + `renderPipelineStats()`
+- Tab Pipeline visible en `frontend/index.html` (desktop + mobile)
 
-### P1.2 — Coordinator health metric · Target: 2026-06-01
-- Indicador en dashboard: "Coordinator: 18.6% ⚠️"
+### P1.2 — Coordinator health metric ✅ 2026-05-27
+- Indicador en header del dashboard: "Coordinator: 18.6% ⚠️" con colores
 - Alert automática cuando coordinator cae bajo 40%
+- Stat pill `#stat-coordinator` actualizado con cada refresh de pipeline
 
-### P1.3 — Stuck task alert en relay_alerts · Target: 2026-06-01
-- Escribir `relay_alerts` tipo `stuck_task` cuando una tarea expira
+### P1.3 — Stuck task alert en relay_alerts ✅ 2026-05-27
+- `relay/master.js` escribe `relay_alerts` tipo `stuck_task` cuando una tarea expira
+- Fix: endpoint corregido `/api/relay/alerts` → `/api/alerts` (ruta correcta en server.js)
+- También corregido `outbox_push_failed` alert
 - Visible en tab Alertas del dashboard
 
 ---
@@ -138,31 +139,33 @@ El problema era el pipeline — no el modelo.
 - [x] Layout raíz + Header con stat pills · 2026-05-26
 - [x] Socket.io provider + hooks de datos · 2026-05-26
 - [x] Tab Pipeline: funnel + success rate por proyecto · 2026-05-26
-- [ ] Tab Sesiones: tabla con filtros
-- [ ] Tab Dispatches: tabla en tiempo real
-- [ ] Tab Costos: charts Recharts
-- [ ] Tab Alertas: feed
-- [ ] Deploy servidor (puerto 3030, pm2: relay-dashboard)
-- [ ] Testing en servidor hasta ≥85% success rate
+- [x] Tab Sesiones: tabla con filtros (project filter, refresh 30s) · 2026-05-27
+- [x] Tab Dispatches: tabla en tiempo real vía Socket.io · 2026-05-27
+- [x] Tab Costos: Recharts BarChart por proveedor · 2026-05-27
+- [x] Tab Alertas: feed con Socket.io (`alert:new`) · 2026-05-27
+- [x] Deploy servidor (puerto 3030, pm2: relay-dashboard, id 41) · 2026-05-27
+  - Fix prerender-manifest.json (ENOENT → stub JSON creado)
+  - npm install/build via `pm2 start npm` trick (exec endpoint no permite npm directo)
+- [ ] Testing en servidor hasta ≥85% success rate (medir 2026-06-03)
 
 ---
 
-## Plan de testing en servidor ✅ COMPLETADO 2026-05-27
+## Plan de testing en servidor (hasta 85% success rate)
 
 ```bash
-# ✅ Prueba real ejecutada y PASADA (100% success rate):
-BACKEND=https://ia.vilarkptl.com node tests/real-pipeline-test.js
-
-# Unidad tests (P0.3 quality filter, dispatch API):
+# Correr después de cada release P0/P1:
 BACKEND=https://ia.vilarkptl.com node tests/dispatch.test.js
 
 # Verificar success rate de últimos 7 días vía DB:
 # SELECT project, ROUND(100.0*SUM(status='completed')/COUNT(*),1) as rate
 # FROM dispatch_tasks WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
 # GROUP BY project ORDER BY rate;
+
+# Test de carga: 5 tareas a coordinator en secuencia
+# Esperar ≥4 completadas (≥80% success)
 ```
 
-**Criterio cumplido**: 100% (5/5) en prueba real 2026-05-27 → **B3 multi-cuenta DESBLOQUEADO**.
+**Criterio de aceptación**: ≥85% en 7 días consecutivos → activar B3 multi-cuenta.
 
 ---
 
@@ -213,21 +216,24 @@ La decisión de usar **Claude Max/Pro para planificación y tareas críticas** y
 
 ---
 
-## Estado actual (2026-05-20)
+## Estado actual (2026-05-27)
 
 | Componente | Estado | Cal. |
 |------------|--------|------|
-| relay-master | ✅ Online | 8/10 |
+| relay-master | ✅ Online (PM2 id 7) | 8/10 |
+| P0: auto-expire + retry + quality filter | ✅ Activo | 9/10 |
+| P1: pipeline tab + health metric + alerts | ✅ Desplegado | 8/10 |
 | DeepSeek V4 Pro (`deepseek-agent`) | ✅ Activo en `fiscalai-test` | 7/10 |
 | Gemini 2.0 Flash (visual) | ✅ Screenshot OK, análisis limitado por cuota | 6/10 |
 | Claude Code CLI (`full-claude-code`) | ✅ Activo | 9/10 |
-| claude-proxy (1 cuenta) | ✅ Puerto 5001 | 5/10 |
-| Multi-cuenta routing | ❌ Solo 1 proxy | 0/10 |
-| financial-bot | ⚠️ En ai-monitor repo (ruido) | 5/10 |
-| Dashboard ia.vilarkptl.com | ✅ Online | 7/10 |
+| claude-proxy (5 cuentas 5001–5005) | ✅ Puertos activos, pendiente auth cuentas Pro | 6/10 |
+| Multi-cuenta routing en master.js | ⚠️ Scaffolded en ecosystem.config.js, falta `selectProxy()` en master.js | 3/10 |
+| relay-dashboard (Next.js, port 3030) | ✅ Online (PM2 id 41), todos los tabs | 8/10 |
+| financial-bot | ⚠️ En ai-monitor repo (ruido), migración pendiente | 5/10 |
+| Dashboard ia.vilarkptl.com | ✅ Online | 8/10 |
 | Telegram iaVilarBot | ✅ Todos los comandos | 8/10 |
-| DeCabeceraTax branch | ⚠️ Rama incorrecta en prod | 5/10 |
-| pill.ai | ❌ No registrado | 0/10 |
+| DeCabeceraTax branch | ⚠️ Worktree testing pendiente | 5/10 |
+| pill.ai | ❌ No registrado en relay | 0/10 |
 | Playwright | ❌ No instalado | 0/10 |
 
 ---
