@@ -32,6 +32,7 @@ const crypto  = require('crypto');
 const { execSync, exec, spawn } = require('child_process');
 const https   = require('https');
 const http    = require('http');
+const { AGENT_TOOLS, executeTool } = require('./tools-server');
 
 // ─── Config ───────────────────────────────────────────────
 const PROJECTS_FILE   = path.join(__dirname, 'projects.json');
@@ -1726,65 +1727,6 @@ function runAgentByRunner(project, taskContent, callback) {
   return runClaude(project, taskContent, callback);
 }
 
-// ─── DeepSeek agent runner ────────────────────────────────────
-async function runDeepSeekAgent(project, taskContent, callback) {
-  if (ACTIVE_TASKS.has(project.id)) { callback(new Error('Already running')); return; }
-  ACTIVE_TASKS.add(project.id);
-  TASK_START_TIMES[project.id] = Date.now();
-  log(project.id, `[deepseek-runner] Iniciando (${taskContent.length} chars)`);
-  try {
-    const systemPrompt = loadAgentContext(project.id, project.url) ||
-      `Eres un agente de análisis para el proyecto "${project.name}". Responde en español. Sé conciso y práctico. Al terminar incluye STATUS: done|partial|failed y RESUMEN: una oración.`;
-    const model = project.model || 'deepseek-reasoner';
-    const body  = JSON.stringify({
-      model, max_tokens: 2048,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user',   content: taskContent },
-      ],
-    });
-    const result = await new Promise((res, rej) => {
-      const req = https.request({
-        hostname: 'api.deepseek.com', path: '/v1/chat/completions', method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${DEEPSEEK_KEY}`,
-          'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body),
-        },
-      }, (r) => {
-        let data = '';
-        r.on('data', c => { data += c; });
-        r.on('end', () => {
-          try {
-            const j = JSON.parse(data);
-            if (j.error) { rej(new Error(j.error.message)); return; }
-            res(j.choices?.[0]?.message?.content || '');
-          } catch (e) { rej(e); }
-        });
-      });
-      req.on('error', rej);
-      setTimeout(() => rej(new Error('DeepSeek agent timeout 120s')), 120000);
-      req.write(body);
-      req.end();
-    });
-
-    if (project.inbox) {
-      const outboxPath = project.inbox.replace(/inbox/g, 'outbox');
-      fs.writeFileSync(outboxPath, `# Resultado — ${project.name}\n\n${result}\n\n_${new Date().toISOString()}_\n`, 'utf8');
-      try { gitCommitFile(outboxPath, `result: ${project.id} deepseek`); } catch (_) {}
-    }
-    tg(`✅ <b>${project.name}</b> (DeepSeek)\n${result.slice(0, 800)}`);
-    log(project.id, `[deepseek-runner] Completado (${result.length} chars)`);
-    callback(null, result);
-  } catch (err) {
-    log(project.id, `[deepseek-runner] Error: ${err.message}`);
-    tg(`❌ <b>${project.name}</b> (DeepSeek): ${err.message.slice(0, 200)}`);
-    callback(err);
-  } finally {
-    ACTIVE_TASKS.delete(project.id);
-    delete TASK_START_TIMES[project.id];
-  }
-}
-
 // ─── Gemini Flash agent runner ────────────────────────────────
 async function runGeminiAgent(project, taskContent, callback) {
   if (ACTIVE_TASKS.has(project.id)) { callback(new Error('Already running')); return; }
@@ -2958,7 +2900,8 @@ async function runDeepSeekCodeFix(project, taskContent, callback) {
 
 // ─── DeepSeek agentic runner ─────────────────────────────
 // Replaces Claude CLI for projects with mode:"deepseek-agent".
-// Runs DeepSeek V4-Pro in a tool-calling loop (bash, read_file, write_file, git_commit).
+// Runs DeepSeek V4-Pro in a tool-calling loop (bash, read_file, write_file, git_commit, edit_file, search_code, list_directory).
+// Tool definitions sourced from relay/tools-server.js (shared with other LLM runners).
 // Same callback signature as runClaude: callback(exitCode, resultText, costUsd).
 async function runDeepSeekAgent(project, taskContent, callback, dispatchMeta = {}) {
   const startTime   = Date.now();
@@ -2968,114 +2911,8 @@ async function runDeepSeekAgent(project, taskContent, callback, dispatchMeta = {
   const TOOL_TIMEOUT_MS = 45000;
   const BASH_DENY   = /rm\s+-rf\s+\/(?!tmp|var\/www\/html\/vilarkptl|home)|DROP\s+TABLE\s|TRUNCATE\s+TABLE\s|git\s+push\s+--force|git\s+reset\s+--hard\s+origin/i;
 
-  const DS_TOOLS = [
-    {
-      type: 'function',
-      function: {
-        name: 'bash',
-        description: 'Run a shell command on the server. Returns stdout+stderr (max 5000 chars).',
-        parameters: {
-          type: 'object',
-          properties: {
-            command: { type: 'string', description: 'Shell command. Working dir is project repo.' },
-          },
-          required: ['command'],
-        },
-      },
-    },
-    {
-      type: 'function',
-      function: {
-        name: 'read_file',
-        description: 'Read a file from disk. Returns up to 10000 chars.',
-        parameters: {
-          type: 'object',
-          properties: {
-            path: { type: 'string', description: 'Absolute path or path relative to project repo.' },
-          },
-          required: ['path'],
-        },
-      },
-    },
-    {
-      type: 'function',
-      function: {
-        name: 'write_file',
-        description: 'Write content to a file. Creates parent directories if needed.',
-        parameters: {
-          type: 'object',
-          properties: {
-            path:    { type: 'string', description: 'File path (absolute or relative to repo).' },
-            content: { type: 'string', description: 'Full file content.' },
-          },
-          required: ['path', 'content'],
-        },
-      },
-    },
-    {
-      type: 'function',
-      function: {
-        name: 'git_commit',
-        description: 'Stage specific files, commit, and push to the project branch.',
-        parameters: {
-          type: 'object',
-          properties: {
-            files:   { type: 'array',   items: { type: 'string' }, description: 'Files to stage (relative to repo).' },
-            message: { type: 'string',  description: 'Commit message.' },
-            push:    { type: 'boolean', description: 'Push after commit (default: true).' },
-          },
-          required: ['files', 'message'],
-        },
-      },
-    },
-    {
-      type: 'function',
-      function: {
-        name: 'edit_file',
-        description: 'Replace an exact unique string in a file. More precise than write_file for small changes. old_string must appear exactly once.',
-        parameters: {
-          type: 'object',
-          properties: {
-            path:       { type: 'string', description: 'File path (absolute or relative to repo).' },
-            old_string: { type: 'string', description: 'Exact string to replace — must appear exactly once in the file.' },
-            new_string: { type: 'string', description: 'Replacement string.' },
-          },
-          required: ['path', 'old_string', 'new_string'],
-        },
-      },
-    },
-    {
-      type: 'function',
-      function: {
-        name: 'search_code',
-        description: 'Search for a pattern in files using grep. Returns matches with line numbers and context.',
-        parameters: {
-          type: 'object',
-          properties: {
-            pattern:       { type: 'string', description: 'Grep pattern (supports regex).' },
-            path:          { type: 'string', description: 'File or directory to search (default: project repo).' },
-            context_lines: { type: 'integer', description: 'Lines of context around each match (default: 3).' },
-          },
-          required: ['pattern'],
-        },
-      },
-    },
-    {
-      type: 'function',
-      function: {
-        name: 'list_directory',
-        description: 'List files and directories. Use to explore project structure.',
-        parameters: {
-          type: 'object',
-          properties: {
-            path:    { type: 'string', description: 'Directory path (absolute or relative to repo).' },
-            pattern: { type: 'string', description: 'Optional file name filter (e.g. "*.js").' },
-          },
-          required: ['path'],
-        },
-      },
-    },
-  ];
+  // Tool definitions from shared tools-server module
+  const DS_TOOLS = AGENT_TOOLS;
 
   const agentCtx  = loadAgentContext(project.id, project.url);
   const agentMem  = loadAgentMemory(project.repo);
