@@ -25,6 +25,8 @@ module.exports = {
         CLAUDE_PROXY_PRO_4:        'http://127.0.0.1:5005',
         // Projects that always get the Max proxy (priority tasks)
         CLAUDE_PROXY_MAX_PROJECTS: 'coordinator,fiscalai,fiscalai-front',
+        // Stuck task expiry: 2h (default 30min is too short to survive quiet hours)
+        STUCK_TASK_MS: '7200000',
       },
       error_file:  '/var/log/ai-monitor/relay-master-error.log',
       out_file:    '/var/log/ai-monitor/relay-master-out.log',

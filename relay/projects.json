@@ -20,7 +20,7 @@
     "id": "ai-monitor",
     "name": "AI Monitor",
     "mode": "full-claude-code",
-    "ignore_quiet_hours": false,
+    "ignore_quiet_hours": true,
     "claude_model": "claude-haiku-4-5-20251001",
     "claude_model_fast": "claude-haiku-4-5-20251001",
     "deepseek_model": "flash",
