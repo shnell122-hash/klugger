@@ -8,30 +8,41 @@ _Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02 | Actualizado 20
 
 | Campo | Valor |
 |-------|-------|
-| Última sesión | 2026-05-25 |
+| Última sesión | 2026-05-29 |
 | Estado | ✅ Completo |
 | Rama trabajo | `claude/agent-monitoring-dashboard-4v8iq` |
 | Rama relay | `main` |
-| Último commit main | `35471b9 fix: .backend-needs-restart flag` |
+| Último commit | `fc963d4 feat: relay/tools-server.js` |
 
-### Cambios sesión 2026-05-25
+### Cambios sesión 2026-05-29
+
+| Archivo | Cambio | Estado |
+|---------|--------|--------|
+| `backend/db/migrate-v17.sql` | `result_summary`, `files_changed`, `commits_made` en dispatch_tasks | branch ✅ |
+| `backend/routes/dispatch.js` | `extractQualityMetrics()` + `/complete` guarda métricas + GET incluye cols | branch ✅ |
+| `frontend/js/dashboard.js` | `renderDispatchCard()` muestra badge de calidad (commits · archivos) | branch ✅ |
+| `frontend/css/dashboard.css` | Clase `.ds-quality` (verde, 9px) | branch ✅ |
+| `relay/tools-server.js` | Nuevo módulo compartido: 8 tools OpenAI-format + `executeTool()` | branch ✅ |
+| `relay/master.js` | `runDeepSeekAgent` usa `AGENT_TOOLS` de tools-server (eliminó 110 líneas duplicadas) | branch ✅ |
+| `tests/dispatch.test.js` | 13 tests, 5 suites — todos pasan contra producción (T1 ✅) | branch ✅ |
+
+### Pendiente sesión 2026-05-29
+
+- B3 multi-cuenta routing: **diferido** hasta que el sistema haga mejores tareas que Claude Code
+- P2.2 A/B comparison panel: sin asignar
+- Fase 3 ASK protocol + poll 3s: sin asignar
+- relay/visual-check.js: Playwright instalado pero no integrado con tareas activas aún
+
+### Sesión 2026-05-25
 
 | Archivo | Cambio | Estado |
 |---------|--------|--------|
 | `relay/master.js` | `checkBackendReload()` — auto-restart backend cuando server.js cambia | main ✅ |
 | `relay/master.js` | `.backend-needs-restart` flag — reinicio one-shot del backend al startup | main ✅ |
 | `relay/master.js` | `gitPull`: rebase → merge con `-X theirs` + stash (evita pérdida de historial local) | main ✅ |
-| `relay/.backend-needs-restart` | Flag para reinicio one-shot del backend ai-monitor | main ✅ |
 | `frontend/index.html` | `#resume-breakdown` — sección de tasa de reanudación por proyecto | main ✅ |
 | `frontend/js/dashboard.js` | `refreshResumeStats()`: pobla breakdown de by_project (barras + colores) | main ✅ |
 | `tests/dispatch.test.js` | Suite de tests: projects.json + /api/relay/dispatch + /api/sessions/stats/resume | main ✅ |
-| `.claude/settings.json` | Removida restricción `Bash(gh *)` del allow list | main ✅ |
-
-### Pendiente sesión 2026-05-25
-
-- [ ] Playwright: instalar en servidor (`npm install -g playwright && playwright install chromium`)
-- [ ] DeCabeceraTax: merge conflict auto-resuelto en próximo ciclo gitPull (relay ya tiene fix)
-- [ ] Verificar exec endpoint restaurado y DeCabeceraTax limpio
 
 ---
 

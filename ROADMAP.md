@@ -92,9 +92,10 @@ No hay expiración automática, no hay retry, no hay alerta en tiempo real.
 
 ## P2 — Quality parity proof
 
-### P2.1 — Per-task quality score
-- Agregar `files_changed`, `commits_made` a dispatch_tasks (parsear de result_summary)
-- Mostrar en dashboard: "3 archivos cambiados, 1 commit, 8 min"
+### P2.1 — Per-task quality score ✅ 2026-05-29
+- `files_changed`, `commits_made` en dispatch_tasks (migrate-v17.sql aplicada)
+- `extractQualityMetrics()` parsea git summary + CHANGED: del result_summary
+- Dashboard: badge verde "N commits · M archivos" en tareas completadas
 
 ### P2.2 — A/B comparison panel
 - Misma tarea → relay vs Claude Code directo: tool calls, duration, cost diff
@@ -234,7 +235,7 @@ La decisión de usar **Claude Max/Pro para planificación y tareas críticas** y
 | Telegram iaVilarBot | ✅ Todos los comandos | 8/10 |
 | DeCabeceraTax branch | ⚠️ Worktree testing pendiente | 5/10 |
 | pill.ai | ❌ No registrado en relay | 0/10 |
-| Playwright | ❌ No instalado | 0/10 |
+| Playwright | ✅ Instalado (relay/), chromium en /usr/bin/chromium-browser | 6/10 |
 
 ---
 
@@ -494,7 +495,7 @@ done
 
 > Sube la calidad de código de DeepSeek de 6/10 a 8/10 con herramientas quirúrgicas.
 
-### 2.1 relay/tools-server.js
+### 2.1 relay/tools-server.js ✅ 2026-05-29
 
 Herramientas que DeepSeek invoca via tool-calling (equivalentes a Claude Code):
 
@@ -508,13 +509,11 @@ Herramientas que DeepSeek invoca via tool-calling (equivalentes a Claude Code):
 
 El `runDeepSeekAgent()` ya tiene la infraestructura de tool loop. Solo hay que registrar estas tools en el schema enviado a la API de DeepSeek.
 
-### 2.2 Playwright para visual-check
+### 2.2 Playwright para visual-check ⚠️ Parcial 2026-05-29
 
-Reemplazar Chromium CLI snap por Playwright:
-- Instalar: `npm install -g playwright && npx playwright install chromium`
-- Reescribir `relay/visual-check.js` usando `playwright.chromium.launch()`
-- Ventajas: screenshots de elementos específicos, wait for network idle, interacción real (click, type)
-- Permite verificar login, formularios, tablas de datos — no solo capturas estáticas
+- Playwright instalado en `relay/` (npm), chromium en `/usr/bin/chromium-browser` ✅
+- `relay/visual-check.js` pendiente de reescritura con `playwright.chromium.launch()`
+- Sin tareas activas que lo usen aún — integración diferida
 
 ---
 
