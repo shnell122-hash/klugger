@@ -1,1 +1,1 @@
-Ejecuta pm2 status y reporta cuántos procesos hay online.
+Ejecuta df -h y reporta el uso del disco en /.
