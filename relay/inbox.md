@@ -1,5 +1,1 @@
-# Test pipeline — pm2 relay-master
-Verifica que relay-master está online ejecutando pm2 list. Reporta en tu outbox: uptime y restarts del proceso relay-master.
-STATUS: done
-CHANGED: (ninguno)
-DEPLOYED: no
+Reporta: (1) resultado de pm2 status --no-color, (2) fecha y hora actual del servidor, (3) espacio libre en disco /
