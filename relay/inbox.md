@@ -1,1 +1,1 @@
-Ejecuta df -h y reporta el uso del disco en /.
+Ejecuta free -h y reporta la RAM disponible.
