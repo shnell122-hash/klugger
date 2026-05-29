@@ -1,1 +1,1 @@
-Ejecuta git log --oneline -3 en /var/www/html/vilarkptl.com/ai-monitor y reporta los últimos 3 commits.
+Verifica que relay-master está online con pm2 show relay-master.
