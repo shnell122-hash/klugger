@@ -171,7 +171,8 @@ router.get('/dispatch', async (req, res) => {
   try {
     const [rows] = await db.query(
       `SELECT id, parent_id, project, title, requester, depth, status,
-              plan_items, result_items, screenshot_url, exit_code, duration_sec,
+              plan_items, result_items, result_summary, files_changed, commits_made,
+              screenshot_url, exit_code, duration_sec,
               created_at, dispatched_at, completed_at
        FROM dispatch_tasks
        ORDER BY created_at DESC LIMIT 100`
@@ -296,16 +297,38 @@ router.post('/dispatch/expire-stuck', async (req, res) => {
   }
 });
 
+// Parse files_changed and commits_made from raw agent output
+function extractQualityMetrics(text) {
+  if (!text) return { files_changed: 0, commits_made: 0 };
+
+  // files_changed: git summary line "N file(s) changed" or outbox "CHANGED: f1, f2"
+  const gitFilesMatch = text.match(/(\d+) files? changed/);
+  const outboxMatch   = text.match(/^CHANGED:\s*(.+)/m);
+  const filesFromGit  = gitFilesMatch ? parseInt(gitFilesMatch[1], 10) : 0;
+  const filesFromOutbox = outboxMatch
+    ? outboxMatch[1].split(',').map(s => s.trim()).filter(Boolean).length
+    : 0;
+  const files_changed = Math.max(filesFromGit, filesFromOutbox);
+
+  // commits_made: count "[branch abc123]" git commit header lines
+  const commitHeaders = text.match(/\[[^\]]+\s+[a-f0-9]{5,}\]/g);
+  const commits_made  = commitHeaders ? commitHeaders.length : 0;
+
+  return { files_changed, commits_made };
+}
+
 // ── POST /api/relay/dispatch/:id/complete ────────────────────
 router.post('/dispatch/:id/complete', async (req, res) => {
   const { result_summary, exit_code, result_items, screenshot_url, duration_sec } = req.body;
   const status = (exit_code === 0 || exit_code == null) ? 'completed' : 'failed';
+  const { files_changed, commits_made } = extractQualityMetrics(result_summary);
 
   // Update JSON queue
   const queue  = readQueue();
   const idx    = queue.findIndex(d => d.id === req.params.id);
   if (idx !== -1) {
-    queue[idx] = { ...queue[idx], status, completed_at: new Date().toISOString(), result_summary };
+    queue[idx] = { ...queue[idx], status, completed_at: new Date().toISOString(),
+                   result_summary, files_changed, commits_made };
     writeQueue(queue);
   }
 
@@ -314,11 +337,15 @@ router.post('/dispatch/:id/complete', async (req, res) => {
     await db.query(
       `UPDATE dispatch_tasks SET
          status = ?, exit_code = ?, duration_sec = ?,
-         result_items = ?, screenshot_url = ?, completed_at = NOW()
+         result_items = ?, screenshot_url = ?, completed_at = NOW(),
+         result_summary = ?, files_changed = ?, commits_made = ?
        WHERE id = ?`,
       [status, exit_code ?? null, duration_sec ?? null,
        result_items ? JSON.stringify(result_items) : null,
-       screenshot_url || null, req.params.id]
+       screenshot_url || null,
+       result_summary ? result_summary.slice(0, 65535) : null,
+       files_changed, commits_made,
+       req.params.id]
     );
   } catch (dbErr) {
     console.error('[dispatch] DB complete error (non-fatal):', dbErr.message);

@@ -690,6 +690,15 @@ function renderDispatchCard(d, depth = 0) {
   const req    = d.requester && d.requester !== 'api' ? `<span class="ds-requester">← ${esc(d.requester)}</span>` : '';
   const result = d.result_summary ? `<div class="ds-result">${esc(shortText(d.result_summary, 100))}</div>` : '';
 
+  // Quality metrics: show only when task is done and has data
+  let quality = '';
+  if (d.status === 'completed' && (d.files_changed > 0 || d.commits_made > 0)) {
+    const parts = [];
+    if (d.commits_made  > 0) parts.push(`${d.commits_made} commit${d.commits_made > 1 ? 's' : ''}`);
+    if (d.files_changed > 0) parts.push(`${d.files_changed} archivo${d.files_changed > 1 ? 's' : ''}`);
+    quality = `<span class="ds-quality" title="Cambios detectados en el resultado">${parts.join(' · ')}</span>`;
+  }
+
   return `
   <div class="dispatch-card" data-id="${esc(d.id)}" ${indent}>
     <div class="ds-header">
@@ -697,6 +706,7 @@ function renderDispatchCard(d, depth = 0) {
       <span class="ds-project">${esc(d.project)}</span>
       <span class="ds-badge ${st.cls}">${st.label}</span>
       ${req}
+      ${quality}
       <span class="ds-time">${created}${dur ? ' · ' + dur : ''}</span>
     </div>
     <div class="ds-title">${esc(d.title || d.id)}</div>

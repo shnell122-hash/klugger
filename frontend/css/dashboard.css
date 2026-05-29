@@ -560,6 +560,7 @@ main {
 .ds-ok       { background: rgba(16,185,129,0.1);  color: var(--green);  border: 1px solid rgba(16,185,129,0.3); }
 .ds-failed   { background: rgba(239,68,68,0.1);   color: var(--red);    border: 1px solid rgba(239,68,68,0.3);  }
 .ds-requester { color: var(--purple); font-size: 9px; }
+.ds-quality   { color: var(--green);  font-size: 9px; }
 .ds-time { margin-left: auto; font-size: 9px; color: var(--text-light); white-space: nowrap; }
 .ds-title {
   font-size: 11px;
