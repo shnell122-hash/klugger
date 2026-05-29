@@ -172,7 +172,7 @@ router.get('/dispatch', async (req, res) => {
     const [rows] = await db.query(
       `SELECT id, parent_id, project, title, requester, depth, status,
               plan_items, result_items, result_summary, files_changed, commits_made,
-              screenshot_url, exit_code, duration_sec,
+              ask_question, screenshot_url, exit_code, duration_sec,
               created_at, dispatched_at, completed_at
        FROM dispatch_tasks
        ORDER BY created_at DESC LIMIT 100`
@@ -353,6 +353,42 @@ router.post('/dispatch/:id/complete', async (req, res) => {
 
   const io = req.app.get('io');
   if (io) io.emit('dispatch:complete', { id: req.params.id, status, exit_code });
+
+  res.json({ ok: true });
+});
+
+// ── POST /api/relay/dispatch/:id/ask ─────────────────────────
+// Agent wrote ASK: in outbox — mark as waiting_for_input, store question
+router.post('/dispatch/:id/ask', async (req, res) => {
+  const { question, session_id, partial_result, duration_sec } = req.body;
+
+  const queue = readQueue();
+  const idx   = queue.findIndex(d => d.id === req.params.id);
+  if (idx !== -1) {
+    queue[idx] = { ...queue[idx], status: 'waiting_for_input' };
+    writeQueue(queue);
+  }
+
+  try {
+    await db.query(
+      `UPDATE dispatch_tasks
+         SET status = 'waiting_for_input',
+             ask_question = ?,
+             ask_session_id = ?,
+             result_summary = COALESCE(?, result_summary),
+             duration_sec   = COALESCE(?, duration_sec)
+       WHERE id = ?`,
+      [question || null, session_id || null,
+       partial_result ? partial_result.slice(0, 65535) : null,
+       duration_sec || null,
+       req.params.id]
+    );
+  } catch (dbErr) {
+    console.error('[dispatch] ask error (non-fatal):', dbErr.message);
+  }
+
+  const io = req.app.get('io');
+  if (io) io.emit('dispatch:update', { id: req.params.id, status: 'waiting_for_input', ask_question: question });
 
   res.json({ ok: true });
 });

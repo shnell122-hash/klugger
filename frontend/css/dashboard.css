@@ -559,8 +559,11 @@ main {
 .ds-running  { background: rgba(14,165,233,0.1);  color: var(--accent); border: 1px solid rgba(14,165,233,0.3); }
 .ds-ok       { background: rgba(16,185,129,0.1);  color: var(--green);  border: 1px solid rgba(16,185,129,0.3); }
 .ds-failed   { background: rgba(239,68,68,0.1);   color: var(--red);    border: 1px solid rgba(239,68,68,0.3);  }
+.ds-waiting  { background: rgba(251,191,36,0.12); color: #fbbf24;       border: 1px solid rgba(251,191,36,0.4); animation: ds-pulse 2s ease-in-out infinite; }
+@keyframes ds-pulse { 0%,100% { opacity:1; } 50% { opacity:.65; } }
 .ds-requester { color: var(--purple); font-size: 9px; }
 .ds-quality   { color: var(--green);  font-size: 9px; }
+.ds-ask { font-size: 10px; color: #fbbf24; margin-top: 4px; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ds-time { margin-left: auto; font-size: 9px; color: var(--text-light); white-space: nowrap; }
 .ds-title {
   font-size: 11px;

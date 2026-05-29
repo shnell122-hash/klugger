@@ -667,11 +667,13 @@ async function loadScreenshots() {
 
 // ─── Dispatch / Agents panel ──────────────────────────────
 const DISPATCH_STATUS = {
-  pending:    { label: 'pendiente', cls: 'ds-pending'    },
-  dispatched: { label: 'corriendo', cls: 'ds-running'    },
-  completed:  { label: 'ok',        cls: 'ds-ok'         },
-  failed:     { label: 'falló',     cls: 'ds-failed'     },
-  error:      { label: 'error',     cls: 'ds-failed'     },
+  pending:             { label: 'pendiente',  cls: 'ds-pending'  },
+  dispatched:          { label: 'corriendo',  cls: 'ds-running'  },
+  completed:           { label: 'ok',         cls: 'ds-ok'       },
+  failed:              { label: 'falló',      cls: 'ds-failed'   },
+  error:               { label: 'error',      cls: 'ds-failed'   },
+  waiting_for_input:   { label: '❓ esperando', cls: 'ds-waiting' },
+  answered:            { label: 'respondido', cls: 'ds-ok'       },
 };
 
 const PROJECT_ICONS = {
@@ -699,6 +701,11 @@ function renderDispatchCard(d, depth = 0) {
     quality = `<span class="ds-quality" title="Cambios detectados en el resultado">${parts.join(' · ')}</span>`;
   }
 
+  // ASK question: shown when waiting for user input
+  const askBlock = (d.status === 'waiting_for_input' && d.ask_question)
+    ? `<div class="ds-ask">❓ ${esc(d.ask_question)}</div>`
+    : '';
+
   return `
   <div class="dispatch-card" data-id="${esc(d.id)}" ${indent}>
     <div class="ds-header">
@@ -710,6 +717,7 @@ function renderDispatchCard(d, depth = 0) {
       <span class="ds-time">${created}${dur ? ' · ' + dur : ''}</span>
     </div>
     <div class="ds-title">${esc(d.title || d.id)}</div>
+    ${askBlock}
     ${result}
   </div>`;
 }
@@ -719,7 +727,7 @@ function refreshDispatches() {
   const counter = document.getElementById('agents-count');
   if (!list) return;
 
-  const pending = dispatches.filter(d => d.status === 'pending' || d.status === 'dispatched').length;
+  const pending = dispatches.filter(d => ['pending','dispatched','waiting_for_input'].includes(d.status)).length;
   if (counter) counter.textContent = `${dispatches.length} tareas · ${pending} activas`;
 
   if (!dispatches.length) {
@@ -727,10 +735,11 @@ function refreshDispatches() {
     return;
   }
 
-  // Sort: pending/dispatched first, then by created_at DESC
+  // Sort: waiting_for_input first, then pending/dispatched, then by created_at DESC
+  const ACTIVE_STATUSES = new Set(['pending', 'dispatched', 'waiting_for_input']);
   const sorted = [...dispatches].sort((a, b) => {
-    const aPrio = (a.status === 'pending' || a.status === 'dispatched') ? 0 : 1;
-    const bPrio = (b.status === 'pending' || b.status === 'dispatched') ? 0 : 1;
+    const aPrio = a.status === 'waiting_for_input' ? 0 : ACTIVE_STATUSES.has(a.status) ? 1 : 2;
+    const bPrio = b.status === 'waiting_for_input' ? 0 : ACTIVE_STATUSES.has(b.status) ? 1 : 2;
     if (aPrio !== bPrio) return aPrio - bPrio;
     return new Date(b.created_at) - new Date(a.created_at);
   });
@@ -1194,24 +1203,25 @@ function connectSocket() {
     if (panel && panel.classList.contains('visible')) refreshDispatches();
     // Update badge count even when panel is hidden
     const counter = document.getElementById('agents-count');
-    const pending = dispatches.filter(x => x.status === 'pending' || x.status === 'dispatched').length;
+    const pending = dispatches.filter(x => ['pending','dispatched','waiting_for_input'].includes(x.status)).length;
     if (counter) counter.textContent = `${dispatches.length} tareas · ${pending} activas`;
   });
 
-  socket.on('dispatch:complete', update => {
+  // dispatch:complete and dispatch:update both update an existing card
+  function handleDispatchUpdate(update) {
     const idx = dispatches.findIndex(d => d.id === update.id);
-    if (idx !== -1) {
-      dispatches[idx] = { ...dispatches[idx], ...update };
-    }
+    if (idx !== -1) dispatches[idx] = { ...dispatches[idx], ...update };
     const panel = document.getElementById('agents-panel');
     if (panel && panel.classList.contains('visible')) refreshDispatches();
     const counter = document.getElementById('agents-count');
-    const pending = dispatches.filter(x => x.status === 'pending' || x.status === 'dispatched').length;
+    const pending = dispatches.filter(x => ['pending','dispatched','waiting_for_input'].includes(x.status)).length;
     if (counter) counter.textContent = `${dispatches.length} tareas · ${pending} activas`;
-    // Refresh pipeline if visible
     const pipelinePanel = document.getElementById('pipeline-panel');
     if (pipelinePanel && pipelinePanel.classList.contains('visible')) loadPipelineStats();
-  });
+  }
+
+  socket.on('dispatch:complete', handleDispatchUpdate);
+  socket.on('dispatch:update',   handleDispatchUpdate);
 
   socket.on('alert:new', alert => {
     alerts.unshift(alert);

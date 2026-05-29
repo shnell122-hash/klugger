@@ -64,6 +64,9 @@ const DISPATCH_TIMES  = {};   // { [projectId]: { dispatched_at: ms, dispatch_id
 // PID was written to lock files, making locks never expire (relay-master always alive).
 const ACTIVE_TASKS      = new Set();
 const ACTIVE_PIDS       = new Map();  // projectId → {pid, startTime, jobId, forceTimeout}
+// ASK: protocol — in-flight agent questions waiting for user reply
+// { [projectId]: { question, dispatch_id, session_id, title, ts } }
+const PENDING_ASKS      = {};
 const TASK_START_TIMES  = {};  // { [projectId]: timestamp when task started }
 const LAST_RUNNING_WARN = {};  // { [projectId]: timestamp of last "still running" TG alert }
 const RUNNING_WARN_MS   = parseInt(process.env.RUNNING_WARN_MS || '300000'); // 5 min
@@ -3405,7 +3408,11 @@ async function processDispatchQueue(projects, hashes = null) {
       'DEPLOYED: yes | no\n' +
       'PENDING: (qué falta o "nada")\n' +
       'USER_REQUIRED: no | sí — (razón)\n' +
-      '```\n';
+      '```\n' +
+      '\n' +
+      'Si necesitas una decisión del usuario antes de continuar, escribe en tu resultado:\n' +
+      'ASK: ¿tu pregunta aquí?\n' +
+      'El relay pausará la tarea y enviará tu pregunta al usuario vía Telegram.\n';
     try {
       fs.writeFileSync(target.inbox, inboxTask + OUTBOX_TEMPLATE);
     } catch (err) {
@@ -3639,7 +3646,48 @@ Si crees que está colgado:
     return;
   }
 
-  const { title, items } = parseInbox(taskContent);
+  // ── ASK: protocol — handle ANSWER: continuation ──────────────
+  // If the new inbox starts with "ANSWER:", it's a reply to a pending ASK:
+  // Build a continuation task that includes the Q+A context, then resume with
+  // the original Claude session so the agent has full context of its prior work.
+  let effectiveTask = taskContent;
+  const answerMatch = /^ANSWER:\s*([\s\S]+)/i.exec(taskContent.trim());
+  if (answerMatch) {
+    const pendingAsk = PENDING_ASKS[project.id];
+    if (pendingAsk) {
+      const answer = answerMatch[1].trim().slice(0, 1000);
+      log(project.id, `ANSWER recibido para ASK "${pendingAsk.question.slice(0, 60)}": ${answer.slice(0, 60)}`);
+
+      // Mark the original waiting dispatch as answered (completed)
+      postToMonitor(`/api/relay/dispatch/${pendingAsk.dispatch_id}/complete`, {
+        result_summary: `Respondido por usuario: ${answer.slice(0, 200)}`,
+        exit_code: 0,
+        duration_sec: Math.round((Date.now() - pendingAsk.ts) / 1000),
+      });
+
+      // Restore the session so --resume gives the agent full context
+      if (pendingAsk.session_id) {
+        PROJECT_SESSIONS[project.id] = { id: pendingAsk.session_id, ts: Date.now() };
+        saveProjectSessions();
+      }
+
+      effectiveTask =
+        `## Continuación — Respuesta del usuario\n\n` +
+        `**Tarea original**: ${pendingAsk.title}\n` +
+        `**Pregunta del agente**: ${pendingAsk.question}\n` +
+        `**Respuesta del usuario**: ${answer}\n\n` +
+        `---\n\n` +
+        `Continúa la tarea "${pendingAsk.title}" usando esta respuesta. ` +
+        `Retoma el trabajo desde donde lo dejaste.`;
+
+      delete PENDING_ASKS[project.id];
+      tg(`💬 <b>Respuesta recibida — ${project.name}</b>\n<code>${answer.slice(0, 150)}</code>\n⏳ Retomando tarea…`);
+    } else {
+      log(project.id, 'ANSWER: recibido pero no hay ASK: pendiente — ejecutando como tarea normal');
+    }
+  }
+
+  const { title, items } = parseInbox(effectiveTask);
   const startTime = Date.now();
 
   log(project.id, `Nueva tarea: ${title}`);
@@ -3673,7 +3721,7 @@ Si crees que está colgado:
   }
 
   // ── Phase 1.2: Budget cap — check before running ──────
-  const budgetMax     = parseBudgetMax(taskContent);
+  const budgetMax     = parseBudgetMax(effectiveTask);
   const planCostSoFar = (journal.plan_title === title ? journal.plan_cost_usd : 0) || 0;
   if (planCostSoFar >= budgetMax) {
     log(project.id, `Budget agotado: $${planCostSoFar.toFixed(4)} >= $${budgetMax.toFixed(2)} — bloqueando`);
@@ -3693,12 +3741,12 @@ $${planCostSoFar.toFixed(4)} gastado de $${budgetMax.toFixed(2)}`);
   }
 
   // ── Telegram: inicio con plan + criterios ────────────
-  const planItems     = parsePlanSection(taskContent);
-  const criteriaItems = parseCriteriaSection(taskContent);
+  const planItems     = parsePlanSection(effectiveTask);
+  const criteriaItems = parseCriteriaSection(effectiveTask);
 
   const planList = planItems.length
     ? planItems.map((l, i) => `  ${i+1}. ${l.replace(/^[0-9]+\. |^- /, '')}`).join('\n')
-    : (items.map(l => `  ${l}`).join('\n') || taskContent.split('\n').filter(l=>l.trim()).slice(0,5).join('\n'));
+    : (items.map(l => `  ${l}`).join('\n') || effectiveTask.split('\n').filter(l=>l.trim()).slice(0,5).join('\n'));
 
   const criteriaBlock = criteriaItems.length
     ? `\n\n<b>Verificar al terminar:</b>\n<code>${criteriaItems.map(l=>`  ${l.replace(/^[-•*]\s*/,'')}`).join('\n')}</code>`
@@ -3858,13 +3906,36 @@ Verifica manualmente que los cambios funcionan correctamente.`);
       agent_user:   CLAUDE_USER,
     });
 
-    // Mark dispatch as completed (use activeDM captured before runClaude started)
+    // ── ASK: protocol — detect BEFORE marking complete ──────────
+    // If agent writes "ASK: <question>", don't complete the dispatch — mark as
+    // waiting_for_input instead. User answers via /dispatch <project> ANSWER: text
+    const askMatchResult = /^ASK:\s*(.+)/m.exec(resultRaw);
+    const askQuestion    = askMatchResult ? askMatchResult[1].trim().slice(0, 500) : null;
+
+    // Mark dispatch as completed OR waiting_for_input
     if (activeDM.dispatch_id) {
-      postToMonitor(`/api/relay/dispatch/${activeDM.dispatch_id}/complete`, {
-        result_summary: resultRaw.slice(0, 1000),
-        exit_code: exitCode,
-        duration_sec: duration,
-      });
+      if (askQuestion) {
+        const askSessionId = PROJECT_SESSIONS[project.id]?.id || null;
+        PENDING_ASKS[project.id] = {
+          question:    askQuestion,
+          dispatch_id: activeDM.dispatch_id,
+          session_id:  askSessionId,
+          title,
+          ts:          Date.now(),
+        };
+        postToMonitor(`/api/relay/dispatch/${activeDM.dispatch_id}/ask`, {
+          question:       askQuestion,
+          session_id:     askSessionId,
+          partial_result: resultRaw.slice(0, 1000),
+          duration_sec:   duration,
+        });
+      } else {
+        postToMonitor(`/api/relay/dispatch/${activeDM.dispatch_id}/complete`, {
+          result_summary: resultRaw.slice(0, 1000),
+          exit_code: exitCode,
+          duration_sec: duration,
+        });
+      }
     }
 
     // ── @coordinator auto-dispatch ──
@@ -3900,21 +3971,17 @@ Verifica manualmente que los cambios funcionan correctamente.`);
       }
     }
 
-    // ── ASK: protocol — agent can pause and ask user a question ──
-    // If agent writes "ASK: <question>" in result, relay sends it to Telegram
-    // and the user replies via /dispatch <project> <answer>
-    const askMatch = /^ASK:\s*(.+)/m.exec(resultRaw);
-    if (askMatch) {
-      const question = askMatch[1].trim().slice(0, 500);
-      log(project.id, `ASK: ${question}`);
+    // ── ASK: Telegram notification (after dispatch marked, before DISPATCH_PARALLEL) ──
+    if (askQuestion) {
+      log(project.id, `ASK: ${askQuestion}`);
       tg(`❓ <b>Pregunta del agente — ${project.name}</b>
 🗂 ${title}
 
 <b>El agente necesita tu respuesta:</b>
-<code>${question}</code>
+<code>${askQuestion}</code>
 
-Para continuar, responde con:
-<code>/dispatch ${project.id} Respuesta: ${question.slice(0, 60)}...</code>`, true);
+Responde con:
+<code>/dispatch ${project.id} ANSWER: tu respuesta</code>`);
     }
 
     // ── DISPATCH_PARALLEL — fire-and-forget parallel sub-tasks ──
@@ -4098,9 +4165,9 @@ La tarea se interrumpió por timeout (${Math.round(CLAUDE_TIMEOUT_MS / 60000)} m
   const execEngine = project.mode || 'claude';
   if (execEngine === 'deepseek-agent') {
     log(project.id, `Motor: deepseek-agent (DeepSeek V4-Pro tool loop)`);
-    runDeepSeekAgent(project, taskContent, onTaskComplete, activeDM);
+    runDeepSeekAgent(project, effectiveTask, onTaskComplete, activeDM);
   } else {
-    runClaude(project, taskContent, onTaskComplete, activeDM, adaptiveTimeout);
+    runClaude(project, effectiveTask, onTaskComplete, activeDM, adaptiveTimeout);
   }
 }
 
