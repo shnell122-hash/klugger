@@ -1,1 +1,1 @@
-Verifica que relay-master está online con pm2 show relay-master.
+Reporta: (1) resultado de pm2 status --no-color, (2) fecha y hora actual del servidor, (3) espacio libre en disco /
