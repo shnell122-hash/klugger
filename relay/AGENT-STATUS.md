@@ -2,7 +2,7 @@
 
 Estado compartido de agentes activos — actualizado por cada agente al terminar su sesión.
 
-_Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02 | Actualizado 2026-05-20_
+_Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02 | Actualizado 2026-05-30_
 
 ## ai-monitor (Claude Code — AI Monitor Dashboard)
 
@@ -12,7 +12,13 @@ _Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02 | Actualizado 20
 | Estado | ✅ Completo |
 | Rama trabajo | `claude/agent-monitoring-dashboard-4v8iq` |
 | Rama relay | `main` |
-| Último commit | `2f5c853 fix: migrate-v19.sql stored procedure MySQL 8.0` |
+| Último commit | `1aca1d3 feat(sprint3): token cache tracking` |
+
+### Cambios sesión 2026-05-30 (Sprint 3 — /ejecutar)
+
+| Archivo | Cambio | Estado |
+|---------|--------|--------|
+| `relay/master.js` | Captura `cache_read/write_tokens` del evento `result`, POST a `/api/sessions/end` al terminar tarea | main ✅ |
 
 ### Cambios sesión 2026-05-30 (Sprint 2 — /ejecutar)
 
