@@ -2513,10 +2513,25 @@ ${taskContent}`;
   const activePidInfo = { pid: child.pid, startTime: Date.now(), jobId, forceTimeout: () => {} };
   ACTIVE_PIDS.set(project.id, activePidInfo);
 
-  let callbackFired = false;
-  let taskCostUsd   = 0;
+  let callbackFired        = false;
+  let taskCostUsd          = 0;
+  let taskCacheReadTokens  = 0;
+  let taskCacheWriteTokens = 0;
+  let taskInputTokens      = 0;
+  let taskOutputTokens     = 0;
   function safeCallback(code, text) {
     if (callbackFired) return;
+    // Report real token counts (incl. cache) to backend session row
+    if (taskInputTokens > 0 || taskOutputTokens > 0 || taskCacheReadTokens > 0) {
+      postToMonitor('/api/sessions/end', {
+        session_id:         sessionId,
+        timestamp:          new Date().toISOString(),
+        input_tokens:       taskInputTokens,
+        output_tokens:      taskOutputTokens,
+        cache_read_tokens:  taskCacheReadTokens,
+        cache_write_tokens: taskCacheWriteTokens,
+      });
+    }
     callbackFired = true;
     // Auto-blacklist Pro proxies that return auth errors → next task will use Max
     if (code !== 0 && proxyBase && proxyBase !== _PROXY_POOL.max &&
@@ -2687,6 +2702,16 @@ Timeout en ${remainMin} min`);
         } else {
           taskCostUsd = 0;
           log(project.id, `costo Max (estimado, no cobrado): $${evt.total_cost_usd.toFixed(6)}`);
+        }
+      }
+      // Capture real token usage (incl. prompt cache) for accurate session tracking
+      if (evt.usage) {
+        taskCacheReadTokens  = evt.usage.cache_read_input_tokens      || 0;
+        taskCacheWriteTokens = evt.usage.cache_creation_input_tokens  || 0;
+        taskInputTokens      = evt.usage.input_tokens                 || 0;
+        taskOutputTokens     = evt.usage.output_tokens                || 0;
+        if (taskCacheReadTokens > 0 || taskCacheWriteTokens > 0) {
+          log(project.id, `cache tokens — read: ${taskCacheReadTokens}, write: ${taskCacheWriteTokens}`);
         }
       }
     }
