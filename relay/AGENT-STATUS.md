@@ -12,7 +12,16 @@ _Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02 | Actualizado 20
 | Estado | ✅ Completo |
 | Rama trabajo | `claude/agent-monitoring-dashboard-4v8iq` |
 | Rama relay | `main` |
-| Último commit | `04e3b01 fix(sprint1): tracking result_summary + git metrics + ai-monitor→Sonnet` |
+| Último commit | `2f5c853 fix: migrate-v19.sql stored procedure MySQL 8.0` |
+
+### Cambios sesión 2026-05-30 (Sprint 2 — /ejecutar)
+
+| Archivo | Cambio | Estado |
+|---------|--------|--------|
+| `backend/db/migrate-v19.sql` | 3 índices en dispatch_tasks (status, project, completed_at) | main ✅ aplicado |
+| `backend/server.js` | Job diario DELETE agent_events > 30 días | main ✅ |
+| `relay/master.js` | SESSION_TTL_MS 4h → 20h (contexto overnight) | main ✅ |
+| `relay/projects.json` | ai-monitor: haiku→sonnet (Sprint 1) | main ✅ |
 
 ### Cambios sesión 2026-05-30 (Sprint 1)
 
