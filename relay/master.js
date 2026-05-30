@@ -3912,6 +3912,37 @@ Verifica manualmente que los cambios funcionan correctamente.`);
     const askMatchResult = /^ASK:\s*(.+)/m.exec(resultRaw);
     const askQuestion    = askMatchResult ? askMatchResult[1].trim().slice(0, 500) : null;
 
+    // Build a reliable result_summary: prefer the structured STATUS block near the end,
+    // fall back to last 1000 chars, and generate a minimal block when output is empty.
+    const statusBlockMatch = /STATUS:\s*(?:done|partial|failed|blocked)[^\n]*(?:\n[A-Z_]+:\s*[^\n]*)*/i.exec(resultRaw);
+    let resultSummaryText;
+    if (statusBlockMatch) {
+      resultSummaryText = statusBlockMatch[0].trim();
+    } else if (resultRaw.trim()) {
+      resultSummaryText = resultRaw.slice(-1000).trim();
+    } else {
+      resultSummaryText = `STATUS: ${exitCode === 0 ? 'done' : 'failed'}\nCHANGED: ninguno\nDEPLOYED: no\nPENDING: sin output del agente`;
+    }
+
+    // Count actual commits and changed files from git (accurate, not text-regex)
+    let gitFilesChanged = 0, gitCommitsMade = 0;
+    if (preRunSha && project.repo) {
+      try {
+        const newLog = execSync(
+          `git -C "${project.repo}" log --oneline ${preRunSha}..HEAD 2>/dev/null`,
+          { timeout: 5000, stdio: 'pipe' }
+        ).toString().trim();
+        gitCommitsMade = newLog ? newLog.split('\n').filter(Boolean).length : 0;
+        if (gitCommitsMade > 0) {
+          const diffNames = execSync(
+            `git -C "${project.repo}" diff --name-only ${preRunSha}..HEAD 2>/dev/null`,
+            { timeout: 5000, stdio: 'pipe' }
+          ).toString().trim();
+          gitFilesChanged = diffNames ? diffNames.split('\n').filter(Boolean).length : 0;
+        }
+      } catch (_) {}
+    }
+
     // Mark dispatch as completed OR waiting_for_input
     if (activeDM.dispatch_id) {
       if (askQuestion) {
@@ -3926,14 +3957,16 @@ Verifica manualmente que los cambios funcionan correctamente.`);
         postToMonitor(`/api/relay/dispatch/${activeDM.dispatch_id}/ask`, {
           question:       askQuestion,
           session_id:     askSessionId,
-          partial_result: resultRaw.slice(0, 1000),
+          partial_result: resultSummaryText.slice(0, 1000),
           duration_sec:   duration,
         });
       } else {
         postToMonitor(`/api/relay/dispatch/${activeDM.dispatch_id}/complete`, {
-          result_summary: resultRaw.slice(0, 1000),
-          exit_code: exitCode,
-          duration_sec: duration,
+          result_summary: resultSummaryText.slice(0, 1000),
+          exit_code:      exitCode,
+          duration_sec:   duration,
+          files_changed:  gitFilesChanged,
+          commits_made:   gitCommitsMade,
         });
       }
     }

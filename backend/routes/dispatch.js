@@ -319,9 +319,13 @@ function extractQualityMetrics(text) {
 
 // ── POST /api/relay/dispatch/:id/complete ────────────────────
 router.post('/dispatch/:id/complete', async (req, res) => {
-  const { result_summary, exit_code, result_items, screenshot_url, duration_sec } = req.body;
+  const { result_summary, exit_code, result_items, screenshot_url, duration_sec,
+          files_changed: bodyFiles, commits_made: bodyCommits } = req.body;
   const status = (exit_code === 0 || exit_code == null) ? 'completed' : 'failed';
-  const { files_changed, commits_made } = extractQualityMetrics(result_summary);
+  // Prefer git-counted values from relay (accurate) over text-regex extraction (unreliable)
+  const extracted = extractQualityMetrics(result_summary);
+  const files_changed = bodyFiles != null ? parseInt(bodyFiles, 10) : extracted.files_changed;
+  const commits_made  = bodyCommits != null ? parseInt(bodyCommits, 10) : extracted.commits_made;
 
   // Update JSON queue
   const queue  = readQueue();
