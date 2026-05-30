@@ -607,6 +607,7 @@ function switchRightTab(tab) {
   if (tab === 'api-admin')     loadApiAdmin();
   if (tab === 'scores')        loadScores();
   if (tab === 'pipeline')      loadPipelineStats();
+  if (tab === 'ab')            loadAbPanel();
 }
 
 // ─── Screenshots panel ────────────────────────────────────
@@ -2205,6 +2206,107 @@ function renderPipelineStats(stats) {
       </div>
     </div>`;
   }).join('');
+}
+
+// ─── A/B Comparison Panel ────────────────────────────────────────────────────
+
+// Reference values from /test evaluation (Claude Code baseline)
+const AB_REF = {
+  success_rate_pct: 95,  // Claude Code interactive ~95-98%
+  avg_min:          8,   // typical CC session 5-15 min
+  avg_files:        3,   // avg files changed per CC task
+  avg_commits:      1.5, // avg commits per CC task
+  avg_tools:        22,  // CC avg tool calls per session
+  avg_cost_usd:     0,   // CC Max subscription = $0 marginal cost
+};
+
+async function loadAbPanel() {
+  const days = document.getElementById('ab-days')?.value || 7;
+  try {
+    const r = await fetch(`${API}/api/relay/dispatch/ab?days=${days}`);
+    if (!r.ok) return;
+    renderAbPanel(await r.json());
+  } catch (err) {
+    console.warn('[ab] load error:', err.message);
+  }
+}
+
+function renderAbPanel(stats) {
+  const container = document.getElementById('ab-stats');
+  if (!container) return;
+
+  if (!stats.length) {
+    container.innerHTML = `<div class="empty-state"><span class="emoji">📊</span>Sin datos de relay en el período</div>`;
+    return;
+  }
+
+  const totalTasks  = stats.reduce((s, r) => s + parseInt(r.total || 0), 0);
+  const totalDone   = stats.reduce((s, r) => s + parseInt(r.completed || 0), 0);
+  const globalRate  = totalTasks > 0 ? (totalDone / totalTasks * 100).toFixed(1) : '0.0';
+  const globalColor = parseFloat(globalRate) >= 85 ? 'var(--green)' : parseFloat(globalRate) >= 60 ? 'var(--yellow)' : 'var(--red)';
+
+  const header = `
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:12px 14px;border-bottom:1px solid var(--border)">
+    <div style="background:var(--glass-deep);border:1px solid var(--border);border-radius:8px;padding:10px 14px;text-align:center">
+      <div style="font-size:22px;font-weight:700;color:${globalColor}">${globalRate}%</div>
+      <div style="font-size:10px;color:var(--text-muted)">Tasa éxito relay</div>
+      <div style="font-size:10px;color:var(--text-muted)">Ref CC: ${AB_REF.success_rate_pct}%</div>
+    </div>
+    <div style="background:var(--glass-deep);border:1px solid var(--border);border-radius:8px;padding:10px 14px;text-align:center">
+      <div style="font-size:22px;font-weight:700;color:var(--accent)">${totalDone}/${totalTasks}</div>
+      <div style="font-size:10px;color:var(--text-muted)">Tareas completadas</div>
+    </div>
+    <div style="background:var(--glass-deep);border:1px solid var(--border);border-radius:8px;padding:10px 14px;text-align:center">
+      <div style="font-size:22px;font-weight:700;color:var(--text)">${(parseFloat(globalRate) >= 85 ? '🎯' : parseFloat(globalRate) >= 60 ? '⚠️' : '🔴')}</div>
+      <div style="font-size:10px;color:var(--text-muted)">Objetivo: ≥85%</div>
+      <div style="font-size:10px;color:var(--text-muted)">${parseFloat(globalRate) >= 85 ? 'ALCANZADO' : 'Brecha: ' + (85 - parseFloat(globalRate)).toFixed(1) + 'pp'}</div>
+    </div>
+  </div>`;
+
+  const colHead = (label, ref) => `<th style="padding:6px 8px;font-size:10px;font-weight:600;color:var(--text-muted);text-align:right;white-space:nowrap">${label}${ref != null ? '<br><span style="color:var(--text-muted);opacity:.6">CC: ' + ref + '</span>' : ''}</th>`;
+
+  const tableHead = `
+  <div style="overflow-x:auto;padding:0 14px 14px">
+  <table style="width:100%;border-collapse:collapse;font-size:11px">
+    <thead>
+      <tr style="border-bottom:1px solid var(--border)">
+        <th style="padding:6px 8px;font-size:10px;font-weight:600;color:var(--text-muted);text-align:left">Proyecto</th>
+        <th style="padding:6px 8px;font-size:10px;font-weight:600;color:var(--text-muted);text-align:right">Tareas</th>
+        ${colHead('Éxito %', AB_REF.success_rate_pct + '%')}
+        ${colHead('Dur avg', AB_REF.avg_min + 'm')}
+        ${colHead('Archivos', AB_REF.avg_files)}
+        ${colHead('Commits', AB_REF.avg_commits)}
+        ${colHead('Tools', AB_REF.avg_tools)}
+        ${colHead('Costo/tarea', '$0')}
+      </tr>
+    </thead>
+    <tbody>`;
+
+  const rows = stats.map(s => {
+    const pct   = parseFloat(s.success_rate_pct || 0);
+    const color = pct >= 85 ? 'var(--green)' : pct >= 60 ? 'var(--yellow)' : 'var(--red)';
+    const icon  = PROJECT_ICONS[s.project] || '🤖';
+    const cell  = (val, ref, fmt, higherBetter = true) => {
+      const v = parseFloat(val || 0);
+      const r = parseFloat(ref);
+      const ok = higherBetter ? v >= r * 0.8 : v <= r * 1.25;
+      const c  = isNaN(r) ? 'var(--text)' : ok ? 'var(--green)' : 'var(--yellow)';
+      return `<td style="padding:5px 8px;text-align:right;color:${c}">${v > 0 ? fmt(v) : '—'}</td>`;
+    };
+    return `
+    <tr style="border-bottom:1px solid var(--border);opacity:.95">
+      <td style="padding:5px 8px;font-weight:600"><span style="font-size:13px">${icon}</span> ${esc(s.project)}</td>
+      <td style="padding:5px 8px;text-align:right;color:var(--text-muted)">${s.total}</td>
+      <td style="padding:5px 8px;text-align:right;color:${color};font-weight:700">${pct.toFixed(1)}%</td>
+      ${cell(s.avg_min, AB_REF.avg_min, v => v.toFixed(1)+'m', false)}
+      ${cell(s.avg_files, AB_REF.avg_files, v => v.toFixed(1))}
+      ${cell(s.avg_commits, AB_REF.avg_commits, v => v.toFixed(1))}
+      ${cell(s.avg_tools, AB_REF.avg_tools, v => parseInt(v))}
+      <td style="padding:5px 8px;text-align:right;color:var(--text-muted)">${parseFloat(s.avg_cost_usd||0) > 0 ? '$'+parseFloat(s.avg_cost_usd).toFixed(4) : '$0'}</td>
+    </tr>`;
+  }).join('');
+
+  container.innerHTML = header + tableHead + rows + '</tbody></table></div>';
 }
 
 // ─── Init ─────────────────────────────────────────────────

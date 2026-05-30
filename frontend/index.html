@@ -88,6 +88,7 @@
   <button class="tab-btn" data-panel="api-admin">API Admin</button>
   <button class="tab-btn" data-panel="scores">Scores</button>
   <button class="tab-btn" data-panel="pipeline">Pipeline</button>
+  <button class="tab-btn" data-panel="ab">A/B</button>
 </div>
 
 <!-- ── Main ── -->
@@ -123,6 +124,7 @@
       <button class="rtab" data-rtab="api-admin">API Admin</button>
       <button class="rtab" data-rtab="scores">Scores</button>
       <button class="rtab" data-rtab="pipeline">Pipeline</button>
+      <button class="rtab" data-rtab="ab">A/B</button>
     </div>
 
     <!-- Agents panel -->
@@ -497,6 +499,25 @@
       </div>
       <div id="coordinator-health" style="padding:0 14px 0"></div>
       <div id="pipeline-stats"></div>
+    </div>
+
+    <div id="ab-panel">
+      <div class="panel-header">
+        <span class="title">A/B — Relay vs Claude Code (referencia)</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <select id="ab-days" style="background:var(--input-bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;font-family:var(--font)" onchange="loadAbPanel()">
+            <option value="1">Hoy</option>
+            <option value="7" selected>7 días</option>
+            <option value="30">30 días</option>
+          </select>
+          <button class="btn-sm" onclick="loadAbPanel()">↻ Refresh</button>
+        </div>
+      </div>
+      <div style="padding:10px 14px 4px;font-size:11px;color:var(--text-muted)">
+        Métricas reales del relay comparadas con valores de referencia de Claude Code interactivo.
+        Objetivo de tasa de éxito: ≥85%.
+      </div>
+      <div id="ab-stats"></div>
     </div>
 
   </div>

@@ -212,6 +212,41 @@ router.get('/dispatch/stats', async (req, res) => {
   }
 });
 
+// ── GET /api/relay/dispatch/ab ───────────────────────────────
+// A/B comparison: relay metrics per project for the dashboard panel
+// Returns per-project: success rate, avg duration, avg files/commits,
+// avg tool calls and avg cost from agent_sessions (joined by project+time window)
+router.get('/dispatch/ab', async (req, res) => {
+  const days = parseInt(req.query.days ?? 7, 10);
+  try {
+    const [rows] = await db.query(
+      `SELECT
+         dt.project,
+         COUNT(*) AS total,
+         SUM(dt.status = 'completed') AS completed,
+         ROUND(100.0 * SUM(dt.status = 'completed') / COUNT(*), 1) AS success_rate_pct,
+         ROUND(AVG(CASE WHEN dt.status = 'completed' THEN dt.duration_sec END) / 60, 1) AS avg_min,
+         ROUND(AVG(CASE WHEN dt.status = 'completed' THEN dt.files_changed END), 1) AS avg_files,
+         ROUND(AVG(CASE WHEN dt.status = 'completed' THEN dt.commits_made END), 1) AS avg_commits,
+         ROUND(AVG(s.tool_call_count), 0) AS avg_tools,
+         ROUND(AVG(s.total_cost_usd), 5) AS avg_cost_usd,
+         ROUND(SUM(s.total_cache_read_tokens) / NULLIF(COUNT(*),0), 0) AS avg_cache_read_tokens
+       FROM dispatch_tasks dt
+       LEFT JOIN agent_sessions s
+         ON s.project_name = dt.project
+        AND s.started_at >= dt.created_at
+        AND s.started_at <= IFNULL(dt.completed_at, NOW())
+       WHERE dt.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+       GROUP BY dt.project
+       ORDER BY total DESC`,
+      [days]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── GET /api/relay/dispatch/:id ───────────────────────────────
 router.get('/dispatch/:id', async (req, res) => {
   try {
