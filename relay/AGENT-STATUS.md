@@ -8,11 +8,20 @@ _Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02 | Actualizado 20
 
 | Campo | Valor |
 |-------|-------|
-| Última sesión | 2026-05-29 |
+| Última sesión | 2026-05-30 |
 | Estado | ✅ Completo |
 | Rama trabajo | `claude/agent-monitoring-dashboard-4v8iq` |
 | Rama relay | `main` |
-| Último commit | `fc963d4 feat: relay/tools-server.js` |
+| Último commit | `04e3b01 fix(sprint1): tracking result_summary + git metrics + ai-monitor→Sonnet` |
+
+### Cambios sesión 2026-05-30 (Sprint 1)
+
+| Archivo | Cambio | Estado |
+|---------|--------|--------|
+| `relay/master.js` | `onTaskComplete`: extrae STATUS block del final, git-counted files/commits, fallback si output vacío | main ✅ |
+| `backend/routes/dispatch.js` | `/complete` acepta `files_changed`/`commits_made` del body (git real) | main ✅ |
+| `relay/projects.json` | `ai-monitor` model: Haiku 4.5 → Sonnet 4.6 | main ✅ |
+| `docs/TEST-REPORT-2026-05-29.md` | Reporte completo 18 dimensiones con plan 4 sprints | main ✅ |
 
 ### Cambios sesión 2026-05-29
 
