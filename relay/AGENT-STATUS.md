@@ -14,6 +14,14 @@ _Fusión de AGENT-STATUS.md + ESTADO-SERVIDOR.md — 2026-05-02 | Actualizado 20
 | Rama relay | `main` |
 | Último commit | `1aca1d3 feat(sprint3): token cache tracking` |
 
+### Cambios sesión 2026-05-30 (P2.2 A/B Panel — /ejecutar)
+
+| Archivo | Cambio | Estado |
+|---------|--------|--------|
+| `backend/routes/dispatch.js` | Nuevo endpoint `GET /api/relay/dispatch/ab` — métricas relay+sessions por proyecto | main ✅ |
+| `frontend/index.html` | Tab "A/B" agregado (left + right navs) + panel `#ab-panel` con selector de días | main ✅ |
+| `frontend/js/dashboard.js` | `loadAbPanel()` + `renderAbPanel()` — tabla per-proyecto con referencia CC + KPIs globales | main ✅ |
+
 ### Cambios sesión 2026-05-30 (Sprint 3 — /ejecutar)
 
 | Archivo | Cambio | Estado |
