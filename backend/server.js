@@ -132,8 +132,19 @@ server.listen(PORT, '0.0.0.0', () => {
     }
   }, 60 * 1000);
 
-  // Project budget enforcer — check per-project monthly limits every 5 min
+  // agent_events TTL cleanup — delete rows older than 30 days once per day
   const db = require('./db/mysql');
+  setInterval(async () => {
+    try {
+      const [r] = await db.query(
+        "DELETE FROM agent_events WHERE timestamp < DATE_SUB(NOW(), INTERVAL 30 DAY)"
+      );
+      if (r.affectedRows > 0)
+        console.log(`[cleanup] agent_events: ${r.affectedRows} filas eliminadas (>30d)`);
+    } catch (_) {}
+  }, 24 * 60 * 60 * 1000);
+
+  // Project budget enforcer — check per-project monthly limits every 5 min
   setInterval(async () => {
     try {
       const [budgets] = await db.query(

@@ -51,7 +51,7 @@ function saveProjectSessions() {
   try { fs.writeFileSync(SESSIONS_FILE, JSON.stringify(PROJECT_SESSIONS)); } catch (_) {}
 }
 // Sessions expire after 4h — avoids passing stale IDs that Claude rejects
-const SESSION_TTL_MS = 4 * 60 * 60 * 1000;
+const SESSION_TTL_MS = 20 * 60 * 60 * 1000; // 20h — allows overnight context continuity
 function getResumeSession(projectId) {
   const entry = PROJECT_SESSIONS[projectId];
   if (!entry || Date.now() - entry.ts > SESSION_TTL_MS) return null;
