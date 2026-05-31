@@ -1,4 +1,4 @@
-import os, logging
+import os, json, logging
 from flask import Blueprint, jsonify, session
 from tools.db import query
 from routes.auth import require_login, ADMIN_EMAILS
@@ -21,6 +21,59 @@ def _pmxn(cost_usd) -> float:
     return round(float(cost_usd or 0) * USER_MARKUP * MXN_PER_USD, 2)
 
 
+def _add_frontend_fields(data: dict, user_email: str = '') -> None:
+    """Normalize response to match Next.js DashboardData type:
+    {total_cost_mxn, total_price_mxn, by_user, by_artifact_type}."""
+    role = data.get('role', 'user')
+    t    = data.get('totals', {})
+
+    if role == 'admin':
+        data.setdefault('total_cost_mxn',  round(float(t.get('cost_usd', 0)) * MXN_PER_USD, 2))
+        data.setdefault('total_price_mxn', round(float(t.get('price_mxn', 0)), 2))
+
+    elif role == 'user':
+        pmxn = float(data.get('price_mxn', 0))
+        data.setdefault('total_price_mxn', round(pmxn, 2))
+        data.setdefault('total_cost_mxn',  round(pmxn / USER_MARKUP, 2))
+        data.setdefault('by_user', [{
+            'email':     user_email,
+            'name':      '',
+            'price_mxn': pmxn,
+            'by_case':   data.get('by_case', []),
+        }])
+
+    elif role == 'org_admin':
+        pmxn = float(t.get('price_mxn', 0))
+        data.setdefault('total_price_mxn', round(pmxn, 2))
+        data.setdefault('total_cost_mxn',  round(pmxn / USER_MARKUP, 2))
+
+    elif role == 'sub_master':
+        data.setdefault('total_cost_mxn',  round(float(t.get('costo_mxn', 0)), 2))
+        data.setdefault('total_price_mxn', round(float(t.get('precio_mxn', 0)), 2))
+        if 'by_user' not in data:
+            by_user = []
+            for org in data.get('orgs', []):
+                for u in org.get('users', []):
+                    by_user.append({
+                        'email':     u.get('email', ''),
+                        'name':      u.get('name', ''),
+                        'price_mxn': u.get('precio_mxn', 0.0),
+                        'by_case':   u.get('by_case', []),
+                    })
+            data['by_user'] = by_user
+
+    # by_artifact_type: aggregate counts from by_user[].by_case[].artifacts
+    if 'by_artifact_type' not in data:
+        agg: dict = {}
+        for u in data.get('by_user', []):
+            for c in u.get('by_case', []):
+                for a in c.get('artifacts', []):
+                    atype = a.get('type', 'other')
+                    agg.setdefault(atype, {'count': 0, 'cost_mxn': 0.0})
+                    agg[atype]['count'] += int(a.get('count', 0))
+        data['by_artifact_type'] = agg
+
+
 @dashboard_bp.route('/api/dashboard/costs')
 @dashboard_bp.route('/api/v1/dashboard')
 @require_login
@@ -31,12 +84,16 @@ def costs():
     is_sm      = session.get('is_sub_master', False)
     is_org_adm = session.get('is_org_admin', False)
     if is_master:
-        return _admin_dashboard()
-    if is_sm:
-        return _sub_master_dashboard(user_id)
-    if is_org_adm:
-        return _org_admin_dashboard(user_id)
-    return _user_dashboard(user_id)
+        resp = _admin_dashboard()
+    elif is_sm:
+        resp = _sub_master_dashboard(user_id)
+    elif is_org_adm:
+        resp = _org_admin_dashboard(user_id)
+    else:
+        resp = _user_dashboard(user_id)
+    data = json.loads(resp.get_data(as_text=True))
+    _add_frontend_fields(data, user_email)
+    return jsonify(data)
 
 
 # ── Admin ────────────────────────────────────────────────────────────────────

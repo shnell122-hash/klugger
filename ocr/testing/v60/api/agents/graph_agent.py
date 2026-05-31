@@ -85,7 +85,7 @@ def _load_case_context(case_id: str) -> str:
         (case_id,), many=True
     ) or []
     uploads = query(
-        "SELECT filename FROM user_artifacts WHERE case_id=%s ORDER BY created_at DESC LIMIT 10",
+        "SELECT filename FROM user_artifacts WHERE case_id=%s LIMIT 10",
         (case_id,), many=True
     ) or []
 

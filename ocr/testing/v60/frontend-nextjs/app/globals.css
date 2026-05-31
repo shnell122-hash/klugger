@@ -53,5 +53,22 @@ body {
   margin: 0.8em 0 0.4em;
 }
 
+/* Tables in markdown */
+.prose-vilar table { width: 100%; border-collapse: collapse; margin: 0.8em 0; font-size: 0.875em; }
+.prose-vilar th, .prose-vilar td { border: 1px solid #30363D; padding: 8px 12px; text-align: left; }
+.prose-vilar th { background: #161B22; color: #8B949E; font-weight: 600; }
+.prose-vilar tr:nth-child(even) { background: #161B22; }
+.prose-vilar blockquote { border-left: 3px solid #58A6FF; padding: 0.2em 1em; margin: 0.8em 0; color: #8B949E; }
+.prose-vilar hr { border: none; border-top: 1px solid #30363D; margin: 1.2em 0; }
+.prose-vilar input[type="checkbox"] { margin-right: 6px; accent-color: #58A6FF; }
+
+/* Document variant — more spacing, for full-page artifact viewer */
+.prose-vilar-doc { font-size: 0.9375rem; line-height: 1.75; color: #E6EDF3; }
+.prose-vilar-doc h1 { font-size: 1.5em; margin: 1.2em 0 0.5em; }
+.prose-vilar-doc h2 { font-size: 1.25em; margin: 1em 0 0.4em; border-bottom: 1px solid #21262D; padding-bottom: 0.3em; }
+.prose-vilar-doc h3 { font-size: 1.1em; margin: 0.9em 0 0.35em; }
+.prose-vilar-doc p  { margin: 0.75em 0; }
+.prose-vilar-doc li { margin: 0.35em 0; }
+
 /* Scrollable containers */
 .overflow-scroll-x { overflow-x: auto; }

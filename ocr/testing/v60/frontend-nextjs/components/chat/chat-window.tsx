@@ -37,6 +37,22 @@ export function ChatWindow({ caseId }: { caseId: string }) {
 
   const { onArtifact } = useSocket();
 
+  // Load chat history on mount
+  useEffect(() => {
+    if (!caseId) return;
+    fetch(`/api/chat/history/${caseId}`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.history?.length) {
+          setMessages(d.history.map((h: { role: string; content: string }) => ({
+            role: h.role as 'user' | 'assistant',
+            content: h.content,
+          })));
+        }
+      })
+      .catch(() => {});
+  }, [caseId]);
+
   // Listen for artifact:new from socket
   useEffect(() => {
     return onArtifact(e => {

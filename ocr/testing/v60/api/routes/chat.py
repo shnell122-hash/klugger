@@ -577,8 +577,9 @@ ARTIFACT_TEMPLATES = {
         "Incluir encabezado, fundamentos de hecho y derecho, petitorio y firma."
     ),
     "html": (
-        "Genera el documento completo en HTML limpio y semántico. "
-        "Sin scripts ni estilos inline peligrosos."
+        "Genera el documento completo en Markdown rico y bien estructurado. "
+        "Usa ## encabezados, **negritas**, tablas GFM, listas, > blockquotes. "
+        "Sin HTML ni scripts — el contenido se renderiza nativo en la app con el diseño del cliente."
     ),
     "checklist": (
         "Genera un CHECKLIST detallado en formato markdown con checkboxes [ ] "
@@ -589,7 +590,7 @@ ARTIFACT_TEMPLATES = {
 MAX_TOKENS_BY_TYPE = {
     "contract": 64000,
     "brief":    64000,
-    "html":     64000,
+    "html":     16000,
     "analysis": 64000,
     "summary":  4096,
     "checklist":4096,
@@ -1794,3 +1795,18 @@ def chat_stream():
             'X-Accel-Buffering': 'no',
         }
     )
+
+
+@chat_bp.route('/api/v1/tools/generate_graph', methods=['POST'])
+@require_login
+def generate_graph_endpoint():
+    """REST endpoint for case relationship graph (used by Next.js /cases/[id]/graph)."""
+    from agents.graph_agent import generate_case_graph
+    body    = request.get_json(force=True, silent=True) or {}
+    case_id = body.get('case_id', '').strip()
+    if not case_id:
+        return jsonify({'error': 'case_id requerido'}), 400
+    result = generate_case_graph(case_id)
+    if 'error' in result and 'mermaid' not in result:
+        return jsonify(result), 422
+    return jsonify(result)

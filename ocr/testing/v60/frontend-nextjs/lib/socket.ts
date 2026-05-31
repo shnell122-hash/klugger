@@ -8,7 +8,8 @@ export function getSocket(): Socket {
     _socket = io({
       // Connect to the same origin; Apache proxies /testing/v60/socket.io/ → Flask
       path: '/testing/v60/socket.io/',
-      transports: ['websocket', 'polling'],
+      // Werkzeug can't handle WebSocket upgrades — polling works reliably via Apache proxy
+      transports: ['polling'],
       withCredentials: true,
       autoConnect: false,
     });

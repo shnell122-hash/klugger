@@ -28,7 +28,7 @@ Run all of these in a single Node.js script via exec_server. Use a 10s timeout p
 | 3 | GET | `/api/auth/me` | 200, is_org_admin=true | requires cookie from step 2 |
 | 4 | GET | `/api/cases` | 200 | |
 | 5 | POST | `/api/cases` | 201, case_id present | body: `{case_name, description}` |
-| 6 | GET | `/api/artifacts/<case_id>` | 200, artifacts=[] | use case_id from step 5 |
+| 6 | GET | `/api/artifacts/<case_id>` | 200, array response | use case_id from step 5; endpoint returns `[]` directly (not `{artifacts:[]}`) |
 | 7 | GET | `/api/dashboard/costs` | 200, totals present | |
 | 8 | GET | `/api/admin/stats` | 200 | |
 | 9 | GET | `/api/admin/my-org` | 200 | |
