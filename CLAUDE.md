@@ -1,10 +1,15 @@
-# CLAUDE.md — ai-monitor / agentic-repo
+# CLAUDE.md — ai-monitor / ocr-ruby-lease
 
-> Archivo de referencia para agentes Claude Code. Actualizado 2026-05-02.
+> Archivo de referencia para agentes Claude Code. Actualizado 2026-05-31.
+>
+> **REPOSITORIO CANÓNICO**: `vilarkptl-lang/ocr-ruby-lease`
+> Branch de trabajo principal: `main`
+> El repo `vilarkptl-lang/agentic-repo` fue el workspace de transición — ya no se usa.
+> Toda sesión nueva debe conectarse a **ocr-ruby-lease**.
 
 ---
 
-## Servidor de producción
+## Repositorio
 
 | Campo | Valor |
 |-------|-------|
