@@ -70,7 +70,7 @@ def list_cases():
                 "FROM cases WHERE owner_email=%s ORDER BY updated_at DESC LIMIT 100",
                 (email,), many=True
             )
-    return jsonify({"cases": rows or []})
+    return jsonify(rows or [])
 
 
 @cases_bp.route('/api/cases', methods=['POST'])

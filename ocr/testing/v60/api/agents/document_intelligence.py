@@ -82,13 +82,47 @@ def _analyze_image(file_path: str, context: str, doc_type: str) -> dict:
 
 
 def _analyze_pdf(file_path: str, context: str, doc_type: str) -> dict:
+    """Analiza PDF con Gemini nativo (inline_data). Fallback a PyMuPDF si falla."""
+    MAX_PDF_BYTES = 20 * 1024 * 1024
+    size = os.path.getsize(file_path)
+
+    if size <= MAX_PDF_BYTES:
+        # Intentar con Gemini nativo
+        try:
+            return _analyze_pdf_native(file_path, context, doc_type)
+        except Exception as e:
+            log.warning('_analyze_pdf_native failed (%s), falling back to text', e)
+
+    # Fallback: extraer texto con PyMuPDF
+    return _analyze_pdf_text(file_path, context, doc_type)
+
+
+def _analyze_pdf_native(file_path: str, context: str, doc_type: str) -> dict:
+    """Gemini ve el PDF directamente — sin preprocesamiento."""
+    with open(file_path, 'rb') as f:
+        b64 = base64.b64encode(f.read()).decode()
+
+    messages = [
+        {'role': 'system', 'content': _SYSTEM},
+        {'role': 'user', 'content': [
+            {'type': 'image_url', 'image_url': {'url': f'data:application/pdf;base64,{b64}'}},
+            {'type': 'text', 'text': _prompt(context, doc_type)},
+        ]},
+    ]
+    resp = route_by_tier(TIER_MULTIMODAL, messages, max_tokens=2000,
+                         response_format={'type': 'json_object'})
+    return json.loads(extract_text(resp))
+
+
+def _analyze_pdf_text(file_path: str, context: str, doc_type: str) -> dict:
+    """Fallback: extrae texto con PyMuPDF y analiza con TIER_MULTIMODAL."""
     try:
         import fitz
         doc = fitz.open(file_path)
         text = '\n'.join(page.get_text() for page in doc)
         doc.close()
     except ImportError:
-        return {'error': 'PyMuPDF no instalado'}
+        return {'error': 'PyMuPDF no instalado y PDF > 20MB'}
 
     messages = [
         {'role': 'system', 'content': _SYSTEM},

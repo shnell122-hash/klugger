@@ -27,7 +27,7 @@ def list_artifacts_by_case(case_id):
 
     if src_filter in ('all', 'user'):
         rows = query(
-            """SELECT artifact_id, case_id, filename AS name, mime_type,
+            """SELECT artifact_id, case_id, filename AS artifact_name, mime_type,
                       file_size_bytes, checksum_sha256,
                       CHAR_LENGTH(extracted_text) AS text_len,
                       uploaded_at AS created_at,
@@ -76,7 +76,7 @@ def list_artifacts_by_case(case_id):
         results.extend(rows or [])
 
     results.sort(key=lambda x: str(x.get('created_at', '')), reverse=True)
-    return jsonify({"artifacts": results})
+    return jsonify(results)
 
 
 @artifacts_bp.route('/api/artifacts/file/<artifact_id>', methods=['GET'])
@@ -160,7 +160,7 @@ def list_artifacts():
     # --- user_artifacts (subidos por usuario) ---
     if src_filter in ('all', 'user'):
         rows = query(
-            """SELECT artifact_id, case_id, filename AS name, mime_type,
+            """SELECT artifact_id, case_id, filename AS artifact_name, mime_type,
                       file_size_bytes, checksum_sha256,
                       CHAR_LENGTH(extracted_text) AS text_len,
                       uploaded_at AS created_at,
@@ -207,7 +207,7 @@ def list_artifacts():
 
     # Ordenar mezclados por fecha
     results.sort(key=lambda x: str(x.get('created_at', '')), reverse=True)
-    return jsonify({"artifacts": results})
+    return jsonify(results)
 
 
 @artifacts_bp.route('/api/v1/artifacts/<artifact_id>', methods=['GET'])
