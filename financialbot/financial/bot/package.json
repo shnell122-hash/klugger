@@ -1,0 +1,22 @@
+{
+  "name": "financial-multiagent-bot",
+  "version": "1.0.0",
+  "description": "Sistema multiagéntico financiero con Telegram",
+  "main": "financial-bot.js",
+  "scripts": {
+    "start": "node financial-bot.js",
+    "dev": "node --watch financial-bot.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@google/generative-ai": "^0.21.0",
+    "@langchain/core": "^0.3.0",
+    "@langchain/langgraph": "^0.2.0",
+    "dotenv": "^16.4.5",
+    "grammy": "^1.31.0",
+    "mysql2": "^3.9.7",
+    "openai": "^4.90.0",
+    "pdf-parse": "^1.1.1",
+    "xlsx": "^0.18.5"
+  }
+}
