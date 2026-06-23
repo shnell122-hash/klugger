@@ -258,20 +258,31 @@ function CompsTable({ data, filter }: { data: any[]; filter: string }) {
 // =====================================================
 function DatabaseTab() {
   const [dbSearch, setDbSearch] = useState('');
-  const [showOnlyValid, setShowOnlyValid] = useState(true); // toggle full vs clean/valid
+  const [showOnlyValid, setShowOnlyValid] = useState(false); // default to full 176 so all are visible
   const [sortBy, setSortBy] = useState<'price' | 'size' | 'ppm'>('ppm');
   const [page, setPage] = useState(1);
   const perPage = 25;
 
   // Full raw DB from scraper (176 entries) processed with loop
+  // Improved parsing: robust number extraction, force positive, handle various formats ($, dots, commas, etc.)
+  function parsePositiveNumber(val: any): number {
+    if (val == null || val === '') return 0;
+    let s = String(val)
+      .replace(/[^0-9.,-]/g, '')   // keep digits, dot, comma, minus
+      .replace(/,/g, '')           // remove thousand separators (common in MX)
+      .replace(/\.(?=.*\.)/g, ''); // if multiple dots, keep only last as decimal
+    const n = parseFloat(s);
+    return isNaN(n) ? 0 : Math.abs(n); // always positive number
+  }
+
   const fullDB = useMemo(() => {
     const list: any[] = [];
     for (const row of terrenosFullRaw as any[]) {
-      const price = parseFloat(String(row.price || '').replace(/,/g, '')) || 0;
-      const size = parseFloat(String(row.size_m2 || '').replace(/,/g, '')) || 0;
-      const isValid = price > 100000 && size > 80; // same filter as modelo
-      const ppm = size > 0 ? Math.round(price / size) : 0;
-      const implied = Math.round(660 * (size > 0 ? price / size : 0));
+      const price = parsePositiveNumber(row.price);
+      const size = parsePositiveNumber(row.size_m2);
+      const isValid = price > 100000 && size > 80;
+      const ppm = (size > 0 && price > 0) ? Math.round(price / size) : 0;
+      const implied = (size > 0 && price > 0) ? Math.round(660 * (price / size)) : 0;
       list.push({
         ...row,
         price,
@@ -316,10 +327,21 @@ function DatabaseTab() {
   const totalPages = Math.ceil(processed.length / perPage);
   const pageItems = processed.slice((page - 1) * perPage, page * perPage);
 
+  const validForPpm = fullDB.filter((r: any) => r.isValid && r.ppm > 0);
+  const fullPpmValues = validForPpm.map((r: any) => r.ppm);
+  const fullAvgPpm = fullPpmValues.length > 0 ? Math.round(fullPpmValues.reduce((a,b)=>a+b,0) / fullPpmValues.length) : 0;
+  const fullMedianPpm = fullPpmValues.length > 0 ? fullPpmValues.sort((a,b)=>a-b)[Math.floor(fullPpmValues.length/2)] : 0;
+
+  // For clean (always have good data)
+  const cleanPpmValues = cleanList.map((c:any) => c.ppm);
+  const cleanMedianPpm = cleanPpmValues.sort((a,b)=>a-b)[Math.floor(cleanPpmValues.length/2)];
+
   const stats = {
     total: fullDB.length,
     valid: fullDB.filter((r: any) => r.isValid).length,
-    avgPpm: Math.round(fullDB.filter((r: any) => r.isValid).reduce((s: number, r: any) => s + r.ppm, 0) / (fullDB.filter((r: any) => r.isValid).length || 1)),
+    avgPpmFull: fullAvgPpm,
+    medianPpmFull: fullMedianPpm,
+    medianPpmClean: cleanMedianPpm,
   };
 
   const exportCSV = () => {
@@ -370,7 +392,7 @@ function DatabaseTab() {
           onClick={() => { setShowOnlyValid(!showOnlyValid); setPage(1); }}
           className={`px-4 py-2 rounded-2xl text-sm font-medium border ${showOnlyValid ? 'bg-[#7c3aed] text-white border-[#7c3aed]' : 'border-[#1e1e2e] hover:bg-[#1a1a22]'}`}
         >
-          {showOnlyValid ? 'Mostrando: 12 Limpios (click para ver 176 Raw)' : 'Mostrando: Toda la Base 176 (click para ver solo limpios)'}
+          {showOnlyValid ? 'Mostrando: 12 Limpios (click para ver 176 Raw)' : 'Mostrando: Toda la Base 176 Raw (click para solo limpios)'}
         </button>
 
         <button onClick={exportCSV} className="px-4 py-2 rounded-2xl bg-[#111118] border border-[#1e1e2e] hover:bg-[#1a1a22] text-sm">
@@ -396,23 +418,27 @@ function DatabaseTab() {
         </select>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {/* Stats - including median ppm for full base and clean */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className="glass p-3 rounded-xl border border-[#1e1e2e]">
           <div className="text-xs text-gray-500">Entradas en vista actual</div>
           <div className="text-2xl font-mono font-bold">{processed.length}</div>
-        </div>
-        <div className="glass p-3 rounded-xl border border-[#1e1e2e]">
-          <div className="text-xs text-gray-500">Promedio $/m² (válidas)</div>
-          <div className="text-2xl font-mono font-bold text-[#a78bfa]">{stats.avgPpm}</div>
         </div>
         <div className="glass p-3 rounded-xl border border-[#1e1e2e]">
           <div className="text-xs text-gray-500">Total scraper original</div>
           <div className="text-2xl font-mono font-bold">{stats.total}</div>
         </div>
         <div className="glass p-3 rounded-xl border border-[#1e1e2e]">
-          <div className="text-xs text-gray-500">Página</div>
-          <div className="text-2xl font-mono font-bold">{page} / {totalPages}</div>
+          <div className="text-xs text-gray-500">Prom. $/m² (full con datos)</div>
+          <div className="text-2xl font-mono font-bold text-[#a78bfa]">{stats.avgPpmFull || 'N/D'}</div>
+        </div>
+        <div className="glass p-3 rounded-xl border border-[#1e1e2e]">
+          <div className="text-xs text-gray-500">Mediana $/m² (full con datos)</div>
+          <div className="text-2xl font-mono font-bold text-[#10b981]">{stats.medianPpmFull || 'N/D'}</div>
+        </div>
+        <div className="glass p-3 rounded-xl border border-[#1e1e2e]">
+          <div className="text-xs text-gray-500">Mediana $/m² (limpios 12)</div>
+          <div className="text-2xl font-mono font-bold text-white">{stats.medianPpmClean}</div>
         </div>
       </div>
 
@@ -442,8 +468,8 @@ function DatabaseTab() {
                     </td>
                     <td className="px-3 py-2 text-right font-mono text-[#a78bfa] text-xs">{c.price ? fmtMoney(c.price) : '-'}</td>
                     <td className="px-3 py-2 text-right font-mono text-xs">{c.size_m2 || '-'}</td>
-                    <td className="px-3 py-2 text-right font-mono text-xs">{c.ppm || '-'}</td>
-                    <td className="px-3 py-2 text-right font-mono text-xs">{c.implied_for_660 || c.implied || '-'}</td>
+                    <td className="px-3 py-2 text-right font-mono text-xs">{c.ppm > 0 ? c.ppm : 'N/D'}</td>
+                    <td className="px-3 py-2 text-right font-mono text-xs">{c.implied_for_660 > 0 ? fmtMoney(c.implied_for_660) : 'N/D'}</td>
                     <td className="px-3 py-2">
                       {c.link ? <a href={c.link} target="_blank" className="text-[#7c3aed] underline text-xs">ver</a> : '-'}
                     </td>
@@ -466,9 +492,12 @@ function DatabaseTab() {
       </div>
 
       <div className="text-xs text-gray-500">
-        Loop simple sobre el JSON completo del scraper (176 entradas). Las filas con precio y m² válidos se resaltan. 
-        Usa el toggle arriba para alternar entre los 12 limpios (usados en valuación) y toda la base raw. 
-        Los datos raw incluyen entradas ruidosas del scraper (páginas de categoría, sin m², etc.).
+        Loop simple (for ... of) sobre el JSON completo del scraper (176 entradas). Tabla renderiza **todas** las filas visibles vía paginación y filtro.
+        <br />
+        <strong>Por qué muchos ppm=0 o N/D:</strong> El scraper no extrajo size_m2 en la mayoría de listados con precio (regex falló en el HTML de las páginas). Por eso no se puede calcular $/m² real para la mayoría de las 176. 
+        Las 12 "limpios" tienen m² validados manualmente para el modelo de valuación. Los precios se parsean ahora de forma robusta (parsePositiveNumber) para siempre dar número positivo.
+        <br />
+        Mediana $/m² calculada y mostrada arriba para la base completa (donde hay datos) y para los limpios.
       </div>
     </div>
   );
