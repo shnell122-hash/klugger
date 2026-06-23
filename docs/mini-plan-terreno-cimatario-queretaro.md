@@ -207,6 +207,8 @@ Completado el entregable pedido:
 
 El dashboard comunica TODO: tabla DB limpia, valuación numérica+formulas, vector comparación, y el panel "cuánto tardaríamos en vender según precio" con gráfica muy visual.
 
+**Compliance scraping (fase actual)**: delays 1-1.2s + playwright/requests con User-Agent realista (ver scraper.py líneas 13, 60+). Solo URLs públicas + datos agregados de listings (sin datos personales, sin fotos por instrucción explícita). Alineado a LFPDPPP y reglas del REAL_ESTATE_ROADMAP (nunca bypass, ethical wrappers). CSV/JSON versionados en git.
+
 Próximo: integrar este TSX en landing/ o en financialbot/dashboard-financial real, agregar outreach para reducir el tiempo estimado, y vision en las fotos del terreno para enriquecer features del modelo.
 
 ---
