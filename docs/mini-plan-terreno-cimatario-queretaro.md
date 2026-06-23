@@ -28,17 +28,22 @@ Este plan sigue el **REAL_ESTATE_ROADMAP.md** (adaptado del PLAN_MAESTRO de ocr-
 - **Otras specs**: Excelente ubicación con alta plusvalía. Permite desarrollo de 3 apartamentos por nivel en 4 niveles.
 - **Fotos**: 19 fotos en la galería (muestran el terreno vacío/plano, accesos, entorno urbano con casas y potencial de desarrollo. Una imagen de ejemplo descargada localmente en `C:\Users\noela\temp_images\terreno_1` para análisis).
 
-### Análisis de Imágenes (usando Vision Agent)
-- **Herramienta planeada**: VisionAgent (`klugger/financialbot/financial/bot/agents/vision-agent.js` o pill.ai `computer.vision` con Gemini Flash vía la key en `.env`).
-- **Estado actual**: 
-  - El listing menciona 19 fotos de alta calidad mostrando el terreno listo para construcción, accesos viales, contexto de colonia con edificaciones cercanas (indica zona consolidada con plusvalía).
-  - Imagen de ejemplo descargada (107 KB JPG) – típica de lote urbano plano, sin construcciones actuales, rodeado de residencias y calles (potencial alto para multifamiliar).
-  - Facebook share probablemente replica fotos o agrega más visuals/marketing (post con el mismo texto: "Terreno col. Cimatario , Ideal para Desarrollo, Alta plusvalía, Excelente Ubicación Centro Querétaro" a $7M).
-- **Próximo**: Correr vision agent en las imágenes locales + screenshots del listing/FB para extraer:
-  - Detalles visuales (topografía, vegetación, estado actual, vistas, calidad de acceso).
-  - Texto/letreros visibles.
-  - Potencial estético para marketing (ángulos para renders, "antes/después").
-  - Datos para comps (comparables visuales de otros terrenos).
+### Análisis de Imágenes (usando Vision Agent del proyecto)
+- **Herramienta**: VisionAgent del proyecto en `financialbot/financial/bot/agents/vision-agent.js` (prioriza Gemini Flash vía GOOGLE_API_KEY del .env del klugger repo - costo-eficiente como en el roadmap). 
+- **Imágenes del caso**: Ahora dentro del repo en `cases/terreno-cimatario-queretaro/images/` (4 imágenes descargadas de las fuentes para análisis; el listing tiene 19 en galería).
+- **Runner script creado**: `cases/terreno-cimatario-queretaro/analyze-images-with-vision.js` (usa el VisionAgent del proyecto, procesa las imágenes locales con prompt adaptado a real estate/development, guarda JSON en data/vision-analysis.json).
+- **Cómo correr** (dentro de klugger, con .env cargada):
+  ```
+  cd financialbot/financial  # o donde estén las deps/node_modules
+  node ../../cases/terreno-cimatario-queretaro/analyze-images-with-vision.js
+  ```
+- **Estado actual (sintetizado del listing + imágenes descargadas, pendiente ejecución full del agent)**: 
+  - Fotos muestran terreno vacío/plano listo para construcción, accesos viales, entorno de colonia residencial con casas 1-2 niveles cercanas (buena consolidación, alto potencial densificación per specs).
+  - Alta calidad visual para marketing (ángulos limpios del lote, contexto urbano).
+  - Facebook/IG posts repiten el listing para promover el desarrollo.
+- **Próximo en plan**: Ejecutar el runner (usará tu Gemini key), integrar outputs al scraper y marketing (descripciones para posts, moodboard, etc.).
+
+**Nota**: Si pill.ai o node no están listos, el script usa el agent del proyecto directamente. Todo dentro de este repo klugger.
 
 **Nota sobre FB**: El tool de fetch retornó redirección sin contenido detallado (común en shares de FB). El post de Instagram relacionado repite la info del listing.
 
