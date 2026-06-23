@@ -73,6 +73,28 @@ Este plan sigue el **REAL_ESTATE_ROADMAP.md** (adaptado del PLAN_MAESTRO de ocr-
   - Frecuencia: Script inicial + scheduled (usar hooks o cron en deploy).
 - **Entregable**: Dataset inicial + reporte "Comps Cimatario - Terrenos para Desarrollo" (precio promedio/m², factores de plusvalía).
 
+**Estrategia para scrapers con más éxito (terrenos similares a este en la zona)**:
+- Priorizar fuentes locales con alta densidad de listings en Cimatario/Querétaro: Pincali/EasyBroker (ya usado para este caso), Inmuebles24, Lamudi, Vivanuncios, Facebook Marketplace e Instagram (buscar posts de agentes locales como MHabitat).
+- Queries efectivas: "terreno venta Cimatario Querétaro", "terreno desarrollo residencial Querétaro 600m2", "terreno Cimatario COS" o por código postal 76030 + colonias aledañas.
+- Enfoque en similitud: Filtrar por m² (500-800), uso (terreno/habitacional/desarrollo), mencionar potencial construcción (COS/CUS o "para construir apartamentos").
+- Éxito incrementado con: 
+  - pill.ai browser agent para navegación dinámica y screenshots automáticos.
+  - VisionAgent (Gemini Flash) post-scrape para describir fotos de comps (estado, entorno, potencial visual) y enriquecer datos.
+  - Rotación de user-agents y delays para evitar bans.
+  - Monitoreo de nuevas listings vía búsquedas programadas o alerts de sitios.
+- Esto generará rápidamente 20-50 comps de terrenos similares para el modelo de precio.
+
+**Decisión para la base de datos en esta etapa**:
+- **CSV es la mejor decisión ahora**.
+  - Razones: Etapa inicial/prototipo (un caso + scraper para decenas de comps). Simple, sin servidores ni setup (Postgres/Mongo requieren instalación/config). Fácil de versionar con git, abrir en Excel/pandas para análisis rápido y modelo de precio. Rápido para iterar el estudio de mercado.
+  - Almacenar en `cases/terreno-cimatario-queretaro/data/terrenos_similares.csv` con columnas: precio, m2, colonia, link, cos, cus, potencial_unidades, descripcion_vision, etc.
+- **Evolución recomendada**: 
+  - CSV → MongoDB (flexible para datos variables de listings + descripciones de vision agent, queries fáciles con pymongo).
+  - O Postgres si se prefiere estructura relacional para el modelo de precio (buenas joins y analytics).
+- No empezar con DB compleja para evitar overhead en esta fase temprana del roadmap (enfocarse en scraper + datos + modelo primero).
+
+**Paso 1.2: Modelo de Precio y Cálculo** (continúa igual, ahora con CSV como fuente).
+
 **Paso 1.2: Modelo de Precio y Cálculo**
 - **Basado en roadmap**: Usar agents de código (coder agent de pill.ai o financialbot), tiers baratos para bulk.
 - **Modelo simple**:
