@@ -1,11 +1,11 @@
-﻿price,size_m2,title,location,link,source,scraped_at
-2550000,300,"Lote / Terreno en Venta en Cumbres del Cimatario","Cumbres del Cimatario, Querétaro",https://www.lamudi.com.mx/detalle/...,https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/,2026-06-23T00:00:00+00:00
-1136500,234,"VENTA TERRENO EN CLUB DE GOLF EL ENCINO","Cumbres del Cimatario, Querétaro",https://www.lamudi.com.mx/detalle/...,https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/,2026-06-23T00:00:00+00:00
-2750000,300,"Terreno Frente al Area Verde 300m²","Cumbres del Cimatario, Querétaro",https://www.lamudi.com.mx/detalle/...,https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/,2026-06-23T00:00:00+00:00
-2550000,322,"EXCELENTE TERRENO EN CONDOMINIO LA BIZNAGA","Cumbres del Cimatario, Querétaro",https://www.lamudi.com.mx/detalle/...,https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/,2026-06-23T00:00:00+00:00
-1200000,120,"Lote / Terreno en Venta en Cumbres del Cimatario","Cumbres del Cimatario, Querétaro",https://www.lamudi.com.mx/detalle/...,https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/,2026-06-23T00:00:00+00:00
-756000,180,"Super Oportunidad!!! Venta excelente terreno frente a área verde en la primera etapa de El Encino","Cumbres del Cimatario, Querétaro",https://www.lamudi.com.mx/detalle/...,https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/,2026-06-23T00:00:00+00:00
-4900000,250,"Terreno habitacional en Colinas del Cimatario","Colinas del Cimatario, Querétaro",https://www.inmuebles24.com/... ,https://www.inmuebles24.com/terrenos-en-venta-en-queretaro-provincia-q-el-cimatario.html,2026-06-23T00:00:00+00:00
-2700000,250,"Terreno habitacional de 250 M2, excelente ubicacion Y plusvalia, muy cerca de plazas comerciales","Cerro Carbonera Colinas del Cimatario , Querétaro",https://www.vivanuncios.com.mx/... ,https://www.vivanuncios.com.mx/s-venta-terrenos/santiago-de-queretaro/cimatario/v1c31l1516q0p1,2026-06-23T00:00:00+00:00
-1100000,180,"Terrenos en Simaté - Cimatario","Simaté Residencial, Corregidora, Queretaro",https://terrenosenqueretaro.com/... ,https://terrenosenqueretaro.com/listado/terrenos-simate/,2026-06-23T00:00:00+00:00
-2250000,300,"Terreno Río | Altozano, Querétaro","Altozano, Querétaro",https://www.instagram.com/... ,https://www.instagram.com/p/DZfai0bijQA/,2026-06-23T00:00:00+00:00
+price,size_m2,title,location,link,source,scraped_at
+2550000,300,Lote / Terreno en Venta en Cumbres del Cimatario,"Cumbres del Cimatario, Querétaro, Querétaro Arteaga",https://example.com/1,https://www.lamudi.com.mx/...,2026-06-23T00:00:00+00:00
+1136500,234,VENTA TERRENO EN CLUB DE GOLF EL ENCINO,"Cumbres del Cimatario, Querétaro, Querétaro Arteaga",https://example.com/2,https://www.lamudi.com.mx/...,2026-06-23T00:00:00+00:00
+2750000,300,Terreno Frente al Area Verde 300m²,"Cumbres del Cimatario, Querétaro, Querétaro Arteaga",https://example.com/3,https://www.lamudi.com.mx/...,2026-06-23T00:00:00+00:00
+2550000,322,EXCELENTE TERRENO EN CONDOMINIO LA BIZNAGA,"Cumbres del Cimatario, Querétaro, Querétaro Arteaga",https://example.com/4,https://www.lamudi.com.mx/...,2026-06-23T00:00:00+00:00
+1200000,120,Lote / Terreno en Venta en Cumbres del Cimatario,"Cumbres del Cimatario, Querétaro, Querétaro Arteaga",https://example.com/5,https://www.lamudi.com.mx/...,2026-06-23T00:00:00+00:00
+756000,180,Super Oportunidad!!! Venta excelente terreno frente a área verde en la primera etapa de El Encino,"Cumbres del Cimatario, Querétaro, Querétaro Arteaga",https://example.com/6,https://www.lamudi.com.mx/...,2026-06-23T00:00:00+00:00
+4900000,250,Terreno habitacional en Colinas del Cimatario,"Colinas del Cimatario, Querétaro",https://example.com/7,https://www.inmuebles24.com/...,2026-06-23T00:00:00+00:00
+2700000,250,"Terreno habitacional de 250 M2, excelente ubicacion Y plusvalia, muy cerca de plazas comerciales","Cerro Carbonera Colinas del Cimatario , Querétaro",https://example.com/8,https://www.vivanuncios.com.mx/...,2026-06-23T00:00:00+00:00
+1100000,180,Terrenos en Simaté - Cimatario,"Simaté Residencial, Corregidora, Queretaro",https://example.com/9,https://terrenosenqueretaro.com/...,2026-06-23T00:00:00+00:00
+2250000,300,"Terreno Río | Altozano, Querétaro","Altozano, Querétaro",https://example.com/10,https://www.instagram.com/...,2026-06-23T00:00:00+00:00
