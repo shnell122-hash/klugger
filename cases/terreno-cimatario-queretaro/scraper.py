@@ -113,41 +113,58 @@ def fetch_with_playwright(url: str, delay: float = 2.5) -> str | None:
         return fetch_with_requests(url, delay)
 
 def parse_lamudi_like(html: str, base_url: str) -> list[dict]:
-    """Improved parser based on lamudi structure (from browse inside klugger)."""
+    """Aggressive parser to extract MANY listings + FULL URLs.
+    Focuses on property detail links (common pattern on these sites).
+    Always produces complete absolute URLs. No photos yet."""
     soup = BeautifulSoup(html, "lxml")
     listings = []
-    # Look for common listing containers on lamudi-like sites
-    cards = soup.select("div[class*='listing'], div[class*='property'], article, .result-item, div[class*='card']") or soup.find_all("div", class_=re.compile(r"(listing|property|card|item)"))
-    for card in cards:
-        text = card.get_text(" ", strip=True)
-        # Stricter price: $ X,XXX,XXX MXN
-        price_m = re.search(r'\$\s*([\d,]+(?:\.\d+)?)\s*MXN', text, re.I)
-        price = price_m.group(1).replace(",", "") if price_m else None
-        # Size: 300 m²
+    seen = set()
+
+    # Find all links that look like property details
+    for a in soup.find_all("a", href=True):
+        href = a["href"]
+        if not any(x in href.lower() for x in ["/detalle/", "/inmueble/", "/propiedad/", "/terreno/"]):
+            continue
+        full_link = urljoin(base_url, href)
+        if full_link in seen:
+            continue
+        seen.add(full_link)
+
+        # Get text from parent container for price/size/title
+        parent = a.find_parent(["div", "article", "li", "section"]) or a.parent
+        text = parent.get_text(" ", strip=True) if parent else a.get_text(" ", strip=True)
+
+        # Price
+        price_m = re.search(r'\$\s*([\d,]+(?:\.\d+)?)', text)
+        price = price_m.group(1).replace(",", "") if price_m else ""
+
+        # Size
         size_m = re.search(r'(\d+(?:\.\d+)?)\s*m²', text, re.I)
-        size = size_m.group(1) if size_m else None
-        # Title
-        title_tag = card.find(["h2", "h3", "a"], class_=re.compile(r"title|name|heading", re.I))
-        title = title_tag.get_text(strip=True)[:200] if title_tag else (text.split('\n')[0][:150] if text else "")
-        # Link
-        a = card.find("a", href=True)
-        link = urljoin(base_url, a["href"]) if a else None
-        # Location from text
-        loc_m = re.search(r'(Cimatario|Cumbres del Cimatario|Querétaro|Col\. [^\s,]+)[^,\n]{0,40}', text, re.I)
-        location = loc_m.group(0).strip() if loc_m else "Cimatario area, Querétaro"
-        if price or size:
-            listings.append({
-                "price": price,
-                "size_m2": size,
-                "title": title,
-                "location": location,
-                "link": link,
-                "source": base_url,
-                "scraped_at": datetime.now(timezone.utc).isoformat(),
-            })
+        size = size_m.group(1) if size_m else ""
+
+        # Title - use link text or nearby heading
+        title = a.get_text(strip=True)[:150]
+        if len(title) < 8:
+            h = (parent.find(["h2", "h3", "h4"]) if parent else None)
+            title = h.get_text(strip=True)[:150] if h else text[:80]
+
+        # Location heuristic
+        loc_m = re.search(r'(Cimatario|Cumbres del Cimatario|Querétaro|Col\. [A-Za-záéíóúñ\s]+)', text, re.I)
+        location = loc_m.group(0).strip() if loc_m else "Querétaro area"
+
+        listings.append({
+            "price": price,
+            "size_m2": size,
+            "title": title,
+            "location": location,
+            "link": full_link,  # COMPLETE URL
+            "source": base_url,
+            "scraped_at": datetime.now(timezone.utc).isoformat(),
+        })
+
     return listings
 
-def get_paginated_urls(start_url: str, max_pages: int = 10) -> list[str]:
+def get_paginated_urls(start_url: str, max_pages: int = 20) -> list[str]:
     """Robust pagination: follows 'siguiente'/'next' and last-child pagination links.
     This addresses the 'last child' following to reach more pages/entries.
     Returns up to max_pages URLs."""
@@ -236,16 +253,17 @@ def main():
     print("klugger scraper (Python + optional Playwright + LLM vision integration)")
     print(f"Playwright available: {PLAYWRIGHT_AVAILABLE}")
     print(f"Gemini key loaded for vision: {'yes' if GEMINI_KEY else 'no (check .env)'}")
-    # Expanded searches for volume (aim 100+ similar terrenos). Use playwright for JS sites.
-    # Add more from research (vivanuncios, other colonias, broad "terreno venta queretaro" + filter similar size/potential).
+    # Expanded searches for volume (aim 100+). Broader + specific to Cimatario area.
+    # Will follow pagination (last-child + next) on each.
     searches = [
         "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
         "https://www.inmuebles24.com/terrenos-en-venta-en-queretaro-provincia-q-el-cimatario.html",
         "https://www.vivanuncios.com.mx/s-venta-terrenos/santiago-de-queretaro/cimatario/v1c31l1516q0p1",
-        "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",  # broader for volume, filter later
-        # Add Colinas del Cimatario, other nearby for similar development plots
+        "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",  # broad - this should have many pages
+        "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cimatario/terreno/for-sale/",  # direct if exists
+        # Add more if needed for 100+
     ]
-    scrape_and_save(searches, max_per_site=50)  # higher to reach 100 total across sites
+    scrape_and_save(searches, max_per_site=100)  # allow up to 100 per search to reach total 100+
     print("\nTip: Enhance parse_lamudi_like for each site. Use vision on any photo URLs collected.")
     print("All changes committed inside klugger repo only. Keys only in local .env.")
 
