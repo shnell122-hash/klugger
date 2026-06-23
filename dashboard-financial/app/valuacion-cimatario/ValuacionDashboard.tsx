@@ -6,6 +6,9 @@ import {
   LineChart, Line, ReferenceLine, Legend, Cell,
 } from 'recharts';
 
+// Full database import for the "toda la base de datos" tab (176 entries from scraper)
+import terrenosFullRaw from './terrenos_full.json';
+
 // ====================================================================
 // ValuacionDashboard.tsx
 // Dashboard mobile-first para valuación comercial del terreno Cimatario
@@ -248,9 +251,414 @@ function CompsTable({ data, filter }: { data: any[]; filter: string }) {
   );
 }
 
+// =====================================================
+// NUEVA PESTAÑA: BASE DE DATOS COMPLETA
+// Visualización exhaustiva de TODA la base de datos (incluyendo las 176 filas raw del scraper)
+// Usando un loop simple para renderizar todas las entradas.
+// =====================================================
+function DatabaseTab() {
+  const [dbSearch, setDbSearch] = useState('');
+  const [showOnlyValid, setShowOnlyValid] = useState(true); // toggle full vs clean/valid
+  const [sortBy, setSortBy] = useState<'price' | 'size' | 'ppm'>('ppm');
+  const [page, setPage] = useState(1);
+  const perPage = 25;
+
+  // Full raw DB from scraper (176 entries) processed with loop
+  const fullDB = useMemo(() => {
+    const list: any[] = [];
+    for (const row of terrenosFullRaw as any[]) {
+      const price = parseFloat(String(row.price || '').replace(/,/g, '')) || 0;
+      const size = parseFloat(String(row.size_m2 || '').replace(/,/g, '')) || 0;
+      const isValid = price > 100000 && size > 80; // same filter as modelo
+      const ppm = size > 0 ? Math.round(price / size) : 0;
+      const implied = Math.round(660 * (size > 0 ? price / size : 0));
+      list.push({
+        ...row,
+        price,
+        size_m2: size,
+        ppm,
+        implied_for_660: implied,
+        isValid,
+      });
+    }
+    return list;
+  }, []);
+
+  // Clean validated ones (the 12 we use for valuation)
+  const cleanList = COMPS_CLEAN.map(c => ({
+    ...c,
+    ppm: Math.round(c.price / c.size_m2),
+    implied_for_660: Math.round(660 * (c.price / c.size_m2)),
+    isValid: true,
+  }));
+
+  const currentList = showOnlyValid ? cleanList : fullDB;
+
+  const processed = useMemo(() => {
+    let list = [...currentList];
+
+    const q = dbSearch.toLowerCase().trim();
+    if (q) {
+      list = list.filter((c: any) =>
+        ((c.title || '') + (c.location || '') + (c.notes || '') + (c.link || '')).toLowerCase().includes(q)
+      );
+    }
+
+    list.sort((a: any, b: any) => {
+      if (sortBy === 'price') return (b.price || 0) - (a.price || 0);
+      if (sortBy === 'size') return (b.size_m2 || 0) - (a.size_m2 || 0);
+      return (b.ppm || 0) - (a.ppm || 0);
+    });
+
+    return list;
+  }, [dbSearch, sortBy, currentList, showOnlyValid]);
+
+  const totalPages = Math.ceil(processed.length / perPage);
+  const pageItems = processed.slice((page - 1) * perPage, page * perPage);
+
+  const stats = {
+    total: fullDB.length,
+    valid: fullDB.filter((r: any) => r.isValid).length,
+    avgPpm: Math.round(fullDB.filter((r: any) => r.isValid).reduce((s: number, r: any) => s + r.ppm, 0) / (fullDB.filter((r: any) => r.isValid).length || 1)),
+  };
+
+  const exportCSV = () => {
+    const listToExport = showOnlyValid ? cleanList : fullDB;
+    const headers = ['title', 'location', 'price', 'size_m2', 'ppm', 'link', 'source'];
+    const rows = listToExport.map((c: any) => [
+      c.title || '', c.location || '', c.price || '', c.size_m2 || '', c.ppm || '', c.link || '', c.source || ''
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = showOnlyValid ? 'comps_clean_12.csv' : 'terrenos_full_176.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportCurrentCSV = () => {
+    const headers = ['title', 'location', 'price', 'size_m2', 'ppm', 'implied_660', 'link'];
+    const rows = processed.map((c: any) => [
+      c.title || '', c.location || '', c.price || '', c.size_m2 || '', c.ppm || '', c.implied_for_660 || '', c.link || ''
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'base_datos_filtrada.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight">Base de Datos Completa (Toda la Base)</h2>
+        <p className="text-sm text-gray-400 mt-1">
+          Loop sobre todas las entradas del scraper. Total scraper: {stats.total} filas. Válidas (con precio y m²): {stats.valid}. 
+          Toggle para ver solo los 12 limpios usados en valuación o toda la base raw.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-3 items-center">
+        <button
+          onClick={() => { setShowOnlyValid(!showOnlyValid); setPage(1); }}
+          className={`px-4 py-2 rounded-2xl text-sm font-medium border ${showOnlyValid ? 'bg-[#7c3aed] text-white border-[#7c3aed]' : 'border-[#1e1e2e] hover:bg-[#1a1a22]'}`}
+        >
+          {showOnlyValid ? 'Mostrando: 12 Limpios (click para ver 176 Raw)' : 'Mostrando: Toda la Base 176 (click para ver solo limpios)'}
+        </button>
+
+        <button onClick={exportCSV} className="px-4 py-2 rounded-2xl bg-[#111118] border border-[#1e1e2e] hover:bg-[#1a1a22] text-sm">
+          Exportar {showOnlyValid ? 'Clean 12' : 'Full 176'} CSV
+        </button>
+
+        <button onClick={exportCurrentCSV} className="px-4 py-2 rounded-2xl bg-[#111118] border border-[#1e1e2e] hover:bg-[#1a1a22] text-sm">
+          Exportar vista actual (filtrada)
+        </button>
+      </div>
+
+      <div className="flex flex-col md:flex-row gap-3">
+        <input
+          value={dbSearch}
+          onChange={e => { setDbSearch(e.target.value); setPage(1); }}
+          placeholder="Buscar en toda la base (título, ubicación, link...)"
+          className="flex-1 bg-[#111118] border border-[#1e1e2e] rounded-2xl px-4 py-2.5 text-sm"
+        />
+        <select value={sortBy} onChange={e => setSortBy(e.target.value as any)} className="bg-[#111118] border border-[#1e1e2e] rounded-2xl px-3 py-2 text-sm">
+          <option value="ppm">Ordenar por $/m² (desc)</option>
+          <option value="price">Ordenar por Precio (desc)</option>
+          <option value="size">Ordenar por m² (desc)</option>
+        </select>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="glass p-3 rounded-xl border border-[#1e1e2e]">
+          <div className="text-xs text-gray-500">Entradas en vista actual</div>
+          <div className="text-2xl font-mono font-bold">{processed.length}</div>
+        </div>
+        <div className="glass p-3 rounded-xl border border-[#1e1e2e]">
+          <div className="text-xs text-gray-500">Promedio $/m² (válidas)</div>
+          <div className="text-2xl font-mono font-bold text-[#a78bfa]">{stats.avgPpm}</div>
+        </div>
+        <div className="glass p-3 rounded-xl border border-[#1e1e2e]">
+          <div className="text-xs text-gray-500">Total scraper original</div>
+          <div className="text-2xl font-mono font-bold">{stats.total}</div>
+        </div>
+        <div className="glass p-3 rounded-xl border border-[#1e1e2e]">
+          <div className="text-xs text-gray-500">Página</div>
+          <div className="text-2xl font-mono font-bold">{page} / {totalPages}</div>
+        </div>
+      </div>
+
+      {/* Table with loop over all (paginated) */}
+      <div className="overflow-x-auto rounded-2xl border border-[#1e1e2e] bg-[#111118]">
+        <table className="w-full text-sm">
+          <thead className="bg-[#0a0a0f] text-gray-400">
+            <tr>
+              <th className="px-3 py-2 text-left">Título / Location</th>
+              <th className="px-3 py-2 text-right">Precio</th>
+              <th className="px-3 py-2 text-right">m²</th>
+              <th className="px-3 py-2 text-right">$/m²</th>
+              <th className="px-3 py-2 text-right">Implied 660m²</th>
+              <th className="px-3 py-2">Link</th>
+              <th className="px-3 py-2">Fuente / Fecha</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#1e1e2e]">
+            {pageItems.length > 0 ? (
+              pageItems.map((c: any, idx: number) => {
+                const isValid = c.isValid || (c.price > 100000 && c.size_m2 > 80);
+                return (
+                  <tr key={idx} className={`${isValid ? 'bg-[#0f0f15]' : 'opacity-70' } hover:bg-[#1a1a22]`}>
+                    <td className="px-3 py-2">
+                      <div className="font-medium text-white text-xs leading-tight">{c.title || 'Sin título'}</div>
+                      <div className="text-[10px] text-gray-500">{c.location || ''}</div>
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono text-[#a78bfa] text-xs">{c.price ? fmtMoney(c.price) : '-'}</td>
+                    <td className="px-3 py-2 text-right font-mono text-xs">{c.size_m2 || '-'}</td>
+                    <td className="px-3 py-2 text-right font-mono text-xs">{c.ppm || '-'}</td>
+                    <td className="px-3 py-2 text-right font-mono text-xs">{c.implied_for_660 || c.implied || '-'}</td>
+                    <td className="px-3 py-2">
+                      {c.link ? <a href={c.link} target="_blank" className="text-[#7c3aed] underline text-xs">ver</a> : '-'}
+                    </td>
+                    <td className="px-3 py-2 text-[10px] text-gray-500 truncate max-w-[120px]">{c.source ? c.source.substring(0,40) : ''}</td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr><td colSpan={7} className="px-3 py-6 text-center text-gray-500">Sin resultados para el filtro.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination with loop logic */}
+      <div className="flex justify-between items-center text-sm">
+        <button onClick={() => setPage(Math.max(1, page-1))} disabled={page === 1} className="px-3 py-1 rounded border border-[#1e1e2e] disabled:opacity-50">← Anterior</button>
+        <span>Página {page} de {totalPages} — Mostrando {pageItems.length} de {processed.length}</span>
+        <button onClick={() => setPage(Math.min(totalPages, page+1))} disabled={page === totalPages} className="px-3 py-1 rounded border border-[#1e1e2e] disabled:opacity-50">Siguiente →</button>
+      </div>
+
+      <div className="text-xs text-gray-500">
+        Loop simple sobre el JSON completo del scraper (176 entradas). Las filas con precio y m² válidos se resaltan. 
+        Usa el toggle arriba para alternar entre los 12 limpios (usados en valuación) y toda la base raw. 
+        Los datos raw incluyen entradas ruidosas del scraper (páginas de categoría, sin m², etc.).
+      </div>
+    </div>
+  );
+}
+
+// =====================================================
+// NUEVA PESTAÑA: MARKETING CONVENCIONAL + NO CONVENCIONAL
+// + Estudio de mercado exhaustivo para el terreno
+// =====================================================
+function MarketingTab() {
+  return (
+    <div className="space-y-8">
+      {/* ESTUDIO DE MERCADO */}
+      <section>
+        <h2 className="text-2xl font-bold tracking-tight mb-2">Estudio de Mercado — Terreno Cimatario 660m²</h2>
+        <div className="glass rounded-3xl p-6 border border-[#1e1e2e] space-y-4 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <div className="text-xs uppercase text-gray-500">Producto</div>
+              <div className="font-semibold">Terreno plano 660 m² con alto potencial de desarrollo multifamiliar (COS 0.60 / CUS 2.4 → ~12 apartamentos en 4 niveles).</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase text-gray-500">Ubicación &amp; Plusvalía</div>
+              <div>Lic. Carlos Septien 53, Cimatario, Querétaro (CP 76030). Zona consolidada con alta plusvalía, cerca de Centro Sur, Parque Nacional Cimatario y vías de acceso a CDMX.</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase text-gray-500">Precio &amp; Comparables</div>
+              <div>Asking $7,000,000 MXN (~$10,606 /m²). <br />Mediana comps limpios: $7,705 /m². <br />Promedio Lamudi área Cumbres/Cimatario (May 2026): $6,433 /m². <br />Valor ajustado por CUS (modelo): $7.48M (rango $6.88M–$8.07M).</div>
+            </div>
+          </div>
+
+          <div>
+            <div className="font-semibold text-[#a78bfa] mb-1">Análisis de Oportunidad</div>
+            <ul className="list-disc pl-5 space-y-1 text-gray-300">
+              <li>La mayoría de comps son lotes para vivienda unifamiliar (1-2 casas). Este permite densidad 12 unidades → prima de +35-40% justificada por CUS 2.4.</li>
+              <li>Demanda 2026 en QRO: mercado dinámico por nearshoring. Alta rotación en renta, pero lotes grandes para desarrollo escasos y con due diligence más largo (4-9 meses típico).</li>
+              <li>Buyer persona principal: Desarrolladores locales y de CDMX que buscan entrada rápida a multifamiliar de escala media (8-15 unidades). Secundario: inversionistas que compren para revender o JV con constructor.</li>
+              <li>Riesgo principal: Precio por m² por encima de mediana (requiere storytelling fuerte del potencial + datos de valuación).</li>
+              <li>Ventana: 2026 es año de crecimiento reportado en Lamudi/Inmuebles24 para Querétaro.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* CONVENCIONAL */}
+      <section>
+        <h3 className="text-xl font-semibold mb-3 flex items-center gap-2">🏛️ Estrategias Convencionales</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[
+            {
+              title: "Agencias y Portales Tradicionales (MLS)",
+              desc: "Listar en Inmuebles24, Lamudi, Vivanuncios, EasyBroker + colaboración con 3-4 brokers locales top en Querétaro. Comisión 3-5%.",
+              cost: "Comisión + fees portales ~$15-30k MXN/mes",
+              timeline: "30-90 días para visibilidad",
+              kpi: "Leads de calidad / visitas al sitio"
+            },
+            {
+              title: "Publicidad Impresa y Exterior",
+              desc: "Anuncios en periódicos locales (Diario de Querétaro), revistas de bienes raíces, lonas y espectaculares en avenidas de alto tráfico (Blvd. Centro Sur, entrada a Cimatario).",
+              cost: "Lona grande $4-8k + impresión + alquiler mensual $8-15k",
+              timeline: "Inmediato + 30 días",
+              kpi: "Llamadas / QR escaneos"
+            },
+            {
+              title: "Eventos Presenciales y Open House",
+              desc: "Días de visita con maquetas físicas o renders 3D del proyecto de 12 unidades. Invitar arquitectos, constructores y desarrolladores locales.",
+              cost: "$5-12k (maqueta + coffee + impresión)",
+              timeline: "Eventos semanales por 4-6 semanas",
+              kpi: "Asistencia + leads calificados"
+            },
+            {
+              title: "Red de Contactos Broker / Despachos",
+              desc: "Visitas 1:1 a 15-20 despachos de arquitectura, constructoras medianas y bancos con productos de crédito puente en QRO.",
+              cost: "Tiempo + materiales ~$3k",
+              timeline: "2-4 semanas intensivas",
+              kpi: "Reuniones → ofertas"
+            }
+          ].map((item, i) => (
+            <div key={i} className="glass rounded-2xl p-5 border border-[#1e1e2e]">
+              <div className="font-semibold text-lg mb-2">{item.title}</div>
+              <div className="text-gray-300 mb-3">{item.desc}</div>
+              <div className="text-xs grid grid-cols-2 gap-y-1">
+                <div className="text-gray-500">Costo estimado:</div><div>{item.cost}</div>
+                <div className="text-gray-500">Tiempo:</div><div>{item.timeline}</div>
+                <div className="text-gray-500">KPI principal:</div><div>{item.kpi}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* NO CONVENCIONAL */}
+      <section>
+        <h3 className="text-xl font-semibold mb-3 flex items-center gap-2">🚀 Estrategias No Convencionales (Data-Driven + Agentic)</h3>
+        <p className="text-sm text-gray-400 mb-4">Alineadas al REAL_ESTATE_ROADMAP (agentes, vision, frontend financialbot, slash commands, landing custom).</p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[
+            {
+              title: "Landing + Dashboard Interactivo (el que ya tenemos)",
+              desc: "Usar este mismo dashboard como principal herramienta de venta. Visitantes ven valuación en tiempo real, comps, tiempo estimado de venta y formulario de lead. QR en el terreno y en todo material físico/digital apunta aquí.",
+              cost: "Bajo (ya desarrollado) + hosting ~$0-500/mes",
+              timeline: "Inmediato",
+              kpi: "Tiempo en página + leads + tasa de conversión"
+            },
+            {
+              title: "Campañas Pagadas Hipersegmentadas (Meta + LinkedIn)",
+              desc: "Ads FB/IG a audiencias custom: 'desarrolladores inmobiliarios Querétaro', 'inversionistas real estate CDMX', intereses en 'nearshoring', 'construcción'. Lookalike de quien ya visitó el listing original. LinkedIn para tomadores de decisión en constructoras.",
+              cost: "$8k-25k MXN / mes (test 2 semanas)",
+              timeline: "Lanzamiento en 48h",
+              kpi: "CPL < $150, ROAS > 3x"
+            },
+            {
+              title: "Generación Masiva de Contenido con Agentes (Roadmap)",
+              desc: "Usar los agentes del proyecto (como /copy en el financialbot) para generar 30-50 piezas: posts, stories, carruseles, emails, guiones de video. Todos con los números duros de valuación y potencial de 12 unidades. Publicar en 3 plataformas + remarketing.",
+              cost: "Bajo (costo API ~$200-600 para batch grande)",
+              timeline: "Producción en 1 semana",
+              kpi: "Engagement rate + shares en grupos de devs"
+            },
+            {
+              title: "Outreach Directo + WhatsApp Business",
+              desc: "Lista de 80-120 desarrolladores y fondos en QRO y CDMX (scrapear LinkedIn o bases públicas). Mensajes personalizados + envío del dashboard como PDF + link interactivo. Secuencia de 3 follow-ups.",
+              cost: "Tiempo + herramienta de email/wa ~$1-3k",
+              timeline: "Campaña 3 semanas",
+              kpi: "Tasa respuesta > 8% → reuniones"
+            },
+            {
+              title: "Contenido de Video + Influencers Locales",
+              desc: "Drone del terreno + renders 3D del edificio de 12 unidades. Colaboración con 2-3 creadores locales de real estate/inversiones (pago + comisión). Webinars 'Cómo lograr 35%+ de utilidad en lote Cimatario 2026'.",
+              cost: "$15-40k (producción + fees influencers)",
+              timeline: "Producción 10 días + 4 semanas de distribución",
+              kpi: "Vistas + leads desde video"
+            },
+            {
+              title: "SEO + Google Ads Long-Tail + Retargeting",
+              desc: "Optimizar para búsquedas 'terreno desarrollo multifamiliar Cimatario', 'lote CUS 2.4 Querétaro'. Retargeting a quien vio el listing original o la landing. Remarketing con la valuación vs asking.",
+              cost: "$5-15k/mes ads + SEO inicial $4k",
+              timeline: "SEO 30-60 días, Ads inmediato",
+              kpi: "Tráfico orgánico + conversión ads"
+            },
+            {
+              title: "Joint-Venture & Partnerships Estratégicos",
+              desc: "Propuesta a 4-5 constructoras medianas de QRO: 'tú pones construcción, yo pongo el lote valorado en 7.47M'. Ofrecer % de utilidad o pago en especie. Acuerdo con banco local para línea de crédito preferente al comprador.",
+              cost: "Presentaciones + viajes locales ~$5k",
+              timeline: "Reuniones en 2-4 semanas",
+              kpi: "LOI / cartas de intención firmadas"
+            },
+            {
+              title: "Guerrilla + QR Físico + Offline Digital",
+              desc: "Lona grande en el terreno con QR gigante que abre el dashboard. Stickers y flyers en eventos inmobiliarios, universidades de arquitectura, y coworkings de QRO. 'El terreno que el modelo valúa en 7.47M – tú decides a 7M'.",
+              cost: "$3-7k total",
+              timeline: "Instalación inmediata",
+              kpi: "Escaneos QR → leads"
+            }
+          ].map((item, i) => (
+            <div key={i} className="glass rounded-2xl p-5 border border-[#1e1e2e] flex flex-col">
+              <div className="font-semibold text-lg mb-2 text-[#a78bfa]">{item.title}</div>
+              <div className="text-gray-300 flex-1 mb-3">{item.desc}</div>
+              <div className="text-xs border-t border-[#1e1e2e] pt-3 grid grid-cols-1 gap-y-0.5">
+                <div><span className="text-gray-500">Costo:</span> {item.cost}</div>
+                <div><span className="text-gray-500">Timeline:</span> {item.timeline}</div>
+                <div><span className="text-gray-500">KPI clave:</span> {item.kpi}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* PLAN INTEGRADO RECOMENDADO */}
+      <section>
+        <h3 className="text-xl font-semibold mb-3">Plan Integrado Recomendado (8-10 semanas)</h3>
+        <div className="space-y-3 text-sm">
+          <div className="glass p-4 rounded-2xl border border-[#1e1e2e]"><strong>Fase 1 (Sem 1-2):</strong> Landing + QR en sitio + outreach directo a 40 desarrolladores + primer batch de contenido generado por agentes. Presupuesto ~$12k.</div>
+          <div className="glass p-4 rounded-2xl border border-[#1e1e2e]"><strong>Fase 2 (Sem 3-5):</strong> Ads pagados + webinars + eventos presenciales + partnerships con 2 constructoras. Presupuesto ~$35k.</div>
+          <div className="glass p-4 rounded-2xl border border-[#1e1e2e]"><strong>Fase 3 (Sem 6-10):</strong> Escalamiento de lo que funcionó + JV negotiations + remarketing agresivo. Meta: 8-12 leads calificados serios + al menos 1 oferta firme.</div>
+        </div>
+        <div className="text-xs text-gray-400 mt-2">Nota: El marketing no convencional (data + agents + landing) puede reducir el tiempo estimado de venta de 6.5 meses a 4-5 meses según benchmarks internos del roadmap.</div>
+      </section>
+
+      <div className="text-center text-xs text-gray-500 pt-4 border-t border-[#1e1e2e]">
+        Todas las propuestas están diseñadas para ser ejecutadas con las herramientas ya existentes en el proyecto klugger (agentes, vision, frontend, scraper). El dashboard actual es la pieza central de diferenciación.
+      </div>
+    </div>
+  );
+}
+
 export default function ValuacionDashboard() {
   const [search, setSearch] = useState('');
   const [showAllComps, setShowAllComps] = useState(false);
+  const [activeTab, setActiveTab] = useState<'valuacion' | 'database' | 'marketing'>('valuacion');
 
   const target = VALUATION.target;
   const models = VALUATION.models;
@@ -309,6 +717,27 @@ export default function ValuacionDashboard() {
           </div>
         </div>
 
+        {/* TABS NAV - mobile first, attractive */}
+        <div className="flex border-b border-[#1e1e2e] mb-2 -mx-1 overflow-x-auto">
+          {(['valuacion', 'database', 'marketing'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-5 py-3 text-sm font-medium whitespace-nowrap transition-all border-b-2 ${
+                activeTab === tab
+                  ? 'border-[#7c3aed] text-white'
+                  : 'border-transparent text-gray-400 hover:text-gray-200'
+              }`}
+            >
+              {tab === 'valuacion' && '📊 Valuación'}
+              {tab === 'database' && '🗄️ Base de Datos'}
+              {tab === 'marketing' && '📣 Marketing + Estudio'}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === 'valuacion' && (
+        <>
         {/* KPIs principales - 2 cols mobile, 4 desktop (exactamente patrón dashboard-financial) */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <KPICard title="Precio Asking" value={target.asking_price} icon="🏷️" color="warning" isMonetary />
@@ -469,7 +898,7 @@ export default function ValuacionDashboard() {
           </div>
 
           <div className="text-xs text-gray-500 px-1">
-            Investigación sintetizada de: Lamudi (reporte 2026 + precio m² área), Inmuebles24 (crecimiento oferta + dinamismo QRO), benchmarks generales de absorción de lotes vacantes en México (mercados secundarios activos: 60-180 días típicos para lotes; lotes grandes o de desarrollo 4-10+ meses). Elasticidad precio observada: precios >15-20% sobre mediana local extienden el tiempo.
+            Investigación sintetizada de: Lamudi (reporte 2026 + precio m² área), Inmuebles24 (crecimiento oferta + dinamismo QRO), benchmarks generales de absorción de lotes vacantes en México (mercados secundarios activos: 60-180 días típicos para lotes; lotes grandes o de desarrollo 4-10+ meses). Elasticidad precio observada: precios &gt;15-20% sobre mediana local extienden el tiempo.
           </div>
         </section>
 
@@ -484,6 +913,16 @@ export default function ValuacionDashboard() {
             <a href="data/valuation_output.json" className="hover:text-white transition" download>valuation_output.json</a>
           </div>
         </div>
+        </>
+        )}
+        {/* BASE DE DATOS TAB */}
+        {activeTab === 'database' && (
+          <DatabaseTab />
+        )}
+        {/* MARKETING + ESTUDIO DE MERCADO TAB */}
+        {activeTab === 'marketing' && (
+          <MarketingTab />
+        )}
       </div>
     </div>
   );

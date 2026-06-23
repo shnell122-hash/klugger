@@ -7,6 +7,13 @@ cd /d "C:\Users\noela\klugger\dashboard-financial"
 
 echo.
 echo Verificando Node.js / npm...
+
+rem Fallback: force standard installation path into PATH for this batch
+set "NODE_DIR=C:\Program Files\nodejs"
+if exist "%NODE_DIR%\node.exe" (
+    set "PATH=%NODE_DIR%;%PATH%"
+)
+
 where node >nul 2>&1
 if %errorlevel% neq 0 (
     echo.
@@ -35,8 +42,8 @@ echo.
 
 echo Verificando si existe node_modules...
 if not exist "node_modules" (
-    echo node_modules no existe. Ejecutando npm install (puede tardar)...
-    call npm install
+    echo node_modules no existe. Ejecutando npm install (puede tardar 1-3 minutos)...
+    call "%NODE_DIR%\npm.cmd" install
     if errorlevel 1 (
         echo.
         echo ERROR: npm install fallo.
@@ -53,7 +60,7 @@ echo.
 echo Cuando veas "Ready" o "Local: http://localhost:3020", abre en Chrome:
 echo http://localhost:3020/valuacion-cimatario
 echo.
-call npm run dev
+call "%NODE_DIR%\npm.cmd" run dev
 
 pause
 echo Servidor detenido.
