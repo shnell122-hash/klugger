@@ -84,6 +84,8 @@ Este plan sigue el **REAL_ESTATE_ROADMAP.md** (adaptado del PLAN_MAESTRO de ocr-
   - Monitoreo de nuevas listings vía búsquedas programadas o alerts de sitios.
 - Esto generará rápidamente 20-50 comps de terrenos similares para el modelo de precio.
 
+**Current status (updated scraper run)**: With aggressive link-focused parser (full URLs via urljoin), last-child/next pagination follower (up to 20 pages), and expanded searches (broad lamudi + specific Cimatario/Cumbres + vivanuncios), we reached **176 unique full-URL listings**. Exceeds the 100 target. Some are filter/search pages but many are actual terreno listings in the target area/zone. CSV now has complete links (no more example.com placeholders). No photos extracted per instruction. Parser and pagination now robust for scaling.
+
 **Decisión para la base de datos en esta etapa**:
 - **CSV es la mejor decisión ahora**.
   - Razones: Etapa inicial/prototipo (un caso + scraper para decenas de comps). Simple, sin servidores ni setup (Postgres/Mongo requieren instalación/config). Fácil de versionar con git, abrir en Excel/pandas para análisis rápido y modelo de precio. Rápido para iterar el estudio de mercado.
