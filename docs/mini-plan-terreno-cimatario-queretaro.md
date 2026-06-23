@@ -173,6 +173,44 @@ Este plan sigue el **REAL_ESTATE_ROADMAP.md** (adaptado del PLAN_MAESTRO de ocr-
 3. Construir el modelo básico.
 4. Adaptar landing para este terreno.
 
+---
+
+## 2026-06-22 Update: Dashboard de Valuación + Tiempo de Venta (TSX)
+
+Completado el entregable pedido:
+
+- **Modelos implementados (REAL_ESTATE_ROADMAP + mini-plan + especificación exacta del usuario)**:
+  - Filtro a terrenos **sin construcción** (12 comps limpios curados desde Lamudi/Inmuebles24 actuales).
+  - Mediana ppm × 660 m² (ejemplo literal del query) → base $5.085M.
+  - Vector de precios: para cada comp se calcula "implied value para 660m²" + delta % vs asking actual.
+  - Ajustes CUS/potencial: ×1.4 (12 unidades vs densidad baja de comps) + ×1.05 zona = modelo ajustado mediana **$7.476M** (rango consenso 6.88M–8.07M).
+  - Referencia Lamudi reportada: 6,433 $/m² área.
+  - Fórmulas completas documentadas numéricamente en el TSX y en el .py.
+
+- **Archivo TSX generado** (mobile-first, ultra atractivo, usa patrones exactos de `dashboard-financial/`):
+  - `cases/terreno-cimatario-queretaro/ValuacionDashboard.tsx`
+  - KPIs glass (copia fiel de KPICard: colores accent #7c3aed, success, warning... + glow blobs).
+  - Secciones glass rounded-2xl/3xl con Tailwind del proyecto.
+  - Explicación de valuación con fórmulas numéricas paso a paso.
+  - Tabla de vector + comps (desktop table + mobile cards stacked, filtro, links reales a listings).
+  - Gráficos Recharts (BarChart de implied values con ReferenceLine en asking 7M; otro Bar+Lines para tiempo de venta).
+  - **Panel nuevo de tiempo estimado de venta** (investigación web): buckets de precio vs meses (5-8 meses estimado para $7M asking actual). Gráfica atractiva con highlight naranja en el bucket del precio actual + rangos optimista/pesimista.
+  - Todo 100% responsive (cols-2 en mobile → md:4), sin servidor, listo para copiar a Next dashboard-financial.
+
+- **Archivos de datos nuevos**:
+  - `data/comps_clean.json` (12 comps puros, con links y notas).
+  - `data/terrenos_similares_clean.csv`.
+  - `data/valuation_output.json` (generado por el modelo; consumible por el TSX o landing).
+
+- **Cómo correr el modelo (actualizado)**: usa el venv de pill.ai o el python del sistema con el CSV/JSON limpios.
+- **Cómo ver el dashboard**: Copia `ValuacionDashboard.tsx` a `dashboard-financial/app/valuacion-cimatario/page.tsx` (o similar) + instala recharts + asegura globals.css + tailwind tokens. O úsalo standalone con Vite/Next mínimo.
+
+El dashboard comunica TODO: tabla DB limpia, valuación numérica+formulas, vector comparación, y el panel "cuánto tardaríamos en vender según precio" con gráfica muy visual.
+
+Próximo: integrar este TSX en landing/ o en financialbot/dashboard-financial real, agregar outreach para reducir el tiempo estimado, y vision en las fotos del terreno para enriquecer features del modelo.
+
+---
+
 Este plan alinea con el roadmap (agentes, vision para fotos, scraping para data, marketing agentic, frontend). Una vez con más data/imágenes, iteramos.
 
 ---
