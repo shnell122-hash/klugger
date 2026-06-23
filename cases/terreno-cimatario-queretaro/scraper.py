@@ -147,22 +147,80 @@ def parse_lamudi_like(html: str, base_url: str) -> list[dict]:
             })
     return listings
 
-def scrape_and_save(search_urls: list[str], max_per_site: int = 20):
-    """Main scraper. Tries playwright first for modern sites, falls back."""
+def get_paginated_urls(start_url: str, max_pages: int = 10) -> list[str]:
+    """Robust pagination: follows 'siguiente'/'next' and last-child pagination links.
+    This addresses the 'last child' following to reach more pages/entries.
+    Returns up to max_pages URLs."""
+    urls = [start_url]
+    current = start_url
+    for _ in range(max_pages):
+        html = fetch_with_playwright(current) if PLAYWRIGHT_AVAILABLE else fetch_with_requests(current, delay=1.0)
+        if not html:
+            break
+        soup = BeautifulSoup(html, "lxml")
+        # 1. Try explicit next/siguiente
+        next_a = soup.find("a", string=re.compile(r"siguiente|next|›|»|siguiente página", re.I))
+        if not next_a:
+            next_a = soup.find("a", href=re.compile(r"page=|\?p=|&page=|/page/\d", re.I))
+        if next_a and next_a.get("href"):
+            next_url = urljoin(current, next_a["href"])
+            if next_url not in urls:
+                urls.append(next_url)
+                current = next_url
+                continue
+        # 2. Last-child pagination (common 'última' or last page link)
+        last_pag = soup.select_one(
+            "ul.pagination li:last-child a, "
+            ".pager li:last-child a, "
+            "[class*='pagination'] a:last-child, "
+            "a[rel='next'], "
+            "a[aria-label*='next' i]"
+        )
+        if last_pag and last_pag.get("href"):
+            last_url = urljoin(current, last_pag["href"])
+            if last_url not in urls and last_url != current:
+                urls.append(last_url)
+                current = last_url
+                continue
+        # 3. Numeric last page
+        page_as = soup.select("a[href*='page=']")
+        if page_as:
+            last_page_a = page_as[-1]
+            last_url = urljoin(current, last_page_a["href"])
+            if last_url not in urls:
+                urls.append(last_url)
+                current = last_url
+                continue
+        break
+    print(f"  Pagination found {len(urls)} pages for {start_url}")
+    return urls
+
+def scrape_and_save(search_urls: list[str], max_per_site: int = 50):
+    """Main scraper with strong 'last child'/next pagination following to reach 100+ entries."""
     all_listings: list[dict] = []
     seen_links = set()
-    for url in search_urls:
-        print(f"\n[scraper] Starting: {url}")
-        html = fetch_with_playwright(url) if PLAYWRIGHT_AVAILABLE else fetch_with_requests(url)
-        if not html:
-            continue
-        site_listings = parse_lamudi_like(html, url)  # extend with ifs for other sites
-        for l in site_listings[:max_per_site]:
-            if l.get("link") and l["link"] not in seen_links:
-                seen_links.add(l["link"])
+    for start_url in search_urls:
+        print(f"\n[scraper] Starting with pagination: {start_url}")
+        page_urls = get_paginated_urls(start_url, max_pages=8)  # follow up to ~8 pages
+        site_listings = []
+        for purl in page_urls:
+            html = fetch_with_playwright(purl) if PLAYWRIGHT_AVAILABLE else fetch_with_requests(purl, delay=1.2)
+            if not html:
+                continue
+            page_ls = parse_lamudi_like(html, purl)
+            site_listings.extend(page_ls)
+            print(f"    {purl}: {len(page_ls)} raw")
+        # Dedup + limit per site
+        added = 0
+        for l in site_listings:
+            lk = l.get("link")
+            if lk and lk not in seen_links:
+                seen_links.add(lk)
                 all_listings.append(l)
-        print(f"  Added {len([l for l in site_listings if l.get('link') not in seen_links])} new after dedup")
-    # Save CSV (CSV recommended for this stage - simple, git-friendly, fast for model)
+                added += 1
+                if added >= max_per_site:
+                    break
+        print(f"  Unique added from site: {added}")
     if all_listings:
         keys = list(all_listings[0].keys())
         with open(CSV_PATH, "w", newline="", encoding="utf-8") as f:
@@ -170,8 +228,7 @@ def scrape_and_save(search_urls: list[str], max_per_site: int = 20):
             w.writeheader()
             w.writerows(all_listings)
         print(f"\n[scraper] Saved {len(all_listings)} unique listings to {CSV_PATH}")
-        print("Next: feed photo links (if present in future enhanced parse) to vision runner for descriptions.")
-        print("Then build price model from CSV + vision data.")
+        print("Next: use vision runner on photo links (when available) to enrich, then price model.")
     else:
         print("[scraper] No listings saved this run.")
 
@@ -179,13 +236,16 @@ def main():
     print("klugger scraper (Python + optional Playwright + LLM vision integration)")
     print(f"Playwright available: {PLAYWRIGHT_AVAILABLE}")
     print(f"Gemini key loaded for vision: {'yes' if GEMINI_KEY else 'no (check .env)'}")
-    # Example searches for similar properties (from research; add more)
+    # Expanded searches for volume (aim 100+ similar terrenos). Use playwright for JS sites.
+    # Add more from research (vivanuncios, other colonias, broad "terreno venta queretaro" + filter similar size/potential).
     searches = [
         "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
         "https://www.inmuebles24.com/terrenos-en-venta-en-queretaro-provincia-q-el-cimatario.html",
-        # Add Cimatario specific or "Colinas del Cimatario" etc.
+        "https://www.vivanuncios.com.mx/s-venta-terrenos/santiago-de-queretaro/cimatario/v1c31l1516q0p1",
+        "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",  # broader for volume, filter later
+        # Add Colinas del Cimatario, other nearby for similar development plots
     ]
-    scrape_and_save(searches)
+    scrape_and_save(searches, max_per_site=50)  # higher to reach 100 total across sites
     print("\nTip: Enhance parse_lamudi_like for each site. Use vision on any photo URLs collected.")
     print("All changes committed inside klugger repo only. Keys only in local .env.")
 
