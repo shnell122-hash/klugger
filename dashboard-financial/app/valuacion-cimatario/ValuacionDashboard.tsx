@@ -108,7 +108,7 @@ function fmtMX(n: number, decimals = 0): string {
   return n.toLocaleString('es-MX', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 function fmtMoney(n: number): string {
-  return '$' + fmtMX(n, 0);
+  return '$' + fmtMX(n, 2);
 }
 function pct(n: number): string {
   const sign = n >= 0 ? '+' : '';
@@ -369,10 +369,21 @@ function DatabaseTab() {
     }
     return bins;
   }
-  const histData = createHistogram(pricePointsM, 1);
+  const histData = createHistogram(pricePointsM, 0.25); // even more granular (0.25M bins) to spread the distribution and avoid concentration in few bars
 
-  const scatterRaw = fullDB.filter((r: any) => r.price > 0 && r.size_m2 > 0);
-  const scatterData = scatterRaw.map((r: any) => ({
+  // Include clean validated points (which have real sizes) + any from raw to have more points for regression
+  const scatterRaw = [
+    ...fullDB.filter((r: any) => r.price > 0 && r.size_m2 > 0),
+    ...cleanList.filter((c: any) => c.price > 0 && c.size_m2 > 0)
+  ];
+  // dedup by title if overlap
+  const seen = new Set();
+  const scatterData = scatterRaw.filter((r: any) => {
+    const key = r.title || r.id;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).map((r: any) => ({
     x: r.size_m2,
     y: r.price / 1000000,
     label: (r.title || '').substring(0, 30)
@@ -477,7 +488,7 @@ function DatabaseTab() {
 
         <div>
           <h3 className="text-lg font-semibold">Scatter Plot: Precio vs m² + Regresión Lineal</h3>
-          <p className="text-xs text-gray-400">Eje Y: Precio (millones MXN). Eje X: m². La línea de regresión muestra la relación positiva entre tamaño y precio. Puntos por encima de la línea son "caros" relativos; nuestro lote de 660m² está en zona alta pero el ajuste CUS lo hace competitivo.</p>
+          <p className="text-xs text-gray-400">Eje Y: Precio (millones MXN). Eje X: m². La línea de regresión muestra la relación positiva entre tamaño y precio. Puntos por encima de la línea son "caros" relativos; nuestro lote de 660m² está en zona alta pero el ajuste CUS lo hace competitivo. (Scatter usa los puntos con datos de m² disponibles: los 12 clean validados + cualquier extraído del título en raw; ~13 puntos total para la regresión.)</p>
         </div>
         <div className="glass rounded-2xl p-4 border border-[#1e1e2e]">
           <ResponsiveContainer width="100%" height={320}>
