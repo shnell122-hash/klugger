@@ -113,17 +113,17 @@ def fetch_with_playwright(url: str, delay: float = 2.5) -> str | None:
         return fetch_with_requests(url, delay)
 
 def parse_lamudi_like(html: str, base_url: str) -> list[dict]:
-    """Parser tuned from lamudi browse (from previous research inside klugger)."""
+    """Improved parser based on lamudi structure (from browse inside klugger)."""
     soup = BeautifulSoup(html, "lxml")
     listings = []
-    # Lamudi cards often have .listingCard or similar; adapt as needed
-    cards = soup.select("div[class*='listing'], div[class*='property-card'], article") or soup.find_all("div", class_=re.compile(r"card|item|listing"))
+    # Look for common listing containers on lamudi-like sites
+    cards = soup.select("div[class*='listing'], div[class*='property'], article, .result-item, div[class*='card']") or soup.find_all("div", class_=re.compile(r"(listing|property|card|item)"))
     for card in cards:
         text = card.get_text(" ", strip=True)
-        # Price e.g. $ 2,550,000 MXN
-        price_m = re.search(r'\$\s*([\d,]+(?:\.\d+)?)', text)
+        # Stricter price: $ X,XXX,XXX MXN
+        price_m = re.search(r'\$\s*([\d,]+(?:\.\d+)?)\s*MXN', text, re.I)
         price = price_m.group(1).replace(",", "") if price_m else None
-        # Size e.g. 300 m² or 234 m²
+        # Size: 300 m²
         size_m = re.search(r'(\d+(?:\.\d+)?)\s*m²', text, re.I)
         size = size_m.group(1) if size_m else None
         # Title
@@ -132,8 +132,8 @@ def parse_lamudi_like(html: str, base_url: str) -> list[dict]:
         # Link
         a = card.find("a", href=True)
         link = urljoin(base_url, a["href"]) if a else None
-        # Location
-        loc_m = re.search(r'(Cimatario|Cumbres del Cimatario|Querétaro)[^\n]{0,50}', text, re.I)
+        # Location from text
+        loc_m = re.search(r'(Cimatario|Cumbres del Cimatario|Querétaro|Col\. [^\s,]+)[^,\n]{0,40}', text, re.I)
         location = loc_m.group(0).strip() if loc_m else "Cimatario area, Querétaro"
         if price or size:
             listings.append({
