@@ -847,7 +847,7 @@ export default function ValuacionDashboard() {
       <div className="sticky top-0 z-50 bg-[#0a0a0f]/95 backdrop-blur border-b border-[#1e1e2e]">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-[#7c3aed] flex items-center justify-center text-white font-bold text-lg">K</div>
+            <img src="/assets/klugger-logo-refined.jpg" alt="Klugger logo" className="h-8 w-auto" />
             <div>
               <div className="font-semibold text-lg tracking-[-0.3px]">Klugger Inmuebles</div>
               <div className="text-[10px] text-gray-500 -mt-0.5">CASO • Cimatario, Querétaro</div>
