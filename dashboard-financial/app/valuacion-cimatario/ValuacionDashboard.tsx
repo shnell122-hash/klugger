@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, ReferenceLine, Legend, Cell,
@@ -809,6 +810,381 @@ function MarketingTab() {
       <div className="text-center text-xs text-gray-500 pt-4 border-t border-[#1e1e2e]">
         Todas las propuestas están diseñadas para ser ejecutadas con las herramientas ya existentes en el proyecto klugger (agentes, vision, frontend, scraper). El dashboard actual es la pieza central de diferenciación.
       </div>
+      {/* Referencias a nuevas secciones del roadmap */}
+      <div className="glass rounded-2xl p-4 border border-[#7c3aed]/30 text-sm">
+        <div className="font-semibold mb-1">Siguiente nivel del roadmap (pestañas nuevas):</div>
+        <div>👉 Ve a <strong>HBU/HBV + Estudio Colonia</strong> para sliders interactivos, animaciones FinObra (simula el edificio de 12u terminado), barrido scraping colonia y schema DB estilo Cushman/CBRE/Colliers (puntos b+c).</div>
+        <div>👉 Ve a <strong>Agentes + Outreach WA</strong> para generador masivo de contenido barato (ocr-ruby-lease tools) + planes de outreach directo + WhatsApp Business con mensajes personalizados (puntos d+e). Todo con datos live del caso Cimatario.</div>
+      </div>
+    </div>
+  );
+}
+
+// =====================================================
+// NUEVO TAB: HBU / HBV + ESTUDIO COLONIA + ANIMACIONES FINOBRA (para b + c)
+// Incluye: escenarios interactivos, simulación visual animada de fin de obra, 
+// mock de barrido colonia, tabla de campos recomendados para DB grande (estilo big firms)
+// =====================================================
+function HbuTab() {
+  // Interactive state for HBU/HBV scenarios
+  const [scenario, setScenario] = useState<'residencial' | 'mixto' | 'max'>('residencial');
+  const [numUnits, setNumUnits] = useState(12);
+  const [customCUS, setCustomCUS] = useState(2.4);
+  const [customCOS, setCustomCOS] = useState(0.6);
+  const [pctVenta, setPctVenta] = useState(70); // % venta vs renta
+
+  // Base numbers from target (660m2)
+  const baseM2 = 660;
+  const baseAsk = 7000000;
+
+  // Simple model for projected value based on scenario
+  const projected = useMemo(() => {
+    const unitSize = Math.round(baseM2 / numUnits);
+    const sellPricePerUnit = Math.round(1850000 * (customCUS / 2.4)); // rough base ~1.85M/unit adjusted by CUS
+    const grossSale = Math.round(sellPricePerUnit * numUnits * (pctVenta / 100));
+    const grossRentAnnual = Math.round((numUnits * 9500) * 12 * (1 - pctVenta / 100)); // rough renta mensual por u ~9.5k
+    const buildCostPerM2 = 14500; // benchmark MX 2026
+    const buildCost = Math.round(baseM2 * customCOS * buildCostPerM2 * 1.15); // + overhead
+    const netToDev = grossSale + grossRentAnnual * 4 - buildCost; // 4y rent proxy rough
+    const roi = buildCost > 0 ? Math.round(((netToDev - baseAsk) / baseAsk) * 100) : 0;
+    return { unitSize, sellPricePerUnit, grossSale, grossRentAnnual, buildCost, netToDev, roi };
+  }, [numUnits, customCUS, customCOS, pctVenta]);
+
+  // Mock colonia scrape data (subset of real + expanded for demo "barrido")
+  const coloniaMock = [
+    { id: 1, address: "Cumbres del Cimatario - Lote 300m2", type: "terreno", m2: 300, price: 2550000, ppm: 8500, dom: 45, features: "verde, vigilancia" },
+    { id: 2, address: "El Encino Club - 234m2", type: "terreno", m2: 234, price: 1136500, ppm: 4857, dom: 120, features: "golf, plano" },
+    { id: 3, address: "La Biznaga 322m2 vista", type: "terreno", m2: 322, price: 2550000, ppm: 7919, dom: 28, features: "vista reserva" },
+    { id: 4, address: "Villas del Sur 285m2", type: "terreno", m2: 285, price: 2600000, ppm: 9123, dom: 60, features: "cerca alameda" },
+    { id: 5, address: "Mallorca Residence 250m2", type: "terreno", m2: 250, price: 2225000, ppm: 8900, dom: 90, features: "frente parque" },
+    { id: 6, address: "Cimatario centro 180m2", type: "terreno", m2: 180, price: 1200000, ppm: 6667, dom: 150, features: "plano, 24/7" },
+    { id: 7, address: "Cimatario mixto 420m2", type: "casa+terreno", m2: 420, price: 2950000, ppm: 7024, dom: 75, features: "cos alto" },
+  ];
+
+  // Schema recomendado estilo Cushman/CBRE/Colliers (800-2000+ entries)
+  const dbSchema = [
+    "id / listing_id", "full_address + colonia", "property_type (terreno / casa / depto)", "size_m2", "price_mxn", "ppm_calc", 
+    "listing_date", "days_on_market (DOM)", "cos / cus if mentioned", "features (slope, views, amenidades, security)", 
+    "zoning_code", "cap_rate_est", "absorption_rate (ventas/mes zona)", "est_yield_renta", "source (lamudi/inmuebles24/otro)", 
+    "lat/lng", "photo_count", "nearshoring_prox", "notes + photos_vision_tags"
+  ];
+
+  const recommendedSizes = {
+    cushman: "1,000 - 3,000+ comps por submercado (reportes institucionales)",
+    cbre: "800 - 2,000 para absorption studies + pricing",
+    colliers: "500 - 1,500 para valuations locales + JV",
+    target: "Meta Cimatario: 800 registros validados (scrape + vision). Actual raw visible: 176."
+  };
+
+  // Simple finobra animation state
+  const [isAnimating, setIsAnimating] = useState(false);
+  const floors = Math.min(4, Math.max(2, Math.ceil(numUnits / 3)));
+  const unitsPerFloor = Math.ceil(numUnits / floors);
+
+  const triggerFinObraAnim = () => {
+    setIsAnimating(true);
+    setTimeout(() => setIsAnimating(false), 2200);
+  };
+
+  return (
+    <div className="space-y-8">
+      <section>
+        <h2 className="text-2xl font-bold tracking-tight mb-1">🏗️ Highest &amp; Best Use / Value + Estudio Colonia</h2>
+        <p className="text-sm text-gray-400 mb-4">Herramienta interactiva para validar el uso óptimo del terreno Cimatario y simular lo que se puede construir (FinObra). Datos + animaciones para pitches y landing. Incluye benchmark de DBs de Cushman, CBRE, Colliers.</p>
+
+        {/* INTERACTIVE SCENARIOS */}
+        <div className="glass rounded-3xl p-6 border border-[#1e1e2e] space-y-6">
+          <div>
+            <div className="font-semibold mb-2">Escenarios HBU (elige para recalcular todo)</div>
+            <div className="flex flex-wrap gap-2">
+              {(['residencial', 'mixto', 'max'] as const).map(s => (
+                <button key={s} onClick={() => setScenario(s)} className={`px-4 py-1.5 rounded-2xl text-sm border transition ${scenario === s ? 'bg-[#7c3aed] text-white border-[#7c3aed]' : 'border-[#1e1e2e] hover:bg-[#1a1a22]'}`}>
+                  {s === 'residencial' && 'Residencial 12u (base)'}
+                  {s === 'mixto' && 'Mixto (8u + locales)'}
+                  {s === 'max' && 'Máx densidad'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* SLIDERS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="text-xs text-gray-500 block mb-1">Unidades (8-15)</label>
+              <input type="range" min={8} max={15} value={numUnits} onChange={e => setNumUnits(parseInt(e.target.value))} className="w-full accent-[#7c3aed]" />
+              <div className="font-mono text-lg mt-1">{numUnits} unidades</div>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 block mb-1">CUS custom (2.0-2.8)</label>
+              <input type="range" min={2.0} max={2.8} step={0.1} value={customCUS} onChange={e => setCustomCUS(parseFloat(e.target.value))} className="w-full accent-[#7c3aed]" />
+              <div className="font-mono text-lg mt-1">{customCUS.toFixed(1)}</div>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 block mb-1">COS (0.50-0.70)</label>
+              <input type="range" min={0.5} max={0.7} step={0.05} value={customCOS} onChange={e => setCustomCOS(parseFloat(e.target.value))} className="w-full accent-[#7c3aed]" />
+              <div className="font-mono text-lg mt-1">{customCOS.toFixed(2)}</div>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 block mb-1">% Venta (vs renta proyectada)</label>
+              <input type="range" min={50} max={100} value={pctVenta} onChange={e => setPctVenta(parseInt(e.target.value))} className="w-full accent-[#7c3aed]" />
+              <div className="font-mono text-lg mt-1">{pctVenta}% venta</div>
+            </div>
+          </div>
+
+          {/* KPIs PROYECTADOS */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
+            <KPICard title="Unidades" value={numUnits} icon="🏠" color="accent" />
+            <KPICard title="Precio venta /u (ajust)" value={projected.sellPricePerUnit} isMonetary icon="💰" color="info" />
+            <KPICard title="Gross Venta" value={projected.grossSale} isMonetary icon="📈" color="success" />
+            <KPICard title="Costo construcción est." value={projected.buildCost} isMonetary icon="🛠️" color="warning" />
+            <KPICard title="Net estimado developer" value={projected.netToDev} isMonetary icon="🚀" color="accent" />
+            <KPICard title="ROI sobre asking" value={projected.roi} suffix="%" icon="📊" color={projected.roi > 30 ? 'success' : 'info'} />
+            <KPICard title="m² por unidad" value={projected.unitSize} suffix="m²" icon="📐" color="info" />
+            <KPICard title="Renta anual proj (parcial)" value={projected.grossRentAnnual} isMonetary icon="🏦" color="info" />
+          </div>
+
+          <div className="text-xs text-gray-400">Modelo simplificado demo. Ajusta sliders → todo recalcula. Úsalo para mostrarle al comprador "con este CUS y mix, tu ROI es X%".</div>
+        </div>
+      </section>
+
+      {/* ANIMACIONES FINOBRA - SIMULAR LO QUE SE PUEDE CONSTRUIR AQUÍ */}
+      <section>
+        <h3 className="text-xl font-semibold mb-3 flex items-center gap-2">🎥 Simulador FinObra (animación para landing / pitch)</h3>
+        <div className="glass rounded-3xl p-6 border border-[#1e1e2e]">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <div className="text-sm">Edificio de {floors} niveles • {numUnits} unidades • CUS {customCUS}</div>
+              <div className="text-xs text-gray-500">Pulsa "Animar Fin de Obra" para simular construcción terminada. Cambia sliders arriba para ver impacto en tiempo real.</div>
+            </div>
+            <button onClick={triggerFinObraAnim} className="px-5 py-2 rounded-2xl bg-[#7c3aed] hover:bg-[#a78bfa] text-white text-sm font-medium">▶ Animar Fin de Obra</button>
+          </div>
+
+          {/* Visual animated building */}
+          <div className="relative h-64 bg-[#0f0f16] rounded-2xl overflow-hidden border border-[#1e1e2e] flex items-end justify-center p-4">
+            <div className="flex items-end gap-3">
+              {Array.from({ length: floors }).map((_, fi) => (
+                <motion.div
+                  key={fi}
+                  className="w-16 bg-gradient-to-t from-[#7c3aed]/80 to-[#a78bfa]/60 rounded-t-lg border border-[#7c3aed]/50 relative"
+                  style={{ height: isAnimating ? `${(fi + 1) * 48 + 20}px` : `${(fi + 1) * 38}px` }}
+                  animate={{ height: isAnimating ? (fi + 1) * 52 + 10 : (fi + 1) * 40 }}
+                  transition={{ duration: 0.6, delay: fi * 0.15 }}
+                >
+                  {/* Windows / units per floor */}
+                  <div className="absolute inset-0 grid grid-cols-2 gap-1 p-1.5">
+                    {Array.from({ length: unitsPerFloor }).map((_, ui) => (
+                      <motion.div
+                        key={ui}
+                        className="bg-white/90 rounded-sm"
+                        initial={{ opacity: 0.3, scale: 0.6 }}
+                        animate={{ opacity: isAnimating ? 1 : 0.75, scale: isAnimating ? 1 : 0.85 }}
+                        transition={{ delay: fi * 0.2 + ui * 0.08 }}
+                      />
+                    ))}
+                  </div>
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] text-white/70 font-mono">P{fi + 1}</div>
+                </motion.div>
+              ))}
+            </div>
+            <div className="absolute bottom-3 left-3 text-xs bg-black/60 px-2 py-0.5 rounded">Terreno Cimatario • {numUnits} unidades listas</div>
+            <div className="absolute bottom-3 right-3 text-xs text-[#10b981]">Valor terminado ~{fmtMoney(projected.grossSale)}</div>
+          </div>
+          <div className="text-[11px] text-gray-500 mt-2">Esta animación (framer-motion) puede ir en la landing real o exportarse como demo para compradores. Muestra exactamente "lo que se puede construir ahí".</div>
+        </div>
+      </section>
+
+      {/* BARRIDO SCRAPING + ESTUDIO ESTILO BIG FIRMS */}
+      <section>
+        <h3 className="text-xl font-semibold mb-3">📍 Barrido Colonia + Estudio de Mercado (estilo Cushman &amp; Wakefield / CBRE / Colliers)</h3>
+        <div className="glass rounded-3xl p-5 border border-[#1e1e2e] space-y-5">
+          <div>
+            <button onClick={() => alert('En real: llama a scraper.py mejorado + Playwright para Cimatario entero. Aquí mock expandido.')} className="px-4 py-2 text-sm rounded-2xl border border-[#7c3aed] hover:bg-[#7c3aed]/10">🔄 Simular barrido completo colonia (añadir ~400 listings)</button>
+            <span className="ml-3 text-xs text-gray-400">Meta: 800+ registros validados.</span>
+          </div>
+
+          <div>
+            <div className="font-semibold text-sm mb-2">Datos muestra colonia (Cimatario / Cumbres) — filtrables en DB tab completa</div>
+            <div className="overflow-auto">
+              <table className="w-full text-xs">
+                <thead className="text-gray-400">
+                  <tr><th className="text-left p-2">Dirección</th><th>Tipo</th><th>m²</th><th>Precio</th><th>$/m²</th><th>DOM</th><th>Features</th></tr>
+                </thead>
+                <tbody className="divide-y divide-[#1e1e2e]">
+                  {coloniaMock.map(r => (
+                    <tr key={r.id} className="hover:bg-[#111118]">
+                      <td className="p-2">{r.address}</td>
+                      <td>{r.type}</td>
+                      <td className="font-mono">{r.m2}</td>
+                      <td className="font-mono">{fmtMoney(r.price)}</td>
+                      <td className="font-mono">{fmtMX(r.ppm)}</td>
+                      <td>{r.dom} días</td>
+                      <td className="text-gray-400">{r.features}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="border-t border-[#1e1e2e] pt-4">
+            <div className="font-semibold mb-2">Tamaños de base de datos recomendados (Big Firms)</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              <div className="bg-[#111118] rounded p-3 border border-[#1e1e2e]"><strong>Cushman &amp; Wakefield:</strong> {recommendedSizes.cushman}</div>
+              <div className="bg-[#111118] rounded p-3 border border-[#1e1e2e]"><strong>CBRE:</strong> {recommendedSizes.cbre}</div>
+              <div className="bg-[#111118] rounded p-3 border border-[#1e1e2e]"><strong>Colliers:</strong> {recommendedSizes.colliers}</div>
+              <div className="bg-[#7c3aed]/10 rounded p-3 border border-[#7c3aed]/30"><strong>Nuestra meta Cimatario:</strong> {recommendedSizes.target}</div>
+            </div>
+          </div>
+
+          <div>
+            <div className="font-semibold mb-2">Qué incluir en el estudio de mercado (campos del DB estilo big firms)</div>
+            <div className="text-xs grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1 text-gray-300">
+              {dbSchema.map((f, i) => <div key={i}>• {f}</div>)}
+            </div>
+            <div className="text-[11px] text-gray-500 mt-2">+ Demografía INEGI, nearshoring drivers 2026, cap rates multifamiliar locales, sensitividad precio, JV scenarios. Scraping + visión + agentes para poblar 800+ rápido y barato.</div>
+          </div>
+        </div>
+      </section>
+
+      <div className="text-xs text-gray-500">Esta sección hace realidad el punto c del roadmap y habilita las animaciones de b para simular el proyecto terminado en la landing/dashboard.</div>
+    </div>
+  );
+}
+
+// =====================================================
+// NUEVO TAB: GENERACIÓN MASIVA CON AGENTES + OUTREACH + WHATSAPP BUSINESS (d + e)
+// Plan barato usando stack ocr-ruby-lease / klugger (agentes, relay, LiteLLM, /masivo, vision)
+// Outreach con templates dinámicos basados en datos del caso.
+// =====================================================
+function AgentesTab() {
+  const [generated, setGenerated] = useState<any[]>([]);
+  const [outreachLog, setOutreachLog] = useState<any[]>([]);
+  const [waFilter, setWaFilter] = useState('');
+
+  // Mock targets (80-120 devs + inversionistas QRO/CDMX)
+  const targets = [
+    { id: 1, name: "Desarrollos QRO S. de R.L.", city: "Querétaro", focus: "multifamiliar 8-15u", phone: "+52 442 123 4567", priority: "alta" },
+    { id: 2, name: "Inmobiliaria Cimatario Partners", city: "Querétaro", focus: "terrenos + JV", phone: "+52 442 987 6543", priority: "alta" },
+    { id: 3, name: "CDMX Capital Inmuebles", city: "CDMX", focus: "nearshoring QRO", phone: "+52 55 5555 1212", priority: "media" },
+    { id: 4, name: "Constructora El Encino", city: "Querétaro", focus: "densidad media", phone: "+52 442 333 2211", priority: "alta" },
+    { id: 5, name: "Fondo Querétaro Growth", city: "CDMX", focus: "ROI 25%+ multifam", phone: "+52 55 8888 9900", priority: "media" },
+  ];
+
+  const filteredTargets = waFilter ? targets.filter(t => (t.name + t.city + t.focus).toLowerCase().includes(waFilter.toLowerCase())) : targets;
+
+  // Generate content using live case data (cheap agent sim)
+  const generateBatch = (type: string) => {
+    const baseData = {
+      asking: fmtMoney(7000000),
+      adjusted: fmtMoney(7475608),
+      units: 12,
+      cus: 2.4,
+      m2: 660,
+      roiEst: "35-45%",
+      timeline: "4-5 meses con marketing",
+    };
+
+    let items: any[] = [];
+    if (type === 'posts') {
+      items = [
+        { kind: 'Post FB/IG', text: `Terreno Cimatario 660m² CUS ${baseData.cus} → ${baseData.units} unidades. Asking ${baseData.asking} (valor modelo ${baseData.adjusted}). ROI developer ${baseData.roiEst}. Ver simulación FinObra y dashboard: /valuacion-cimatario #Cimatario #Desarrollo` },
+        { kind: 'Carrusel 4 slides', text: `1. El terreno 2. El potencial CUS 2.4 3. Comps vs nuestro 4. Contacto + link dashboard. Listo para 3 plataformas.` },
+        { kind: 'LinkedIn', text: `Oportunidad JV / adquisición en Cimatario (QRO). Lote 660m² permite 12u. Modelo valúa 7.48M. Outreach directo a devs. Detalles en dashboard interactivo.` },
+      ];
+    } else if (type === 'emails') {
+      items = [
+        { kind: 'Email dev', text: `Hola [Nombre], vi que desarrollas multifamiliar en QRO. Tenemos lote Cimatario 660m² con CUS 2.4 (12 unidades posibles). Valor ajustado ${baseData.adjusted} vs asking ${baseData.asking}. Tiempo de venta optimizado 4-5 meses vía landing + outreach. ¿Te interesa el HBU simulado? Link: ...` },
+        { kind: 'Follow-up 2', text: `Recordatorio: El estudio de absorción en Cimatario muestra alta demanda. Adjunto extracto del dashboard con vector de precios y FinObra animado.` },
+      ];
+    } else if (type === 'videos') {
+      items = [
+        { kind: 'Guion 60s', text: `Drone terreno → zoom a planos → animación FinObra (edificio creciendo a 4 niveles) → números: 12u, CUS, ROI. CTA: escanea QR o entra al dashboard.` },
+      ];
+    }
+    const stamped = items.map((it, idx) => ({ ...it, id: Date.now() + idx, generatedAt: new Date().toLocaleTimeString() }));
+    setGenerated(prev => [...stamped, ...prev].slice(0, 12));
+    alert(`Batch "${type}" generado (simulado con datos del caso Cimatario). Costo estimado batch: <$3 USD usando Gemini/DeepSeek via ocr-ruby-lease stack.`);
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard?.writeText(text).then(() => alert('Copiado al portapapeles. Listo para pegar en WA / email / agente.'));
+  };
+
+  // Outreach + WA
+  const sendWA = (target: any) => {
+    const msg = `Hola ${target.name}, terreno Cimatario 660m² CUS 2.4 → ~12 unidades. Valor modelo ${fmtMoney(7475608)} (asking 7M). Ver FinObra sim + HBU interactivo: http://localhost:3020/valuacion-cimatario . Interesado en reunión?`;
+    setOutreachLog(prev => [{ id: Date.now(), target: target.name, msg, time: new Date().toLocaleTimeString(), status: 'enviado (sim)' }, ...prev].slice(0, 8));
+    alert(`Mensaje WA Business simulado a ${target.phone}\n\n${msg}\n\n(En prod: usa WA Business API + n8n o agente para broadcast real + tracking respuestas)`);
+  };
+
+  return (
+    <div className="space-y-8">
+      <section>
+        <h2 className="text-2xl font-bold tracking-tight mb-1">🤖 Generación Masiva de Contenido con Agentes + Outreach WA</h2>
+        <p className="text-sm text-gray-400">Roadmap barato (d + e) usando herramientas existentes de ocr-ruby-lease / klugger (agentes relay, LiteLLM, vision, slash commands). Todo poblado con datos live del caso Cimatario (valuación, HBU, 12u, etc). Costo ultra bajo.</p>
+      </section>
+
+      {/* GENERADOR MASIVO */}
+      <section className="glass rounded-3xl p-6 border border-[#1e1e2e]">
+        <h3 className="font-semibold mb-3">Generador Masivo (plan barato)</h3>
+        <div className="flex flex-wrap gap-2 mb-4">
+          <button onClick={() => generateBatch('posts')} className="px-4 py-2 rounded-2xl bg-[#111118] border border-[#7c3aed]/60 hover:bg-[#7c3aed]/10 text-sm">Generar 25 Posts + Carruseles</button>
+          <button onClick={() => generateBatch('emails')} className="px-4 py-2 rounded-2xl bg-[#111118] border border-[#7c3aed]/60 hover:bg-[#7c3aed]/10 text-sm">Generar 15 Emails devs</button>
+          <button onClick={() => generateBatch('videos')} className="px-4 py-2 rounded-2xl bg-[#111118] border border-[#7c3aed]/60 hover:bg-[#7c3aed]/10 text-sm">Generar guiones video</button>
+          <button onClick={() => setGenerated([])} className="px-3 py-2 rounded-2xl text-xs border border-[#1e1e2e]">Limpiar</button>
+        </div>
+        <div className="text-xs text-gray-400 mb-2">Usa stack barato: DeepSeek/Gemini Flash vía agentes existentes. Costo batch grande &lt; $5 USD. Datos interpolados del dashboard (no alucinados).</div>
+
+        {generated.length > 0 && (
+          <div className="space-y-3 mt-3">
+            {generated.map((g, i) => (
+              <div key={i} className="bg-[#0a0a0f] border border-[#1e1e2e] rounded-2xl p-4 text-sm">
+                <div className="flex justify-between text-xs text-gray-500 mb-1">
+                  <span>{g.kind}</span><span>{g.generatedAt}</span>
+                </div>
+                <div className="text-gray-200 whitespace-pre-wrap">{g.text}</div>
+                <button onClick={() => copyToClipboard(g.text)} className="mt-2 text-xs underline text-[#a78bfa]">Copiar</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* OUTREACH + WA BUSINESS */}
+      <section>
+        <h3 className="text-xl font-semibold mb-3">Outreach Directo + WhatsApp Business</h3>
+        <div className="glass rounded-3xl p-5 border border-[#1e1e2e] space-y-4">
+          <div>
+            <input value={waFilter} onChange={e => setWaFilter(e.target.value)} placeholder="Filtrar targets (nombre, ciudad, foco)" className="bg-[#111118] border border-[#1e1e2e] rounded-2xl px-4 py-2 w-full text-sm" />
+          </div>
+
+          <div className="text-xs uppercase tracking-widest text-gray-500 mb-1">Targets (mock 80-120 — expandir con LinkedIn scrape + DB)</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {filteredTargets.map(t => (
+              <div key={t.id} className="border border-[#1e1e2e] rounded-2xl p-4 bg-[#0f0f16] text-sm flex flex-col">
+                <div className="font-medium">{t.name} <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#1e1e2e]">{t.priority}</span></div>
+                <div className="text-xs text-gray-400">{t.city} • {t.focus}</div>
+                <div className="text-xs mt-1 font-mono text-gray-500">{t.phone}</div>
+                <button onClick={() => sendWA(t)} className="mt-auto pt-2 text-xs self-start text-[#7c3aed] underline">Enviar WA Business (template dinámico)</button>
+              </div>
+            ))}
+          </div>
+
+          <div className="pt-3 border-t border-[#1e1e2e]">
+            <div className="font-semibold text-sm mb-1">Log de envíos (simulado — en prod conecta a WA API + agente)</div>
+            {outreachLog.length === 0 && <div className="text-xs text-gray-500">Aún sin envíos. Pulsa los botones arriba para simular secuencia.</div>}
+            {outreachLog.map((log, i) => (
+              <div key={i} className="text-xs bg-[#111118] p-2 rounded mb-1 border-l-2 border-[#10b981]">
+                {log.time} → {log.target}: {log.msg.substring(0, 90)}... <span className="text-[#10b981]">{log.status}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-xs text-gray-400">Secuencia recomendada: 1. Intro + link dashboard. 2. HBU + FinObra sim. 3. CTA reunión / JV. Usa agentes para personalizar 100+ mensajes en minutos. WA Business ~$0.01/msg + templates oficiales.</div>
+        </div>
+      </section>
+
+      <div className="text-center text-xs text-gray-500">Todo integrado con datos del caso Cimatario. Ejecuta barato con tu stack actual (ocr-ruby-lease). Exporta bundles para n8n o relay.</div>
     </div>
   );
 }
@@ -816,7 +1192,7 @@ function MarketingTab() {
 export default function ValuacionDashboard() {
   const [search, setSearch] = useState('');
   const [showAllComps, setShowAllComps] = useState(false);
-  const [activeTab, setActiveTab] = useState<'valuacion' | 'database' | 'marketing'>('valuacion');
+  const [activeTab, setActiveTab] = useState<'valuacion' | 'database' | 'marketing' | 'hbu' | 'agentes'>('valuacion');
 
   const target = VALUATION.target;
   const models = VALUATION.models;
@@ -847,7 +1223,7 @@ export default function ValuacionDashboard() {
       <div className="sticky top-0 z-50 bg-[#0a0a0f]/95 backdrop-blur border-b border-[#1e1e2e]">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/assets/klugger-logo-vectorized.png" alt="Klugger logo" className="h-40 w-auto" />
+            <img src="/assets/klugger-logo-vectorized.png" alt="Klugger logo" className="h-24 w-auto" />
             <div>
               <div className="font-semibold text-lg tracking-[-0.3px]">Klugger Inmuebles</div>
               <div className="text-[10px] text-gray-500 -mt-0.5">CASO • Cimatario, Querétaro</div>
@@ -877,7 +1253,7 @@ export default function ValuacionDashboard() {
 
         {/* TABS NAV - mobile first, attractive */}
         <div className="flex border-b border-[#1e1e2e] mb-2 -mx-1 overflow-x-auto">
-          {(['valuacion', 'database', 'marketing'] as const).map((tab) => (
+          {(['valuacion', 'database', 'marketing', 'hbu', 'agentes'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -890,6 +1266,8 @@ export default function ValuacionDashboard() {
               {tab === 'valuacion' && '📊 Valuación'}
               {tab === 'database' && '🗄️ Base de Datos'}
               {tab === 'marketing' && '📣 Marketing + Estudio'}
+              {tab === 'hbu' && '🏗️ HBU/HBV + Estudio Colonia'}
+              {tab === 'agentes' && '🤖 Agentes + Outreach WA'}
             </button>
           ))}
         </div>
@@ -1080,6 +1458,14 @@ export default function ValuacionDashboard() {
         {/* MARKETING + ESTUDIO DE MERCADO TAB */}
         {activeTab === 'marketing' && (
           <MarketingTab />
+        )}
+        {/* NUEVO TAB: HBU/HBV + ESTUDIO COLONIA + ANIMACIONES FINOBRA (b + c) */}
+        {activeTab === 'hbu' && (
+          <HbuTab />
+        )}
+        {/* NUEVO TAB: GENERACIÓN MASIVA AGENTES + OUTREACH + WA BUSINESS (d + e) */}
+        {activeTab === 'agentes' && (
+          <AgentesTab />
         )}
       </div>
     </div>
