@@ -83,6 +83,14 @@ HEADERS = {
     "Upgrade-Insecure-Requests": "1",
 }
 
+# Specific searches for Cimatario colonia to build the market study DB (Paso 1 of a+c)
+COLONIA_SEARCH_URLS = [
+    "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "https://www.inmuebles24.com/terrenos-en-venta-en-cimatario.html",
+    "https://www.vivanuncios.com.mx/terrenos-en-venta-en-cimatario-qro/",
+    # Add more specific for 2023-2026 updates, e.g. with price range or CUS mentions
+]
+
 def fetch_with_requests(url: str, delay: float = 2.0) -> str | None:
     """Basic fetch with ethics (copied pattern style from consolidated ocr code using requests)."""
     time.sleep(delay)
