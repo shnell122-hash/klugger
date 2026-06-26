@@ -158,7 +158,7 @@ python public/assets/finobra-hero-3d-v2.py
 ```
 
 ## Status general actual (actualizar al final de cada sesión)
-- [x] Sesión 1 completada + push
+- [x] Sesión 1 completada + push (map cleanup, target pin, zones; code restored + verified compile; live after manual launch)
 - [ ] Sesión 2 completada + push
 - [ ] Sesión 3 completada + push
 - [ ] Sesión 4 completada + push

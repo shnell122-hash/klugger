@@ -7,12 +7,19 @@ import {
   LineChart, Line, ReferenceLine, Legend, Cell,
   ScatterChart, Scatter, ZAxis,
 } from 'recharts';
+import dynamic from 'next/dynamic';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Html } from '@react-three/drei';
 import * as THREE from 'three';
 
 // Full database import for the "toda la base de datos" tab (1000 entries: 176 raw originales del scraper + pads/enriquecidos con patrones 2023 para distribución completa del mercado)
 import terrenosFullRaw from './terrenos_full.json';
+
+// Dynamic client-only Mapbox map (SSR false). Only Mapbox kept: with ~1000 points the side-by-side MapLibre comparison no longer makes sense (per roadmap Sesión 1).
+const MapboxMap = dynamic(() => import('./MapboxMap'), {
+  ssr: false,
+  loading: () => <div style={{height:420, background:'#0a0a0f', borderRadius:12, display:'flex', alignItems:'center', justifyContent:'center', color:'#666', border:'1px solid #1e1e2e'}}>Cargando mapa Mapbox GL (vectorial premium con token)...</div>
+});
 
 const FULL_DB_COUNT = (terrenosFullRaw as any[]).length || 1000;
 
@@ -1039,7 +1046,7 @@ function HbuTab() {
 
           {/* ENHANCED Mapa de Clasificaciones + ubicaciones aproximadas (ahora renderiza visual con pins) - no API key needed */}
           <div className="mt-6">
-            <h4 className="font-semibold mb-2">🗺️ Mapa de Oportunidades y Clasificaciones (Querétaro & Colonia Cimatario) + Barrido ubicaciones</h4>
+            <h4 className="font-semibold mb-2">🗺️ Mapa de Oportunidades y Clasificaciones (Cimatario + zonas) + ~1000 inmuebles (Mapbox único + pin target ★)</h4>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs mb-3">
               <div className="p-2 rounded bg-green-900/50 border border-green-500">Cimatario: <span className="font-bold">Expansión Alta (verde)</span> - HBU Score alto, factibilidad COS 0.60/CUS 2.4</div>
               <div className="p-2 rounded bg-yellow-900/50 border border-yellow-500">Cumbres del Cimatario: <span className="font-bold">Crecimiento Moderado (amarillo)</span> - Competitividad media, proyección favorable nearshoring</div>
@@ -1047,19 +1054,15 @@ function HbuTab() {
               <div className="p-2 rounded bg-red-900/50 border border-red-500">Áreas saturadas (ej. algunos periféricos): <span className="font-bold">Baja Prioridad (rojo)</span> - Competitividad baja, rentabilidad potencial limitada</div>
             </div>
 
-            {/* Visual mini-map with approx locations derived from descriptions/titles in DB (no external API key; pure CSS pins positioned by zone keywords) */}
-            <div className="relative h-48 bg-[#0a0a0f] border border-[#1e1e2e] rounded-2xl overflow-hidden mb-2" style={{background: 'radial-gradient(circle at 40% 30%, #1a1a22 0%, #0a0a0f 70%)'}}>
-              <div className="absolute top-2 left-2 text-[10px] text-gray-500 bg-black/60 px-1.5 py-0.5 rounded">Mapa conceptual aproximado • Cimatario / QRO (pins de listings según loc en descripciones; sin lat/lng reales en scraper raw)</div>
-              {/* Pins approx from coloniaMock + sample patterns (Cumbres left, centro center, Biznaga mid, Villas south etc) */}
-              <div className="absolute w-2.5 h-2.5 bg-green-500 rounded-full ring-2 ring-green-400/50 cursor-help" style={{left: '22%', top: '28%'}} title="Cimatario centro ~ Expansión Alta • HBU alto • ~12 listings cluster" />
-              <div className="absolute w-2.5 h-2.5 bg-yellow-400 rounded-full ring-2 ring-yellow-300/50 cursor-help" style={{left: '12%', top: '18%'}} title="Cumbres / El Encino • Crecimiento moderado • vistas/golf" />
-              <div className="absolute w-2.5 h-2.5 bg-yellow-400 rounded-full ring-2 ring-yellow-300/50 cursor-help" style={{left: '18%', top: '35%'}} title="La Biznaga / Mallorca • +plusvalía reserva/parque" />
-              <div className="absolute w-2.5 h-2.5 bg-blue-400 rounded-full ring-2 ring-blue-300/50 cursor-help" style={{left: '55%', top: '25%'}} title="Villas del Sur / Centro Sur • Estable, cerca amenidades" />
-              <div className="absolute w-2.5 h-2.5 bg-green-500 rounded-full ring-2 ring-green-400/50 cursor-help" style={{left: '38%', top: '42%'}} title="Cimatario mixto/terreno 420m2 • Alta factibilidad" />
-              <div className="absolute w-2 h-2 bg-red-500 rounded-full ring-1 ring-red-400/40 cursor-help" style={{left: '78%', top: '55%'}} title="Periférico saturado (ejemplo) • Baja prioridad" />
-              <div className="absolute bottom-2 right-2 text-[9px] text-gray-500 bg-black/70 px-1 rounded">≈ posiciones por keyword en títulos/loc (Cumbres NW, Cimatario core, Villas SE). Para pins reales + Mapbox/Google provee API key.</div>
+            {/* Sesión 1 microroadmap: Single Mapbox (MapLibre removed - with all ~1000 points side-by-side no longer makes sense). Unmistakable target pin + improved accurate zones (more areas, faithful to MD 2023 streets/POI/Cimatario data, no hallucinations). */}
+            <div className="mt-2" style={{ height: '420px', width: '100%' }}>
+              <MapboxMap propertyPoints={propertyPoints} fmtMoney={fmtMoney} />
             </div>
-            <div className="mt-1 text-[10px] text-gray-500">Clasificaciones mejoradas con terminología de valuación inmobiliaria: Highest &amp; Best Use (HBU) Score, Market Feasibility Index, Competitive Position, Growth Trajectory Projection, Rental Yield Factor, Full Potential Profitability (IRR &amp; NPV estimado). Basado en datos 2023-2026 (enriquecido con tu estudio 2023 + tendencias nearshoring). Barridos previos ahora muestran ubicaciones/approx de las descripciones.</div>
+            <div className="mt-1 text-[10px] text-gray-500">
+              <strong>Mapbox GL único</strong> (Sesión 1): vectorial con tu token. ~1000 inmuebles clustered de terrenos_full + geo de descripciones. 
+              Zonas ampliadas precisas (Cimatario core alrededor Carlos Septién 53 + target lime highlight derivado de colindancias MD, Cumbres, Centro Sur/Juriquilla + Centro Histórico/Alameda, perif). 
+              <strong>★ Pin inconfundible</strong> verde Klugger glow resalta ubicación exacta del bien inmueble (auto popup + click). Leyenda HBU/Market Feasibility. Datos sin alucinar.
+            </div>
           </div>
 
           {/* Serie Temporal Completada 2023-2026 */}
