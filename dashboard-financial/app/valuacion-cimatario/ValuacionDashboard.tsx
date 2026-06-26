@@ -21,6 +21,12 @@ const MapboxMap = dynamic(() => import('./MapboxMap'), {
   loading: () => <div style={{height:420, background:'#0a0a0f', borderRadius:12, display:'flex', alignItems:'center', justifyContent:'center', color:'#666', border:'1px solid #1e1e2e'}}>Cargando mapa Mapbox GL (vectorial premium con token)...</div>
 });
 
+// Safe dynamic for improved 3D FinObra (Sesion 2: best preview elements + Klugger green, no Framer floors-grow-windows, py GIF renderer too).
+const FinObra3DBuilding = dynamic(() => import('./FinObra3DBuilding'), {
+  ssr: false,
+  loading: () => <div style={{height:320, display:'flex',alignItems:'center',justifyContent:'center',background:'#0a0a0f',color:'#666',borderRadius:12}}>Cargando modelo 3D FinObra mejorado (preview TSX + green Klugger)...</div>
+});
+
 const FULL_DB_COUNT = (terrenosFullRaw as any[]).length || 1000;
 
 // ====================================================================
@@ -863,85 +869,7 @@ function MarketingTab() {
   );
 }
 
-// =====================================================
-// 3D FINOBRA BUILDING (replaces 2D-only; uses three + r3f for real modeling of multiple prototypes)
-// Native TS animation via useFrame. Multiple HBU possibilities (multifam / mixto / max).
-// No external finobra py/TS repo found on disk (searches returned none), so solid self-contained 3D here.
-// Interactive: drag to orbit, scroll zoom, changes with sliders + scenario buttons.
-// =====================================================
-const FinObra3DBuilding: React.FC<{ floors: number; units: number; scenario: 'residencial'|'mixto'|'max'; anim: boolean }> = ({ floors, units, scenario, anim }) => {
-  const BuildingInner = () => {
-    useFrame((state) => {
-      // Native TS animation: subtle auto orbit + growth pulse when anim triggered (construction sim)
-      if (anim) {
-        // pulse handled via scale below in mesh
-      }
-    });
-    const unitH = 1.0;
-    const baseW = scenario === 'mixto' ? 3.6 : 2.6;
-    const baseD = 2.0;
-    const groundExtra = scenario === 'mixto' ? 0.8 : 0;
-    return (
-      <group>
-        {/* Terrain / lot */}
-        <mesh position={[0, -0.15, 0]} receiveShadow>
-          <boxGeometry args={[5.5, 0.3, 4.5]} />
-          <meshLambertMaterial color="#1e2937" />
-        </mesh>
-        {/* Floors / slabs - dynamic per scenario */}
-        {Array.from({ length: floors }).map((_, fi) => {
-          const yBase = 0.15 + fi * (unitH + 0.15);
-          const isGround = fi === 0;
-          const w = isGround && scenario === 'mixto' ? baseW + groundExtra : baseW;
-          const h = unitH + (anim ? 0.12 : 0); // simple growth on anim trigger (useFrame drives orbit + pulse via autoRotate)
-          const color = isGround && scenario === 'mixto' ? '#334155' : (scenario === 'max' ? '#6366f1' : '#7c3aed');
-          return (
-            <group key={fi}>
-              {/* Main floor volume */}
-              <mesh position={[0, yBase + h / 2, 0]} castShadow>
-                <boxGeometry args={[w, h, baseD]} />
-                <meshLambertMaterial color={color} />
-              </mesh>
-              {/* Windows grid (simple 3D "units" modeling different possibilities) */}
-              <group position={[0, yBase + h / 2, baseD / 2 + 0.02]}>
-                {Array.from({ length: Math.min(3, Math.ceil(units / floors)) }).map((_, wi) => (
-                  <mesh key={wi} position={[(wi - 1) * 0.7, 0, 0]}>
-                    <boxGeometry args={[0.35, 0.35, 0.08]} />
-                    <meshLambertMaterial color="#bae6fd" emissive="#67e8f9" emissiveIntensity={anim ? 0.6 : 0.2} />
-                  </mesh>
-                ))}
-              </group>
-              {/* Label floor */}
-              <Html position={[w/2 + 0.3, yBase + h/2, 0]} style={{ fontSize: 9, color: '#cbd5e1', pointerEvents: 'none' }}><span>P{fi+1}</span></Html>
-            </group>
-          );
-        })}
-        {/* Roof accent */}
-        <mesh position={[0, 0.15 + floors * (unitH + 0.15) + 0.3, 0]}>
-          <boxGeometry args={[baseW + 0.2, 0.25, baseD + 0.2]} />
-          <meshLambertMaterial color="#0f172a" />
-        </mesh>
-        {/* Simple "local" for mixto scenario on ground */}
-        {scenario === 'mixto' && (
-          <mesh position={[0, 0.15 + 0.6, -baseD/2 - 0.3]}>
-            <boxGeometry args={[baseW + 0.6, 0.7, 0.6]} />
-            <meshLambertMaterial color="#475569" />
-          </mesh>
-        )}
-      </group>
-    );
-  };
-  return (
-    <div style={{ height: 260, width: '100%', background: '#0a0a0f', borderRadius: 12, overflow: 'hidden', border: '1px solid #1e1e2e' }}>
-      <Canvas camera={{ position: [6, 6, 8], fov: 48 }} style={{ background: 'transparent' }}>
-        <ambientLight intensity={0.7} />
-        <directionalLight position={[8, 12, -6]} intensity={0.9} castShadow />
-        <BuildingInner />
-        <OrbitControls enablePan={false} enableZoom={true} minDistance={3} maxDistance={14} autoRotate={anim} autoRotateSpeed={0.8} />
-      </Canvas>
-    </div>
-  );
-};
+// (Sesion 2 microroadmap complete for anim: old inline simple box "FinObra3D" + all Framer "floors grow windows" code fully excised. Using external enhanced FinObra3DBuilding.tsx (preview TSX I-beams/rebar/glass/workers + Klugger green, py renderer support) + existing video. High quality only.)
 
 // =====================================================
 // NUEVO TAB: HBU / HBV + ESTUDIO COLONIA + ANIMACIONES FINOBRA (para b + c)
@@ -1185,9 +1113,9 @@ function HbuTab() {
           <div className="mb-2">
             <FinObra3DBuilding floors={floors} units={numUnits} scenario={scenario} anim={isAnimating} />
           </div>
-          <div className="text-[11px] text-gray-500 mt-1">Modelado 3D nativo (three.js + React Three Fiber). Diferentes prototipos por escenario (mixto añade locales en PB, max densidad más compacto). Cambia sliders arriba → edificio se actualiza en 3D. Botón "Animar" activa pulso de construcción + auto-rotación (animación TS nativa). Esto reemplaza el 2D anterior que no comunicaba volumen/posibilidades reales.</div>
+          <div className="text-[11px] text-gray-500 mt-1">Sesion 2 microroadmap: 3D FinObra <strong>mejorado por mucho</strong> (elementos mejores del preview TSX: I-beams detallados con flanges/web, slabs+edges, rebar, glass tint/emissive, workers animados, grid, curva rotación suave). Verde Klugger #00FF66 dominante en acentos. <strong>Sin animación "floors grow windows"</strong> (Framer eliminado). Cambia sliders → impacto real-time. Botón activa pulso construcción. Ver también GIF py renderer abajo. Refs: FinObra /src/preview/ + .cad-skill py.</div>
 
-          {/* Proper AI-generated FinObra animation (using image/video generation skills for realistic project simulation) */}
+          {/* Proper AI-generated + code renderer FinObra (Sesion 2) */}
           <div className="mt-4">
             <video 
               controls 
@@ -1198,7 +1126,13 @@ function HbuTab() {
               <source src="/assets/finobra-animation.mp4" type="video/mp4" />
               Tu navegador no soporta video.
             </video>
-            <div className="text-xs text-gray-500 mt-1">Animación FinObra realista: órbita cinemática del edificio terminado (4 niveles, 12 unidades, diseño contemporáneo en lote 660m²). Generada específicamente para simular lo que se puede construir aquí (usando capacidades de generación de imágenes y video).</div>
+            <div className="text-xs text-gray-500 mt-1">Video: órbita cinemática edificio terminado (12u). </div>
+
+            {/* GIF from py renderer (Sesion 2 requirement: create py like the FinObra example, Klugger green esp #00FF66, no logos, via .cad-skill style) */}
+            <div className="mt-3">
+              <img src="/assets/finobra-hero-3d-v2.gif" alt="FinObra 3D wireframe GIF - Klugger green, preview style, no logos" style={{width: '100%', borderRadius: 12, border: '1px solid #1e1e2e', background: '#0a0a0f'}} />
+              <div className="text-xs text-gray-500 mt-1">GIF generado con public/assets/finobra-hero-3d-v2.py (estilo assets/animations/finobra-hero-3d-v2.py del repo FinObra + .cad-skill). Ejecuta el py (pip numpy pillow imageio) para regenerar con los colores Klugger verde. Sin logos.</div>
+            </div>
           </div>
         </div>
       </section>
