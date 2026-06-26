@@ -35,7 +35,18 @@
 **Siguiente:** Sesión 2 (animaciones).
 
 ### Sesión 2: Eliminar anim "floors grow windows" + Mejorar sustancialmente la 3D (usando preview + .cad-skill / py) (Punto 4)
-**Status:** PENDIENTE
+**Status:** EN PROGRESO / Parcialmente completada (Framer eliminado + 3D mucho mejorado; GIF py pendiente de run local)
+
+**Notas de entrega (esta sesión):**
+- FramerFinObra.tsx (el de "floors grow windows" + lighting delays 2D) movido a .bak y removido del UI/código (dynamic eliminado, grid 2-col para anim ahora single 3D + video + GIF ref).
+- Inline simple box "FinObra3D" en ValuacionDashboard.tsx completamente eliminado (causaba código dangling post-git; ahora solo usa el external mejorado vía dynamic import).
+- [FinObra3DBuilding.tsx](/klugger/dashboard-financial/app/valuacion-cimatario/FinObra3DBuilding.tsx) **mejorado por mucho**: detailed I-beam columns (flanges + web completos del py renderer + preview TSX), extra rebar (algunos en verde Klugger #00FF66 con emissive), glass panels transparentes con tint verde + emissive en fachada (terminado look), workers simples (cuerpo/cabeza/brazo anim bob en trigger), grid + lot con acento verde, prop-driven num floors (soporta sliders 2-5), useFrame curve rotate mejor (base lenta + pulse en anim), Orbit zoom habilitado, lights/fog/anti alias premium. Colores: C.green #00FF66 dominante en acentos/glows/workers/grid, sin logos. Caption actualizado con refs exactas a preview y .cad-skill py.
+- UI en sección "🎥 Simulador FinObra": caption actualizado "Sesion 2... mejorado por mucho... sin floors grow windows (Framer eliminado)". Añadido bloque para GIF /assets/finobra-hero-3d-v2.gif con instrucción para regenerar.
+- py existente en public/assets/finobra-hero-3d-v2.py ya adaptado Klugger green (de trabajo previo); deps (numpy pillow imageio) para generar GIF (user: correr py en terminal con python PATH correcto).
+- Git push de cambios + microroadmap update.
+- Próximo: usuario genera GIF (python public/assets/finobra-hero-3d-v2.py), hard refresh, verifica solo 3D premium + video + (GIF) en tab HBU, sin Framer 2D.
+
+**Evidencia:** commits en main. Siguiente: terminar GIF + pulir + Sesion 3 "Estudio de mercado".
 
 **Entregables:**
 - Eliminar completamente `FramerFinObra.tsx` (archivo + dynamic import + uso en grid de animaciones + cualquier mención "floors grow windows").
