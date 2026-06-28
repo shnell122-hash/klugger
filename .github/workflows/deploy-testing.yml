@@ -1,0 +1,49 @@
+name: Deploy testing → klugger.shnell.mx
+
+on:
+  push:
+    branches: [testing]
+
+# Deny-all at workflow level; each job declares minimum needed
+permissions: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      deployments: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: dashboard-financial/package-lock.json
+
+      - name: Install dependencies
+        working-directory: dashboard-financial
+        run: npm ci
+
+      - name: Build (Next.js static export)
+        working-directory: dashboard-financial
+        env:
+          NEXT_STATIC_EXPORT: 'true'
+          # Backend URL shown in the dashboard (client-side only, no real-time data in static mode)
+          NEXT_PUBLIC_API_URL: ${{ vars.KLUGGER_API_URL }}
+          # Mapbox token for ValuacionDashboard map
+          NEXT_PUBLIC_MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
+        run: npm run build
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          command: >-
+            pages deploy ./dashboard-financial/out
+            --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME }}
+            --branch=testing
