@@ -217,7 +217,7 @@ const MapboxMap: React.FC<MapboxMapProps> = ({ propertyPoints, fmtMoney }) => {
 
       // Popup
       map.current.on('click', 'unclustered-point', (e) => {
-        const props = (e.features![0] as mapboxgl.MapboxGeoJSONFeature).properties as Record<string, unknown>;
+        const props = (e.features![0] as any).properties as Record<string, unknown>;
         new mapboxgl.Popup()
           .setLngLat(e.lngLat)
           .setHTML(`

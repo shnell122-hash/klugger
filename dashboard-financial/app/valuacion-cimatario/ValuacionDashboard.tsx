@@ -927,6 +927,30 @@ function HbuTab() {
     target: `Meta Cimatario: 800-1000+ registros validados (scrape + vision). Actual total visible: ${FULL_DB_COUNT} (176 raw + enriquecido).`
   };
 
+  // Map points for MapboxMap — deterministic coords around Cimatario (raw data has no lat/lng)
+  const propertyPoints = useMemo(() => {
+    const parse = (v: any) => { const n = parseFloat(String(v ?? '').replace(/[^0-9.]/g, '')); return isNaN(n) ? 0 : Math.abs(n); };
+    return (terrenosFullRaw as any[]).map((row: any, idx: number) => {
+      const price = parse(row.price);
+      const size = parse(row.size_m2);
+      const ppm = size > 0 && price > 0 ? Math.round(price / size) : 0;
+      const theta = (idx * 2.399963) % (2 * Math.PI);
+      const r = 0.005 * Math.sqrt(((idx % 60) + 1) / 60);
+      const isHigh = ppm > 8500 || size > 350;
+      const isLow = ppm < 5000 || size < 150;
+      return {
+        lat: 20.575 + r * Math.sin(theta),
+        lng: -100.390 + r * Math.cos(theta),
+        price,
+        size,
+        title: (row.title as string) || 'Terreno',
+        color: isHigh ? '#10b981' : isLow ? '#ef4444' : '#f59e0b',
+        ppm,
+        location: (row.location as string) || '',
+      };
+    });
+  }, []);
+
   // Simple finobra animation state
   const [isAnimating, setIsAnimating] = useState(false);
   const floors = Math.min(4, Math.max(2, Math.ceil(numUnits / 3)));
