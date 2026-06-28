@@ -162,7 +162,7 @@ const MapboxMap: React.FC<MapboxMapProps> = ({ propertyPoints, fmtMoney }) => {
       // Click the star to open popup immediately (makes it unmistakable)
       targetEl.addEventListener('click', () => targetMarker.togglePopup());
       // Auto-open briefly on load to draw attention (professional touch)
-      setTimeout(() => { try { targetMarker.togglePopup(); setTimeout(() => { if (targetMarker.getPopup().isOpen()) targetMarker.togglePopup(); }, 4200); } catch(e){} }, 1400);
+      setTimeout(() => { try { targetMarker.togglePopup(); setTimeout(() => { if (targetMarker.getPopup()?.isOpen()) targetMarker.togglePopup(); }, 4200); } catch(e){} }, 1400);
 
       // Clusters
       map.current.addLayer({
