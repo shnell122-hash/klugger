@@ -3,14 +3,17 @@ import VolumeChart from '@/components/charts/VolumeChart';
 import OpsTypeChart from '@/components/charts/OpsTypeChart';
 import AgentFlowGraphClient from '@/components/graph/AgentFlowGraphClient';
 
-export const dynamic = 'force-dynamic';
 
 export default async function AnalyticsPage() {
-  const [volumeTS, opsByType, llmData] = await Promise.all([
+  const [volumeTS, opsByType, llmData] = await Promise.allSettled([
     api.getVolumeTS(90),
     api.getOpsByType(90),
     api.getLLMCosts(90),
-  ]);
+  ]).then(([a, b, c]) => [
+    a.status === 'fulfilled' ? a.value : [],
+    b.status === 'fulfilled' ? b.value : [],
+    c.status === 'fulfilled' ? c.value : { byAgent: [], timeSeries: [] },
+  ] as const);
 
   const totalCosto = llmData.byAgent.reduce((s, a) => s + Number(a.total_cost_usd), 0);
   const totalCalls = llmData.byAgent.reduce((s, a) => s + Number(a.total_calls), 0);

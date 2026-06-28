@@ -1,10 +1,9 @@
 import { api } from '@/lib/api';
 import OperationsTableClient from './OperationsTableClient';
 
-export const dynamic = 'force-dynamic';
 
 export default async function OperationsPage() {
-  const operations = await api.getOperations();
+  const operations = await api.getOperations().catch(() => []);
   return (
     <main className="p-6 max-w-[1600px] mx-auto space-y-4">
       <div>

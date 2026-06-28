@@ -1,7 +1,6 @@
 import { api } from '@/lib/api';
 import EmpresasClient from './EmpresasClient';
 
-export const dynamic = 'force-dynamic';
 
 export default async function EmpresasPage() {
   let empresas: import('@/lib/api').Empresa[] = [];

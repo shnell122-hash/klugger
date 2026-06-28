@@ -5,7 +5,6 @@ import VolumeChart from '@/components/charts/VolumeChart';
 import OpsTypeChart from '@/components/charts/OpsTypeChart';
 import Link from 'next/link';
 
-export const dynamic = 'force-dynamic';
 export const revalidate = 30;
 
 const EMPTY_KPIS = {
