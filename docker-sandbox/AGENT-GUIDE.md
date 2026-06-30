@@ -1,68 +1,76 @@
 # Docker Sandbox — Guía para Agentes Claude Code
 
-> Cualquier agente que opere en este repositorio **DEBE** correr dentro del sandbox Docker
-> descrito aquí. Nunca correr `claude` directamente en el host sin el sandbox.
+> Cualquier agente que opere en un repositorio con este sandbox **DEBE** correr dentro
+> del contenedor Docker descrito aquí. Nunca ejecutar `claude` directamente en el host.
 
 ---
 
 ## Arquitectura de seguridad
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  Staging server (178.104.135.160 / VPN 10.8.0.13)          │
-│  Usuario: klugger                                           │
-│                                                             │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │  Docker container (klugger-agent)                    │  │
-│  │                                                      │  │
-│  │  • Claude Code CLI (usuario: agent, no-root)         │  │
-│  │  • GITHUB_TOKEN → solo vilarkptl-lang/klugger        │  │
-│  │  • INFISICAL → secretos de proyecto (no Cloudflare)  │  │
-│  │  • ~/.claude montado :ro  → auth Claude              │  │
-│  │  • Sin acceso a red prod, sin tokens de Cloudflare   │  │
-│  └──────────────────────────────────────────────────────┘  │
-│                                                             │
-│  GitHub Actions (separado, corre en la nube)               │
-│  • CLOUDFLARE_API_TOKEN → solo vive aquí (GitHub Secrets)  │
-│  • Dispara: push a branch testing → deploy a Pages         │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│  Servidor de staging                                            │
+│  IP pública: <SERVER_IP>  |  IP VPN: <VPN_IP>                  │
+│  Usuario del agente: <AGENT_USER>                               │
+│                                                                 │
+│  ┌────────────────────────────────────────────────────────┐    │
+│  │  Docker container (imagen: <IMAGE_NAME>)               │    │
+│  │                                                        │    │
+│  │  • Claude Code CLI (usuario no-root dentro)            │    │
+│  │  • GITHUB_TOKEN → scoped solo al repo del proyecto     │    │
+│  │  • INFISICAL → secretos de negocio (no tokens de prod) │    │
+│  │  • ~/.claude montado :ro → auth de Claude heredada     │    │
+│  │  • Sin tokens de Cloudflare, AWS, ni infra de prod     │    │
+│  └────────────────────────────────────────────────────────┘    │
+│                                                                 │
+│  GitHub Actions (corre en la nube, separado del servidor)      │
+│  • CLOUDFLARE_API_TOKEN / credenciales de deploy               │
+│  • Solo se activa por push al repo — el agente nunca lo ve     │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 **Reglas absolutas:**
-- El token de Cloudflare **nunca** entra al sandbox ni al repo
-- El sandbox solo tiene PAT scoped a `vilarkptl-lang/klugger` (Contents R/W)
-- Secretos de negocio (DB, APIs de terceros) → vía Infisical, no hardcodeados
-- El agente hace push al repo → GitHub Actions hace el deploy a Cloudflare Pages
+- Tokens de deploy (Cloudflare, AWS, etc.) **nunca** entran al sandbox
+- El sandbox solo tiene un PAT de GitHub scoped al repo del proyecto
+- Secretos de negocio → vía Infisical, nunca hardcodeados
+- El agente hace push → CI/CD hace el deploy automáticamente
 
 ---
 
 ## Conexión al servidor
 
-### Opción A — Mosh (recomendado, sobrevive cortes de VPN)
+### Opción A — Mosh (recomendado para conexiones VPN/móviles)
+
+Mosh sobrevive cortes de red, cambios de IP y suspensión del dispositivo.
 
 ```
-Host:    10.8.0.13  (VPN interna)  ó  178.104.135.160  (IP pública)
-Usuario: klugger
-Auth:    llave SSH  german_vilar_id_ed25519
-Método:  Mosh (UDP 60000-61000)
+Host:    <VPN_IP>  ó  <SERVER_IP>
+Usuario: <AGENT_USER>
+Auth:    llave SSH
+Método:  Mosh (requiere UDP 60000-61000 abierto en el firewall)
 ```
 
-En Termius: activar toggle **Use Mosh** en el host.
+En **Termius**: Edit Host → SSH/MOSH → activar toggle **Use Mosh**.
+
+Instalar mosh en el servidor (una sola vez):
+```bash
+apt-get install -y mosh
+ufw allow 60000:61000/udp
+```
 
 ### Opción B — SSH directo
 
 ```bash
-ssh klugger@10.8.0.13
-# ó
-ssh klugger@178.104.135.160
+ssh <AGENT_USER>@<VPN_IP>
+# ó por IP pública si no hay VPN:
+ssh <AGENT_USER>@<SERVER_IP>
 ```
 
-### Opción C — desde otro agente Claude Code (web/CLI)
+### Opción C — desde otro agente Claude Code
 
 ```bash
-# El sandbox web bloquea SSH directo; usar exec-lite si está disponible
-# Para este servidor (vilar-dev-2) no hay exec-lite — usar SSH con sshpass si el puerto está abierto
-sshpass -p '<password>' ssh -o StrictHostKeyChecking=no klugger@178.104.135.160 "comando"
+sshpass -p '<PASSWORD>' ssh -o StrictHostKeyChecking=no \
+    <AGENT_USER>@<SERVER_IP> "comando"
 ```
 
 ---
@@ -70,31 +78,37 @@ sshpass -p '<password>' ssh -o StrictHostKeyChecking=no klugger@178.104.135.160 
 ## Setup inicial (una sola vez por servidor)
 
 ```bash
-# 1. Conectarse como root
-ssh root@178.104.135.160
+# ── Como root ─────────────────────────────────────────────────────────────────
 
-# 2. Crear usuario klugger y agregar al grupo docker
-id klugger &>/dev/null || useradd -m -s /bin/bash klugger
-usermod -aG docker klugger
+# 1. Crear usuario del agente y agregarlo al grupo docker
+id <AGENT_USER> &>/dev/null || useradd -m -s /bin/bash <AGENT_USER>
+usermod -aG docker <AGENT_USER>
 
-# 3. Clonar el sandbox (con PAT de GitHub)
+# 2. Configurar SSH keepalive para evitar desconexiones
+grep -q "^ClientAliveInterval" /etc/ssh/sshd_config || {
+  echo "ClientAliveInterval 30" >> /etc/ssh/sshd_config
+  echo "ClientAliveCountMax 10" >> /etc/ssh/sshd_config
+  systemctl reload sshd
+}
+
+# 3. Clonar el sandbox desde el repo
 GITHUB_TOKEN="ghp_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-git clone https://x-access-token:${GITHUB_TOKEN}@github.com/vilarkptl-lang/klugger.git \
-    --branch testing --depth 1 /opt/klugger-sandbox
+git clone https://x-access-token:${GITHUB_TOKEN}@github.com/<ORG>/<REPO>.git \
+    --branch <BRANCH> --depth 1 /opt/<REPO>-sandbox
 
-# 4. Instalar dependencias y construir imagen
-bash /opt/klugger-sandbox/docker-sandbox/setup.sh
+# 4. Instalar dependencias y construir imagen Docker
+bash /opt/<REPO>-sandbox/docker-sandbox/setup.sh
 
-# 5. Instalar mosh (para conexiones estables desde Termius)
-apt-get install -y mosh
-ufw allow 60000:61000/udp
+# ── Como <AGENT_USER> ─────────────────────────────────────────────────────────
+su - <AGENT_USER>
 
-# 6. Cambiar a klugger y autenticar Claude Code
-su - klugger
-claude auth login    # abre URL en browser → pegar código de vuelta
+# 5. Autenticar Claude Code (genera ~/.claude y ~/.claude.json)
+claude auth login
+# → Abre URL en el browser, autoriza, pega el código de vuelta
+
+# 6. Dar permisos de lectura para el contenedor (UID diferente al del host)
 chmod 644 ~/.claude.json
 chmod -R o+rX ~/.claude/
-exit
 ```
 
 ---
@@ -102,34 +116,34 @@ exit
 ## Ejecutar el agente
 
 ```bash
-su - klugger
+su - <AGENT_USER>
 
+# Variables requeridas
 export GITHUB_TOKEN="ghp_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
-# Con secretos de Infisical (recomendado)
+# Variables opcionales (solo si la tarea necesita secretos de negocio)
 export INFISICAL_CLIENT_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 export INFISICAL_CLIENT_SECRET="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
-# Sin Infisical (solo para tareas que no necesitan secretos de negocio)
-bash /opt/klugger-sandbox/docker-sandbox/run-agent.sh "Descripción de la tarea"
+# Lanzar
+bash /opt/<REPO>-sandbox/docker-sandbox/run-agent.sh "Descripción de la tarea"
 
-# Ver el agente en vivo
-tmux attach -t klugger-agent
-# Detach sin matar: Ctrl+B, D
+# Ver en vivo
+tmux attach -t <REPO>-agent
+# Detach sin matar el agente: Ctrl+B, D
 ```
 
 ---
 
 ## Secretos y autenticación
 
-### Claude Code (auth del agente)
+### Claude Code — auth del agente
 
-Se monta `~/.claude` y `~/.claude.json` del usuario `klugger` como read-only.
-El agente hereda el OAuth/proxy configurado en el servidor.
-**No se necesita `ANTHROPIC_API_KEY`.**
+Se montan `~/.claude/` y `~/.claude.json` del `<AGENT_USER>` del host como `:ro`.
+El contenedor hereda el OAuth o proxy configurado. **No se necesita `ANTHROPIC_API_KEY`.**
 
 ```bash
-# Verificar que la auth está activa en el host
+# Verificar que la auth está activa
 claude auth status
 
 # Renovar si expiró
@@ -137,59 +151,61 @@ claude auth login
 chmod 644 ~/.claude.json
 ```
 
-### GitHub PAT (acceso al repo)
+### GitHub PAT — acceso al repo
 
-- Tipo: **fine-grained PAT**
-- Scoped a: `vilarkptl-lang/klugger` únicamente
-- Permisos: `Contents: Read/Write` + `Metadata: Read`
-- Nunca dar acceso a otros repos ni a org-level
+| Campo | Valor |
+|-------|-------|
+| Tipo | Fine-grained PAT |
+| Scope | Solo el repo del proyecto |
+| Permisos | `Contents: Read/Write` + `Metadata: Read` |
+| Vigencia | 90 días máximo, renovar antes de expirar |
 
 ```bash
 export GITHUB_TOKEN="ghp_..."
 ```
 
-### Infisical (secretos de negocio dentro del sandbox)
+### Infisical — secretos de negocio
 
 El contenedor recibe las credenciales de máquina de Infisical y puede
-fetchear secretos del proyecto en runtime. Nunca hardcodear en el repo.
+fetchear secretos del proyecto sin que el agente los vea en texto plano.
 
 ```bash
 export INFISICAL_CLIENT_ID="..."
 export INFISICAL_CLIENT_SECRET="..."
-# El run-agent.sh pasa estas vars al contenedor automáticamente si están definidas
 ```
+
+El `run-agent.sh` pasa estas variables al contenedor automáticamente si están definidas.
 
 Dentro del sandbox, el agente puede usar:
 ```bash
-# Fetchear un secreto específico
+# Fetchear un secreto
 infisical secrets get DATABASE_URL --env=staging
 
-# Exportar todos los secretos al entorno
+# Exportar todos al entorno
 eval $(infisical export --env=staging --format=dotenv)
 ```
 
-### Cloudflare (deploy a Pages)
+### Tokens de deploy (Cloudflare, AWS, etc.)
 
-**El token de Cloudflare NUNCA entra al sandbox.** El flujo es:
+**Nunca entran al sandbox.** El flujo correcto:
 
 ```
-Agente → push a branch testing → GitHub Actions → wrangler deploy → Cloudflare Pages
+Agente → git push → GitHub Actions → deploy con token de prod
 ```
 
-El `CLOUDFLARE_API_TOKEN` vive solo en:
-`github.com/vilarkptl-lang/klugger → Settings → Secrets → CLOUDFLARE_API_TOKEN`
+Los tokens viven solo en:
+`GitHub → Settings → Secrets and variables → Actions`
 
 ---
 
-## Patrones Docker para agentes
+## Patrones Docker
 
 ### Patrón 1 — Tarea de desarrollo estándar
 
 ```bash
-# El agente edita código, hace commits y push
-# GitHub Actions detecta el push y hace el deploy
-bash /opt/klugger-sandbox/docker-sandbox/run-agent.sh \
-  "Agrega la pestaña X al dashboard en dashboard-financial/"
+export GITHUB_TOKEN="ghp_..."
+bash /opt/<REPO>-sandbox/docker-sandbox/run-agent.sh \
+  "Agrega la feature X al módulo Y"
 ```
 
 ### Patrón 2 — Tarea con secretos de negocio
@@ -198,56 +214,56 @@ bash /opt/klugger-sandbox/docker-sandbox/run-agent.sh \
 export GITHUB_TOKEN="ghp_..."
 export INFISICAL_CLIENT_ID="..."
 export INFISICAL_CLIENT_SECRET="..."
-bash /opt/klugger-sandbox/docker-sandbox/run-agent.sh \
-  "Actualiza la integración con la API de pagos usando las credenciales de staging"
+bash /opt/<REPO>-sandbox/docker-sandbox/run-agent.sh \
+  "Actualiza la integración con la API de pagos usando credenciales de staging"
 ```
 
-### Patrón 3 — Verificar qué está corriendo
+### Patrón 3 — Verificar estado
 
 ```bash
-# Ver sesiones activas
-tmux ls
-
-# Adjuntarse a la sesión del agente
-tmux attach -t klugger-agent
-
-# Ver logs del contenedor Docker
-docker logs klugger-agent
-
-# Ver si el contenedor está corriendo
-docker ps --filter "name=klugger-agent"
+tmux ls                              # sesiones activas
+tmux attach -t <REPO>-agent          # adjuntarse
+docker ps --filter "name=<REPO>-agent"   # contenedor corriendo
+docker logs <REPO>-agent             # logs del contenedor
 ```
 
 ### Patrón 4 — Matar y relanzar
 
 ```bash
-# Matar sesión actual
-tmux kill-session -t klugger-agent
-docker stop klugger-agent 2>/dev/null || true
-
-# Relanzar
-bash /opt/klugger-sandbox/docker-sandbox/run-agent.sh "Nueva tarea"
+tmux kill-session -t <REPO>-agent
+docker stop <REPO>-agent 2>/dev/null || true
+bash /opt/<REPO>-sandbox/docker-sandbox/run-agent.sh "Nueva tarea"
 ```
 
-### Patrón 5 — Reconstruir la imagen (después de cambios en Dockerfile)
+### Patrón 5 — Reconstruir imagen (tras cambios en Dockerfile)
 
 ```bash
 # Como root
-git -C /opt/klugger-sandbox pull
-docker build -t klugger-agent /opt/klugger-sandbox/docker-sandbox/
+git -C /opt/<REPO>-sandbox pull
+docker build -t <IMAGE_NAME> /opt/<REPO>-sandbox/docker-sandbox/
+```
+
+### Patrón 6 — Debug interactivo
+
+```bash
+docker run --rm -it \
+  -v /home/<AGENT_USER>/.claude:/home/agent/.claude:ro \
+  -v /home/<AGENT_USER>/.claude.json:/home/agent/.claude.json:ro \
+  <IMAGE_NAME> \
+  claude auth status
 ```
 
 ---
 
 ## Límites del contenedor
 
-| Recurso | Límite |
-|---------|--------|
-| RAM | 1 GB |
-| CPU | 1.5 cores |
-| Red | host (acceso a internet, no a red interna privada) |
-| Turns máximos | 40 |
-| Filesystem | Solo el repo clonado en `/home/agent/project` |
+| Recurso | Valor por defecto | Configurable en |
+|---------|-------------------|-----------------|
+| RAM | 1 GB | `run-agent.sh` → `--memory` |
+| CPU | 1.5 cores | `run-agent.sh` → `--cpus` |
+| Red | Host networking | `run-agent.sh` → `--network` |
+| Turns máximos | 40 | `run-agent.sh` → `--max-turns` |
+| Filesystem | Solo el repo clonado | Volúmenes Docker |
 
 ---
 
@@ -256,25 +272,22 @@ docker build -t klugger-agent /opt/klugger-sandbox/docker-sandbox/
 | Permitido | Prohibido |
 |-----------|-----------|
 | Editar archivos del repo clonado | Escribir fuera de `/home/agent/project` |
-| `git commit` y `git push` al repo klugger | Pushear a otros repos |
-| Leer secretos de Infisical (proyecto klugger) | Acceder a secretos de otros proyectos |
-| Hacer requests HTTP a internet | Acceder a servicios internos de red privada |
-| Leer `~/.claude` (read-only) | Modificar credenciales del host |
-| Usar `--max-turns 40` | Correr indefinidamente |
+| `git commit` y `git push` al repo scoped | Acceder a otros repos |
+| Leer secretos via Infisical (proyecto específico) | Tokens de deploy de producción |
+| Requests HTTP a internet | Modificar credenciales del host |
+| Leer `~/.claude` (read-only) | Correr como root dentro del contenedor |
 
 ---
 
-## Actualizar el sandbox
-
-Cuando haya cambios en `docker-sandbox/` en el repo:
+## Actualizar el sandbox en el servidor
 
 ```bash
-# Como root en el servidor
-git config --global --add safe.directory /opt/klugger-sandbox
-git -C /opt/klugger-sandbox pull
+# Como root
+git config --global --add safe.directory /opt/<REPO>-sandbox
+git -C /opt/<REPO>-sandbox pull
 
-# Si cambió el Dockerfile, reconstruir imagen
-docker build -t klugger-agent /opt/klugger-sandbox/docker-sandbox/
+# Si cambió el Dockerfile
+docker build -t <IMAGE_NAME> /opt/<REPO>-sandbox/docker-sandbox/
 ```
 
 ---
@@ -284,8 +297,9 @@ docker build -t klugger-agent /opt/klugger-sandbox/docker-sandbox/
 | Síntoma | Causa | Fix |
 |---------|-------|-----|
 | `Not logged in` | `.claude.json` no legible por el contenedor | `chmod 644 ~/.claude.json && chmod -R o+rX ~/.claude/` |
-| `[exited]` inmediato en tmux | Auth falla o error de inicio | `docker run --rm -it klugger-agent claude auth status` |
-| `Permission denied` en git pull de `/opt/klugger-sandbox` | Repo es de root, klugger no puede | Hacer pull como root |
-| Contenedor no encuentra imagen | Imagen no construida | `docker build -t klugger-agent /opt/klugger-sandbox/docker-sandbox/` |
-| `no sessions` en tmux | Sesión ya terminó | Ver output: el agente termina y espera Enter; revisar task completada |
-| SSH desconecta | VPN timeout | Usar Mosh en Termius + `ClientAliveInterval 30` en sshd_config |
+| `[exited]` inmediato en tmux | Auth falla o crash en inicio | `docker run --rm -it <IMAGE> claude auth status` |
+| `Permission denied` en git pull | Repo clonado por otro usuario | Usar `sudo git pull` o clonar con el usuario correcto |
+| Imagen no encontrada | No se construyó | `docker build -t <IMAGE_NAME> /opt/<REPO>-sandbox/docker-sandbox/` |
+| `no sessions` en tmux | Agente ya terminó | El agente termina solo — revisar output de la tarea |
+| SSH se desconecta | Timeout de VPN | Usar Mosh + `ClientAliveInterval 30` en `/etc/ssh/sshd_config` |
+| `claude auth login` no funciona | Node.js no instalado en host | `npm install -g @anthropic-ai/claude-code` |
