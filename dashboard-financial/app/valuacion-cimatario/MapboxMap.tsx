@@ -19,8 +19,8 @@ const MapboxMap: React.FC<MapboxMapProps> = ({ propertyPoints, fmtMoney }) => {
 
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
+    if (!MAPBOX_TOKEN) return; // token vacío → no inicializar (evita excepción de Mapbox)
 
-    // Set token (replace with your own)
     mapboxgl.accessToken = MAPBOX_TOKEN;
 
     map.current = new mapboxgl.Map({
@@ -249,6 +249,20 @@ const MapboxMap: React.FC<MapboxMapProps> = ({ propertyPoints, fmtMoney }) => {
       map.current = null;
     };
   }, [propertyPoints, fmtMoney]);
+
+  if (!MAPBOX_TOKEN) {
+    return (
+      <div className="w-full h-full rounded-2xl border border-[#1e1e2e] bg-[#0a0a0f] flex items-center justify-center flex-col gap-2 p-6">
+        <div className="text-3xl">🗺️</div>
+        <div className="text-gray-400 text-sm font-medium">Mapa interactivo no disponible</div>
+        <div className="text-gray-600 text-xs text-center max-w-xs leading-relaxed">
+          Agrega el secreto <code className="bg-[#1e1e2e] px-1 rounded text-[#7c3aed]">MAPBOX_TOKEN</code> en<br/>
+          GitHub → Settings → Secrets → Actions<br/>
+          El mapa se activa automáticamente en el próximo deploy.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full h-full">
