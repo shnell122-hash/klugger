@@ -683,6 +683,259 @@ function DatabaseTab() {
 }
 
 // =====================================================
+// PESTAÑA: ESTUDIO DE MERCADO (exhaustivo, datos del MD 2023 — VDD)
+// Fuente literal: cases/terreno-cimatario-queretaro/transcripcionEstudioMercado2023.md
+// Cero alucinaciones: todas las cifras provienen del documento.
+// =====================================================
+
+const EM_DEMO = {
+  poblacionEstado: [
+    { anio: 2020, valor: 2368467 }, { anio: 2022, valor: 2358758 }, { anio: 2023, valor: 2397293 },
+    { anio: 2024, valor: 2435115 }, { anio: 2025, valor: 2472207 }, { anio: 2026, valor: 2508557 },
+    { anio: 2027, valor: 2544144 }, { anio: 2028, valor: 2578973 }, { anio: 2029, valor: 2613029 },
+    { anio: 2030, valor: 2646299 },
+  ],
+  poblacionMunicipio: [
+    { anio: 2020, valor: 1049777 }, { anio: 2022, valor: 1007923 }, { anio: 2023, valor: 1023514 },
+    { anio: 2024, valor: 1039236 }, { anio: 2025, valor: 1055096 }, { anio: 2026, valor: 1071145 },
+    { anio: 2027, valor: 1087435 }, { anio: 2028, valor: 1104025 }, { anio: 2029, valor: 1120919 },
+    { anio: 2030, valor: 1138178 },
+  ],
+  kpis: [
+    { label: 'Edad mediana municipio', valor: '30 años', nota: 'Censo INEGI 2020' },
+    { label: 'Tasa de dependencia', valor: '41%', nota: 'Censo 2020' },
+    { label: 'Rangos 20-34 años', valor: '27.5% de la población', nota: '25-29: 102,358 hab (el mayor)' },
+    { label: 'Escolaridad superior municipio', valor: '34.7%', nota: 'Censo 2020 / Data México' },
+    { label: 'Salarios >2 SM municipio', valor: '67.29%', nota: 'Encuesta Intercensal / Censo 2020' },
+    { label: 'Recepción de inmigrantes', valor: '4° nacional (11.3%)', nota: 'Censo 2020 / Qro Competitivo' },
+    { label: 'Crecimiento municipal 2010-2020', valor: '30.9%', nota: 'Censo INEGI' },
+    { label: 'Estudiantes educación superior 2019', valor: '42,913', nota: 'Data México' },
+  ],
+};
+
+const EM_POI = [
+  { nombre: 'Centro Histórico', km: 2.7, min: 11 },
+  { nombre: 'Central de Autobuses', km: 4.2, min: 11 },
+  { nombre: 'Corregidora', km: 9.6, min: 11 },
+  { nombre: 'Juriquilla', km: 18.6, min: 18 },
+  { nombre: 'Aeropuerto Int. QRO', km: 32.6, min: 31 },
+  { nombre: 'Bernal', km: 58, min: 46 },
+  { nombre: 'Tequisquiapan', km: 62, min: 63 },
+  { nombre: 'Cadereyta de Montes', km: 72.2, min: 63 },
+];
+
+const EM_COLIVING = [
+  { nombre: 'Cuarto para señoritas', ubicacion: 'Centro Histórico', precio: 2500, seg: 'mixto', feat: 'Luz, agua, gas, internet, área de lavado. Solo mujeres. Contrato mín. 6 meses' },
+  { nombre: 'Amplia habitación (mujeres)', ubicacion: 'Plazas del Sol', precio: 3000, seg: 'mixto', feat: 'Internet, áreas compartidas, baño propio, área de lavado. Solo mujeres' },
+  { nombre: 'Cuarto semi amueblado', ubicacion: 'El Mirador', precio: 3400, seg: 'mixto', feat: 'Luz, agua, gas, cable, internet, limpieza, cocina, áreas compartidas, lavado' },
+  { nombre: 'Habitación compartida', ubicacion: 'Cimatario', precio: 3600, seg: 'mixto', feat: 'Luz, agua, gas, cable, internet, limpieza, cocina, lavado. Contrato mín. 3 meses' },
+  { nombre: 'Cuarto en casa colonial', ubicacion: 'Centro Histórico', precio: 3799, seg: 'mixto', feat: 'Servicios + limpieza, cocina, áreas compartidas, baño propio. Mín. 2 meses' },
+  { nombre: 'Habitación amueblada', ubicacion: 'Milenio III', precio: 4500, seg: 'mixto', feat: 'Luz, agua, gas, cable, internet, cocina, áreas compartidas, baño propio' },
+  { nombre: 'Habitaciones amuebladas', ubicacion: 'Morelos, Centro', precio: 4900, seg: 'mixto', feat: 'Servicios + limpieza, cocina, áreas compartidas, baño propio, lavado' },
+  { nombre: 'Cuarto amueblado', ubicacion: 'Cimatario', precio: 5000, seg: 'mixto', feat: 'Luz, agua, gas, cable, internet, limpieza, cocina, lavado. Contrato mín. 3 meses' },
+  { nombre: 'Casa Séptimo', ubicacion: 'Centro, QRO', precio: 6000, seg: 'mixto', feat: '6 hab (3 privadas, 1 loft p/5, 2 dormitorios). Cocina y sala común' },
+  { nombre: 'Habiteé Executive (all-inclusive)', ubicacion: 'Av. Felipe Ángeles', precio: 7500, seg: 'estudiantil', feat: 'Todos los servicios + coworking. Contrato semanal' },
+  { nombre: 'Xéntric Anáhuac', ubicacion: 'Zibatá, El Marqués', precio: 8500, seg: 'estudiantil', feat: '245 hab 12.31 m² baño privado amuebladas. Alberca, gimnasio, cancha, pista 1 km, transporte, vigilancia 24h' },
+  { nombre: 'Kali Homes', ubicacion: 'Av. Felipe Ángeles (Tec)', precio: 9500, seg: 'estudiantil', feat: '40 hab. Coworking, lavandería, cocina compartida, rooftop, ascensor, limpieza 2x/sem' },
+  { nombre: 'Habiteé Urban Dorms', ubicacion: 'Fracc. Tecnológico (Tec)', precio: 9500, seg: 'estudiantil', feat: '10 hab. Registro exprés, terraza, limpieza diaria, calefacción, TV' },
+  { nombre: 'Altana Student Living', ubicacion: 'Zibatá (Anáhuac)', precio: 10300, seg: 'estudiantil', feat: '83 hab. Study room, concierge, lounge, cooking roof garden, BBQ, sun garden' },
+  { nombre: 'Covive Casa Amatlán', ubicacion: 'La Condesa, CDMX', precio: 12950, seg: 'profesional', feat: '10 hab. Casa remodelada, jardín social, solario, cocina, sala, centro de lavado' },
+  { nombre: 'Casa Iris Co-living', ubicacion: 'Centro Histórico, QRO', precio: 12800, seg: 'mixto', feat: '18 hab. Wi-Fi, estacionamiento, lavandería, cocina en c/hab, jacuzzi' },
+  { nombre: 'Niu Coliving', ubicacion: 'Narvarte, CDMX', precio: 15500, seg: 'profesional', feat: '54 hab. Concierge, Smart TV, comedor, internet, mantenimiento incluido' },
+  { nombre: 'Estancia 39', ubicacion: 'Escandón, CDMX', precio: 18900, seg: 'profesional', feat: '224 hab. Internet 200mb, acceso por reconocimiento facial/huella, CCTV 24h' },
+  { nombre: 'El Depa de Juana', ubicacion: 'G.A. Madero, CDMX', precio: 21200, seg: 'profesional', feat: '60 hab. Gimnasio, terraza grill, lavandería, Netflix, coworking, seguridad 24/7' },
+  { nombre: 'Colonies Gustave', ubicacion: 'Villejuif, Francia', precio: 21360, seg: 'profesional', feat: '14 hab. Comedor, cocina, BBQ, terraza, gimnasio, sala de proyección, jardín' },
+  { nombre: 'Urban Campus', ubicacion: 'Malasaña, Madrid', precio: 36000, seg: 'profesional', feat: '8 hab. Netflix, Wifi, limpieza semanal, coworking, 300 m² de zonas comunes' },
+  { nombre: 'The Lexington', ubicacion: 'Brooklyn, NY', precio: 36000, seg: 'profesional', feat: '8 hab. Cocina equipada, Wifi, seguridad, estación de café/trabajo, patio, Smart TV' },
+  { nombre: 'The Collective Canary Wharf', ubicacion: 'Londres, UK', precio: 49000, seg: 'profesional', feat: '5 hab. Piscina skyline, gimnasio, cine, biblioteca, restaurante/bar, simulador de golf' },
+];
+
+const EM_PROM_INFORMAL = 3837;
+const EM_PROM_INSTITUCIONAL = 8950;
+
+const EM_CONCLUSIONES = [
+  'Carlos Septién es buen nicho de oportunidad para el mercado de alquiler enfocado a la generación Millennial con estudios superiores; la demografía indica que se tiene el bono demográfico para la renta de vivienda compartida.',
+  'El predio tiene uso H2 (Habitacional hasta 200 Hab/Ha); usos permitidos: habitacional unifamiliar y plurifamiliar.',
+  'Un proyecto de Co-Living con usuarios de 25-29 años: Carlos Septién es una excelente opción por la movilidad y cobertura. El radio de influencia va de 15 a 30 min ≈ 5 km a la redonda.',
+  'El producto sería un híbrido entre alquiler de espacios equipados y vivienda horizontal en venta en formato townhouses — el espacio de transición hacia la independencia y la posterior adquisición de una primera casa.',
+  'Frente a la vivienda institucional, el co-living debe ser la opción más económica manteniendo ubicación premium: cercanía a trabajo y servicios, sacrificando espacio privado.',
+  'Si rentamos en $3,837 (promedio), el equivalente a un departamento amueblado de $16,425 tendría que tener 4.2 habitaciones mínimo.',
+];
+
+const EM_SEG_COLOR: Record<string, string> = {
+  estudiantil: '#3b82f6', profesional: '#10b981', mixto: '#f59e0b',
+};
+
+function EstudioMercadoTab() {
+  const [segFilter, setSegFilter] = useState<'todos' | 'estudiantil' | 'profesional' | 'mixto'>('todos');
+  const [search, setSearch] = useState('');
+  const [sortAsc, setSortAsc] = useState(true);
+
+  const colivingView = useMemo(() => {
+    let list = [...EM_COLIVING];
+    if (segFilter !== 'todos') list = list.filter((c) => c.seg === segFilter);
+    const q = search.toLowerCase().trim();
+    if (q) list = list.filter((c) => (c.nombre + ' ' + c.ubicacion + ' ' + c.feat).toLowerCase().includes(q));
+    list.sort((a, b) => (sortAsc ? a.precio - b.precio : b.precio - a.precio));
+    return list;
+  }, [segFilter, search, sortAsc]);
+
+  const exportEstudio = () => {
+    const blob = new Blob([JSON.stringify({ demografia: EM_DEMO, poi: EM_POI, coliving: EM_COLIVING, promedios: { informal: EM_PROM_INFORMAL, institucional: EM_PROM_INSTITUCIONAL }, conclusiones: EM_CONCLUSIONES, fuente: 'Estudio de Mercado 2023 (VDD) — transcripción literal' }, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'estudio-mercado-cimatario-2023.json'; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <section>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">📈 Estudio de Mercado — Cimatario 2023</h2>
+            <p className="text-sm text-gray-400 mt-1">
+              Datos exhaustivos del estudio 2023 (VDD) para el predio Lic. Carlos Septién 53. Co-living / renta compartida enfocado a profesionistas Millennial.
+            </p>
+          </div>
+          <button onClick={exportEstudio} className="px-4 py-2 text-sm rounded-2xl border border-[#7c3aed] hover:bg-[#7c3aed]/10 whitespace-nowrap">⬇️ Exportar Estudio JSON</button>
+        </div>
+      </section>
+
+      {/* 1. Socio-demográfico */}
+      <section className="glass rounded-3xl p-6 border border-[#1e1e2e]">
+        <h3 className="text-xl font-semibold mb-1">1. Panorama Socio-Demográfico</h3>
+        <p className="text-xs text-gray-500 mb-4">Proyección de población 2020-2030 (CONAPO/INEGI). El bono demográfico 25-34 años sustenta la demanda de vivienda compartida.</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+          {EM_DEMO.kpis.slice(0, 8).map((k) => (
+            <div key={k.label} className="rounded-2xl bg-[#111118] border border-[#1e1e2e] p-3">
+              <div className="text-lg font-bold text-[#a78bfa]">{k.valor}</div>
+              <div className="text-[11px] text-gray-300 leading-tight mt-0.5">{k.label}</div>
+              <div className="text-[9px] text-gray-600 mt-1">{k.nota}</div>
+            </div>
+          ))}
+        </div>
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={EM_DEMO.poblacionMunicipio.map((m, i) => ({ anio: m.anio, Municipio: m.valor, Estado: EM_DEMO.poblacionEstado[i].valor }))}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" />
+            <XAxis dataKey="anio" stroke="#888" fontSize={11} />
+            <YAxis stroke="#888" fontSize={11} tickFormatter={(v) => `${(v / 1e6).toFixed(1)}M`} />
+            <Tooltip contentStyle={{ background: '#0a0a0f', border: '1px solid #1e1e2e', borderRadius: 12 }} formatter={(v: any) => Number(v).toLocaleString('es-MX')} />
+            <Legend />
+            <ReferenceLine x={2023} stroke="#7c3aed" strokeDasharray="4 4" label={{ value: 'Estudio 2023', fill: '#a78bfa', fontSize: 10, position: 'top' }} />
+            <ReferenceLine x={2026} stroke="#00FF66" strokeDasharray="4 4" label={{ value: '2026', fill: '#00FF66', fontSize: 10, position: 'top' }} />
+            <Line type="monotone" dataKey="Estado" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
+            <Line type="monotone" dataKey="Municipio" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
+          </LineChart>
+        </ResponsiveContainer>
+      </section>
+
+      {/* 2. POI / movilidad */}
+      <section className="glass rounded-3xl p-6 border border-[#1e1e2e]">
+        <h3 className="text-xl font-semibold mb-1">2. Puntos de Interés y Movilidad</h3>
+        <p className="text-xs text-gray-500 mb-4">Distancia y tiempo desde el predio. <span className="text-[#00FF66]">Movilidad excelente: 11 min al Centro Histórico.</span> Radio de influencia ≈ 5 km / 15-30 min.</p>
+        <ResponsiveContainer width="100%" height={320}>
+          <BarChart data={EM_POI} layout="vertical" margin={{ left: 30 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" />
+            <XAxis type="number" stroke="#888" fontSize={11} />
+            <YAxis type="category" dataKey="nombre" stroke="#888" fontSize={10} width={120} />
+            <Tooltip contentStyle={{ background: '#0a0a0f', border: '1px solid #1e1e2e', borderRadius: 12 }} formatter={(v: any, n: any) => [n === 'km' ? `${v} km` : `${v} min`, n === 'km' ? 'Distancia' : 'Tiempo']} />
+            <Legend />
+            <Bar dataKey="km" fill="#7c3aed" name="Distancia (km)" radius={[0, 4, 4, 0]} />
+            <Bar dataKey="min" fill="#00FF66" name="Tiempo (min)" radius={[0, 4, 4, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </section>
+
+      {/* 3. Co-living exhaustivo */}
+      <section className="glass rounded-3xl p-6 border border-[#1e1e2e]">
+        <div className="flex flex-wrap items-end justify-between gap-3 mb-1">
+          <h3 className="text-xl font-semibold">3. Mercado de Renta Compartida / Co-Living</h3>
+          <div className="flex items-center gap-3 text-xs">
+            <span className="text-gray-400">Prom. informal <b className="text-[#f59e0b]">${EM_PROM_INFORMAL.toLocaleString('es-MX')}</b></span>
+            <span className="text-gray-400">Prom. institucional <b className="text-[#10b981]">${EM_PROM_INSTITUCIONAL.toLocaleString('es-MX')}</b></span>
+          </div>
+        </div>
+        <p className="text-xs text-gray-500 mb-4">{EM_COLIVING.length} comparables nacionales e internacionales (renta mensual MXN). Nuestro nicho: profesionistas en ubicación céntrica a precio accesible.</p>
+
+        {/* Controles */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {(['todos', 'estudiantil', 'profesional', 'mixto'] as const).map((s) => (
+            <button key={s} onClick={() => setSegFilter(s)} className={`px-3 py-1.5 rounded-full text-xs border transition ${segFilter === s ? 'border-[#7c3aed] bg-[#7c3aed]/15 text-white' : 'border-[#1e1e2e] text-gray-400 hover:text-gray-200'}`}>
+              {s === 'todos' ? 'Todos' : s.charAt(0).toUpperCase() + s.slice(1)}
+            </button>
+          ))}
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar (nombre, zona, amenidad)…" className="flex-1 min-w-[180px] rounded-full border border-[#1e1e2e] bg-[#0a0a0f] px-4 py-1.5 text-xs text-white outline-none focus:border-[#7c3aed]" />
+          <button onClick={() => setSortAsc(!sortAsc)} className="px-3 py-1.5 rounded-full text-xs border border-[#1e1e2e] text-gray-300 hover:text-white">Precio {sortAsc ? '↑' : '↓'}</button>
+        </div>
+
+        <ResponsiveContainer width="100%" height={Math.max(320, colivingView.length * 22)}>
+          <BarChart data={colivingView} layout="vertical" margin={{ left: 60 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" />
+            <XAxis type="number" stroke="#888" fontSize={11} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+            <YAxis type="category" dataKey="nombre" stroke="#888" fontSize={9} width={150} />
+            <Tooltip contentStyle={{ background: '#0a0a0f', border: '1px solid #1e1e2e', borderRadius: 12 }} formatter={(v: any) => [`$${Number(v).toLocaleString('es-MX')}/mes`, 'Renta']} />
+            <ReferenceLine x={EM_PROM_INFORMAL} stroke="#f59e0b" strokeDasharray="4 4" />
+            <ReferenceLine x={EM_PROM_INSTITUCIONAL} stroke="#10b981" strokeDasharray="4 4" />
+            <Bar dataKey="precio" radius={[0, 4, 4, 0]}>
+              {colivingView.map((c, i) => <Cell key={i} fill={EM_SEG_COLOR[c.seg]} />)}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+        <div className="flex gap-4 text-[10px] text-gray-400 mt-2">
+          <span><span className="inline-block w-2 h-2 rounded-full bg-[#3b82f6] mr-1" />Estudiantil</span>
+          <span><span className="inline-block w-2 h-2 rounded-full bg-[#10b981] mr-1" />Profesional</span>
+          <span><span className="inline-block w-2 h-2 rounded-full bg-[#f59e0b] mr-1" />Mixto</span>
+        </div>
+
+        {/* Tabla detalle */}
+        <div className="mt-5 overflow-x-auto rounded-2xl border border-[#1e1e2e]">
+          <table className="w-full text-xs">
+            <thead className="bg-[#111118] text-gray-400">
+              <tr>
+                <th className="px-3 py-2 text-left">Comparable</th>
+                <th className="px-3 py-2 text-left">Ubicación</th>
+                <th className="px-3 py-2 text-right">Renta/mes</th>
+                <th className="px-3 py-2 text-left">Segmento</th>
+                <th className="px-3 py-2 text-left">Amenidades (literal MD)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {colivingView.map((c, i) => (
+                <tr key={i} className="border-t border-[#1e1e2e] hover:bg-[#111118]/60">
+                  <td className="px-3 py-2 font-medium text-white">{c.nombre}</td>
+                  <td className="px-3 py-2 text-gray-400">{c.ubicacion}</td>
+                  <td className="px-3 py-2 text-right font-mono text-[#a78bfa]">${c.precio.toLocaleString('es-MX')}</td>
+                  <td className="px-3 py-2"><span className="px-2 py-0.5 rounded-full text-[10px]" style={{ background: EM_SEG_COLOR[c.seg] + '22', color: EM_SEG_COLOR[c.seg] }}>{c.seg}</span></td>
+                  <td className="px-3 py-2 text-gray-400 max-w-[280px]">{c.feat}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* 4. Oportunidad / conclusiones */}
+      <section className="glass rounded-3xl p-6 border border-[#1e1e2e]">
+        <h3 className="text-xl font-semibold mb-3">4. Oportunidad para el Terreno Cimatario</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {EM_CONCLUSIONES.map((c, i) => (
+            <div key={i} className="rounded-2xl bg-[#111118] border border-[#1e1e2e] p-4 text-sm text-gray-300 leading-snug">
+              <span className="text-[#00FF66] font-bold mr-1">›</span>{c}
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 rounded-2xl border border-[#7c3aed]/40 bg-[#7c3aed]/10 p-4 text-sm text-gray-200">
+          👉 Conclusión del estudio: el H2 permite <strong>vivienda plurifamiliar</strong>. Ve a la pestaña <strong>🏗️ HBU/HBV</strong> para los sliders interactivos y el simulador FinObra 3D (recomienda <strong>12 unidades</strong>, ROI 35-45%).
+        </div>
+        <p className="text-[10px] text-gray-600 mt-3">Fuente: transcripción literal del Estudio de Mercado 2023 (VDD). Cifras exactas del documento; sin datos inventados.</p>
+      </section>
+    </div>
+  );
+}
+
+// =====================================================
 // NUEVA PESTAÑA: MARKETING CONVENCIONAL + NO CONVENCIONAL
 // + Estudio de mercado exhaustivo para el terreno
 // =====================================================
@@ -1376,7 +1629,7 @@ function AgentesTab() {
 export default function ValuacionDashboard() {
   const [search, setSearch] = useState('');
   const [showAllComps, setShowAllComps] = useState(false);
-  const [activeTab, setActiveTab] = useState<'valuacion' | 'database' | 'marketing' | 'hbu' | 'agentes'>('valuacion');
+  const [activeTab, setActiveTab] = useState<'valuacion' | 'database' | 'estudio' | 'marketing' | 'hbu' | 'agentes'>('valuacion');
 
   const target = VALUATION.target;
   const models = VALUATION.models;
@@ -1437,7 +1690,7 @@ export default function ValuacionDashboard() {
 
         {/* TABS NAV - mobile first, attractive */}
         <div className="flex border-b border-[#1e1e2e] mb-2 -mx-1 overflow-x-auto">
-          {(['valuacion', 'database', 'marketing', 'hbu', 'agentes'] as const).map((tab) => (
+          {(['valuacion', 'database', 'estudio', 'marketing', 'hbu', 'agentes'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -1449,6 +1702,7 @@ export default function ValuacionDashboard() {
             >
               {tab === 'valuacion' && '📊 Valuación'}
               {tab === 'database' && '🗄️ Base de Datos'}
+              {tab === 'estudio' && '📈 Estudio de Mercado'}
               {tab === 'marketing' && '📣 Marketing + Estudio'}
               {tab === 'hbu' && '🏗️ HBU/HBV + Estudio Colonia'}
               {tab === 'agentes' && '🤖 Agentes + Outreach WA'}
@@ -1638,6 +1892,10 @@ export default function ValuacionDashboard() {
         {/* BASE DE DATOS TAB */}
         {activeTab === 'database' && (
           <DatabaseTab />
+        )}
+
+        {activeTab === 'estudio' && (
+          <EstudioMercadoTab />
         )}
         {/* MARKETING + ESTUDIO DE MERCADO TAB */}
         {activeTab === 'marketing' && (
