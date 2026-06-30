@@ -69,6 +69,7 @@ tmux new-session -d -s "$SESSION" -x 220 -y 50 "
     -v '$WORK/klugger:/home/agent/project' \
     -v '$WORK/.git-credentials:/home/agent/.git-credentials:ro' \
     -v '$HOME/.claude:/home/agent/.claude:ro' \
+    -v '$HOME/.claude.json:/home/agent/.claude.json:ro' \
     '$IMAGE' \
     --print \
     --max-turns 40 \
