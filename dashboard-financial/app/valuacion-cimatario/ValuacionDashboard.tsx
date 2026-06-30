@@ -6,6 +6,7 @@ import DatabaseTab from './components/DatabaseTab';
 import MarketingTab from './components/MarketingTab';
 import HbuTab from './components/HbuTab';
 import AgentesTab from './components/AgentesTab';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 const TABS = [
   { id: 'valuacion', label: '📊 Valuación' },
@@ -68,11 +69,11 @@ export default function ValuacionDashboard() {
 
         {/* Tab content */}
         <div className="space-y-8">
-          {activeTab === 'valuacion' && <ValuacionTab />}
-          {activeTab === 'database' && <DatabaseTab />}
-          {activeTab === 'marketing' && <MarketingTab />}
-          {activeTab === 'hbu' && <HbuTab />}
-          {activeTab === 'agentes' && <AgentesTab />}
+          {activeTab === 'valuacion' && <ErrorBoundary label="Valuación"><ValuacionTab /></ErrorBoundary>}
+          {activeTab === 'database' && <ErrorBoundary label="Base de Datos"><DatabaseTab /></ErrorBoundary>}
+          {activeTab === 'marketing' && <ErrorBoundary label="Marketing"><MarketingTab /></ErrorBoundary>}
+          {activeTab === 'hbu' && <ErrorBoundary label="HBU/HBV"><HbuTab /></ErrorBoundary>}
+          {activeTab === 'agentes' && <ErrorBoundary label="Agentes"><AgentesTab /></ErrorBoundary>}
         </div>
       </div>
     </div>
