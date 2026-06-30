@@ -4,9 +4,9 @@ import React, { useEffect, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
-// Mapbox access token (provided by user). Free tier: 50k map loads/month.
-// Get your own at https://account.mapbox.com/ if you need to replace it.
-const MAPBOX_TOKEN = 'pk.eyJ1IjoidHVyYXppdmUiLCJhIjoiY21xdThtMXlsMHJuMzJ0cTJiZzUxcjB2eCJ9.pBhO5h4IcXTbG7kezGQoqQ';
+// Mapbox token read from env var injected at build time (GitHub Actions: NEXT_PUBLIC_MAPBOX_TOKEN secret).
+// To use locally, add NEXT_PUBLIC_MAPBOX_TOKEN=<your_token> to .env.local
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? '';
 
 interface MapboxMapProps {
   propertyPoints: Array<{ lat: number; lng: number; price: number; size: number; title: string; color: string; ppm: number; location: string }>;
