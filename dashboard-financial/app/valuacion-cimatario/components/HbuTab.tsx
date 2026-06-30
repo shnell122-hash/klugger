@@ -51,7 +51,19 @@ export default function HbuTab() {
     return (terrenosFullRaw as any[]).slice(0, 800).map((r: any, i: number) => {
       const angle = 2 * Math.PI * i / PHI;
       const rad = R * Math.sqrt(i / 800);
-      return { ...r, lat: CENTER.lat + rad * Math.sin(angle), lng: CENTER.lng + rad * Math.cos(angle) };
+      const price = Number(r.price) || 0;
+      const size = Number(r.size_m2 ?? r.size) || 200;
+      const ppm = size > 0 ? Math.round(price / size) : 0;
+      return {
+        title: String(r.title ?? r.address ?? `Terreno ${i + 1}`),
+        location: String(r.location ?? r.colonia ?? 'Cimatario'),
+        price,
+        size,
+        ppm,
+        color: ppm > 8500 ? '#10b981' : ppm < 5000 ? '#ef4444' : '#f59e0b',
+        lat: CENTER.lat + rad * Math.sin(angle),
+        lng: CENTER.lng + rad * Math.cos(angle),
+      };
     });
   }, []);
 
