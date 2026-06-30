@@ -75,7 +75,12 @@
 **Siguiente:** Sesión 3 tras aprobación.
 
 ### Sesión 3: Nuevo navbar item "Estudio de mercado" + gráficas interactivas exhaustivas (Punto 5)
-**Status:** PENDIENTE
+**Status:** ✅ COMPLETADA (2026-06-30) — tab `'estudio'` "📈 Estudio de Mercado" con `EstudioMercadoTab()`:
+LineChart demografía estado+municipio 2020-2030 (ReferenceLines 2023/2026) + 8 KPI cards; BarChart POI/movilidad
+(8 destinos); Co-living exhaustivo (24 comparables del MD con filtro segmento + búsqueda + sort, BarChart con
+ReferenceLines promedio informal $3,837 / institucional $8,950, tabla con amenidades literales); conclusiones
+literales + link HBU + export JSON. Datos exactos de transcripcionEstudioMercado2023.md, cero alucinaciones.
+Live en klugger.shnell.mx (deploy vía GitHub Actions → Cloudflare Pages, branch main).
 
 **Entregables:**
 - Nuevo item en navbar/tabs: `'estudio-mercado'` con label **"📈 Estudio de Mercado"** (mover o deprecate el viejo "marketing + Estudio" si overlap; mantener "HBU/HBV" y "Agentes" ).
