@@ -286,10 +286,20 @@ export default function HbuTab() {
             </div>
           </div>
           <FinObra3DBuilding floors={floors3d} units={proformaInput.townhouses + proformaInput.lofts + proformaInput.studios} scenario={scenario3d} anim={isAnimating} />
-          <div className="mt-4 rounded-xl border border-dashed border-[#1e1e2e] bg-[#0a0a0f] p-6 text-center">
-            <div className="text-3xl mb-2">🎬</div>
-            <div className="text-sm text-gray-400">GIF wireframe 3D pendiente de generación</div>
-            <div className="text-xs text-gray-600 mt-1">Ejecutar <code className="bg-[#1e1e2e] px-1 rounded text-gray-400">public/assets/finobra-hero-3d-v2.py</code> (numpy + pillow + imageio) para generar el GIF Klugger verde.</div>
+          <div className="mt-4 rounded-xl overflow-hidden border border-[#1e1e2e]">
+            <video
+              src="/assets/finobra-animation.mp4"
+              autoPlay
+              muted
+              loop
+              playsInline
+              className="w-full"
+              style={{ maxHeight: 260, objectFit: 'cover', display: 'block' }}
+            />
+            <div className="bg-[#0a0a0f] px-3 py-1.5 text-[10px] text-gray-500 flex justify-between">
+              <span>Animación FinObra 3D — edificio objeto Cimatario</span>
+              <span className="text-[#10b981]">Klugger verde #00FF66</span>
+            </div>
           </div>
         </div>
       </section>
@@ -313,6 +323,108 @@ export default function HbuTab() {
             Mapbox GL · ~{propertyPoints.length} inmuebles clustered · <strong>★ pin exacto</strong> Carlos Septién 53 con popup
           </div>
         </div>
+      </section>
+
+      {/* SECCIÓN 7: CONCLUSIÓN DE USO — HBU */}
+      <section>
+        <h3 className="text-xl font-semibold mb-3">7. Conclusión de Uso — Highest &amp; Best Use</h3>
+        <div className="rounded-3xl p-6 bg-gradient-to-br from-[#7c3aed]/10 via-[#0a0a0f] to-[#0a0a0f] border-2 border-[#7c3aed]/50">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-10 h-10 rounded-full bg-[#7c3aed] flex items-center justify-center text-xl shrink-0">🏆</div>
+            <div>
+              <div className="text-[10px] uppercase tracking-widest text-[#a78bfa] mb-0.5">Uso de Más Alto y Mejor (USPAP / IVSC)</div>
+              <div className="text-xl font-bold tracking-tight">Habitacional Mixto Híbrido — Co-living + Townhouses</div>
+            </div>
+          </div>
+          <div className="grid md:grid-cols-2 gap-4 text-sm mb-4">
+            <div className="bg-[#0a0a0f] rounded-2xl p-4 border border-[#1e1e2e] space-y-2">
+              <div className="text-[10px] font-bold uppercase text-[#a78bfa] tracking-wider mb-2">Uso declarado</div>
+              <div className="space-y-1.5 text-xs text-gray-300">
+                <div><span className="text-white font-medium">Programa:</span> 2 townhouses 235m² (venta) + 2 lofts 79m² + 4 estudios 38m² (renta)</div>
+                <div><span className="text-white font-medium">Zonificación:</span> H2 — CUS 1.8 confirmado / COS 0.60 sin trámite adicional</div>
+                <div><span className="text-white font-medium">Superficies:</span> Construcción ~950 m² · Huella 396 m²</div>
+                <div><span className="text-white font-medium">Marca:</span> HAIV ("colmena") · "Vive independiente, vive en comunidad"</div>
+                <div><span className="text-white font-medium">Target:</span> Millennial C+ 25-30 años, Cimatario ~7,000 trabajadores diarios</div>
+              </div>
+            </div>
+            <div className="bg-[#0a0a0f] rounded-2xl p-4 border border-[#1e1e2e]">
+              <div className="text-[10px] font-bold uppercase text-[#a78bfa] tracking-wider mb-2">Las 4 pruebas — resumen</div>
+              <div className="space-y-2 text-xs">
+                <div className="flex gap-2"><span className="text-green-400 font-bold shrink-0">✓ PASA</span><span className="text-gray-300">Legal: H2 sin restricciones. RPP: aclarar fusión lotes ($420m² escritura vs 660m² catastro).</span></div>
+                <div className="flex gap-2"><span className="text-green-400 font-bold shrink-0">✓ PASA</span><span className="text-gray-300">Física: 660m², frente 22m, plano, doble fachada urbana, 4 calles de acceso.</span></div>
+                <div className="flex gap-2"><span className="text-green-400 font-bold shrink-0">✓ PASA</span><span className="text-gray-300">Factible: TIR 23%, VPN+ a tasa hurdle 15% con modelo 2VV+6VR.</span></div>
+                <div className="flex gap-2"><span className="text-[#a78bfa] font-bold shrink-0">★ MÁXIMO</span><span className="text-gray-300">Productividad: mayor RLV y TIR vs unifamiliar (~8%), comercial (restringido H), renta pura (TIR 6.7%) o terreno sin desarrollar.</span></div>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-xl bg-yellow-500/5 border border-yellow-500/30 p-3 text-xs text-gray-300">
+            <span className="text-yellow-400 font-semibold">Escenario upside (CUS 2.4 / H3):</span> Si el comprador obtiene ratificación escrita de IMPLAN, el área construible aumenta a 1,584m² (+33%), el GDV se estima en ~$18.6M y la TIR podría superar el 25%. Este escenario se activa solo con constancia municipal; base del análisis permanece en H2 (CUS 1.8) para proteger la credibilidad del pitch.
+          </div>
+        </div>
+      </section>
+
+      {/* SECCIÓN 8: CONCLUSIÓN DE VALOR — HBV */}
+      <section>
+        <h3 className="text-xl font-semibold mb-3">8. Conclusión de Valor — Highest &amp; Best Value</h3>
+        {(() => {
+          const rec = Math.round(compApproach.adjusted * 0.35 + pf.gdv * 0.35 + Math.max(pf.rlv, 0) * 0.30);
+          const rangoLow = Math.round(rec * 0.90);
+          const rangoHigh = Math.round(rec * 1.10);
+          const justified = rec >= 6500000;
+          const verdict = rec >= 7000000 ? 'JUSTIFICADO' : rec >= 6000000 ? 'CONDICIONADO' : 'NEGOCIAR';
+          const verdictColor = verdict === 'JUSTIFICADO' ? '#10b981' : verdict === 'CONDICIONADO' ? '#f59e0b' : '#ef4444';
+          const gap = rec - 7000000;
+          return (
+            <div className="rounded-3xl p-6 bg-gradient-to-br from-[#10b981]/10 via-[#0a0a0f] to-[#0a0a0f] border-2 border-[#10b981]/50">
+              <div className="grid md:grid-cols-2 gap-6 mb-5">
+                <div>
+                  <div className="text-[10px] uppercase tracking-widest text-[#10b981] mb-2">Valor Indicado del Suelo (Reconciliado)</div>
+                  <div className="text-5xl font-bold text-white mb-1">{fmtMoney(rec)}</div>
+                  <div className="text-sm text-gray-400 mb-3">Rango: {fmtMoney(rangoLow)} – {fmtMoney(rangoHigh)}</div>
+                  <div className="space-y-1 text-xs text-gray-400">
+                    <div className="flex justify-between"><span>Comparables (35%)</span><span className="font-mono text-gray-200">{fmtMoney(compApproach.adjusted)}</span></div>
+                    <div className="flex justify-between"><span>Capitalización (35%)</span><span className="font-mono text-gray-200">{fmtMoney(pf.gdv)}</span></div>
+                    <div className="flex justify-between"><span>RLV — Valor Residual (30%)</span><span className="font-mono text-gray-200">{fmtMoney(Math.max(pf.rlv, 0))}</span></div>
+                  </div>
+                </div>
+                <div className="flex flex-col justify-between">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-widest text-gray-400 mb-2">Veredicto vs Asking $7,000,000 MXN</div>
+                    <div className="text-3xl font-bold mb-1" style={{ color: verdictColor }}>{verdict}</div>
+                    <div className="text-sm text-gray-400">
+                      {gap >= 0 ? `+${fmtMoney(gap)} sobre asking` : `${fmtMoney(Math.abs(gap))} por debajo del asking`}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      El precio de $7M {justified ? 'se encuentra dentro del rango metodológicamente justificado' : 'está por encima del valor reconciliado con los supuestos actuales'}
+                    </div>
+                  </div>
+                  <div className="mt-4 p-3 rounded-xl bg-[#0a0a0f] border border-[#1e1e2e] text-xs space-y-1 text-gray-400">
+                    <div className="font-semibold text-gray-200 mb-1">Condicionantes del veredicto:</div>
+                    <div>· Verificar CUS 1.8 vs 2.4 ante IMPLAN (impacto ±33% en GDV)</div>
+                    <div>· Aclarar RPP: 420m² escritura vs 660m² catastro</div>
+                    <div>· Cap rate 7.5% sensible a absorción nearshoring QRO 2026</div>
+                  </div>
+                </div>
+              </div>
+              <div className="border-t border-[#1e1e2e] pt-4 grid md:grid-cols-3 gap-4 text-xs">
+                <div className="bg-[#0a0a0f] rounded-xl p-3 border border-[#1e1e2e]">
+                  <div className="text-gray-400 mb-1 font-medium">Enfoque rector</div>
+                  <div className="text-[#10b981] font-semibold">RLV (Valor Residual del Suelo)</div>
+                  <div className="text-gray-500 mt-1">Estándar IVSC para suelos de desarrollo. GDV − costos − utilidad = valor máximo pagable por el terreno.</div>
+                </div>
+                <div className="bg-[#0a0a0f] rounded-xl p-3 border border-[#1e1e2e]">
+                  <div className="text-gray-400 mb-1 font-medium">Fuentes del análisis</div>
+                  <div className="text-gray-300">Estudio de mercado 2023 (1,749 líneas) · EasyBroker EB-WE7457 · Lamudi/Big Data ago-2021 · Levantamiento co-living 2023</div>
+                </div>
+                <div className="bg-[#0a0a0f] rounded-xl p-3 border border-[#1e1e2e]">
+                  <div className="text-gray-400 mb-1 font-medium">Fecha y valuador</div>
+                  <div className="text-gray-300">30 jun 2026 · Klugger Inmuebles</div>
+                  <div className="text-gray-500 mt-1">Metodología USPAP / IVSC. Los sliders de arriba actualizan el valor en tiempo real.</div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </section>
 
       {/* SECCIÓN 6: FODA + DEMOG */}

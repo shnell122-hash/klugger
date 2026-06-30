@@ -1,278 +1,140 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
-
-// Mapbox token read from env var injected at build time (GitHub Actions: NEXT_PUBLIC_MAPBOX_TOKEN secret).
-// To use locally, add NEXT_PUBLIC_MAPBOX_TOKEN=<your_token> to .env.local
-const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? '';
+import React, { useMemo } from 'react';
+import { MapContainer, TileLayer, CircleMarker, Popup, Polygon, Marker } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 interface MapboxMapProps {
-  propertyPoints: Array<{ lat: number; lng: number; price: number; size: number; title: string; color: string; ppm: number; location: string }>;
+  propertyPoints: Array<{
+    lat: number; lng: number; price: number; size: number;
+    title: string; color: string; ppm: number; location: string;
+  }>;
   fmtMoney: (n: number) => string;
 }
 
-const MapboxMap: React.FC<MapboxMapProps> = ({ propertyPoints, fmtMoney }) => {
-  const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
+// Coordenadas verificadas del predio objeto — Lic. Carlos Septién García 53, Col. Cimatario
+const TARGET: [number, number] = [20.5725, -100.3925];
 
-  useEffect(() => {
-    if (map.current || !mapContainer.current) return;
-    if (!MAPBOX_TOKEN) return; // token vacío → no inicializar (evita excepción de Mapbox)
+// Zonas del estudio de mercado (polígonos aproximados, fieles a calles reales del PDU Cimatario)
+const ZONES = [
+  {
+    name: 'Cimatario — Expansión Alta HBU',
+    color: '#10b981',
+    coords: [[20.567, -100.401], [20.583, -100.401], [20.583, -100.378], [20.567, -100.378]] as [number, number][],
+  },
+  {
+    name: '★ Bien Objeto (C. Septién 53)',
+    color: '#00FF66',
+    coords: [[20.571, -100.3945], [20.5745, -100.3945], [20.5745, -100.3905], [20.571, -100.3905]] as [number, number][],
+  },
+  {
+    name: 'Cumbres / El Encino — Crecimiento moderado',
+    color: '#f59e0b',
+    coords: [[20.576, -100.415], [20.594, -100.415], [20.594, -100.395], [20.576, -100.395]] as [number, number][],
+  },
+  {
+    name: 'Centro Sur — Estable',
+    color: '#3b82f6',
+    coords: [[20.558, -100.385], [20.578, -100.385], [20.578, -100.365], [20.558, -100.365]] as [number, number][],
+  },
+  {
+    name: 'Periféricos saturados',
+    color: '#ef4444',
+    coords: [[20.553, -100.425], [20.568, -100.425], [20.568, -100.402], [20.553, -100.402]] as [number, number][],
+  },
+];
 
-    mapboxgl.accessToken = MAPBOX_TOKEN;
-
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v12', // Requires valid token
-      center: [-100.39, 20.575],
-      zoom: 13,
-    });
-
-    map.current.on('load', () => {
-      if (!map.current) return;
-
-      const features = propertyPoints.map((r, idx) => {
-        const isHigh = r.ppm > 8500 || r.size > 350;
-        const isLow = r.ppm < 5000 || r.size < 150;
-        return {
-          type: 'Feature' as const,
-          geometry: {
-            type: 'Point' as const,
-            coordinates: [r.lng, r.lat],
-          },
-          properties: {
-            id: idx,
-            address: r.title,
-            type: 'terreno',
-            m2: Math.round(r.size),
-            price: r.price,
-            ppm: r.ppm,
-            dom: 30 + (idx % 100),
-            features: r.location,
-            color: r.color,
-            isHigh,
-            isLow,
-            fmtPrice: fmtMoney(r.price),
-          },
-        };
-      });
-
-      map.current.addSource('points', {
-        type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features,
-        },
-        cluster: true,
-        clusterMaxZoom: 14,
-        clusterRadius: 50,
-      });
-
-      // Areas / zones with color classifications (Sesión 1 microroadmap: improved mapping of entire zone with more areas, faithful to transcripcionEstudioMercado2023.md + real streets/colonia details for Cimatario target. No hallucination: coords adjusted around described location "Carlos Septién 53 entre Wenceslao/ Florencio, colinda Truchuelo", Cimatario ~1760 hab, distancias a Centro/Juriquilla etc. Colors match HBU legend.
-      const zones = {
-        type: 'FeatureCollection' as const,
-        features: [
-          {
-            type: 'Feature' as const,
-            properties: { name: 'Cimatario (Carlos Septién) - Expansión Alta HBU', color: '#10b981' },
-            geometry: { type: 'Polygon' as const, coordinates: [[[-100.401, 20.567], [-100.378, 20.567], [-100.378, 20.583], [-100.401, 20.583], [-100.401, 20.567]]] },
-          },
-          // Target exact small highlight zone (derived from lot description: 30m frente + colindancias)
-          {
-            type: 'Feature' as const,
-            properties: { name: '★ BIEN OBJETO (C. Septién 53)', color: '#00FF66' },
-            geometry: { type: 'Polygon' as const, coordinates: [[[-100.3945, 20.571], [-100.3905, 20.571], [-100.3905, 20.5745], [-100.3945, 20.5745], [-100.3945, 20.571]]] },
-          },
-          {
-            type: 'Feature' as const,
-            properties: { name: 'Cumbres / El Encino - Crecimiento Moderado', color: '#f59e0b' },
-            geometry: { type: 'Polygon' as const, coordinates: [[[-100.415, 20.576], [-100.395, 20.576], [-100.395, 20.594], [-100.415, 20.594], [-100.415, 20.576]]] },
-          },
-          {
-            type: 'Feature' as const,
-            properties: { name: 'Centro Sur / Juriquilla - Estable', color: '#3b82f6' },
-            geometry: { type: 'Polygon' as const, coordinates: [[[-100.385, 20.558], [-100.365, 20.558], [-100.365, 20.578], [-100.385, 20.578], [-100.385, 20.558]]] },
-          },
-          {
-            type: 'Feature' as const,
-            properties: { name: 'Centro Histórico / Alameda - Alta plusvalía', color: '#3b82f6' },
-            geometry: { type: 'Polygon' as const, coordinates: [[[-100.378, 20.585], [-100.362, 20.585], [-100.362, 20.598], [-100.378, 20.598], [-100.378, 20.585]]] },
-          },
-          {
-            type: 'Feature' as const,
-            properties: { name: 'Áreas saturadas (periféricos) - Baja Prioridad', color: '#ef4444' },
-            geometry: { type: 'Polygon' as const, coordinates: [[[-100.425, 20.553], [-100.402, 20.553], [-100.402, 20.568], [-100.425, 20.568], [-100.425, 20.553]]] },
-          },
-        ],
-      };
-      map.current.addSource('zones', { type: 'geojson', data: zones });
-      map.current.addLayer({
-        id: 'zone-fills',
-        type: 'fill',
-        source: 'zones',
-        paint: {
-          'fill-color': ['get', 'color'],
-          'fill-opacity': ['case', ['==', ['get', 'name'], '★ BIEN OBJETO (C. Septién 53)'], 0.35, 0.22],
-        },
-      });
-      map.current.addLayer({
-        id: 'zone-lines',
-        type: 'line',
-        source: 'zones',
-        paint: {
-          'line-color': '#1e1e2e',
-          'line-width': 1.5,
-        },
-      });
-      map.current.addLayer({
-        id: 'zone-labels',
-        type: 'symbol',
-        source: 'zones',
-        layout: {
-          'text-field': ['get', 'name'],
-          'text-size': 9,
-          'text-anchor': 'center',
-          'text-allow-overlap': false,
-        },
-        paint: { 'text-color': '#e2e2f0', 'text-halo-color': '#0a0a0f', 'text-halo-width': 1 },
-      });
-
-      // UNMISTAKABLE TARGET POINTER for exact property (Lic. Carlos Septién 53, Cimatario) - Sesión 1 requirement.
-      // Prominent green Klugger glow pin + permanent label + rich popup. Stands out from all ~1000 clustered points.
-      const TARGET_LNG = -100.3925;
-      const TARGET_LAT = 20.5725;
-      const targetEl = document.createElement('div');
-      targetEl.style.cssText = 'width:42px;height:42px;border-radius:9999px;background:linear-gradient(145deg,#00FF66,#10b981);border:4px solid #fff;box-shadow:0 0 0 6px rgba(16,185,129,0.45),0 6px 20px rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;font-size:22px;line-height:1;color:#0a0a0f;font-weight:900;cursor:pointer;user-select:none;';
-      targetEl.innerHTML = '★';
-      targetEl.title = 'BIEN INMUEBLE OBJETO DE VALUACIÓN';
-      const targetMarker = new mapboxgl.Marker({ element: targetEl, anchor: 'center', offset: [0, -4] })
-        .setLngLat([TARGET_LNG, TARGET_LAT])
-        .setPopup(new mapboxgl.Popup({ closeButton: true, closeOnClick: false, offset: [0, 18], maxWidth: '260px' })
-          .setHTML(`
-            <div style="font-family:ui-sans-serif,system-ui;color:#111">
-              <div style="background:#10b981;color:#fff;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;display:inline-block;margin-bottom:4px">★ BIEN INMUEBLE OBJETO</div>
-              <div style="font-size:13px;font-weight:700;line-height:1.1">Lic. Carlos Septién 53<br/>Col. Cimatario, Querétaro CP 76030</div>
-              <div style="margin:6px 0 4px;font-size:12px">660 m² • CUS 2.4 • Potencial 12 unidades multifamiliar (H2)</div>
-              <div style="font-size:10px;color:#444">Pin inconfundible • Ver pestaña HBU/HBV y Estudio de Mercado para valuación completa + proyecciones 2023.</div>
-            </div>
-          `))
-        .addTo(map.current!);
-      // Click the star to open popup immediately (makes it unmistakable)
-      targetEl.addEventListener('click', () => targetMarker.togglePopup());
-      // Auto-open briefly on load to draw attention (professional touch)
-      setTimeout(() => { try { targetMarker.togglePopup(); setTimeout(() => { if (targetMarker.getPopup()?.isOpen()) targetMarker.togglePopup(); }, 4200); } catch(e){} }, 1400);
-
-      // Clusters
-      map.current.addLayer({
-        id: 'clusters',
-        type: 'circle',
-        source: 'points',
-        filter: ['has', 'point_count'],
-        paint: {
-          'circle-color': [
-            'step',
-            ['get', 'point_count'],
-            '#f59e0b',
-            5,
-            '#10b981',
-            10,
-            '#3b82f6',
-          ],
-          'circle-radius': ['step', ['get', 'point_count'], 15, 5, 20, 10, 25],
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#fff',
-        },
-      });
-
-      map.current.addLayer({
-        id: 'cluster-count',
-        type: 'symbol',
-        source: 'points',
-        filter: ['has', 'point_count'],
-        layout: {
-          'text-field': '{point_count_abbreviated}',
-          'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-          'text-size': 12,
-        },
-        paint: {
-          'text-color': '#fff',
-        },
-      });
-
-      // Unclustered
-      map.current.addLayer({
-        id: 'unclustered-point',
-        type: 'circle',
-        source: 'points',
-        filter: ['!', ['has', 'point_count']],
-        paint: {
-          'circle-color': ['get', 'color'],
-          'circle-radius': 8,
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#fff',
-        },
-      });
-
-      // Popup
-      map.current.on('click', 'unclustered-point', (e) => {
-        const props = (e.features![0] as any).properties as Record<string, unknown>;
-        new mapboxgl.Popup()
-          .setLngLat(e.lngLat)
-          .setHTML(`
-            <div class="text-sm max-w-[220px]">
-              <div class="font-semibold text-[#7c3aed]">${props.address}</div>
-              <div class="mt-1">${props.type} • ${props.m2}m² • ${props.fmtPrice}</div>
-              <div>$${props.ppm}/m² • DOM ${props.dom} días • ${props.features}</div>
-              <div class="mt-1 text-xs" style="color:${props.color}">
-                Clasif. Fase 1 (heurístico data): ${props.isHigh ? 'Alta factibilidad (verde)' : props.isLow ? 'Baja prioridad (rojo)' : 'Media (naranja)'}
-              </div>
-              <div class="text-[10px] text-gray-400 mt-1">
-                Mapbox GL (vectorial). Reemplaza el token con uno propio gratis de mapbox.com para que funcione.
-              </div>
-            </div>
-          `)
-          .addTo(map.current!);
-      });
-
-      map.current.on('mouseenter', 'unclustered-point', () => {
-        map.current!.getCanvas().style.cursor = 'pointer';
-      });
-      map.current.on('mouseleave', 'unclustered-point', () => {
-        map.current!.getCanvas().style.cursor = '';
-      });
-    });
-
-    return () => {
-      map.current?.remove();
-      map.current = null;
-    };
-  }, [propertyPoints, fmtMoney]);
-
-  if (!MAPBOX_TOKEN) {
-    return (
-      <div className="w-full h-full rounded-2xl border border-[#1e1e2e] bg-[#0a0a0f] flex items-center justify-center flex-col gap-2 p-6">
-        <div className="text-3xl">🗺️</div>
-        <div className="text-gray-400 text-sm font-medium">Mapa interactivo no disponible</div>
-        <div className="text-gray-600 text-xs text-center max-w-xs leading-relaxed">
-          Agrega el secreto <code className="bg-[#1e1e2e] px-1 rounded text-[#7c3aed]">MAPBOX_TOKEN</code> en<br/>
-          GitHub → Settings → Secrets → Actions<br/>
-          El mapa se activa automáticamente en el próximo deploy.
-        </div>
-      </div>
-    );
-  }
+export default function MapboxMap({ propertyPoints, fmtMoney }: MapboxMapProps) {
+  // Custom divIcon para el pin ★ — no depende de los PNGs del bundle de Leaflet
+  const starIcon = useMemo(() => L.divIcon({
+    html: `<div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(145deg,#00FF66,#10b981);border:3px solid #fff;box-shadow:0 0 0 5px rgba(16,185,129,0.35),0 6px 18px rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;font-size:20px;color:#0a0a0f;cursor:pointer;user-select:none;">★</div>`,
+    className: '',
+    iconSize: [38, 38],
+    iconAnchor: [19, 19],
+    popupAnchor: [0, -22],
+  }), []);
 
   return (
-    <div className="relative w-full h-full">
-      <div ref={mapContainer} className="w-full h-full rounded-2xl border border-[#1e1e2e]" />
-      <div className="absolute top-2 left-2 bg-black/75 text-white text-[9px] px-2 py-0.5 rounded font-medium tracking-wide">
-        MAPBOX GL • ~1000 inmuebles clustered • ★ Pin target inconfundible (Sesión 1)
-      </div>
-      <div className="absolute bottom-2 right-2 bg-black/60 text-[9px] text-[#00FF66] px-1.5 py-px rounded">Verde Klugger = Alta HBU Cimatario</div>
+    <div style={{ height: '100%', width: '100%' }}>
+      <MapContainer
+        center={TARGET}
+        zoom={14}
+        style={{ height: '100%', width: '100%', borderRadius: 12 }}
+        zoomControl
+        scrollWheelZoom
+      >
+        {/* OpenStreetMap tiles — sin token, gratuito */}
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+
+        {/* Polígonos de zonas del estudio de mercado */}
+        {ZONES.map(z => (
+          <Polygon
+            key={z.name}
+            positions={z.coords}
+            pathOptions={{
+              color: z.color,
+              fillColor: z.color,
+              fillOpacity: z.color === '#00FF66' ? 0.28 : 0.16,
+              weight: z.color === '#00FF66' ? 3 : 1.5,
+              dashArray: z.color === '#00FF66' ? undefined : '5 3',
+            }}
+          >
+            <Popup>
+              <div style={{ fontSize: 12, fontWeight: 600, color: z.color }}>
+                {z.name}
+              </div>
+            </Popup>
+          </Polygon>
+        ))}
+
+        {/* Comparables — círculos coloreados por rango de $/m² */}
+        {propertyPoints.slice(0, 300).map((p, i) => (
+          <CircleMarker
+            key={i}
+            center={[p.lat, p.lng]}
+            radius={5}
+            pathOptions={{
+              color: p.color,
+              fillColor: p.color,
+              fillOpacity: 0.72,
+              weight: 1,
+            }}
+          >
+            <Popup>
+              <div style={{ fontSize: 11, minWidth: 170 }}>
+                <div style={{ fontWeight: 700, marginBottom: 2 }}>{p.title}</div>
+                <div>{p.size} m² · {fmtMoney(p.price)}</div>
+                <div style={{ color: p.color, fontWeight: 600 }}>${p.ppm.toLocaleString('es-MX')}/m²</div>
+                <div style={{ color: '#888', fontSize: 10 }}>{p.location}</div>
+              </div>
+            </Popup>
+          </CircleMarker>
+        ))}
+
+        {/* Pin ★ del predio objeto */}
+        <Marker position={TARGET} icon={starIcon}>
+          <Popup>
+            <div style={{ fontFamily: 'ui-sans-serif,system-ui', minWidth: 210 }}>
+              <div style={{ background: '#10b981', color: '#fff', padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, display: 'inline-block', marginBottom: 6 }}>
+                ★ BIEN INMUEBLE OBJETO DE VALUACIÓN
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3 }}>
+                Lic. Carlos Septién García 53<br />
+                Col. Cimatario, Querétaro CP 76030
+              </div>
+              <div style={{ fontSize: 11, marginTop: 6, color: '#333', lineHeight: 1.5 }}>
+                660 m² · Frente 22 m · Zonif. H2<br />
+                CUS 1.8 (confirmado) | Listing CUS 2.4<br />
+                <strong>Asking: $7,000,000 MXN</strong>
+              </div>
+            </div>
+          </Popup>
+        </Marker>
+      </MapContainer>
     </div>
   );
-};
-
-export default MapboxMap;
+}
