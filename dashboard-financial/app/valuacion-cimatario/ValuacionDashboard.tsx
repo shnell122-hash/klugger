@@ -14,6 +14,9 @@ import * as THREE from 'three';
 
 // Full database import for the "toda la base de datos" tab (1000 entries: 176 raw originales del scraper + pads/enriquecidos con patrones 2023 para distribución completa del mercado)
 import terrenosFullRaw from './terrenos_full.json';
+import { dynamicBins, ols } from '@/lib/regression';
+import { computeProforma, PRESETS, DEFAULT_INPUT } from '@/lib/proforma';
+import { ESTUDIO2023 } from './data/estudio2023';
 
 // Dynamic client-only Mapbox map (SSR false). Only Mapbox kept: with ~1000 points the side-by-side MapLibre comparison no longer makes sense (per roadmap Sesión 1).
 const MapboxMap = dynamic(() => import('./MapboxMap'), {
@@ -378,24 +381,8 @@ function DatabaseTab() {
   // Only entries with positive price for hist; with both for scatter
   const pricePointsM = entriesWithPrice.map((r: any) => r.price / 1000000); // in millions MXN
 
-  // IMPROVED HISTOGRAM: custom bins that communicate the ACTUAL market state from DB (inferred via quantiles/analysis: heavy cluster ~4.1-4.8M from sim/enriched data, long tail outliers, few low)
-  // This shows the concentration is the story: most "market" in DB priced in narrow affordable band; target 7M is premium justified by HBU/CUS.
-  const histBinsDef = [
-    { range: '<2M', min: 0, max: 2 },
-    { range: '2-3.5M', min: 2, max: 3.5 },
-    { range: '3.5-4.0M', min: 3.5, max: 4.0 },
-    { range: '4.0-4.1M', min: 4.0, max: 4.1 },
-    { range: '4.1-4.3M (clúster)', min: 4.1, max: 4.3 },
-    { range: '4.3-4.5M (clúster)', min: 4.3, max: 4.5 },
-    { range: '4.5-4.8M (clúster)', min: 4.5, max: 4.8 },
-    { range: '4.8-6M', min: 4.8, max: 6 },
-    { range: '6-10M', min: 6, max: 10 },
-    { range: '10M+', min: 10, max: 200 },
-  ];
-  const histData = histBinsDef.map(b => {
-    const count = pricePointsM.filter(p => p >= b.min && p < b.max).length;
-    return { range: b.range, count, mid: (b.min + b.max) / 2 };
-  });
+  // Dynamic histogram bins computed from actual price range — no longer hardcoded to the fake-data cluster
+  const histData = dynamicBins(pricePointsM, 10);
 
   // Include clean validated points (which have real sizes) + any from raw to have more points for regression
   const scatterRaw = [
@@ -427,18 +414,11 @@ function DatabaseTab() {
     { x: maxX, y: (maxX * modelPpm) / 1000000 }
   ] : [];
 
-  // Keep the raw data OLS for comparison (but de-emphasize; it shows the data problem)
-  let slope = 0, intercept = 0;
-  const n = scatterData.length;
-  if (n > 1) {
-    const sumX = scatterData.reduce((s, p) => s + p.x, 0);
-    const sumY = scatterData.reduce((s, p) => s + p.y, 0);
-    const sumXY = scatterData.reduce((s, p) => s + p.x * p.y, 0);
-    const sumX2 = scatterData.reduce((s, p) => s + p.x * p.x, 0);
-    slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-    intercept = (sumY - slope * sumX) / n;
-  }
-  const regressionLine = scatterData.length > 1 ? [
+  // OLS only on real entries (positive price AND size) — shows honest R²
+  const realPoints = scatterData.filter(p => p.x > 0 && p.y > 0);
+  const olsResult = ols(realPoints);
+  const { slope, intercept } = olsResult;
+  const regressionLine = realPoints.length > 1 ? [
     { x: minX, y: slope * minX + intercept },
     { x: maxX, y: slope * maxX + intercept }
   ] : [];
@@ -563,7 +543,7 @@ function DatabaseTab() {
             </ScatterChart>
           </ResponsiveContainer>
           <div className="text-xs text-gray-400 mt-2">
-            Pendiente data OLS: ~{slope ? slope.toFixed(4) : 'N/D'} M por m² (casi plana por sim ~4.3M fijo). <strong>Modelo ppm (línea morada gruesa): {modelPpm} $/m² × tamaño = precio esperado realista.</strong> Usa este para pricing de distribucion/HBU. CUS premium añade upside no lineal.
+            OLS (n={olsResult.n} reales): pendiente {slope.toFixed(4)} M/m² · R²={olsResult.r2.toFixed(3)} (bajo por cluster sintético ~4.3M). <strong>Modelo ppm (morado grueso): {modelPpm} $/m² × m² = precio esperado realista.</strong>
           </div>
         </div>
       </div>
@@ -678,259 +658,6 @@ function DatabaseTab() {
         <br />
         Mediana $/m² calculada y mostrada arriba para la base completa (donde hay datos) y para los limpios.
       </div>
-    </div>
-  );
-}
-
-// =====================================================
-// PESTAÑA: ESTUDIO DE MERCADO (exhaustivo, datos del MD 2023 — VDD)
-// Fuente literal: cases/terreno-cimatario-queretaro/transcripcionEstudioMercado2023.md
-// Cero alucinaciones: todas las cifras provienen del documento.
-// =====================================================
-
-const EM_DEMO = {
-  poblacionEstado: [
-    { anio: 2020, valor: 2368467 }, { anio: 2022, valor: 2358758 }, { anio: 2023, valor: 2397293 },
-    { anio: 2024, valor: 2435115 }, { anio: 2025, valor: 2472207 }, { anio: 2026, valor: 2508557 },
-    { anio: 2027, valor: 2544144 }, { anio: 2028, valor: 2578973 }, { anio: 2029, valor: 2613029 },
-    { anio: 2030, valor: 2646299 },
-  ],
-  poblacionMunicipio: [
-    { anio: 2020, valor: 1049777 }, { anio: 2022, valor: 1007923 }, { anio: 2023, valor: 1023514 },
-    { anio: 2024, valor: 1039236 }, { anio: 2025, valor: 1055096 }, { anio: 2026, valor: 1071145 },
-    { anio: 2027, valor: 1087435 }, { anio: 2028, valor: 1104025 }, { anio: 2029, valor: 1120919 },
-    { anio: 2030, valor: 1138178 },
-  ],
-  kpis: [
-    { label: 'Edad mediana municipio', valor: '30 años', nota: 'Censo INEGI 2020' },
-    { label: 'Tasa de dependencia', valor: '41%', nota: 'Censo 2020' },
-    { label: 'Rangos 20-34 años', valor: '27.5% de la población', nota: '25-29: 102,358 hab (el mayor)' },
-    { label: 'Escolaridad superior municipio', valor: '34.7%', nota: 'Censo 2020 / Data México' },
-    { label: 'Salarios >2 SM municipio', valor: '67.29%', nota: 'Encuesta Intercensal / Censo 2020' },
-    { label: 'Recepción de inmigrantes', valor: '4° nacional (11.3%)', nota: 'Censo 2020 / Qro Competitivo' },
-    { label: 'Crecimiento municipal 2010-2020', valor: '30.9%', nota: 'Censo INEGI' },
-    { label: 'Estudiantes educación superior 2019', valor: '42,913', nota: 'Data México' },
-  ],
-};
-
-const EM_POI = [
-  { nombre: 'Centro Histórico', km: 2.7, min: 11 },
-  { nombre: 'Central de Autobuses', km: 4.2, min: 11 },
-  { nombre: 'Corregidora', km: 9.6, min: 11 },
-  { nombre: 'Juriquilla', km: 18.6, min: 18 },
-  { nombre: 'Aeropuerto Int. QRO', km: 32.6, min: 31 },
-  { nombre: 'Bernal', km: 58, min: 46 },
-  { nombre: 'Tequisquiapan', km: 62, min: 63 },
-  { nombre: 'Cadereyta de Montes', km: 72.2, min: 63 },
-];
-
-const EM_COLIVING = [
-  { nombre: 'Cuarto para señoritas', ubicacion: 'Centro Histórico', precio: 2500, seg: 'mixto', feat: 'Luz, agua, gas, internet, área de lavado. Solo mujeres. Contrato mín. 6 meses' },
-  { nombre: 'Amplia habitación (mujeres)', ubicacion: 'Plazas del Sol', precio: 3000, seg: 'mixto', feat: 'Internet, áreas compartidas, baño propio, área de lavado. Solo mujeres' },
-  { nombre: 'Cuarto semi amueblado', ubicacion: 'El Mirador', precio: 3400, seg: 'mixto', feat: 'Luz, agua, gas, cable, internet, limpieza, cocina, áreas compartidas, lavado' },
-  { nombre: 'Habitación compartida', ubicacion: 'Cimatario', precio: 3600, seg: 'mixto', feat: 'Luz, agua, gas, cable, internet, limpieza, cocina, lavado. Contrato mín. 3 meses' },
-  { nombre: 'Cuarto en casa colonial', ubicacion: 'Centro Histórico', precio: 3799, seg: 'mixto', feat: 'Servicios + limpieza, cocina, áreas compartidas, baño propio. Mín. 2 meses' },
-  { nombre: 'Habitación amueblada', ubicacion: 'Milenio III', precio: 4500, seg: 'mixto', feat: 'Luz, agua, gas, cable, internet, cocina, áreas compartidas, baño propio' },
-  { nombre: 'Habitaciones amuebladas', ubicacion: 'Morelos, Centro', precio: 4900, seg: 'mixto', feat: 'Servicios + limpieza, cocina, áreas compartidas, baño propio, lavado' },
-  { nombre: 'Cuarto amueblado', ubicacion: 'Cimatario', precio: 5000, seg: 'mixto', feat: 'Luz, agua, gas, cable, internet, limpieza, cocina, lavado. Contrato mín. 3 meses' },
-  { nombre: 'Casa Séptimo', ubicacion: 'Centro, QRO', precio: 6000, seg: 'mixto', feat: '6 hab (3 privadas, 1 loft p/5, 2 dormitorios). Cocina y sala común' },
-  { nombre: 'Habiteé Executive (all-inclusive)', ubicacion: 'Av. Felipe Ángeles', precio: 7500, seg: 'estudiantil', feat: 'Todos los servicios + coworking. Contrato semanal' },
-  { nombre: 'Xéntric Anáhuac', ubicacion: 'Zibatá, El Marqués', precio: 8500, seg: 'estudiantil', feat: '245 hab 12.31 m² baño privado amuebladas. Alberca, gimnasio, cancha, pista 1 km, transporte, vigilancia 24h' },
-  { nombre: 'Kali Homes', ubicacion: 'Av. Felipe Ángeles (Tec)', precio: 9500, seg: 'estudiantil', feat: '40 hab. Coworking, lavandería, cocina compartida, rooftop, ascensor, limpieza 2x/sem' },
-  { nombre: 'Habiteé Urban Dorms', ubicacion: 'Fracc. Tecnológico (Tec)', precio: 9500, seg: 'estudiantil', feat: '10 hab. Registro exprés, terraza, limpieza diaria, calefacción, TV' },
-  { nombre: 'Altana Student Living', ubicacion: 'Zibatá (Anáhuac)', precio: 10300, seg: 'estudiantil', feat: '83 hab. Study room, concierge, lounge, cooking roof garden, BBQ, sun garden' },
-  { nombre: 'Covive Casa Amatlán', ubicacion: 'La Condesa, CDMX', precio: 12950, seg: 'profesional', feat: '10 hab. Casa remodelada, jardín social, solario, cocina, sala, centro de lavado' },
-  { nombre: 'Casa Iris Co-living', ubicacion: 'Centro Histórico, QRO', precio: 12800, seg: 'mixto', feat: '18 hab. Wi-Fi, estacionamiento, lavandería, cocina en c/hab, jacuzzi' },
-  { nombre: 'Niu Coliving', ubicacion: 'Narvarte, CDMX', precio: 15500, seg: 'profesional', feat: '54 hab. Concierge, Smart TV, comedor, internet, mantenimiento incluido' },
-  { nombre: 'Estancia 39', ubicacion: 'Escandón, CDMX', precio: 18900, seg: 'profesional', feat: '224 hab. Internet 200mb, acceso por reconocimiento facial/huella, CCTV 24h' },
-  { nombre: 'El Depa de Juana', ubicacion: 'G.A. Madero, CDMX', precio: 21200, seg: 'profesional', feat: '60 hab. Gimnasio, terraza grill, lavandería, Netflix, coworking, seguridad 24/7' },
-  { nombre: 'Colonies Gustave', ubicacion: 'Villejuif, Francia', precio: 21360, seg: 'profesional', feat: '14 hab. Comedor, cocina, BBQ, terraza, gimnasio, sala de proyección, jardín' },
-  { nombre: 'Urban Campus', ubicacion: 'Malasaña, Madrid', precio: 36000, seg: 'profesional', feat: '8 hab. Netflix, Wifi, limpieza semanal, coworking, 300 m² de zonas comunes' },
-  { nombre: 'The Lexington', ubicacion: 'Brooklyn, NY', precio: 36000, seg: 'profesional', feat: '8 hab. Cocina equipada, Wifi, seguridad, estación de café/trabajo, patio, Smart TV' },
-  { nombre: 'The Collective Canary Wharf', ubicacion: 'Londres, UK', precio: 49000, seg: 'profesional', feat: '5 hab. Piscina skyline, gimnasio, cine, biblioteca, restaurante/bar, simulador de golf' },
-];
-
-const EM_PROM_INFORMAL = 3837;
-const EM_PROM_INSTITUCIONAL = 8950;
-
-const EM_CONCLUSIONES = [
-  'Carlos Septién es buen nicho de oportunidad para el mercado de alquiler enfocado a la generación Millennial con estudios superiores; la demografía indica que se tiene el bono demográfico para la renta de vivienda compartida.',
-  'El predio tiene uso H2 (Habitacional hasta 200 Hab/Ha); usos permitidos: habitacional unifamiliar y plurifamiliar.',
-  'Un proyecto de Co-Living con usuarios de 25-29 años: Carlos Septién es una excelente opción por la movilidad y cobertura. El radio de influencia va de 15 a 30 min ≈ 5 km a la redonda.',
-  'El producto sería un híbrido entre alquiler de espacios equipados y vivienda horizontal en venta en formato townhouses — el espacio de transición hacia la independencia y la posterior adquisición de una primera casa.',
-  'Frente a la vivienda institucional, el co-living debe ser la opción más económica manteniendo ubicación premium: cercanía a trabajo y servicios, sacrificando espacio privado.',
-  'Si rentamos en $3,837 (promedio), el equivalente a un departamento amueblado de $16,425 tendría que tener 4.2 habitaciones mínimo.',
-];
-
-const EM_SEG_COLOR: Record<string, string> = {
-  estudiantil: '#3b82f6', profesional: '#10b981', mixto: '#f59e0b',
-};
-
-function EstudioMercadoTab() {
-  const [segFilter, setSegFilter] = useState<'todos' | 'estudiantil' | 'profesional' | 'mixto'>('todos');
-  const [search, setSearch] = useState('');
-  const [sortAsc, setSortAsc] = useState(true);
-
-  const colivingView = useMemo(() => {
-    let list = [...EM_COLIVING];
-    if (segFilter !== 'todos') list = list.filter((c) => c.seg === segFilter);
-    const q = search.toLowerCase().trim();
-    if (q) list = list.filter((c) => (c.nombre + ' ' + c.ubicacion + ' ' + c.feat).toLowerCase().includes(q));
-    list.sort((a, b) => (sortAsc ? a.precio - b.precio : b.precio - a.precio));
-    return list;
-  }, [segFilter, search, sortAsc]);
-
-  const exportEstudio = () => {
-    const blob = new Blob([JSON.stringify({ demografia: EM_DEMO, poi: EM_POI, coliving: EM_COLIVING, promedios: { informal: EM_PROM_INFORMAL, institucional: EM_PROM_INSTITUCIONAL }, conclusiones: EM_CONCLUSIONES, fuente: 'Estudio de Mercado 2023 (VDD) — transcripción literal' }, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'estudio-mercado-cimatario-2023.json'; a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  return (
-    <div className="space-y-8">
-      {/* Header */}
-      <section>
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">📈 Estudio de Mercado — Cimatario 2023</h2>
-            <p className="text-sm text-gray-400 mt-1">
-              Datos exhaustivos del estudio 2023 (VDD) para el predio Lic. Carlos Septién 53. Co-living / renta compartida enfocado a profesionistas Millennial.
-            </p>
-          </div>
-          <button onClick={exportEstudio} className="px-4 py-2 text-sm rounded-2xl border border-[#7c3aed] hover:bg-[#7c3aed]/10 whitespace-nowrap">⬇️ Exportar Estudio JSON</button>
-        </div>
-      </section>
-
-      {/* 1. Socio-demográfico */}
-      <section className="glass rounded-3xl p-6 border border-[#1e1e2e]">
-        <h3 className="text-xl font-semibold mb-1">1. Panorama Socio-Demográfico</h3>
-        <p className="text-xs text-gray-500 mb-4">Proyección de población 2020-2030 (CONAPO/INEGI). El bono demográfico 25-34 años sustenta la demanda de vivienda compartida.</p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-          {EM_DEMO.kpis.slice(0, 8).map((k) => (
-            <div key={k.label} className="rounded-2xl bg-[#111118] border border-[#1e1e2e] p-3">
-              <div className="text-lg font-bold text-[#a78bfa]">{k.valor}</div>
-              <div className="text-[11px] text-gray-300 leading-tight mt-0.5">{k.label}</div>
-              <div className="text-[9px] text-gray-600 mt-1">{k.nota}</div>
-            </div>
-          ))}
-        </div>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={EM_DEMO.poblacionMunicipio.map((m, i) => ({ anio: m.anio, Municipio: m.valor, Estado: EM_DEMO.poblacionEstado[i].valor }))}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" />
-            <XAxis dataKey="anio" stroke="#888" fontSize={11} />
-            <YAxis stroke="#888" fontSize={11} tickFormatter={(v) => `${(v / 1e6).toFixed(1)}M`} />
-            <Tooltip contentStyle={{ background: '#0a0a0f', border: '1px solid #1e1e2e', borderRadius: 12 }} formatter={(v: any) => Number(v).toLocaleString('es-MX')} />
-            <Legend />
-            <ReferenceLine x={2023} stroke="#7c3aed" strokeDasharray="4 4" label={{ value: 'Estudio 2023', fill: '#a78bfa', fontSize: 10, position: 'top' }} />
-            <ReferenceLine x={2026} stroke="#00FF66" strokeDasharray="4 4" label={{ value: '2026', fill: '#00FF66', fontSize: 10, position: 'top' }} />
-            <Line type="monotone" dataKey="Estado" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
-            <Line type="monotone" dataKey="Municipio" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
-          </LineChart>
-        </ResponsiveContainer>
-      </section>
-
-      {/* 2. POI / movilidad */}
-      <section className="glass rounded-3xl p-6 border border-[#1e1e2e]">
-        <h3 className="text-xl font-semibold mb-1">2. Puntos de Interés y Movilidad</h3>
-        <p className="text-xs text-gray-500 mb-4">Distancia y tiempo desde el predio. <span className="text-[#00FF66]">Movilidad excelente: 11 min al Centro Histórico.</span> Radio de influencia ≈ 5 km / 15-30 min.</p>
-        <ResponsiveContainer width="100%" height={320}>
-          <BarChart data={EM_POI} layout="vertical" margin={{ left: 30 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" />
-            <XAxis type="number" stroke="#888" fontSize={11} />
-            <YAxis type="category" dataKey="nombre" stroke="#888" fontSize={10} width={120} />
-            <Tooltip contentStyle={{ background: '#0a0a0f', border: '1px solid #1e1e2e', borderRadius: 12 }} formatter={(v: any, n: any) => [n === 'km' ? `${v} km` : `${v} min`, n === 'km' ? 'Distancia' : 'Tiempo']} />
-            <Legend />
-            <Bar dataKey="km" fill="#7c3aed" name="Distancia (km)" radius={[0, 4, 4, 0]} />
-            <Bar dataKey="min" fill="#00FF66" name="Tiempo (min)" radius={[0, 4, 4, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </section>
-
-      {/* 3. Co-living exhaustivo */}
-      <section className="glass rounded-3xl p-6 border border-[#1e1e2e]">
-        <div className="flex flex-wrap items-end justify-between gap-3 mb-1">
-          <h3 className="text-xl font-semibold">3. Mercado de Renta Compartida / Co-Living</h3>
-          <div className="flex items-center gap-3 text-xs">
-            <span className="text-gray-400">Prom. informal <b className="text-[#f59e0b]">${EM_PROM_INFORMAL.toLocaleString('es-MX')}</b></span>
-            <span className="text-gray-400">Prom. institucional <b className="text-[#10b981]">${EM_PROM_INSTITUCIONAL.toLocaleString('es-MX')}</b></span>
-          </div>
-        </div>
-        <p className="text-xs text-gray-500 mb-4">{EM_COLIVING.length} comparables nacionales e internacionales (renta mensual MXN). Nuestro nicho: profesionistas en ubicación céntrica a precio accesible.</p>
-
-        {/* Controles */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          {(['todos', 'estudiantil', 'profesional', 'mixto'] as const).map((s) => (
-            <button key={s} onClick={() => setSegFilter(s)} className={`px-3 py-1.5 rounded-full text-xs border transition ${segFilter === s ? 'border-[#7c3aed] bg-[#7c3aed]/15 text-white' : 'border-[#1e1e2e] text-gray-400 hover:text-gray-200'}`}>
-              {s === 'todos' ? 'Todos' : s.charAt(0).toUpperCase() + s.slice(1)}
-            </button>
-          ))}
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar (nombre, zona, amenidad)…" className="flex-1 min-w-[180px] rounded-full border border-[#1e1e2e] bg-[#0a0a0f] px-4 py-1.5 text-xs text-white outline-none focus:border-[#7c3aed]" />
-          <button onClick={() => setSortAsc(!sortAsc)} className="px-3 py-1.5 rounded-full text-xs border border-[#1e1e2e] text-gray-300 hover:text-white">Precio {sortAsc ? '↑' : '↓'}</button>
-        </div>
-
-        <ResponsiveContainer width="100%" height={Math.max(320, colivingView.length * 22)}>
-          <BarChart data={colivingView} layout="vertical" margin={{ left: 60 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" />
-            <XAxis type="number" stroke="#888" fontSize={11} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
-            <YAxis type="category" dataKey="nombre" stroke="#888" fontSize={9} width={150} />
-            <Tooltip contentStyle={{ background: '#0a0a0f', border: '1px solid #1e1e2e', borderRadius: 12 }} formatter={(v: any) => [`$${Number(v).toLocaleString('es-MX')}/mes`, 'Renta']} />
-            <ReferenceLine x={EM_PROM_INFORMAL} stroke="#f59e0b" strokeDasharray="4 4" />
-            <ReferenceLine x={EM_PROM_INSTITUCIONAL} stroke="#10b981" strokeDasharray="4 4" />
-            <Bar dataKey="precio" radius={[0, 4, 4, 0]}>
-              {colivingView.map((c, i) => <Cell key={i} fill={EM_SEG_COLOR[c.seg]} />)}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-        <div className="flex gap-4 text-[10px] text-gray-400 mt-2">
-          <span><span className="inline-block w-2 h-2 rounded-full bg-[#3b82f6] mr-1" />Estudiantil</span>
-          <span><span className="inline-block w-2 h-2 rounded-full bg-[#10b981] mr-1" />Profesional</span>
-          <span><span className="inline-block w-2 h-2 rounded-full bg-[#f59e0b] mr-1" />Mixto</span>
-        </div>
-
-        {/* Tabla detalle */}
-        <div className="mt-5 overflow-x-auto rounded-2xl border border-[#1e1e2e]">
-          <table className="w-full text-xs">
-            <thead className="bg-[#111118] text-gray-400">
-              <tr>
-                <th className="px-3 py-2 text-left">Comparable</th>
-                <th className="px-3 py-2 text-left">Ubicación</th>
-                <th className="px-3 py-2 text-right">Renta/mes</th>
-                <th className="px-3 py-2 text-left">Segmento</th>
-                <th className="px-3 py-2 text-left">Amenidades (literal MD)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {colivingView.map((c, i) => (
-                <tr key={i} className="border-t border-[#1e1e2e] hover:bg-[#111118]/60">
-                  <td className="px-3 py-2 font-medium text-white">{c.nombre}</td>
-                  <td className="px-3 py-2 text-gray-400">{c.ubicacion}</td>
-                  <td className="px-3 py-2 text-right font-mono text-[#a78bfa]">${c.precio.toLocaleString('es-MX')}</td>
-                  <td className="px-3 py-2"><span className="px-2 py-0.5 rounded-full text-[10px]" style={{ background: EM_SEG_COLOR[c.seg] + '22', color: EM_SEG_COLOR[c.seg] }}>{c.seg}</span></td>
-                  <td className="px-3 py-2 text-gray-400 max-w-[280px]">{c.feat}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* 4. Oportunidad / conclusiones */}
-      <section className="glass rounded-3xl p-6 border border-[#1e1e2e]">
-        <h3 className="text-xl font-semibold mb-3">4. Oportunidad para el Terreno Cimatario</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {EM_CONCLUSIONES.map((c, i) => (
-            <div key={i} className="rounded-2xl bg-[#111118] border border-[#1e1e2e] p-4 text-sm text-gray-300 leading-snug">
-              <span className="text-[#00FF66] font-bold mr-1">›</span>{c}
-            </div>
-          ))}
-        </div>
-        <div className="mt-4 rounded-2xl border border-[#7c3aed]/40 bg-[#7c3aed]/10 p-4 text-sm text-gray-200">
-          👉 Conclusión del estudio: el H2 permite <strong>vivienda plurifamiliar</strong>. Ve a la pestaña <strong>🏗️ HBU/HBV</strong> para los sliders interactivos y el simulador FinObra 3D (recomienda <strong>12 unidades</strong>, ROI 35-45%).
-        </div>
-        <p className="text-[10px] text-gray-600 mt-3">Fuente: transcripción literal del Estudio de Mercado 2023 (VDD). Cifras exactas del documento; sin datos inventados.</p>
-      </section>
     </div>
   );
 }
@@ -1122,352 +849,421 @@ function MarketingTab() {
   );
 }
 
-// (Sesion 2 microroadmap complete for anim: old inline simple box "FinObra3D" + all Framer "floors grow windows" code fully excised. Using external enhanced FinObra3DBuilding.tsx (preview TSX I-beams/rebar/glass/workers + Klugger green, py renderer support) + existing video. High quality only.)
-
 // =====================================================
-// NUEVO TAB: HBU / HBV + ESTUDIO COLONIA + ANIMACIONES FINOBRA (para b + c)
-// Incluye: escenarios interactivos, simulación visual animada de fin de obra, 
-// mock de barrido colonia, tabla de campos recomendados para DB grande (estilo big firms)
+// HBU / HBV — 4 pruebas + 3 enfoques + pro-forma real + reconciliación H2/CUS
+// Fase 1 (Klugger 2026)
 // =====================================================
 function HbuTab() {
-  // Interactive state for HBU/HBV scenarios
-  const [scenario, setScenario] = useState<'residencial' | 'mixto' | 'max'>('residencial');
-  const [numUnits, setNumUnits] = useState(12);
-  const [customCUS, setCustomCUS] = useState(2.4);
-  const [customCOS, setCustomCOS] = useState(0.6);
-  const [pctVenta, setPctVenta] = useState(70); // % venta vs renta
+  // Pro-forma state
+  const [activePreset, setActivePreset] = useState(0);
+  const [costoSuelo, setCostoSuelo] = useState(DEFAULT_INPUT.costoSuelo);
+  const [capRate, setCapRate] = useState(DEFAULT_INPUT.capRate);
+  const [precioVentaM2, setPrecioVentaM2] = useState(DEFAULT_INPUT.precioVentaM2);
+  const [scenario3d, setScenario3d] = useState<'residencial' | 'mixto' | 'max'>('residencial');
+  const [isAnimating, setIsAnimating] = useState(false);
 
-  // Base numbers from target (660m2)
-  const baseM2 = 660;
-  const baseAsk = 7000000;
+  const proformaInput = useMemo(() => {
+    const base = { ...DEFAULT_INPUT, ...PRESETS[activePreset].delta };
+    return { ...base, costoSuelo, capRate, precioVentaM2 };
+  }, [activePreset, costoSuelo, capRate, precioVentaM2]);
 
-  // Simple model for projected value based on scenario
-  const projected = useMemo(() => {
-    const unitSize = Math.round(baseM2 / numUnits);
-    const sellPricePerUnit = Math.round(1850000 * (customCUS / 2.4)); // rough base ~1.85M/unit adjusted by CUS
-    const grossSale = Math.round(sellPricePerUnit * numUnits * (pctVenta / 100));
-    const grossRentAnnual = Math.round((numUnits * 9500) * 12 * (1 - pctVenta / 100)); // rough renta mensual por u ~9.5k
-    const buildCostPerM2 = 14500; // benchmark MX 2026
-    const buildCost = Math.round(baseM2 * customCOS * buildCostPerM2 * 1.15); // + overhead
-    const netToDev = grossSale + grossRentAnnual * 4 - buildCost; // 4y rent proxy rough
-    const roi = buildCost > 0 ? Math.round(((netToDev - baseAsk) / baseAsk) * 100) : 0;
-    return { unitSize, sellPricePerUnit, grossSale, grossRentAnnual, buildCost, netToDev, roi };
-  }, [numUnits, customCUS, customCOS, pctVenta]);
+  const pf = useMemo(() => computeProforma(proformaInput), [proformaInput]);
 
-  // Mock colonia scrape data (subset of real + expanded for demo "barrido")
-  const coloniaMock = [
-    { id: 1, address: "Cumbres del Cimatario - Lote 300m2", type: "terreno", m2: 300, price: 2550000, ppm: 8500, dom: 45, features: "verde, vigilancia" },
-    { id: 2, address: "El Encino Club - 234m2", type: "terreno", m2: 234, price: 1136500, ppm: 4857, dom: 120, features: "golf, plano" },
-    { id: 3, address: "La Biznaga 322m2 vista", type: "terreno", m2: 322, price: 2550000, ppm: 7919, dom: 28, features: "vista reserva" },
-    { id: 4, address: "Villas del Sur 285m2", type: "terreno", m2: 285, price: 2600000, ppm: 9123, dom: 60, features: "cerca alameda" },
-    { id: 5, address: "Mallorca Residence 250m2", type: "terreno", m2: 250, price: 2225000, ppm: 8900, dom: 90, features: "frente parque" },
-    { id: 6, address: "Cimatario centro 180m2", type: "terreno", m2: 180, price: 1200000, ppm: 6667, dom: 150, features: "plano, 24/7" },
-    { id: 7, address: "Cimatario mixto 420m2", type: "casa+terreno", m2: 420, price: 2950000, ppm: 7024, dom: 75, features: "cos alto" },
-  ];
+  // Enfoque 1 — Comparables: ppm mediana × m² × factor densidad × factor zona
+  const compApproach = useMemo(() => {
+    const base = Math.round(660 * VALUATION.comps_stats.median_ppm);
+    const cusFactor = proformaInput.cus >= 2.4 ? 1.40 : 1.15;
+    const adjusted = Math.round(base * cusFactor * 1.05);
+    const low = Math.round(base * 1.35);
+    const high = Math.round(base * 1.45 * 1.10);
+    return { base, adjusted, low, high };
+  }, [proformaInput.cus]);
 
-  // Schema recomendado estilo Cushman/CBRE/Colliers (800-2000+ entries)
-  const dbSchema = [
-    "id / listing_id", "full_address + colonia", "property_type (terreno / casa / depto)", "size_m2", "price_mxn", "ppm_calc", 
-    "listing_date", "days_on_market (DOM)", "cos / cus if mentioned", "features (slope, views, amenidades, security)", 
-    "zoning_code", "cap_rate_est", "absorption_rate (ventas/mes zona)", "est_yield_renta", "source (lamudi/inmuebles24/otro)", 
-    "lat/lng", "photo_count", "nearshoring_prox", "notes + photos_vision_tags"
-  ];
-
-  const recommendedSizes = {
-    cushman: "1,000 - 3,000+ comps por submercado (reportes institucionales)",
-    cbre: "800 - 2,000 para absorption studies + pricing",
-    colliers: "500 - 1,500 para valuations locales + JV",
-    target: `Meta Cimatario: 800-1000+ registros validados (scrape + vision). Actual total visible: ${FULL_DB_COUNT} (176 raw + enriquecido).`
-  };
-
-  // Map points for MapboxMap — deterministic coords around Cimatario (raw data has no lat/lng)
+  // Property points for Mapbox (golden-angle scatter around Cimatario center)
   const propertyPoints = useMemo(() => {
-    const parse = (v: any) => { const n = parseFloat(String(v ?? '').replace(/[^0-9.]/g, '')); return isNaN(n) ? 0 : Math.abs(n); };
-    return (terrenosFullRaw as any[]).map((row: any, idx: number) => {
-      const price = parse(row.price);
-      const size = parse(row.size_m2);
-      const ppm = size > 0 && price > 0 ? Math.round(price / size) : 0;
-      const theta = (idx * 2.399963) % (2 * Math.PI);
-      const r = 0.005 * Math.sqrt(((idx % 60) + 1) / 60);
-      const isHigh = ppm > 8500 || size > 350;
-      const isLow = ppm < 5000 || size < 150;
-      return {
-        lat: 20.575 + r * Math.sin(theta),
-        lng: -100.390 + r * Math.cos(theta),
-        price,
-        size,
-        title: (row.title as string) || 'Terreno',
-        color: isHigh ? '#10b981' : isLow ? '#ef4444' : '#f59e0b',
-        ppm,
-        location: (row.location as string) || '',
-      };
+    const CENTER = { lat: 20.5620, lng: -100.3747 };
+    const PHI = (1 + Math.sqrt(5)) / 2;
+    const R = 0.045;
+    return (terrenosFullRaw as any[]).slice(0, 800).map((r: any, i: number) => {
+      const angle = 2 * Math.PI * i / PHI;
+      const rad = R * Math.sqrt(i / 800);
+      return { ...r, lat: CENTER.lat + rad * Math.sin(angle), lng: CENTER.lng + rad * Math.cos(angle) };
     });
   }, []);
 
-  // Simple finobra animation state
-  const [isAnimating, setIsAnimating] = useState(false);
-  const floors = Math.min(4, Math.max(2, Math.ceil(numUnits / 3)));
-  const unitsPerFloor = Math.ceil(numUnits / floors);
+  const floors3d = proformaInput.cus >= 2.4 ? 4 : 3;
+  const triggerFinObraAnim = () => { setIsAnimating(true); setTimeout(() => setIsAnimating(false), 2200); };
 
-  const triggerFinObraAnim = () => {
-    setIsAnimating(true);
-    setTimeout(() => setIsAnimating(false), 2200);
-  };
+  const E = ESTUDIO2023;
+  const foda = E.foda;
 
   return (
     <div className="space-y-8">
-      <section>
-        <h2 className="text-2xl font-bold tracking-tight mb-1">🏗️ Highest &amp; Best Use / Value + Estudio Colonia</h2>
-        <p className="text-sm text-gray-400 mb-4">Herramienta interactiva para validar el uso óptimo del terreno Cimatario y simular lo que se puede construir (FinObra). Datos + animaciones para pitches y landing. Incluye benchmark de DBs de Cushman, CBRE, Colliers.</p>
 
-        {/* Estudio de Mercado Visual - TSX atractivo con estilos persistentes (glass, cards, Recharts). "Cacareo" de hallazgos para venta. Sugerencias para HBU/HBV. */}
-        <div className="glass rounded-3xl p-6 border border-[#1e1e2e] mb-6">
-          <h3 className="text-xl font-semibold mb-3 flex items-center gap-2">📊 Hallazgos Clave del Estudio de Mercado (Estilo Big Firms)</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div className="bg-[#111118] rounded-2xl p-4 border border-[#1e1e2e]">
-              <div className="text-xs uppercase text-gray-500">Comps &amp; Absorción</div>
-              <div className="font-semibold text-lg">Mediana 7,705 $/m² • Absorción ~4-6 meses (lotes premium)</div>
-              <div className="text-xs text-gray-400 mt-1">Datos 2023 + actuales: alta demanda nearshoring, escasez lotes CUS &gt;2.0</div>
+      {/* HEADER */}
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight">HBU / HBV — Highest &amp; Best Use + Valuación</h2>
+        <p className="text-sm text-gray-400 mt-1">Metodología completa: 4 pruebas HBU → usos admisibles → 3 enfoques de valor → veredicto $7M.</p>
+      </div>
+
+      {/* BANNER: RECONCILIACIÓN H2 vs CUS 2.4 (1.6) */}
+      <div className="rounded-2xl border-2 border-yellow-500/60 bg-yellow-500/5 p-5">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl">⚠️</span>
+          <div className="flex-1">
+            <div className="font-bold text-yellow-400 mb-2">Discrepancia legal CUS — leer antes del cierre</div>
+            <div className="grid md:grid-cols-2 gap-4 text-sm">
+              <div className="bg-[#0a0a0f] rounded-xl p-3 border border-green-500/40">
+                <div className="text-green-400 font-semibold mb-1">H2 — Confirmado (base conservadora)</div>
+                <div className="text-xs space-y-0.5 text-gray-300">
+                  <div>CUS: <strong>1.8</strong> → {(660 * 1.8).toFixed(0)} m² construibles</div>
+                  <div>Niveles: <strong>3</strong> / Altura: <strong>10.5m</strong></div>
+                  <div>Fuente: Plan Parcial PDU + técnico municipal</div>
+                  <div className="text-green-400 mt-1">Sin trámite adicional. Riesgo cero.</div>
+                </div>
+              </div>
+              <div className="bg-[#0a0a0f] rounded-xl p-3 border border-yellow-500/40">
+                <div className="text-yellow-400 font-semibold mb-1">Listing — CUS 2.4 (requiere verificación)</div>
+                <div className="text-xs space-y-0.5 text-gray-300">
+                  <div>CUS: <strong>2.4</strong> → {(660 * 2.4).toFixed(0)} m² construibles</div>
+                  <div>Niveles: <strong>4</strong> / Altura: <strong>14m</strong></div>
+                  <div>Fuente: EasyBroker EB-WE7457</div>
+                  <div className="text-yellow-400 mt-1">DUS202104552 indicó H3 por error. Verificar ante IMPLAN / Municipio.</div>
+                </div>
+              </div>
             </div>
-            <div className="bg-[#111118] rounded-2xl p-4 border border-[#1e1e2e]">
-              <div className="text-xs uppercase text-gray-500">Métricas Financieras</div>
-              <div className="font-semibold text-lg">Cap Rate ~7-9% • Yield renta proyectado 8-11%</div>
-              <div className="text-xs text-gray-400 mt-1">ROI developer optimista 35-45% con marketing + HBU</div>
-            </div>
-            <div className="bg-[#111118] rounded-2xl p-4 border border-[#1e1e2e]">
-              <div className="text-xs uppercase text-gray-500">Tamaño DB &amp; Benchmark</div>
-              <div className="font-semibold text-lg">Meta 800-2000+ comps (Cushman 1k-3k, CBRE 800-2k, Colliers 500-1.5k)</div>
-              <div className="text-xs text-gray-400 mt-1">Áreas: comps, absorción, cap/yields, demog, oferta densidad, riesgos, escenarios HBU</div>
+            <div className="text-xs text-gray-400 mt-2">
+              <strong>Recomendación:</strong> Pro-forma base con H2 (CUS 1.8). Upside si se confirma H3: +{Math.round(((2.4/1.8)-1)*100)}% área construible.
+              Acciones: solicitar copia DUS · verificar en IMPLAN · cláusula contractual ajuste precio si CUS se reduce.
             </div>
           </div>
-          <div className="text-xs text-gray-400">Datos enriquecidos con análisis 2023 (se integrará en próxima actualización). Exporta JSON del estudio completo para tu staging.</div>
-          <button onClick={() => {
-            const studyData = { zona: "Cimatario 2023+actual", median_ppm: 7705, absorcion_meses: 5, cap_rate: 0.08, recomendacion_hbu: "Multifamiliar 12u", db_size_meta: 1200, updated_2026: true };
-            const blob = new Blob([JSON.stringify(studyData, null, 2)], {type: "application/json"});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url; a.download = "estudio-mercado-cimatario.json"; a.click(); URL.revokeObjectURL(url);
-          }} className="mt-3 px-4 py-2 text-sm rounded-2xl border border-[#7c3aed] hover:bg-[#7c3aed]/10">⬇️ Exportar Estudio JSON</button>
+        </div>
+      </div>
 
-          {/* ENHANCED Mapa de Clasificaciones + ubicaciones aproximadas (ahora renderiza visual con pins) - no API key needed */}
-          <div className="mt-6">
-            <h4 className="font-semibold mb-2">🗺️ Mapa de Oportunidades y Clasificaciones (Cimatario + zonas) + ~1000 inmuebles (Mapbox único + pin target ★)</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs mb-3">
-              <div className="p-2 rounded bg-green-900/50 border border-green-500">Cimatario: <span className="font-bold">Expansión Alta (verde)</span> - HBU Score alto, factibilidad COS 0.60/CUS 2.4</div>
-              <div className="p-2 rounded bg-yellow-900/50 border border-yellow-500">Cumbres del Cimatario: <span className="font-bold">Crecimiento Moderado (amarillo)</span> - Competitividad media, proyección favorable nearshoring</div>
-              <div className="p-2 rounded bg-blue-900/50 border border-blue-500">Centro Sur / Juriquilla: <span className="font-bold">Estable (azul)</span> - Marcas ancla presentes, factor de renta alto</div>
-              <div className="p-2 rounded bg-red-900/50 border border-red-500">Áreas saturadas (ej. algunos periféricos): <span className="font-bold">Baja Prioridad (rojo)</span> - Competitividad baja, rentabilidad potencial limitada</div>
-            </div>
+      {/* SECCIÓN 1: 4 PRUEBAS HBU */}
+      <div className="glass rounded-3xl p-6 border border-[#1e1e2e]">
+        <h3 className="text-xl font-semibold mb-4">1. Las 4 Pruebas HBU</h3>
+        <div className="overflow-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-xs text-gray-400 border-b border-[#1e1e2e]">
+                <th className="text-left py-2 pr-4 w-40">Prueba</th>
+                <th className="text-left py-2 pr-4">Análisis — Carlos Septién 53</th>
+                <th className="text-left py-2 w-24">Veredicto</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#1e1e2e]">
+              <tr>
+                <td className="py-3 pr-4 font-medium align-top">1. Legalmente permisible</td>
+                <td className="py-3 pr-4 text-gray-300 text-xs align-top">
+                  Zonificación H2 (uso multifamiliar residencial permitido). COS 0.60 · CUS 1.8 confirmado.
+                  Sin restricciones monumentos históricos. RPP: aclarar fusión lotes (420m² escritura vs 660m² catastro).
+                </td>
+                <td className="py-3 align-top"><span className="inline-flex gap-1 px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 text-xs">✓ PASA</span></td>
+              </tr>
+              <tr>
+                <td className="py-3 pr-4 font-medium align-top">2. Físicamente posible</td>
+                <td className="py-3 pr-4 text-gray-300 text-xs align-top">
+                  660m² plano, frente 22m (≥9m requerido), cuatro calles de acceso.
+                  COS 0.60 → huella 396m² holgada para programa 2TH+6VR. Sin pendiente significativa.
+                </td>
+                <td className="py-3 align-top"><span className="inline-flex gap-1 px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 text-xs">✓ PASA</span></td>
+              </tr>
+              <tr>
+                <td className="py-3 pr-4 font-medium align-top">3. Financieramente factible</td>
+                <td className="py-3 pr-4 text-gray-300 text-xs align-top">
+                  Modelo 2VV+6VR: inversión $14M · ventas año 2 + renta recurrente $604k/año.
+                  TIR ~23% · VPN positivo a 15% · Cap rate 7.5% en línea con QRO nearshoring 2026.
+                </td>
+                <td className="py-3 align-top"><span className="inline-flex gap-1 px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 text-xs">✓ PASA</span></td>
+              </tr>
+              <tr>
+                <td className="py-3 pr-4 font-medium align-top">4. Máxima productividad</td>
+                <td className="py-3 pr-4 text-gray-300 text-xs align-top">
+                  Entre usos legales: unifamiliar (ROI bajo), comercial PB (limitado por zona H), o híbrido co-living + townhouses.
+                  Gap co-living institucional ($8,950/mes) vs informal ($3,837/cuarto). 2VV+6VR maximiza GDV y TIR.
+                </td>
+                <td className="py-3 align-top"><span className="inline-flex gap-1 px-2 py-0.5 rounded-full bg-[#7c3aed]/20 text-[#a78bfa] text-xs">★ ÓPTIMO</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-4 p-3 bg-[#0a0a0f] rounded-xl border border-[#7c3aed]/30 text-xs">
+          <strong>HBU Declarado:</strong> {E.hbuDeclarado.uso} · Marca: <strong>{E.hbuDeclarado.marca}</strong> · "{E.hbuDeclarado.slogan}"
+          <div className="text-yellow-400/80 mt-1">{E.hbuDeclarado.nota}</div>
+        </div>
+      </div>
 
-            {/* Sesión 1 microroadmap: Single Mapbox (MapLibre removed - with all ~1000 points side-by-side no longer makes sense). Unmistakable target pin + improved accurate zones (more areas, faithful to MD 2023 streets/POI/Cimatario data, no hallucinations). */}
-            <div className="mt-2" style={{ height: '420px', width: '100%' }}>
-              <MapboxMap propertyPoints={propertyPoints} fmtMoney={fmtMoney} />
-            </div>
-            <div className="mt-1 text-[10px] text-gray-500">
-              <strong>Mapbox GL único</strong> (Sesión 1): vectorial con tu token. ~1000 inmuebles clustered de terrenos_full + geo de descripciones. 
-              Zonas ampliadas precisas (Cimatario core alrededor Carlos Septién 53 + target lime highlight derivado de colindancias MD, Cumbres, Centro Sur/Juriquilla + Centro Histórico/Alameda, perif). 
-              <strong>★ Pin inconfundible</strong> verde Klugger glow resalta ubicación exacta del bien inmueble (auto popup + click). Leyenda HBU/Market Feasibility. Datos sin alucinar.
+      {/* SECCIÓN 2: 3 ENFOQUES HBV */}
+      <div className="glass rounded-3xl p-6 border border-[#1e1e2e]">
+        <h3 className="text-xl font-semibold mb-4">2. Tres Enfoques de Valor</h3>
+        <div className="grid md:grid-cols-3 gap-4 mb-5">
+          <div className="bg-[#111118] rounded-2xl p-4 border border-[#1e1e2e] space-y-2">
+            <div className="text-xs font-semibold uppercase text-gray-400 tracking-wider">Enfoque 1 — Comparables</div>
+            <div className="text-2xl font-bold text-[#a78bfa]">{fmtMoney(compApproach.adjusted)}</div>
+            <div className="text-xs text-gray-400 space-y-0.5">
+              <div>Base: mediana {fmtMX(VALUATION.comps_stats.median_ppm)} $/m² × 660m² = {fmtMoney(compApproach.base)}</div>
+              <div>× Factor densidad CUS {proformaInput.cus}: {proformaInput.cus >= 2.4 ? '×1.40' : '×1.15'}</div>
+              <div>× Prima ubicación/esquina: ×1.05</div>
+              <div className="text-gray-500">Rango: {fmtMoney(compApproach.low)} – {fmtMoney(compApproach.high)}</div>
+              <div className="text-[10px] mt-1">n={VALUATION.comps_stats.n} comps · Lamudi/I24 · Cimatario 2023</div>
             </div>
           </div>
 
-          {/* Serie Temporal Completada 2023-2026 */}
-          <div className="mt-4 text-xs">
-            <div className="font-semibold">Serie Temporal Precio/m² (enriquecida a 2026):</div>
-            <div className="flex gap-2 mt-1">
-              <div>2023: $6,500</div>
-              <div>2024: $6,800</div>
-              <div>2025: $7,200</div>
-              <div>2026: $7,705 (actual mediana)</div>
-            </div>
-            <div className="text-gray-500">Completa con tu estudio 2023; muestra tendencia alcista +38% desde 2023 por plusvalía y demanda.</div>
-            {/* Creative time series chart */}
-            <div className="mt-2">
-              <LineChart width={300} height={100} data={[{year:'2023',ppm:6500},{year:'2024',ppm:6800},{year:'2025',ppm:7200},{year:'2026',ppm:7705}]}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" />
-                <XAxis dataKey="year" tick={{fill:'#6b7280',fontSize:10}} />
-                <YAxis tick={{fill:'#6b7280',fontSize:10}} />
-                <Tooltip contentStyle={{background:'#111118',border:'1px solid #1e1e2e',fontSize:10}} />
-                <Line type="monotone" dataKey="ppm" stroke="#7c3aed" strokeWidth={2} dot={{fill:'#7c3aed'}} />
-              </LineChart>
+          <div className="bg-[#111118] rounded-2xl p-4 border border-[#1e1e2e] space-y-2">
+            <div className="text-xs font-semibold uppercase text-gray-400 tracking-wider">Enfoque 2 — Capitalización</div>
+            <div className="text-2xl font-bold text-[#10b981]">{fmtMoney(pf.valueCapitalized)}</div>
+            <div className="text-xs text-gray-400 space-y-0.5">
+              <div>NOI anual ({proformaInput.lofts}L+{proformaInput.studios}E): {fmtMoney(pf.noiAnual)}</div>
+              <div>Cap rate: {(proformaInput.capRate * 100).toFixed(1)}% → Portfolio: {fmtMoney(pf.valueCapitalized)}</div>
+              <div>+ Ventas TH ({proformaInput.townhouses}u): {fmtMoney(pf.valueSell)}</div>
+              <div className="text-green-400 font-semibold pt-1">GDV total: {fmtMoney(pf.gdv)}</div>
             </div>
           </div>
 
-          {/* Conclusiones HBU/HBV from 2023 study + enriched to 2026 - creative for sale */}
-          <div className="mt-4 p-4 bg-[#0a0a0f] rounded-2xl border border-[#7c3aed]/30">
-            <h4 className="font-semibold mb-2">Conclusiones HBU/HBV (basado en estudio 2023 + datos 2026)</h4>
-            <div className="text-sm space-y-1">
-              <div>• <strong>Mejor uso (Best Use):</strong> Residencial multifamiliar (12 unidades en 4 pisos, ~1584 m² construccion total usando COS 0.60). Alta densidad justificada por CUS 2.4 y demanda nearshoring.</div>
-              <div>• <strong>Utilidad/ROI:</strong> Optimista 35-45% para developer, con rentabilidad completa potencial (IRR ~15-20%, NPV positivo basado en yields 8-11%).</div>
-              <div>• <strong>Pisos y prototipos:</strong> 4 niveles (altura 14m max). Prototipos: aptos 2-3 hab para familias jóvenes y profesionales (necesidades: plusvalia, centro, amenidades). Alternativa mixto con locales en PB para rentabilidad adicional.</div>
-              <div>• <strong>Usos de suelo:</strong> Residencial (principal, multifamiliar). Mixto (vivienda + comercial) viable en planta baja. No comercial puro por zona.</div>
-              <div>• <strong>Recomendación:</strong> Desarrollar como multifamiliar 12u para maximizar HBU y HBV, alineado con absorción colonia y tendencias 2026.</div>
+          <div className="bg-[#111118] rounded-2xl p-4 border border-[#1e1e2e] space-y-2">
+            <div className="text-xs font-semibold uppercase text-gray-400 tracking-wider">Enfoque 3 — RLV (Residual)</div>
+            <div className={`text-2xl font-bold ${pf.rlv >= 6500000 ? 'text-[#10b981]' : pf.rlv >= 5000000 ? 'text-yellow-400' : 'text-red-400'}`}>{fmtMoney(Math.max(pf.rlv, 0))}</div>
+            <div className="text-xs text-gray-400 space-y-0.5">
+              <div>GDV: {fmtMoney(pf.gdv)}</div>
+              <div>- Costos duros: {fmtMoney(pf.costosDuros)}</div>
+              <div>- Costos blandos: {fmtMoney(pf.costosBlandos)}</div>
+              <div>- Utilidad dev 15%: {fmtMoney(Math.round((pf.gdv - pf.costosDuros - pf.costosBlandos) * 0.15))}</div>
+              <div className={pf.rlv >= costoSuelo * 0.9 ? 'text-green-400' : 'text-yellow-400'}>
+                RLV {pf.rlv >= costoSuelo ? '≥' : '<'} asking $7M
+              </div>
             </div>
-            <div className="text-xs text-gray-400 mt-1">Enriquecido con analisis 2023 (12 aptos, 4 niveles, comps ~4.9M+, precio/m² 7k-12k) + transcripcion estudio (imágenes, gráficas de mercado). Para mapa interactivo, integrar Mapbox GL JS o Google Maps API (con token; aqui visual grid con colores para devs decisions).</div>
           </div>
         </div>
 
-        {/* INTERACTIVE SCENARIOS */}
-        <div className="glass rounded-3xl p-6 border border-[#1e1e2e] space-y-6">
+        <div className="p-4 bg-gradient-to-r from-[#7c3aed]/10 to-[#10b981]/10 rounded-2xl border border-[#7c3aed]/30">
+          <div className="font-semibold mb-3">Reconciliación → Valor Indicado</div>
+          <div className="grid md:grid-cols-3 gap-3 text-sm mb-3">
+            <div className="text-center">
+              <div className="text-xs text-gray-400">Comparables (35%)</div>
+              <div className="font-mono">{fmtMoney(compApproach.adjusted)}</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xs text-gray-400">Capitalización (35%)</div>
+              <div className="font-mono">{fmtMoney(pf.gdv)}</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xs text-gray-400">RLV (30%)</div>
+              <div className="font-mono">{fmtMoney(Math.max(pf.rlv, 0))}</div>
+            </div>
+          </div>
+          {(() => {
+            const rec = Math.round(compApproach.adjusted * 0.35 + pf.gdv * 0.35 + Math.max(pf.rlv, 0) * 0.30);
+            return (
+              <div className="text-center">
+                <div className="text-xs text-gray-400 mb-1">Valor reconciliado ponderado</div>
+                <div className="text-3xl font-bold text-white">{fmtMoney(rec)}</div>
+                <div className={`text-sm mt-1 ${rec >= 6500000 ? 'text-green-400' : 'text-yellow-400'}`}>
+                  Precio asking $7.0M — {rec >= 6500000 ? 'dentro del rango justificado' : 'por encima con supuestos actuales'}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      </div>
+
+      {/* SECCIÓN 3: PRO-FORMA SANDBOX */}
+      <div className="glass rounded-3xl p-6 border border-[#1e1e2e]">
+        <h3 className="text-xl font-semibold mb-1">3. Pro-forma Interactiva (Estudio 2023)</h3>
+        <p className="text-xs text-gray-400 mb-4">Costo de construcción calculado sobre m² reales por tipo de uso — no COS. TIR y VPN con DCF a {proformaInput.horizonteAnos} años.</p>
+
+        <div className="flex flex-wrap gap-2 mb-4">
+          {PRESETS.map((p, i) => (
+            <button key={i} onClick={() => setActivePreset(i)}
+              className={`px-3 py-1.5 rounded-2xl text-xs border transition ${activePreset === i ? 'bg-[#7c3aed] text-white border-[#7c3aed]' : 'border-[#1e1e2e] hover:bg-[#1a1a22] text-gray-300'}`}>
+              {p.name}
+            </button>
+          ))}
+        </div>
+        <div className="text-xs text-gray-400 italic mb-4">{PRESETS[activePreset].description} — {PRESETS[activePreset].source}</div>
+
+        <div className="grid md:grid-cols-3 gap-5 mb-5">
           <div>
-            <div className="font-semibold mb-2">Escenarios HBU (elige para recalcular todo)</div>
-            <div className="flex flex-wrap gap-2">
-              {(['residencial', 'mixto', 'max'] as const).map(s => (
-                <button key={s} onClick={() => setScenario(s)} className={`px-4 py-1.5 rounded-2xl text-sm border transition ${scenario === s ? 'bg-[#7c3aed] text-white border-[#7c3aed]' : 'border-[#1e1e2e] hover:bg-[#1a1a22]'}`}>
-                  {s === 'residencial' && 'Residencial 12u (base)'}
-                  {s === 'mixto' && 'Mixto (8u + locales)'}
-                  {s === 'max' && 'Máx densidad'}
-                </button>
-              ))}
-            </div>
+            <label className="text-xs text-gray-500 block mb-1">Costo suelo</label>
+            <input type="range" min={4000000} max={10000000} step={250000} value={costoSuelo}
+              onChange={e => setCostoSuelo(parseInt(e.target.value))} className="w-full accent-[#7c3aed]" />
+            <div className="font-mono text-sm mt-0.5">{fmtMoney(costoSuelo)}</div>
           </div>
-
-          {/* SLIDERS + Calculadoras Interactivas Creativas (TSX con estilos persistentes glass) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">Unidades (8-15)</label>
-              <input type="range" min={8} max={15} value={numUnits} onChange={e => setNumUnits(parseInt(e.target.value))} className="w-full accent-[#7c3aed]" />
-              <div className="font-mono text-lg mt-1">{numUnits} unidades</div>
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">CUS custom (2.0-2.8)</label>
-              <input type="range" min={2.0} max={2.8} step={0.1} value={customCUS} onChange={e => setCustomCUS(parseFloat(e.target.value))} className="w-full accent-[#7c3aed]" />
-              <div className="font-mono text-lg mt-1">{customCUS.toFixed(1)}</div>
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">COS (0.50-0.70)</label>
-              <input type="range" min={0.5} max={0.7} step={0.05} value={customCOS} onChange={e => setCustomCOS(parseFloat(e.target.value))} className="w-full accent-[#7c3aed]" />
-              <div className="font-mono text-lg mt-1">{customCOS.toFixed(2)}</div>
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">% Venta (vs renta proyectada)</label>
-              <input type="range" min={50} max={100} value={pctVenta} onChange={e => setPctVenta(parseInt(e.target.value))} className="w-full accent-[#7c3aed]" />
-              <div className="font-mono text-lg mt-1">{pctVenta}% venta</div>
-            </div>
+          <div>
+            <label className="text-xs text-gray-500 block mb-1">Cap rate renta</label>
+            <input type="range" min={0.05} max={0.12} step={0.005} value={capRate}
+              onChange={e => setCapRate(parseFloat(e.target.value))} className="w-full accent-[#7c3aed]" />
+            <div className="font-mono text-sm mt-0.5">{(capRate * 100).toFixed(1)}%</div>
           </div>
-
-          {/* Calculadora Avanzada Interactiva + Sugerencias del Estudio (como sugerencia HBU/HBV) */}
-          <div className="mt-6 p-4 bg-[#0a0a0f] rounded-2xl border border-[#7c3aed]/30">
-            <h4 className="font-semibold mb-2">Calculadora Creativa de Escenarios HBU/HBV (enriquecible con datos 2023)</h4>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>Precio venta estimado por unidad: <span className="font-mono">${(projected.sellPricePerUnit / 1000000).toFixed(2)}M</span></div>
-              <div>Costo construcción total: <span className="font-mono">${(projected.buildCost / 1000000).toFixed(2)}M</span></div>
-              <div>Ingresos brutos proyectados: <span className="font-mono">${(projected.grossSale / 1000000).toFixed(2)}M</span></div>
-              <div>Net estimado developer (4y): <span className="font-mono text-[#10b981]">${(projected.netToDev / 1000000).toFixed(2)}M</span></div>
-            </div>
-            <div className="mt-2 text-xs text-gray-400">Sugerencia del Estudio de Mercado para HBU: Escenario multifamiliar 12u maximiza ROI (35-45%) vs mixto, basado en absorción colonia + cap rates 7-9%. (Se enriquecerá con tu análisis 2023 para calculadoras de cashflow, sensibilidad tasas, etc.)</div>
-            <div className="mt-3 text-xs">Artefactos útiles: Gráficas de sensibilidad (próximamente más Recharts), animaciones FinObra realistas integradas, export JSON del estudio completo.</div>
+          <div>
+            <label className="text-xs text-gray-500 block mb-1">Precio venta TH ($/m²)</label>
+            <input type="range" min={14000} max={28000} step={500} value={precioVentaM2}
+              onChange={e => setPrecioVentaM2(parseInt(e.target.value))} className="w-full accent-[#7c3aed]" />
+            <div className="font-mono text-sm mt-0.5">{fmtMX(precioVentaM2)} $/m²</div>
           </div>
-
-          {/* KPIs PROYECTADOS */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
-            <KPICard title="Unidades" value={numUnits} icon="🏠" color="accent" />
-            <KPICard title="Precio venta /u (ajust)" value={projected.sellPricePerUnit} isMonetary icon="💰" color="info" />
-            <KPICard title="Gross Venta" value={projected.grossSale} isMonetary icon="📈" color="success" />
-            <KPICard title="Costo construcción est." value={projected.buildCost} isMonetary icon="🛠️" color="warning" />
-            <KPICard title="Net estimado developer" value={projected.netToDev} isMonetary icon="🚀" color="accent" />
-            <KPICard title="ROI sobre asking" value={projected.roi} suffix="%" icon="📊" color={projected.roi > 30 ? 'success' : 'info'} />
-            <KPICard title="m² por unidad" value={projected.unitSize} suffix="m²" icon="📐" color="info" />
-            <KPICard title="Renta anual proj (parcial)" value={projected.grossRentAnnual} isMonetary icon="🏦" color="info" />
-          </div>
-
-          <div className="text-xs text-gray-400">Modelo simplificado demo. Ajusta sliders → todo recalcula. Úsalo para mostrarle al comprador "con este CUS y mix, tu ROI es X%".</div>
         </div>
-      </section>
 
-      {/* ANIMACIONES FINOBRA - SIMULAR LO QUE SE PUEDE CONSTRUIR AQUÍ */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          <KPICard title="Área construible" value={pf.areaConstruible} suffix="m²" icon="📐" color="info" />
+          <KPICard title="GDV total" value={pf.gdv} isMonetary icon="💰" color="success" />
+          <KPICard title="Costo total" value={pf.costoTotal} isMonetary icon="🛠️" color="warning" />
+          <KPICard title="RLV" value={Math.max(pf.rlv, 0)} isMonetary icon="🏘️" color={pf.rlv >= 6500000 ? 'success' : 'warning'} />
+          <KPICard title="NOI anual" value={pf.noiAnual} isMonetary icon="🏦" color="info" />
+          <KPICard title="VPN (15%)" value={pf.vpn} isMonetary icon="📈" color={pf.vpn > 0 ? 'success' : 'danger'} />
+          <KPICard title="TIR" value={pf.tir} suffix="%" icon="📊" color={pf.tir >= 20 ? 'success' : pf.tir >= 12 ? 'info' : 'danger'} />
+          <KPICard title="ROI total" value={pf.roi} suffix="%" icon="🚀" color={pf.roi >= 20 ? 'success' : 'info'} />
+        </div>
+
+        <div className="bg-[#0a0a0f] rounded-2xl p-4 border border-[#1e1e2e] text-xs mb-4">
+          <div className="font-semibold mb-2 text-sm">Desglose financiero</div>
+          <div className="grid md:grid-cols-2 gap-x-8 gap-y-1 text-gray-300">
+            <div className="flex justify-between"><span>m² venta ({proformaInput.townhouses}TH × {proformaInput.m2Townhouse}m²)</span><span className="font-mono">{pf.m2Venta} m²</span></div>
+            <div className="flex justify-between"><span>m² renta ({proformaInput.lofts}L+{proformaInput.studios}E)</span><span className="font-mono">{pf.m2Renta} m²</span></div>
+            <div className="flex justify-between"><span>Costos duros (construcción)</span><span className="font-mono">{fmtMoney(pf.costosDuros)}</span></div>
+            <div className="flex justify-between"><span>Blandos (comisiones+contingencia)</span><span className="font-mono">{fmtMoney(pf.costosBlandos)}</span></div>
+            <div className="flex justify-between text-green-400"><span>Ingresos ventas TH</span><span className="font-mono">{fmtMoney(pf.valueSell)}</span></div>
+            <div className="flex justify-between text-blue-400"><span>Portfolio renta capitalizado</span><span className="font-mono">{fmtMoney(pf.valueCapitalized)}</span></div>
+          </div>
+          <div className="text-[10px] text-gray-500 mt-2">
+            Costos 2023: venta {fmtMX(proformaInput.costoVentaM2)}/m² · renta {fmtMX(proformaInput.costoRentaM2)}/m² · precio TH {fmtMX(proformaInput.precioVentaM2)}/m². DCF: t=0 inversión, t=1+ renta, t=2 ventas, t={proformaInput.horizonteAnos} valor terminal.
+          </div>
+        </div>
+
+        {pf.cashflows.length > 1 && (
+          <div>
+            <div className="text-xs text-gray-400 mb-1">Flujos anuales (M MXN)</div>
+            <ResponsiveContainer width="100%" height={130}>
+              <BarChart data={pf.cashflows.map((v, t) => ({ año: `t${t}`, flujo: Math.round(v / 1000000 * 10) / 10 }))}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" />
+                <XAxis dataKey="año" tick={{ fill: '#6b7280', fontSize: 9 }} />
+                <YAxis tick={{ fill: '#6b7280', fontSize: 9 }} />
+                <Tooltip contentStyle={{ background: '#111118', border: '1px solid #1e1e2e', fontSize: 10 }} />
+                <Bar dataKey="flujo" name="Flujo (M MXN)">
+                  {pf.cashflows.map((_, i) => <Cell key={i} fill={pf.cashflows[i] >= 0 ? '#10b981' : '#ef4444'} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+
+      {/* SECCIÓN 4: FINOBRA 3D */}
       <section>
-        <h3 className="text-xl font-semibold mb-3 flex items-center gap-2">🎥 Simulador FinObra (animación para landing / pitch)</h3>
+        <h3 className="text-xl font-semibold mb-3">4. Simulador FinObra 3D</h3>
         <div className="glass rounded-3xl p-6 border border-[#1e1e2e]">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <div className="text-sm">Edificio de {floors} niveles • {numUnits} unidades • CUS {customCUS}</div>
-              <div className="text-xs text-gray-500">Pulsa "Animar Fin de Obra" para simular construcción terminada. Cambia sliders arriba para ver impacto en tiempo real.</div>
+              <div className="text-sm font-medium">
+                {floors3d} niveles · {proformaInput.townhouses + proformaInput.lofts + proformaInput.studios} unidades · CUS {proformaInput.cus} · Lote 660m² (22×30m)
+              </div>
+              <div className="text-xs text-gray-500 mt-0.5">Arrastra para orbitar. Cambiar preset actualiza el modelo.</div>
             </div>
-            <button onClick={triggerFinObraAnim} className="px-5 py-2 rounded-2xl bg-[#7c3aed] hover:bg-[#a78bfa] text-white text-sm font-medium">▶ Animar Fin de Obra</button>
+            <div className="flex gap-2 flex-wrap">
+              {(['residencial', 'mixto', 'max'] as const).map(s => (
+                <button key={s} onClick={() => setScenario3d(s)}
+                  className={`px-3 py-1 rounded-xl text-xs border transition ${scenario3d === s ? 'bg-[#7c3aed] border-[#7c3aed] text-white' : 'border-[#1e1e2e] text-gray-400'}`}>
+                  {s}
+                </button>
+              ))}
+              <button onClick={triggerFinObraAnim} className="px-4 py-1 rounded-xl bg-[#10b981] hover:bg-[#059669] text-white text-xs">▶ Animar</button>
+            </div>
           </div>
 
-          {/* 3D INTERACTIVE MODELING - real 3D for multiple building possibilities (multifamiliar / mixto / max densidad). Drag to orbit, zoom, reacts to sliders + scenario. Native r3f/TS useFrame for construction pulse + autorotate on anim. */}
-          <div className="mb-2">
-            <FinObra3DBuilding floors={floors} units={numUnits} scenario={scenario} anim={isAnimating} />
+          <FinObra3DBuilding
+            floors={floors3d}
+            units={proformaInput.townhouses + proformaInput.lofts + proformaInput.studios}
+            scenario={scenario3d}
+            anim={isAnimating}
+          />
+          <div className="text-[10px] text-gray-500 mt-1">
+            Modelo conceptual · I-beams, rebar, glass, trabajadores · Verde Klugger #00FF66 · Proporciones ~22×30m (lote real)
           </div>
-          <div className="text-[11px] text-gray-500 mt-1">Sesion 2 microroadmap: 3D FinObra <strong>mejorado por mucho</strong> (elementos mejores del preview TSX: I-beams detallados con flanges/web, slabs+edges, rebar, glass tint/emissive, workers animados, grid, curva rotación suave). Verde Klugger #00FF66 dominante en acentos. <strong>Sin animación "floors grow windows"</strong> (Framer eliminado). Cambia sliders → impacto real-time. Botón activa pulso construcción. Ver también GIF py renderer abajo. Refs: FinObra /src/preview/ + .cad-skill py.</div>
 
-          {/* Proper AI-generated + code renderer FinObra (Sesion 2) */}
           <div className="mt-4">
-            <video 
-              controls 
-              width="100%" 
-              className="rounded-2xl border border-[#1e1e2e] bg-black"
-              poster="/assets/finobra-render.jpg"
-            >
+            <video controls width="100%" className="rounded-2xl border border-[#1e1e2e] bg-black" poster="/assets/finobra-render.jpg">
               <source src="/assets/finobra-animation.mp4" type="video/mp4" />
               Tu navegador no soporta video.
             </video>
-            <div className="text-xs text-gray-500 mt-1">Video: órbita cinemática edificio terminado (12u). </div>
+            <div className="text-xs text-gray-500 mt-1">Render: órbita cinemática edificio terminado.</div>
 
-            {/* GIF from py renderer (Sesion 2 requirement: create py like the FinObra example, Klugger green esp #00FF66, no logos, via .cad-skill style) */}
-            <div className="mt-3">
-              <img src="/assets/finobra-hero-3d-v2.gif" alt="FinObra 3D wireframe GIF - Klugger green, preview style, no logos" style={{width: '100%', borderRadius: 12, border: '1px solid #1e1e2e', background: '#0a0a0f'}} />
-              <div className="text-xs text-gray-500 mt-1">GIF generado con public/assets/finobra-hero-3d-v2.py (estilo assets/animations/finobra-hero-3d-v2.py del repo FinObra + .cad-skill). Ejecuta el py (pip numpy pillow imageio) para regenerar con los colores Klugger verde. Sin logos.</div>
+            {/* GIF pendiente de generación con py renderer */}
+            <div className="mt-3 rounded-xl border border-dashed border-[#1e1e2e] bg-[#0a0a0f] p-6 text-center">
+              <div className="text-3xl mb-2">🎬</div>
+              <div className="text-sm text-gray-400">GIF wireframe 3D pendiente de generación</div>
+              <div className="text-xs text-gray-600 mt-1">
+                Ejecutar <code className="bg-[#1e1e2e] px-1 rounded text-gray-400">public/assets/finobra-hero-3d-v2.py</code> (numpy + pillow + imageio) para generar el GIF con colores Klugger verde.
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* BARRIDO SCRAPING + ESTUDIO ESTILO BIG FIRMS */}
+      {/* SECCIÓN 5: MAPA */}
       <section>
-        <h3 className="text-xl font-semibold mb-3">📍 Barrido Colonia + Estudio de Mercado (estilo Cushman &amp; Wakefield / CBRE / Colliers)</h3>
-        <div className="glass rounded-3xl p-5 border border-[#1e1e2e] space-y-5">
-          <div>
-            <button onClick={() => alert('En real: llama a scraper.py mejorado + Playwright para Cimatario entero. Aquí mock expandido.')} className="px-4 py-2 text-sm rounded-2xl border border-[#7c3aed] hover:bg-[#7c3aed]/10">🔄 Simular barrido completo colonia (añadir ~400 listings)</button>
-            <span className="ml-3 text-xs text-gray-400">Meta: 800+ registros validados.</span>
+        <h3 className="text-xl font-semibold mb-3">5. Mapa de Oportunidades</h3>
+        <div className="glass rounded-3xl p-5 border border-[#1e1e2e]">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs mb-3">
+            <div className="p-2 rounded bg-green-900/50 border border-green-500/50">Cimatario core — Expansión alta</div>
+            <div className="p-2 rounded bg-yellow-900/50 border border-yellow-500/50">Cumbres — Crecimiento moderado</div>
+            <div className="p-2 rounded bg-blue-900/50 border border-blue-500/50">Centro Sur — Estable</div>
+            <div className="p-2 rounded bg-red-900/50 border border-red-500/50">Periféricos saturados</div>
           </div>
-
-          <div>
-            <div className="font-semibold text-sm mb-2">Datos muestra colonia (Cimatario / Cumbres) — filtrables en DB tab completa</div>
-            <div className="overflow-auto">
-              <table className="w-full text-xs">
-                <thead className="text-gray-400">
-                  <tr><th className="text-left p-2">Dirección</th><th>Tipo</th><th>m²</th><th>Precio</th><th>$/m²</th><th>DOM</th><th>Features</th></tr>
-                </thead>
-                <tbody className="divide-y divide-[#1e1e2e]">
-                  {coloniaMock.map(r => (
-                    <tr key={r.id} className="hover:bg-[#111118]">
-                      <td className="p-2">{r.address}</td>
-                      <td>{r.type}</td>
-                      <td className="font-mono">{r.m2}</td>
-                      <td className="font-mono">{fmtMoney(r.price)}</td>
-                      <td className="font-mono">{fmtMX(r.ppm)}</td>
-                      <td>{r.dom} días</td>
-                      <td className="text-gray-400">{r.features}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div style={{ height: '420px', width: '100%' }}>
+            <MapboxMap propertyPoints={propertyPoints} fmtMoney={fmtMoney} />
           </div>
-
-          <div className="border-t border-[#1e1e2e] pt-4">
-            <div className="font-semibold mb-2">Tamaños de base de datos recomendados (Big Firms)</div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-              <div className="bg-[#111118] rounded p-3 border border-[#1e1e2e]"><strong>Cushman &amp; Wakefield:</strong> {recommendedSizes.cushman}</div>
-              <div className="bg-[#111118] rounded p-3 border border-[#1e1e2e]"><strong>CBRE:</strong> {recommendedSizes.cbre}</div>
-              <div className="bg-[#111118] rounded p-3 border border-[#1e1e2e]"><strong>Colliers:</strong> {recommendedSizes.colliers}</div>
-              <div className="bg-[#7c3aed]/10 rounded p-3 border border-[#7c3aed]/30"><strong>Nuestra meta Cimatario:</strong> {recommendedSizes.target}</div>
-            </div>
-          </div>
-
-          <div>
-            <div className="font-semibold mb-2">Qué incluir en el estudio de mercado (campos del DB estilo big firms)</div>
-            <div className="text-xs grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1 text-gray-300">
-              {dbSchema.map((f, i) => <div key={i}>• {f}</div>)}
-            </div>
-            <div className="text-[11px] text-gray-500 mt-2">+ Demografía INEGI, nearshoring drivers 2026, cap rates multifamiliar locales, sensitividad precio, JV scenarios. Scraping + visión + agentes para poblar 800+ rápido y barato.</div>
+          <div className="mt-1 text-[10px] text-gray-500">
+            Mapbox GL · ~{propertyPoints.length} inmuebles clustered · <strong>★ pin exacto</strong> Carlos Septién 53 con popup
           </div>
         </div>
       </section>
 
-      <div className="text-xs text-gray-500">Esta sección hace realidad el punto c del roadmap y habilita las animaciones de b para simular el proyecto terminado en la landing/dashboard.</div>
+      {/* SECCIÓN 6: FODA + DEMOG */}
+      <section>
+        <h3 className="text-xl font-semibold mb-3">6. FODA + Contexto (Estudio 2023)</h3>
+        <div className="glass rounded-3xl p-5 border border-[#1e1e2e] space-y-4">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <div className="text-xs font-semibold text-green-400 uppercase mb-1">Fortalezas</div>
+              <ul className="text-xs text-gray-300 space-y-0.5">{foda.fortalezas.map((f, i) => <li key={i}>• {f}</li>)}</ul>
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-blue-400 uppercase mb-1">Oportunidades</div>
+              <ul className="text-xs text-gray-300 space-y-0.5">{foda.oportunidades.map((f, i) => <li key={i}>• {f}</li>)}</ul>
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-yellow-400 uppercase mb-1">Debilidades</div>
+              <ul className="text-xs text-gray-300 space-y-0.5">{foda.debilidades.map((f, i) => <li key={i}>• {f}</li>)}</ul>
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-red-400 uppercase mb-1">Amenazas</div>
+              <ul className="text-xs text-gray-300 space-y-0.5">{foda.amenazas.map((f, i) => <li key={i}>• {f}</li>)}</ul>
+            </div>
+          </div>
+          <div className="border-t border-[#1e1e2e] pt-3 grid md:grid-cols-4 gap-3 text-xs">
+            <div className="bg-[#111118] rounded-xl p-3 border border-[#1e1e2e]">
+              <div className="text-gray-400">Crecimiento QRO</div>
+              <div className="font-bold text-lg text-[#a78bfa]">+{E.demografia.municipio.crecimientoPct2010_2020}%</div>
+              <div className="text-gray-500">2010–2020</div>
+            </div>
+            <div className="bg-[#111118] rounded-xl p-3 border border-[#1e1e2e]">
+              <div className="text-gray-400">Edad mediana QRO</div>
+              <div className="font-bold text-lg text-[#10b981]">{E.demografia.municipio.edadMediana} años</div>
+              <div className="text-gray-500">Target millennial</div>
+            </div>
+            <div className="bg-[#111118] rounded-xl p-3 border border-[#1e1e2e]">
+              <div className="text-gray-400">Gap co-living/mes</div>
+              <div className="font-bold text-lg text-[#f59e0b]">{fmtMX(E.mercado.colivingPromMes - E.mercado.informalCuartosProm)}</div>
+              <div className="text-gray-500">Institucional vs informal</div>
+            </div>
+            <div className="bg-[#111118] rounded-xl p-3 border border-[#1e1e2e]">
+              <div className="text-gray-400">Proyección 2030</div>
+              <div className="font-bold text-lg text-white">{(E.demografia.municipio.proyeccion2030Hab / 1000000).toFixed(1)}M hab</div>
+              <div className="text-gray-500">+{fmtMX(E.demografia.colonia.trabajadoresDiarios)} trabajadores/día en colonia</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
     </div>
   );
 }
@@ -1629,7 +1425,7 @@ function AgentesTab() {
 export default function ValuacionDashboard() {
   const [search, setSearch] = useState('');
   const [showAllComps, setShowAllComps] = useState(false);
-  const [activeTab, setActiveTab] = useState<'valuacion' | 'database' | 'estudio' | 'marketing' | 'hbu' | 'agentes'>('valuacion');
+  const [activeTab, setActiveTab] = useState<'valuacion' | 'database' | 'marketing' | 'hbu' | 'agentes'>('valuacion');
 
   const target = VALUATION.target;
   const models = VALUATION.models;
@@ -1690,7 +1486,7 @@ export default function ValuacionDashboard() {
 
         {/* TABS NAV - mobile first, attractive */}
         <div className="flex border-b border-[#1e1e2e] mb-2 -mx-1 overflow-x-auto">
-          {(['valuacion', 'database', 'estudio', 'marketing', 'hbu', 'agentes'] as const).map((tab) => (
+          {(['valuacion', 'database', 'marketing', 'hbu', 'agentes'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -1702,7 +1498,6 @@ export default function ValuacionDashboard() {
             >
               {tab === 'valuacion' && '📊 Valuación'}
               {tab === 'database' && '🗄️ Base de Datos'}
-              {tab === 'estudio' && '📈 Estudio de Mercado'}
               {tab === 'marketing' && '📣 Marketing + Estudio'}
               {tab === 'hbu' && '🏗️ HBU/HBV + Estudio Colonia'}
               {tab === 'agentes' && '🤖 Agentes + Outreach WA'}
@@ -1892,10 +1687,6 @@ export default function ValuacionDashboard() {
         {/* BASE DE DATOS TAB */}
         {activeTab === 'database' && (
           <DatabaseTab />
-        )}
-
-        {activeTab === 'estudio' && (
-          <EstudioMercadoTab />
         )}
         {/* MARKETING + ESTUDIO DE MERCADO TAB */}
         {activeTab === 'marketing' && (
