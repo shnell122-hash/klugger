@@ -46,4 +46,4 @@ jobs:
           command: >-
             pages deploy ./dashboard-financial/out
             --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME }}
-            --branch=testing
+            --branch=main
