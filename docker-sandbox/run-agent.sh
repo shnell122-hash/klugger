@@ -66,6 +66,8 @@ tmux new-session -d -s "$SESSION" -x 220 -y 50 "
     -e GITHUB_TOKEN='$GITHUB_TOKEN' \
     -e GIT_AUTHOR_NAME='klugger-agent' \
     -e GIT_AUTHOR_EMAIL='agent@klugger.local' \
+    ${INFISICAL_CLIENT_ID:+-e INFISICAL_CLIENT_ID='$INFISICAL_CLIENT_ID'} \
+    ${INFISICAL_CLIENT_SECRET:+-e INFISICAL_CLIENT_SECRET='$INFISICAL_CLIENT_SECRET'} \
     -v '$WORK/klugger:/home/agent/project' \
     -v '$WORK/.git-credentials:/home/agent/.git-credentials:ro' \
     -v '$HOME/.claude:/home/agent/.claude:ro' \
