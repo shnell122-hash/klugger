@@ -7,15 +7,16 @@
 #   ./run-agent.sh   # usa la tarea por defecto
 #
 # Variables de entorno requeridas (exportar antes o pasar inline):
-#   ANTHROPIC_API_KEY  — clave de Claude
-#   GITHUB_TOKEN       — fine-grained PAT scoped SOLO a vilarkptl-lang/klugger (Contents R/W)
+#   GITHUB_TOKEN  — fine-grained PAT scoped SOLO a vilarkptl-lang/klugger (Contents R/W)
+#
+# Auth de Claude: se monta ~/.claude del host — no se necesita ANTHROPIC_API_KEY.
+# El contenedor hereda el proxy/OAuth que ya está configurado en el servidor.
 #
 # Ver sesión activa:  tmux attach -t klugger-agent
 # Detach sin matar:  Ctrl+B, D
 
 set -euo pipefail
 
-: "${ANTHROPIC_API_KEY:?Falta ANTHROPIC_API_KEY}"
 : "${GITHUB_TOKEN:?Falta GITHUB_TOKEN — fine-grained PAT con Contents R/W en vilarkptl-lang/klugger}"
 
 REPO="vilarkptl-lang/klugger"
@@ -62,12 +63,12 @@ tmux new-session -d -s "$SESSION" -x 220 -y 50 "
     --memory 1g \
     --cpus 1.5 \
     --network host \
-    -e ANTHROPIC_API_KEY='$ANTHROPIC_API_KEY' \
     -e GITHUB_TOKEN='$GITHUB_TOKEN' \
     -e GIT_AUTHOR_NAME='klugger-agent' \
     -e GIT_AUTHOR_EMAIL='agent@klugger.local' \
     -v '$WORK/klugger:/home/agent/project' \
     -v '$WORK/.git-credentials:/home/agent/.git-credentials:ro' \
+    -v '$HOME/.claude:/home/agent/.claude:ro' \
     '$IMAGE' \
     --print \
     --max-turns 40 \
