@@ -20,6 +20,10 @@ OUT_PATHS = [
 
 NUM_RE = re.compile(r"[^0-9.\-]")
 
+# Cap de comparabilidad: excluir lotes rurales/industriales que no comparan
+# con un terreno urbano de 660 m2 (sesgan mediana/regresion/escala del mapa).
+MAX_SIZE_M2 = 5000
+
 
 def parse_number(value):
     """Parse a number out of messy strings like '$1,234.00 MN' -> 1234.0"""
@@ -96,6 +100,7 @@ def main():
     discard_dupe = 0
     discard_ppm_low = 0
     discard_ppm_high = 0
+    discard_size_too_big = 0
 
     for comp in real:
         link = comp.get("link")
@@ -119,6 +124,10 @@ def main():
 
         if not price or price <= 0 or not size_m2 or size_m2 <= 0:
             discard_missing_price_or_size += 1
+            continue
+
+        if size_m2 > MAX_SIZE_M2:
+            discard_size_too_big += 1
             continue
 
         ppm = price / size_m2
@@ -167,6 +176,7 @@ def main():
     print(f"Discarded - duplicate link: {discard_dupe}")
     print(f"Discarded - ppm < 500: {discard_ppm_low}")
     print(f"Discarded - ppm > 200000: {discard_ppm_high}")
+    print(f"Discarded - size > {MAX_SIZE_M2} m2: {discard_size_too_big}")
     print(f"price min/median/max: {min(prices):.2f} / {median(prices):.2f} / {max(prices):.2f}")
     print(f"ppm min/median/max: {min(ppms):.2f} / {median(ppms):.2f} / {max(ppms):.2f}")
     print(f"entries with example.com in link: {example_com}")
