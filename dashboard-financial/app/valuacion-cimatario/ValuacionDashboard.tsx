@@ -879,15 +879,31 @@ function HbuTab() {
     return { base, adjusted, low, high };
   }, [proformaInput.cus]);
 
-  // Property points for Mapbox (golden-angle scatter around Cimatario center)
+  // Property points for Mapbox — usa coordenadas reales del scraping cuando existen;
+  // si faltan (lat/lng null), cae al golden-angle scatter alrededor de Cimatario center
+  // y marca approxLocation:true para que el popup pueda avisarlo.
   const propertyPoints = useMemo(() => {
     const CENTER = { lat: 20.5620, lng: -100.3747 };
     const PHI = (1 + Math.sqrt(5)) / 2;
     const R = 0.045;
     return (terrenosFullRaw as any[]).slice(0, 800).map((r: any, i: number) => {
+      const hasRealCoords =
+        typeof r.lat === 'number' && typeof r.lng === 'number' &&
+        !Number.isNaN(r.lat) && !Number.isNaN(r.lng) &&
+        r.lat !== 0 && r.lng !== 0;
+
+      if (hasRealCoords) {
+        return { ...r, lat: r.lat, lng: r.lng, approxLocation: false };
+      }
+
       const angle = 2 * Math.PI * i / PHI;
       const rad = R * Math.sqrt(i / 800);
-      return { ...r, lat: CENTER.lat + rad * Math.sin(angle), lng: CENTER.lng + rad * Math.cos(angle) };
+      return {
+        ...r,
+        lat: CENTER.lat + rad * Math.sin(angle),
+        lng: CENTER.lng + rad * Math.cos(angle),
+        approxLocation: true,
+      };
     });
   }, []);
 

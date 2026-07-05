@@ -9,7 +9,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 const MAPBOX_TOKEN = 'pk.eyJ1IjoidHVyYXppdmUiLCJhIjoiY21xdThtMXlsMHJuMzJ0cTJiZzUxcjB2eCJ9.pBhO5h4IcXTbG7kezGQoqQ';
 
 interface MapboxMapProps {
-  propertyPoints: Array<{ lat: number; lng: number; price: number; size: number; title: string; color: string; ppm: number; location: string }>;
+  propertyPoints: Array<{ lat: number; lng: number; price: number; size: number; title: string; color: string; ppm: number; location: string; approxLocation?: boolean }>;
   fmtMoney: (n: number) => string;
 }
 
@@ -55,6 +55,7 @@ const MapboxMap: React.FC<MapboxMapProps> = ({ propertyPoints, fmtMoney }) => {
             isHigh,
             isLow,
             fmtPrice: fmtMoney(r.price),
+            approxLocation: !!r.approxLocation,
           },
         };
       });
@@ -228,6 +229,7 @@ const MapboxMap: React.FC<MapboxMapProps> = ({ propertyPoints, fmtMoney }) => {
               <div class="mt-1 text-xs" style="color:${props.color}">
                 Clasif. Fase 1 (heurístico data): ${props.isHigh ? 'Alta factibilidad (verde)' : props.isLow ? 'Baja prioridad (rojo)' : 'Media (naranja)'}
               </div>
+              ${props.approxLocation ? '<div class="text-[10px] mt-1" style="color:#f59e0b">⚠ Ubicación aproximada (comparable sin coordenadas exactas)</div>' : ''}
               <div class="text-[10px] text-gray-400 mt-1">
                 Mapbox GL (vectorial). Reemplaza el token con uno propio gratis de mapbox.com para que funcione.
               </div>
