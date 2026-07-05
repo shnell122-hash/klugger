@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { MotionConfig, AnimatePresence, motion } from 'framer-motion';
 import ValuacionTab from './components/ValuacionTab';
 import DatabaseTab from './components/DatabaseTab';
 import MarketingTab from './components/MarketingTab';
@@ -18,10 +19,27 @@ const TABS = [
 
 type TabId = typeof TABS[number]['id'];
 
+// One motion language, reused everywhere in this file: quick ease-out on the
+// way in, ease-in on the way out — never linear (that's reserved for loops).
+const EASE_OUT: [number, number, number, number] = [0.16, 1, 0.3, 1];
+const EASE_IN: [number, number, number, number] = [0.4, 0, 1, 1];
+
+// Tab content crossfade: short translateY + opacity, ease-out entering,
+// ease-in leaving. Only transform/opacity — no layout properties.
+const tabContentVariants = {
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.2, ease: EASE_OUT } },
+  exit: { opacity: 0, y: -8, transition: { duration: 0.15, ease: EASE_IN } },
+};
+
 export default function ValuacionDashboard() {
   const [activeTab, setActiveTab] = useState<TabId>('valuacion');
 
   return (
+    // reducedMotion="user" makes every motion.* component in this subtree
+    // (here and in KPICard) automatically honor the OS-level
+    // prefers-reduced-motion setting — no per-component opt-out needed.
+    <MotionConfig reducedMotion="user">
     <div className="min-h-screen bg-[#0a0a0f] text-[#e2e2f0] font-sans">
       {/* Sticky header */}
       <div className="sticky top-0 z-50 bg-[#0a0a0f]/95 backdrop-blur border-b border-[#1e1e2e]">
@@ -55,27 +73,51 @@ export default function ValuacionDashboard() {
           </div>
         </div>
 
-        {/* Tab nav */}
+        {/* Tab nav — active indicator slides between tabs via layoutId,
+            so the "pill" travels from its old position instead of popping
+            (the movement originates from the tab itself). */}
         <div className="flex border-b border-[#1e1e2e] mb-2 -mx-1 overflow-x-auto">
-          {TABS.map((tab) => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`px-5 py-3 text-sm font-medium whitespace-nowrap transition-all border-b-2 ${
-                activeTab === tab.id ? 'border-[#7c3aed] text-white' : 'border-transparent text-gray-400 hover:text-gray-200'
-              }`}>
-              {tab.label}
-            </button>
-          ))}
+          {TABS.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                className={`relative px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors duration-150 ${
+                  isActive ? 'text-white' : 'text-gray-400 hover:text-gray-200'
+                }`}>
+                {tab.label}
+                {isActive && (
+                  <motion.div
+                    layoutId="active-tab-indicator"
+                    className="absolute left-0 right-0 -bottom-px h-0.5 bg-[#7c3aed] rounded-full"
+                    transition={{ type: 'spring', stiffness: 400, damping: 34 }}
+                  />
+                )}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Tab content */}
-        <div className="space-y-8">
-          {activeTab === 'valuacion' && <ErrorBoundary label="Valuación"><ValuacionTab /></ErrorBoundary>}
-          {activeTab === 'database' && <ErrorBoundary label="Base de Datos"><DatabaseTab /></ErrorBoundary>}
-          {activeTab === 'marketing' && <ErrorBoundary label="Marketing"><MarketingTab /></ErrorBoundary>}
-          {activeTab === 'hbu' && <ErrorBoundary label="HBU/HBV"><HbuTab /></ErrorBoundary>}
-          {activeTab === 'agentes' && <ErrorBoundary label="Agentes"><AgentesTab /></ErrorBoundary>}
-        </div>
+        {/* Tab content — crossfade + short vertical settle on switch.
+            mode="wait" keeps only one tab's (possibly heavy: map, charts)
+            content mounted at a time, avoiding an overlap flash. */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            variants={tabContentVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className="space-y-8"
+          >
+            {activeTab === 'valuacion' && <ErrorBoundary label="Valuación"><ValuacionTab /></ErrorBoundary>}
+            {activeTab === 'database' && <ErrorBoundary label="Base de Datos"><DatabaseTab /></ErrorBoundary>}
+            {activeTab === 'marketing' && <ErrorBoundary label="Marketing"><MarketingTab /></ErrorBoundary>}
+            {activeTab === 'hbu' && <ErrorBoundary label="HBU/HBV"><HbuTab /></ErrorBoundary>}
+            {activeTab === 'agentes' && <ErrorBoundary label="Agentes"><AgentesTab /></ErrorBoundary>}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
+    </MotionConfig>
   );
 }

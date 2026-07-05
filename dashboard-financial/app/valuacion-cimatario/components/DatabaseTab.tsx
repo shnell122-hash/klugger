@@ -148,28 +148,56 @@ export default function DatabaseTab() {
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Distribución de Precios (Histograma)</h3>
-        <div className="glass rounded-2xl p-4 border border-[#1e1e2e]">
-          <ResponsiveContainer width="100%" height={240}>
+        {/*
+          NOTE: this card intentionally does NOT use the shared `.glass` class.
+          `.glass` sets `backdrop-filter: blur(12px)`, which renders fine on
+          screen but is composited incorrectly by headless Chrome/Playwright
+          during full-page (beyond-viewport) screenshot capture — the blurred
+          layer paints *over* the chart's SVG bars/points in the exported
+          image, even though they are present, correctly bound, and visible
+          in a normal viewport. Root cause verified by toggling
+          backdrop-filter live on the mounted page: with it on, a full-page
+          capture shows empty plot areas; with it off (this fix — a flat
+          opaque background instead), the same capture shows the bars/points.
+          A solid background avoids that compositing bug while keeping the
+          same dark card look.
+        */}
+        <div className="chart-card-enter bg-[#111118] rounded-2xl p-4 border border-[#1e1e2e]">
+          <ResponsiveContainer width="100%" height={240} debounce={50}>
             <BarChart data={histData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" />
               <XAxis dataKey="range" tick={{ fill: '#6b7280', fontSize: 10 }} />
               <YAxis tick={{ fill: '#6b7280', fontSize: 10 }} />
               <Tooltip />
-              <Bar dataKey="count" fill="#7c3aed" name="Inmuebles" />
+              <Bar
+                dataKey="count"
+                name="Inmuebles"
+                fill="#10b981"
+                radius={[3, 3, 0, 0]}
+                animationDuration={350}
+                animationEasing="ease-out"
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
         <h3 className="text-lg font-semibold">Scatter: Precio vs m² + OLS</h3>
-        <div className="glass rounded-2xl p-4 border border-[#1e1e2e]">
-          <ResponsiveContainer width="100%" height={280}>
+        <div className="chart-card-enter bg-[#111118] rounded-2xl p-4 border border-[#1e1e2e]">
+          <ResponsiveContainer width="100%" height={280} debounce={50}>
             <ScatterChart>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" />
               <XAxis type="number" dataKey="x" name="m²" unit="m²" tick={{ fill: '#6b7280', fontSize: 10 }} />
               <YAxis type="number" dataKey="y" name="Precio" unit="M" tick={{ fill: '#6b7280', fontSize: 10 }} />
               <Tooltip cursor={{ strokeDasharray: '3 3' }} />
-              <Scatter name="Inmuebles" data={scatterData} fill="#7c3aed" />
-              {regressionLine.length > 0 && <Line type="linear" dataKey="y" data={regressionLine} stroke="#10b981" strokeWidth={1.5} strokeDasharray="4 2" dot={false} name="OLS" opacity={0.5} />}
-              {modelLine.length > 0 && <Line type="linear" dataKey="y" data={modelLine} stroke="#a78bfa" strokeWidth={3} dot={false} name="Modelo ppm" />}
+              <Scatter
+                name="Inmuebles"
+                data={scatterData}
+                fill="#7c3aed"
+                fillOpacity={0.7}
+                animationDuration={350}
+                animationEasing="ease-out"
+              />
+              {regressionLine.length > 0 && <Line type="linear" dataKey="y" data={regressionLine} stroke="#10b981" strokeWidth={2} strokeDasharray="4 2" dot={false} name="OLS" opacity={0.9} isAnimationActive={false} />}
+              {modelLine.length > 0 && <Line type="linear" dataKey="y" data={modelLine} stroke="#a78bfa" strokeWidth={3} dot={false} name="Modelo ppm" isAnimationActive={false} />}
             </ScatterChart>
           </ResponsiveContainer>
           <div className="text-xs text-gray-400 mt-2">
@@ -177,6 +205,27 @@ export default function DatabaseTab() {
           </div>
         </div>
       </div>
+
+      {/*
+        Subtle mount animation for the chart cards (Emil Kowalski-style:
+        short, ease-out, only on enter). Kept as a plain CSS transition
+        instead of another backdrop-filter/blur effect, and independent of
+        Recharts' own bar/point animation above — this only fades/settles
+        the *card*, never the data marks, so nothing can render "stuck at
+        0". Respects prefers-reduced-motion.
+      */}
+      <style jsx>{`
+        .chart-card-enter {
+          animation: chart-card-in 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        @keyframes chart-card-in {
+          from { opacity: 0; transform: translateY(6px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .chart-card-enter { animation: none; }
+        }
+      `}</style>
 
       <div className="glass rounded-2xl p-5 border border-[#1e1e2e]">
         <h3 className="text-lg font-semibold mb-3">Estadística Descriptiva</h3>

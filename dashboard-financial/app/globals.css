@@ -9,6 +9,15 @@
   --border:  #1e1e2e;
   --muted:   #3a3a5c;
   --accent:  #7c3aed;
+
+  /* Motion tokens — one shared language across the dashboard.
+     Short durations, ease-out entering / ease-in leaving, springs reserved
+     for framer-motion (interactive/layout) animations. */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in:  cubic-bezier(0.4, 0, 1, 1);
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
 }
 
 * { box-sizing: border-box; }
@@ -50,3 +59,18 @@ body {
 /* React Flow overrides */
 .react-flow__background { background: var(--bg); }
 .react-flow__edge-path  { stroke: var(--muted); }
+
+/* Reduced motion — fallback for plain CSS transitions/animations (e.g. the
+   Tailwind `transition-colors`/`animate-pulse` utilities used outside the
+   framer-motion components). The framer-motion tree already honors this via
+   <MotionConfig reducedMotion="user"> and useReducedMotion(); this rule
+   covers everything else so the whole dashboard — not just the animated
+   components — respects the OS-level preference. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
