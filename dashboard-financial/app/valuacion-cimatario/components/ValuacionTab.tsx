@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   ReferenceLine, Legend, Cell, Line,
@@ -11,7 +11,21 @@ import KPICard from './KPICard';
 import CompsTable from './CompsTable';
 import terrenosFullRaw from '../terrenos_full.json';
 
-const FULL_DB_COUNT = (terrenosFullRaw as any[]).length || 1000;
+interface RawTerreno {
+  price: number;
+  size_m2: number;
+  title: string;
+  location: string;
+  address?: string;
+  lat: number | null;
+  lng: number | null;
+  link: string;
+  source?: string;
+  portal?: string;
+  scraped_at?: string;
+}
+
+const FULL_DB_COUNT = (terrenosFullRaw as RawTerreno[]).length || 1000;
 
 export default function ValuacionTab() {
   const [search, setSearch] = useState('');
@@ -20,11 +34,65 @@ export default function ValuacionTab() {
   const models = VALUATION.models;
   const stats = VALUATION.comps_stats;
 
-  const vectorForChart = VALUATION.price_vector.slice(0, 8).map((v: any) => ({
-    name: v.title.substring(0, 18) + (v.title.length > 18 ? '…' : ''),
-    implied: Math.round(v.implied_for_target / 1000),
-    ppm: Math.round(v.price / v.size_m2),
-  }));
+  // Real comps vector (537 scraped Lamudi listings), each projected to the
+  // target's 660 m² at its own $/m² rate. This feeds both the distribution
+  // chart below and the comps table — replacing the previous 12-item
+  // synthetic dataset from data/comps.ts for these two views.
+  const realComps = useMemo(() => {
+    return (terrenosFullRaw as RawTerreno[])
+      .filter((c) => c && Number.isFinite(c.price) && Number.isFinite(c.size_m2) && c.price > 0 && c.size_m2 > 0)
+      .map((c) => {
+        const ppm = c.price / c.size_m2;
+        const implied = Math.round(ppm * target.m2);
+        const delta = implied - target.asking_price;
+        return {
+          title: c.title || c.location || 'Comparable',
+          location: c.location,
+          notes: '',
+          price: c.price,
+          size_m2: c.size_m2,
+          link: c.link,
+          implied_for_target: implied,
+          delta_vs_asking: delta,
+          pct_vs_asking: Math.round((delta / target.asking_price) * 1000) / 10,
+        };
+      })
+      .sort((a, b) => a.implied_for_target - b.implied_for_target);
+  }, [target.m2, target.asking_price]);
+
+  // Bucket the 537 real comps into 1M-MXN-wide "implied value @ 660m²"
+  // ranges. A per-comp bar chart with 537 bars was unreadable (and the
+  // previous version silently rendered nothing meaningful because it read
+  // from the 12-item synthetic VALUATION.price_vector instead of the real
+  // dataset) — a histogram is the honest way to show where the market
+  // actually sits relative to the $7M asking once every comp is normalized
+  // to 660 m².
+  const priceDistribution = useMemo(() => {
+    const binSize = 1_000_000;
+    const capBins = 15; // buckets 0-1M .. 14-15M, plus a 15M+ overflow bucket
+    const overflowLabel = '15M+';
+    const labels: string[] = [];
+    const counts = new Map<string, number>();
+    for (let i = 0; i < capBins; i++) {
+      const label = `${i}-${i + 1}M`;
+      labels.push(label);
+      counts.set(label, 0);
+    }
+    labels.push(overflowLabel);
+    counts.set(overflowLabel, 0);
+
+    realComps.forEach((c) => {
+      const v = c.implied_for_target;
+      const idx = Math.floor(v / binSize);
+      const label = idx >= capBins ? overflowLabel : labels[idx];
+      counts.set(label, (counts.get(label) ?? 0) + 1);
+    });
+
+    return labels.map((label) => ({ label, count: counts.get(label) ?? 0 }));
+  }, [realComps]);
+
+  const askingBucketIndex = Math.min(Math.floor(target.asking_price / 1_000_000), 15);
+  const askingBucketLabel = priceDistribution[askingBucketIndex]?.label ?? '15M+';
 
   const sellChartData = SELL_TIME_DATA.map(d => ({
     rango: d.precio_label,
@@ -95,19 +163,27 @@ export default function ValuacionTab() {
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold tracking-tight">Vector de precios: comps vs asking actual</h2>
-        <p className="text-sm text-gray-400">Cada comp aplicado al tamaño objetivo (660 m²). Muestra si el mercado "pagaría" más o menos que tu asking.</p>
+        <h2 className="text-xl font-semibold tracking-tight">Vector de precios: distribución de {realComps.length} comps reales vs asking</h2>
+        <p className="text-sm text-gray-400">Cada uno de los {realComps.length} comparables reales scrapeados de Lamudi se lleva a su valor implícito a 660 m² (price/size_m2 × 660) y se agrupa en rangos de $1M. La barra ámbar marca el rango donde cae tu asking de {fmtMoney(target.asking_price)}.</p>
         <div className="glass rounded-2xl p-5 border border-[#1e1e2e]">
-          <div className="h-[260px] -mx-1">
+          <div className="h-[280px] -mx-1">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={vectorForChart}>
+              <BarChart data={priceDistribution}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" />
-                <XAxis dataKey="name" tick={{ fill: '#6b7280', fontSize: 10 }} angle={-25} textAnchor="end" height={70} />
-                <YAxis tickFormatter={(v) => `${v}k`} tick={{ fill: '#6b7280', fontSize: 11 }} />
-                <Tooltip contentStyle={{ background: '#111118', border: '1px solid #1e1e2e', borderRadius: 8, color: '#e2e2f0' }} />
+                <XAxis dataKey="label" tick={{ fill: '#6b7280', fontSize: 10 }} angle={-45} textAnchor="end" height={70} />
+                <YAxis allowDecimals={false} tick={{ fill: '#6b7280', fontSize: 11 }} label={{ value: '# comps', angle: -90, position: 'insideLeft', fill: '#6b7280', fontSize: 11 }} />
+                <Tooltip
+                  contentStyle={{ background: '#111118', border: '1px solid #1e1e2e', borderRadius: 8, color: '#e2e2f0' }}
+                  formatter={(value: number) => [`${value} comps`, 'Cantidad']}
+                  labelFormatter={(label) => `Valor implícito a 660m²: $${label}`}
+                />
                 <Legend />
-                <Bar dataKey="implied" name="Valor implícito del comp (k MXN)" fill="#7c3aed" radius={3} />
-                <ReferenceLine y={7000} stroke="#f59e0b" strokeWidth={2} label={{ value: 'Asking 7M', fill: '#f59e0b', fontSize: 11, position: 'insideTopRight' }} />
+                <Bar dataKey="count" name={`Comps por rango de valor implícito a 660m² (n=${realComps.length})`} radius={3}>
+                  {priceDistribution.map((d) => (
+                    <Cell key={d.label} fill={d.label === askingBucketLabel ? '#f59e0b' : '#7c3aed'} />
+                  ))}
+                </Bar>
+                <ReferenceLine x={askingBucketLabel} stroke="#f59e0b" strokeDasharray="4 2" label={{ value: `Asking ${fmtMX(target.asking_price / 1e6, 1)}M`, fill: '#f59e0b', fontSize: 11, position: 'top' }} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -118,7 +194,7 @@ export default function ValuacionTab() {
               className="flex-1 bg-[#111118] border border-[#1e1e2e] rounded-2xl px-4 py-2.5 text-sm placeholder:text-gray-600 focus:outline-none focus:border-[#7c3aed]/60" />
             <button onClick={() => setSearch('')} className="text-xs px-3 py-2 rounded-2xl border border-[#1e1e2e] hover:bg-[#1a1a22]">Limpiar</button>
           </div>
-          <CompsTable data={VALUATION.price_vector} filter={search} />
+          <CompsTable data={realComps} filter={search} askingPrice={target.asking_price} />
         </div>
       </section>
 
@@ -130,7 +206,10 @@ export default function ValuacionTab() {
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
           <div className="lg:col-span-2 glass rounded-3xl p-6 border border-[#1e1e2e] flex flex-col">
             <div className="uppercase tracking-widest text-xs text-gray-500">Escenario actual (asking $7M)</div>
-            <div className="mt-3 text-6xl font-bold tracking-[-3px] text-white tabular-nums">{TARGET_SELL_EST.base}<span className="text-3xl align-super text-gray-400">meses</span></div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-5xl font-bold tracking-[-2px] text-white tabular-nums">{TARGET_SELL_EST.base}</span>
+              <span className="text-lg font-medium text-gray-400">meses</span>
+            </div>
             <div className="text-sm mt-1">Rango probable: <span className="font-medium text-[#10b981]">{TARGET_SELL_EST.min} — {TARGET_SELL_EST.max}</span> meses</div>
             <div className="mt-auto pt-5 text-xs leading-snug text-gray-400 border-t border-[#1e1e2e] mt-6">
               Factores que aceleran: marketing dirigido a desarrolladores + copy data-driven (12 aptos, CUS/COS explícitos) + precio alineado.
@@ -179,7 +258,7 @@ export default function ValuacionTab() {
 
       <div className="pt-4 border-t border-[#1e1e2e] text-xs text-gray-500 flex flex-col md:flex-row gap-2 md:items-center md:justify-between">
         <div>
-          Datos: 12 comps limpios (terrenos sin construcción) • {FULL_DB_COUNT} entradas en base completa. Modelo: <span className="font-mono">modelo_precio_simple.py</span> + <span className="font-mono">valuation_output.json</span>.
+          Datos: modelo/KPIs calculados sobre 12 comps limpios curados a mano (terrenos sin construcción) • Vector de precios y tabla usan los {FULL_DB_COUNT} comps reales scrapeados de Lamudi. Modelo: <span className="font-mono">modelo_precio_simple.py</span> + <span className="font-mono">valuation_output.json</span>.
         </div>
         <div className="flex gap-3">
           <button onClick={() => alert('En producción: re-ejecutar scraper + modelo + refresh.')} className="hover:text-white transition">Re-correr modelo (py)</button>

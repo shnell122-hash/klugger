@@ -9,6 +9,7 @@ interface MapboxMapProps {
   propertyPoints: Array<{
     lat: number; lng: number; price: number; size: number;
     title: string; color: string; ppm: number; location: string;
+    approxLocation?: boolean;
   }>;
   fmtMoney: (n: number) => string;
 }
@@ -91,17 +92,23 @@ export default function MapboxMap({ propertyPoints, fmtMoney }: MapboxMapProps) 
           </Polygon>
         ))}
 
-        {/* Comparables — círculos coloreados por rango de $/m² */}
+        {/* Comparables — círculos coloreados por rango de $/m².
+            Los que traen lat/lng real de la fuente (terrenos_full.json) se
+            pintan sólidos; los que no (approxLocation) se pintan atenuados
+            y con borde punteado para dejar claro que su posición es
+            estimada, no geocodificada. */}
         {propertyPoints.slice(0, 300).map((p, i) => (
           <CircleMarker
             key={i}
             center={[p.lat, p.lng]}
-            radius={5}
+            radius={p.approxLocation ? 4 : 5}
             pathOptions={{
               color: p.color,
               fillColor: p.color,
-              fillOpacity: 0.72,
-              weight: 1,
+              fillOpacity: p.approxLocation ? 0.28 : 0.72,
+              weight: p.approxLocation ? 1 : 1,
+              dashArray: p.approxLocation ? '2 2' : undefined,
+              opacity: p.approxLocation ? 0.5 : 1,
             }}
           >
             <Popup>
@@ -110,6 +117,11 @@ export default function MapboxMap({ propertyPoints, fmtMoney }: MapboxMapProps) 
                 <div>{p.size} m² · {fmtMoney(p.price)}</div>
                 <div style={{ color: p.color, fontWeight: 600 }}>${p.ppm.toLocaleString('es-MX')}/m²</div>
                 <div style={{ color: '#888', fontSize: 10 }}>{p.location}</div>
+                {p.approxLocation && (
+                  <div style={{ color: '#f59e0b', fontSize: 10, marginTop: 2 }}>
+                    ⚠ Ubicación aproximada (sin coordenadas en la fuente)
+                  </div>
+                )}
               </div>
             </Popup>
           </CircleMarker>

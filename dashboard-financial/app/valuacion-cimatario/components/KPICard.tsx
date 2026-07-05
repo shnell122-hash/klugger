@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { fmtMX, fmtMoney } from '@/lib/format';
+import { fmtMX } from '@/lib/format';
 
 interface KPICardProps {
   title: string;
@@ -23,11 +23,37 @@ const colorMap: Record<string, { bg: string; text: string; border: string }> = {
   info:    { bg: 'bg-[#3b82f6]/10', text: 'text-[#3b82f6]',  border: 'border-[#3b82f6]/30' },
 };
 
+// Local MXN currency formatter (Intl-based) — large KPI amounts drop cents
+// (maximumFractionDigits: 0) so the string stays short and never needs to
+// wrap. Kept local to this component so lib/format.ts (shared by other tabs)
+// stays untouched.
+function formatMXNCurrency(n: number): string {
+  const maximumFractionDigits = Math.abs(n) >= 1000 ? 0 : 2;
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    maximumFractionDigits,
+    minimumFractionDigits: 0,
+  }).format(n);
+}
+
 export default function KPICard({ title, value, prefix = '', suffix = '', decimals = 0, icon, color = 'accent', isMonetary = false, trend }: KPICardProps) {
   const c = colorMap[color] ?? colorMap.accent;
   const display = isMonetary
-    ? fmtMoney(typeof value === 'number' ? value : parseFloat(String(value)))
+    ? formatMXNCurrency(typeof value === 'number' ? value : parseFloat(String(value)))
     : typeof value === 'number' ? fmtMX(value, decimals) : value;
+  const fullText = `${prefix}${display}${suffix}`;
+
+  // Fluid font-size (clamp) instead of a fixed text-3xl: on the 2-column
+  // mobile grid a fixed 30px number like "$7,000,000" doesn't fit its
+  // column and used to force a mid-number line break (the "break-all" bug).
+  // clamp() shrinks it to fit narrow columns and grows back up to 30px once
+  // there's room (md:4-col layout), so the full number always renders on
+  // one line.
+  const fluidSizeStyle: React.CSSProperties = {
+    fontSize: 'clamp(1.05rem, 3.6vw, 1.875rem)',
+    lineHeight: 1.15,
+  };
 
   return (
     <div className={`glass rounded-2xl p-5 border ${c.border} relative overflow-hidden transition-all hover:scale-[1.01]`}>
@@ -35,8 +61,12 @@ export default function KPICard({ title, value, prefix = '', suffix = '', decima
       <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-[10px] font-semibold uppercase tracking-[1px] text-gray-500 mb-1.5">{title}</div>
-          <div className={`text-3xl font-bold font-mono tabular-nums tracking-[-1.5px] ${c.text} break-all`}>
-            {prefix}{display}{suffix}
+          <div
+            className={`font-bold font-mono tabular-nums tracking-[-0.5px] whitespace-nowrap ${c.text}`}
+            style={fluidSizeStyle}
+            title={fullText}
+          >
+            {fullText}
           </div>
           {trend !== undefined && (
             <div className={`text-xs mt-1 font-medium ${trend >= 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>

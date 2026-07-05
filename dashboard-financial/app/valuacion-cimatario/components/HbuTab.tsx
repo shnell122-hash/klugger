@@ -37,6 +37,18 @@ export default function HbuTab() {
 
   const pf = useMemo(() => computeProforma(proformaInput), [proformaInput]);
 
+  // Caso base fijo (preset "2VV+6VR", inputs default) usado únicamente para
+  // la narrativa estática de la sección "4 Pruebas HBU" — no debe fluctuar
+  // con los sliders del sandbox de la sección 3. Antes esa narrativa citaba
+  // cifras fijas de texto ("TIR ~23% · VPN positivo") que ya no coincidían
+  // con lo que realmente calcula computeProforma (bug de coherencia
+  // reportado en la auditoría: VPN ≈ -$4.6M / ROI 4% / TIR ~7% para este
+  // mismo escenario). Se reemplaza el texto fijo por estos valores reales.
+  const baseCase = useMemo(
+    () => computeProforma({ ...DEFAULT_INPUT, ...PRESETS[0].delta }),
+    []
+  );
+
   const compApproach = useMemo(() => {
     const base = Math.round(660 * VALUATION.comps_stats.median_ppm);
     const cusFactor = proformaInput.cus >= 2.4 ? 1.40 : 1.15;
@@ -45,15 +57,41 @@ export default function HbuTab() {
   }, [proformaInput.cus]);
 
   const propertyPoints = useMemo(() => {
+    // Centro de fallback SOLO para los comps sin lat/lng real (~179 de 537).
+    // Los que sí traen coordenadas de terrenos_full.json usan esas, reales,
+    // en vez del scatter golden-angle inventado que había antes.
     const CENTER = { lat: 20.5620, lng: -100.3747 };
     const PHI = (1 + Math.sqrt(5)) / 2;
     const R = 0.045;
-    return (terrenosFullRaw as any[]).slice(0, 800).map((r: any, i: number) => {
-      const angle = 2 * Math.PI * i / PHI;
-      const rad = R * Math.sqrt(i / 800);
+    const raw = (terrenosFullRaw as any[]).slice(0, 800);
+    const missingCount = raw.filter((r: any) => {
+      const lat = Number(r.lat);
+      const lng = Number(r.lng);
+      return !(Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0);
+    }).length || 1;
+    let fallbackIdx = 0;
+    return raw.map((r: any, i: number) => {
       const price = Number(r.price) || 0;
       const size = Number(r.size_m2 ?? r.size) || 200;
       const ppm = size > 0 ? Math.round(price / size) : 0;
+      const latRaw = Number(r.lat);
+      const lngRaw = Number(r.lng);
+      const hasRealCoords = Number.isFinite(latRaw) && Number.isFinite(lngRaw) && latRaw !== 0 && lngRaw !== 0;
+      let lat: number;
+      let lng: number;
+      if (hasRealCoords) {
+        lat = latRaw;
+        lng = lngRaw;
+      } else {
+        // Fallback: scatter golden-angle alrededor del centro, solo para
+        // los comps sin geocodificación real — quedan marcados como
+        // approxLocation para que el mapa los distinga visualmente.
+        const angle = 2 * Math.PI * fallbackIdx / PHI;
+        const rad = R * Math.sqrt(fallbackIdx / missingCount);
+        lat = CENTER.lat + rad * Math.sin(angle);
+        lng = CENTER.lng + rad * Math.cos(angle);
+        fallbackIdx += 1;
+      }
       return {
         title: String(r.title ?? r.address ?? `Terreno ${i + 1}`),
         location: String(r.location ?? r.colonia ?? 'Cimatario'),
@@ -61,8 +99,9 @@ export default function HbuTab() {
         size,
         ppm,
         color: ppm > 8500 ? '#10b981' : ppm < 5000 ? '#ef4444' : '#f59e0b',
-        lat: CENTER.lat + rad * Math.sin(angle),
-        lng: CENTER.lng + rad * Math.cos(angle),
+        lat,
+        lng,
+        approxLocation: !hasRealCoords,
       };
     });
   }, []);
@@ -89,7 +128,7 @@ export default function HbuTab() {
               <div className="bg-[#0a0a0f] rounded-xl p-3 border border-green-500/40">
                 <div className="text-green-400 font-semibold mb-1">H2 — Confirmado (base conservadora)</div>
                 <div className="text-xs space-y-0.5 text-gray-300">
-                  <div>CUS: <strong>1.8</strong> → {(660 * 1.8).toFixed(0)} m² construibles</div>
+                  <div>CUS: <strong>1.8</strong> → {fmtMX(660 * 1.8)} m² construibles</div>
                   <div>Niveles: <strong>3</strong> / Altura: <strong>10.5m</strong></div>
                   <div>Fuente: Plan Parcial PDU + técnico municipal</div>
                   <div className="text-green-400 mt-1">Sin trámite adicional. Riesgo cero.</div>
@@ -98,7 +137,7 @@ export default function HbuTab() {
               <div className="bg-[#0a0a0f] rounded-xl p-3 border border-yellow-500/40">
                 <div className="text-yellow-400 font-semibold mb-1">Listing — CUS 2.4 (requiere verificación)</div>
                 <div className="text-xs space-y-0.5 text-gray-300">
-                  <div>CUS: <strong>2.4</strong> → {(660 * 2.4).toFixed(0)} m² construibles</div>
+                  <div>CUS: <strong>2.4</strong> → {fmtMX(660 * 2.4)} m² construibles</div>
                   <div>Niveles: <strong>4</strong> / Altura: <strong>14m</strong></div>
                   <div>Fuente: EasyBroker EB-WE7457</div>
                   <div className="text-yellow-400 mt-1">DUS202104552 indicó H3 por error. Verificar ante IMPLAN.</div>
@@ -128,7 +167,7 @@ export default function HbuTab() {
               {[
                 { prueba: '1. Legalmente permisible', analisis: 'Zonificación H2 (multifamiliar residencial permitido). COS 0.60 · CUS 1.8 confirmado. Sin restricciones monumentos históricos. RPP: aclarar fusión lotes (420m² escritura vs 660m² catastro).', veredicto: '✓ PASA', color: 'text-green-400 bg-green-500/10' },
                 { prueba: '2. Físicamente posible', analisis: '660m² plano, frente 22m (≥9m requerido), cuatro calles de acceso. COS 0.60 → huella 396m² holgada para programa 2TH+6VR. Sin pendiente significativa.', veredicto: '✓ PASA', color: 'text-green-400 bg-green-500/10' },
-                { prueba: '3. Financieramente factible', analisis: 'Modelo 2VV+6VR: inversión $14M · ventas año 2 + renta recurrente $604k/año. TIR ~23% · VPN positivo a 15% · Cap rate 7.5% en línea con QRO nearshoring 2026.', veredicto: '✓ PASA', color: 'text-green-400 bg-green-500/10' },
+                { prueba: '3. Financieramente factible', analisis: `Modelo 2VV+6VR: inversión ${fmtMoney(baseCase.costoTotal)} · ventas año 2 + renta recurrente ${fmtMoney(baseCase.noiAnual)}/año. TIR ${baseCase.tir}% · VPN ${baseCase.vpn >= 0 ? `positivo (${fmtMoney(baseCase.vpn)})` : `negativo (-${fmtMoney(Math.abs(baseCase.vpn))})`} a 15% al precio asking $7.0M · Cap rate 7.5% en línea con QRO nearshoring 2026.`, veredicto: baseCase.vpn >= 0 ? '✓ PASA' : '~ MARGINAL', color: baseCase.vpn >= 0 ? 'text-green-400 bg-green-500/10' : 'text-yellow-400 bg-yellow-500/10' },
                 { prueba: '4. Máxima productividad', analisis: 'Entre usos legales: unifamiliar (ROI bajo), comercial PB (limitado por zona H), o híbrido co-living + townhouses. Gap co-living institucional ($8,950/mes) vs informal ($3,837/cuarto). 2VV+6VR maximiza GDV y TIR.', veredicto: '★ ÓPTIMO', color: 'text-[#a78bfa] bg-[#7c3aed]/20' },
               ].map((row, i) => (
                 <tr key={i}>
@@ -320,7 +359,7 @@ export default function HbuTab() {
             <MapboxMap propertyPoints={propertyPoints} fmtMoney={fmtMoney} />
           </div>
           <div className="mt-1 text-[10px] text-gray-500">
-            Mapbox GL · ~{propertyPoints.length} inmuebles clustered · <strong>★ pin exacto</strong> Carlos Septién 53 con popup
+            Mapbox GL · {propertyPoints.filter(p => !p.approxLocation).length} inmuebles con coordenadas reales (geocoded) · {propertyPoints.filter(p => p.approxLocation).length} con ubicación aproximada (sin lat/lng en la fuente, mostrados en tono difuminado) · <strong>★ pin exacto</strong> Carlos Septién 53 con popup
           </div>
         </div>
       </section>

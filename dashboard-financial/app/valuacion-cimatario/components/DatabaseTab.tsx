@@ -12,12 +12,14 @@ import { fmtMoney } from '@/lib/format';
 
 function parsePositiveNumber(val: unknown): number {
   if (val == null || val === '') return 0;
+  // Fast path: value already arrives as a real number (e.g. terrenos_full.json)
+  if (typeof val === 'number') return isFinite(val) ? Math.abs(val) : 0;
   const s = String(val)
     .replace(/[^0-9.,-]/g, '')
     .replace(/,/g, '')
     .replace(/\.(?=.*\.)/g, '');
-  const n = parseFloat(s);
-  return isNaN(n) ? 0 : Math.abs(n);
+  const n = Number(s);
+  return isNaN(n) || !isFinite(n) ? 0 : Math.abs(n);
 }
 
 export default function DatabaseTab() {
@@ -82,12 +84,18 @@ export default function DatabaseTab() {
   const pricePointsM = entriesWithPrice.map((r: any) => r.price / 1000000);
   const histData = dynamicBins(pricePointsM, 10);
 
+  // Dedup key must be specific to the *listing*, not just its (often generic,
+  // repeated) title — e.g. "Lote / Terreno en Venta en Querétaro" appears on
+  // 81 different rows with different price/size. Using title alone as the key
+  // collapsed 537 real comps down to ~105 distinct points, making the scatter
+  // look almost empty. Combine link + price + size + title so real duplicates
+  // (same listing re-scraped) still collapse, but distinct comps do not.
   const seen = new Set<string>();
   const scatterData = [
     ...fullDB.filter((r: any) => r.price > 0 && r.size_m2 > 0),
     ...cleanList.filter((c: any) => c.price > 0 && c.size_m2 > 0),
   ].filter((r: any) => {
-    const key = r.title || String(r.id);
+    const key = `${r.link || ''}|${r.price}|${r.size_m2}|${r.title || r.id || ''}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
