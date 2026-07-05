@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
@@ -117,6 +117,19 @@ export default function EstudioMercadoTab({ onNavigateHbu }: EstudioMercadoTabPr
     return [...list].sort((a, b) => (colivingSort === 'asc' ? a.precioMin - b.precioMin : b.precioMin - a.precioMin));
   }, [colivingQuery, colivingCategoria, colivingSort]);
 
+  // Table is long enough (14 listados) to need pagination — same pattern as
+  // CompsTable.tsx / DatabaseTab.tsx (page state + slice, reset to page 1 on
+  // any filter/sort change so the user never lands on an empty page).
+  const COLIVING_PER_PAGE = 8;
+  const [colivingPage, setColivingPage] = useState(1);
+  useEffect(() => { setColivingPage(1); }, [colivingQuery, colivingCategoria, colivingSort]);
+  const colivingTotalPages = Math.max(1, Math.ceil(filteredListings.length / COLIVING_PER_PAGE));
+  const colivingSafePage = Math.min(colivingPage, colivingTotalPages);
+  const colivingPageItems = filteredListings.slice(
+    (colivingSafePage - 1) * COLIVING_PER_PAGE,
+    colivingSafePage * COLIVING_PER_PAGE
+  );
+
   const avgByCategoria = useMemo(() => {
     const groups: Partial<Record<CoLivingListing['categoria'], number[]>> = {};
     coLivingListings.data.forEach((l) => {
@@ -134,6 +147,15 @@ export default function EstudioMercadoTab({ onNavigateHbu }: EstudioMercadoTabPr
   const cuartosOrdenados = useMemo(
     () => [...cuartosRentaLevantamiento.data].sort((a, b) => a.segmento.localeCompare(b.segmento) || a.precioMensual - b.precioMensual),
     []
+  );
+  // Same pagination pattern for the second dense table (12 filas).
+  const CUARTOS_PER_PAGE = 8;
+  const [cuartosPage, setCuartosPage] = useState(1);
+  const cuartosTotalPages = Math.max(1, Math.ceil(cuartosOrdenados.length / CUARTOS_PER_PAGE));
+  const cuartosSafePage = Math.min(cuartosPage, cuartosTotalPages);
+  const cuartosPageItems = cuartosOrdenados.slice(
+    (cuartosSafePage - 1) * CUARTOS_PER_PAGE,
+    cuartosSafePage * CUARTOS_PER_PAGE
   );
 
   // ── 10. Inversión — comparables monetarios en MDP (escala log por la brecha 14,942 vs ~56-63) ─
@@ -610,28 +632,57 @@ export default function EstudioMercadoTab({ onNavigateHbu }: EstudioMercadoTabPr
                   <th className="px-3 py-2 text-right">Precio</th>
                   <th className="px-3 py-2 text-right">Habitaciones</th>
                   <th className="px-3 py-2 text-right">m²</th>
+                  <th className="px-3 py-2 text-right">$/m²</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#1e1e2e]">
-                {filteredListings.length > 0 ? filteredListings.map((l, i) => (
-                  <tr key={i} className="hover:bg-[#1a1a22]">
-                    <td className="px-3 py-2">
-                      <div className="font-medium text-white text-xs">{l.nombre}</div>
-                      <div className="text-[10px] text-gray-500">{l.ubicacion}</div>
-                    </td>
-                    <td className="px-3 py-2 text-xs text-gray-400">{categoriaLabels[l.categoria]}</td>
-                    <td className="px-3 py-2 text-right font-mono text-[#a78bfa] text-xs tabular-nums">
-                      {fmtPesos(l.precioMin)}{l.precioMax ? ` – ${fmtPesos(l.precioMax)}` : ''}
-                    </td>
-                    <td className="px-3 py-2 text-right font-mono text-xs tabular-nums">{l.capacidad_habitaciones}</td>
-                    <td className="px-3 py-2 text-right font-mono text-xs tabular-nums">{l.area_m2 ?? '—'}</td>
-                  </tr>
-                )) : (
-                  <tr><td colSpan={5} className="px-3 py-6 text-center text-gray-500">Sin resultados.</td></tr>
+                {colivingPageItems.length > 0 ? colivingPageItems.map((l, i) => {
+                  // $/m² is only derivable when the source reports an explicit area;
+                  // rounded + formatted with the same fmtPesos() helper used by every
+                  // other money cell in this file, instead of an ad-hoc template string.
+                  const precioM2 = l.area_m2 ? Math.round(l.precioMin / l.area_m2) : null;
+                  return (
+                    <tr key={i} className="hover:bg-[#1a1a22]">
+                      <td className="px-3 py-2">
+                        <div className="font-medium text-white text-xs">{l.nombre}</div>
+                        <div className="text-[10px] text-gray-500">{l.ubicacion}</div>
+                      </td>
+                      <td className="px-3 py-2 text-xs text-gray-400">{categoriaLabels[l.categoria]}</td>
+                      <td className="px-3 py-2 text-right font-mono text-[#a78bfa] text-xs tabular-nums">
+                        {fmtPesos(l.precioMin)}{l.precioMax ? ` – ${fmtPesos(l.precioMax)}` : ''}
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono text-xs tabular-nums">{l.capacidad_habitaciones}</td>
+                      <td className="px-3 py-2 text-right font-mono text-xs tabular-nums">{l.area_m2 ?? '—'}</td>
+                      <td className="px-3 py-2 text-right font-mono text-xs tabular-nums">{precioM2 ? fmtPesos(precioM2) : '—'}</td>
+                    </tr>
+                  );
+                }) : (
+                  <tr><td colSpan={6} className="px-3 py-6 text-center text-gray-500">Sin resultados.</td></tr>
                 )}
               </tbody>
             </table>
           </div>
+          {filteredListings.length > 0 && (
+            <div className="flex justify-between items-center text-sm mt-2">
+              <button
+                onClick={() => setColivingPage((p) => Math.max(1, p - 1))}
+                disabled={colivingSafePage === 1}
+                className="px-3 py-1 rounded border border-[#1e1e2e] disabled:opacity-50"
+              >
+                ← Anterior
+              </button>
+              <span className="text-xs text-gray-400">
+                Página {colivingSafePage} de {colivingTotalPages} — {colivingPageItems.length} de {filteredListings.length}
+              </span>
+              <button
+                onClick={() => setColivingPage((p) => Math.min(colivingTotalPages, p + 1))}
+                disabled={colivingSafePage === colivingTotalPages}
+                className="px-3 py-1 rounded border border-[#1e1e2e] disabled:opacity-50"
+              >
+                Siguiente →
+              </button>
+            </div>
+          )}
         </div>
 
         <div>
@@ -648,7 +699,7 @@ export default function EstudioMercadoTab({ onNavigateHbu }: EstudioMercadoTabPr
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#1e1e2e]">
-                {cuartosOrdenados.map((c, i) => (
+                {cuartosPageItems.map((c, i) => (
                   <tr key={i} className="hover:bg-[#1a1a22]">
                     <td className="px-3 py-2">
                       <div className="font-medium text-white text-xs">{c.nombre}</div>
@@ -664,6 +715,25 @@ export default function EstudioMercadoTab({ onNavigateHbu }: EstudioMercadoTabPr
                 ))}
               </tbody>
             </table>
+          </div>
+          <div className="flex justify-between items-center text-sm mt-2">
+            <button
+              onClick={() => setCuartosPage((p) => Math.max(1, p - 1))}
+              disabled={cuartosSafePage === 1}
+              className="px-3 py-1 rounded border border-[#1e1e2e] disabled:opacity-50"
+            >
+              ← Anterior
+            </button>
+            <span className="text-xs text-gray-400">
+              Página {cuartosSafePage} de {cuartosTotalPages} — {cuartosPageItems.length} de {cuartosOrdenados.length}
+            </span>
+            <button
+              onClick={() => setCuartosPage((p) => Math.min(cuartosTotalPages, p + 1))}
+              disabled={cuartosSafePage === cuartosTotalPages}
+              className="px-3 py-1 rounded border border-[#1e1e2e] disabled:opacity-50"
+            >
+              Siguiente →
+            </button>
           </div>
           <p className="text-[11px] text-gray-500 mt-2">Los precios de Kali Homes / Altana / Xéntric Anáhuac difieren entre este
           levantamiento y el detalle individual de listados (arriba) — inconsistencia presente en el propio documento fuente
@@ -722,7 +792,19 @@ export default function EstudioMercadoTab({ onNavigateHbu }: EstudioMercadoTabPr
           <ResponsiveContainer width="100%" height={220} debounce={50}>
             <BarChart data={inversionData} layout="vertical" margin={{ left: 8 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" horizontal={false} />
-              <XAxis type="number" scale="log" domain={['auto', 'auto']} tick={AXIS_TICK} allowDataOverflow />
+              {/* Default log-scale tick generation on a domain spanning ~56-14,942
+                  crams in a dozen+ auto ticks that overlap at this chart width.
+                  A short, hand-picked tick set (+ tickFormatter for thousands
+                  separators) keeps the axis legible without losing the log scale. */}
+              <XAxis
+                type="number"
+                scale="log"
+                domain={[50, 'auto']}
+                ticks={[50, 100, 1000, 15000]}
+                tickFormatter={(v: number) => fmtMX(v)}
+                tick={AXIS_TICK}
+                allowDataOverflow
+              />
               <YAxis type="category" dataKey="proyecto" tick={AXIS_TICK} width={140} />
               <Tooltip formatter={(v: number) => `${fmtMX(v, 2)} MDP`} />
               <Bar dataKey="mdp" name="MDP" fill={C.accent} radius={[0, 4, 4, 0]} animationDuration={300} animationEasing="ease-out" />
@@ -813,6 +895,31 @@ export default function EstudioMercadoTab({ onNavigateHbu }: EstudioMercadoTabPr
             <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: C.warning }} /> Apreciable</span>
           </div>
         </ChartCard>
+
+        {/* Scannable risk cards — the matrix above plots probabilidad × impacto,
+            but the tipo/amenaza/estrategia detail only surfaced on hover
+            (RiesgoTooltip). These cards make that same detail readable
+            at rest, sorted by valorCritico so the most severe risks lead. */}
+        <div>
+          <h4 className="text-sm font-semibold text-gray-300 mb-3">Detalle de los 6 riesgos (ordenados por criticidad)</h4>
+          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {[...riesgos.data].sort((a, b) => b.valorCritico - a.valorCritico).map((r, i) => (
+              <div key={i} className="glass rounded-2xl p-4 border border-[#1e1e2e] flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Badge color={r.clasificacion === 'Importante' ? 'danger' : 'warning'}>{r.clasificacion}</Badge>
+                  <span className="text-[10px] text-gray-500 uppercase tracking-wide">{r.tipo}</span>
+                </div>
+                <p className="text-sm text-gray-200 leading-snug">{r.amenaza}</p>
+                <div className="flex gap-3 text-[11px] text-gray-500 tabular-nums">
+                  <span>Prob. {r.probabilidad}/10</span>
+                  <span>Impacto {r.impacto}/10</span>
+                  <span>Crítico {r.valorCritico}</span>
+                </div>
+                <div className="text-xs text-[#a78bfa] leading-snug pt-1 border-t border-[#1e1e2e]">{r.estrategia}</div>
+              </div>
+            ))}
+          </div>
+        </div>
         <Source>{predio.source} · {foda.source} · {riesgos.source}</Source>
       </section>
 
@@ -830,6 +937,25 @@ export default function EstudioMercadoTab({ onNavigateHbu }: EstudioMercadoTabPr
           <KPICard title="Ingreso bruto mensual" value={haiv.data.ingresoBrutoMensualMXN} isMonetary icon="🏠" color="info" index={2} />
           <KPICard title="TIR escenario total" value={haiv.data.tirEscenarioTotal} suffix="%" decimals={1} icon="🚀" color="warning" index={3} />
         </div>
+        <ChartCard title="TIR / ROI del escenario HAIV (%)">
+          <ResponsiveContainer width="100%" height={160} debounce={50}>
+            <BarChart
+              data={[
+                { metrica: 'TIR consolidada', pct: haiv.data.tirConsolidada },
+                { metrica: 'ROI anual', pct: haiv.data.roiAnualPct },
+                { metrica: 'TIR esc. total (apalancado)', pct: haiv.data.tirEscenarioTotal },
+              ]}
+              layout="vertical"
+              margin={{ left: 8 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" horizontal={false} />
+              <XAxis type="number" tick={AXIS_TICK} unit="%" />
+              <YAxis type="category" dataKey="metrica" tick={{ ...AXIS_TICK, fontSize: 10 }} width={150} />
+              <Tooltip formatter={(v: number) => fmtPct(v, 2)} />
+              <Bar dataKey="pct" name="%" fill={C.success} radius={[0, 4, 4, 0]} animationDuration={300} animationEasing="ease-out" />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
         <div className="glass rounded-2xl p-5 border border-[#1e1e2e] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <p className="text-sm text-gray-400 max-w-xl">El desglose completo de zonificación, costos de construcción y pro-forma
           DCF de este modelo vive en la pestaña HBU/HBV, donde es interactivo (sliders de cap rate, precio de venta y costo de suelo).</p>
