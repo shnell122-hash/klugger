@@ -168,10 +168,16 @@ export default function ValuacionTab() {
         <div className="glass rounded-2xl p-5 border border-[#1e1e2e]">
           <div className="h-[280px] -mx-1">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={priceDistribution}>
+              <BarChart data={priceDistribution} margin={{ top: 24, right: 12, left: 4, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" />
                 <XAxis dataKey="label" tick={{ fill: '#6b7280', fontSize: 10 }} angle={-45} textAnchor="end" height={70} />
-                <YAxis allowDecimals={false} tick={{ fill: '#6b7280', fontSize: 11 }} label={{ value: '# comps', angle: -90, position: 'insideLeft', fill: '#6b7280', fontSize: 11 }} />
+                <YAxis
+                  allowDecimals={false}
+                  width={40}
+                  tick={{ fill: '#9ca3af', fontSize: 11 }}
+                  tickFormatter={(v: number) => fmtMX(v, 0)}
+                  label={{ value: '# comps', angle: -90, position: 'insideLeft', fill: '#9ca3af', fontSize: 11 }}
+                />
                 <Tooltip
                   contentStyle={{ background: '#111118', border: '1px solid #1e1e2e', borderRadius: 8, color: '#e2e2f0' }}
                   formatter={(value: number) => [`${value} comps`, 'Cantidad']}

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { MotionConfig, AnimatePresence, motion } from 'framer-motion';
 import ValuacionTab from './components/ValuacionTab';
 import DatabaseTab from './components/DatabaseTab';
+import EstudioMercadoTab from './components/EstudioMercadoTab';
 import MarketingTab from './components/MarketingTab';
 import HbuTab from './components/HbuTab';
 import AgentesTab from './components/AgentesTab';
@@ -12,6 +13,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 const TABS = [
   { id: 'valuacion', label: '📊 Valuación' },
   { id: 'database', label: '🗄️ Base de Datos' },
+  { id: 'estudio-mercado', label: '📈 Estudio de Mercado' },
   { id: 'marketing', label: '📣 Marketing + Estudio' },
   { id: 'hbu', label: '🏗️ HBU/HBV + Estudio Colonia' },
   { id: 'agentes', label: '🤖 Agentes + Outreach WA' },
@@ -111,6 +113,7 @@ export default function ValuacionDashboard() {
           >
             {activeTab === 'valuacion' && <ErrorBoundary label="Valuación"><ValuacionTab /></ErrorBoundary>}
             {activeTab === 'database' && <ErrorBoundary label="Base de Datos"><DatabaseTab /></ErrorBoundary>}
+            {activeTab === 'estudio-mercado' && <ErrorBoundary label="Estudio de Mercado"><EstudioMercadoTab onNavigateHbu={() => setActiveTab('hbu')} /></ErrorBoundary>}
             {activeTab === 'marketing' && <ErrorBoundary label="Marketing"><MarketingTab /></ErrorBoundary>}
             {activeTab === 'hbu' && <ErrorBoundary label="HBU/HBV"><HbuTab /></ErrorBoundary>}
             {activeTab === 'agentes' && <ErrorBoundary label="Agentes"><AgentesTab /></ErrorBoundary>}

@@ -8,9 +8,25 @@ import dynamic from 'next/dynamic';
 import { computeProforma, PRESETS, DEFAULT_INPUT } from '@/lib/proforma';
 import { ESTUDIO2023 } from '../data/estudio2023';
 import { VALUATION } from '../data/comps';
-import { fmtMoney, fmtMX } from '@/lib/format';
+import { fmtMX } from '@/lib/format';
 import KPICard from './KPICard';
 import terrenosFullRaw from '../terrenos_full.json';
+
+// Whole-peso formatter for this tab's money displays. The shared fmtMoney()
+// in lib/format.ts always renders 2 decimals ("$14,832,340.00"); every value
+// on this tab comes from computeProforma(), which already Math.round()s to
+// whole pesos, so those trailing ".00" were pure visual noise — and in the
+// narrow "Tres Enfoques" / "Desglose financiero" / "Reconciliación" cards
+// they were exactly what pushed some numbers into wrapping or clipping.
+// Mirrors the local formatter pattern already used in KPICard.tsx.
+function fmtPesos(n: number): string {
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+  }).format(n);
+}
 
 const MapboxMap = dynamic(() => import('../MapboxMap'), {
   ssr: false,
@@ -56,54 +72,44 @@ export default function HbuTab() {
     return { base, adjusted, low: Math.round(base * 1.35), high: Math.round(base * 1.45 * 1.10) };
   }, [proformaInput.cus]);
 
-  const propertyPoints = useMemo(() => {
-    // Centro de fallback SOLO para los comps sin lat/lng real (~179 de 537).
-    // Los que sí traen coordenadas de terrenos_full.json usan esas, reales,
-    // en vez del scatter golden-angle inventado que había antes.
-    const CENTER = { lat: 20.5620, lng: -100.3747 };
-    const PHI = (1 + Math.sqrt(5)) / 2;
-    const R = 0.045;
+  // Solo se dibujan comps con lat/lng real (geocodificados en
+  // terrenos_full.json). Antes, los ~179 comps sin coordenadas se
+  // "resolvían" con un scatter golden-angle inventado alrededor de un
+  // centro arbitrario y se marcaban approxLocation:true — eso presenta
+  // posiciones ficticias como si fueran datos, lo cual es deshonesto en un
+  // mapa de inversión inmobiliaria. Decisión: excluirlos del mapa por
+  // completo en vez de fingir una ubicación. `excludedCount` se conserva
+  // para ser transparentes en el caption sobre cuántos quedaron fuera.
+  const { propertyPoints, excludedCount } = useMemo(() => {
     const raw = (terrenosFullRaw as any[]).slice(0, 800);
-    const missingCount = raw.filter((r: any) => {
-      const lat = Number(r.lat);
-      const lng = Number(r.lng);
-      return !(Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0);
-    }).length || 1;
-    let fallbackIdx = 0;
-    return raw.map((r: any, i: number) => {
-      const price = Number(r.price) || 0;
-      const size = Number(r.size_m2 ?? r.size) || 200;
-      const ppm = size > 0 ? Math.round(price / size) : 0;
+    let excluded = 0;
+    const points = raw.reduce<Array<{
+      title: string; location: string; price: number; size: number;
+      ppm: number; color: string; lat: number; lng: number;
+    }>>((acc, r: any, i: number) => {
       const latRaw = Number(r.lat);
       const lngRaw = Number(r.lng);
       const hasRealCoords = Number.isFinite(latRaw) && Number.isFinite(lngRaw) && latRaw !== 0 && lngRaw !== 0;
-      let lat: number;
-      let lng: number;
-      if (hasRealCoords) {
-        lat = latRaw;
-        lng = lngRaw;
-      } else {
-        // Fallback: scatter golden-angle alrededor del centro, solo para
-        // los comps sin geocodificación real — quedan marcados como
-        // approxLocation para que el mapa los distinga visualmente.
-        const angle = 2 * Math.PI * fallbackIdx / PHI;
-        const rad = R * Math.sqrt(fallbackIdx / missingCount);
-        lat = CENTER.lat + rad * Math.sin(angle);
-        lng = CENTER.lng + rad * Math.cos(angle);
-        fallbackIdx += 1;
+      if (!hasRealCoords) {
+        excluded += 1;
+        return acc;
       }
-      return {
+      const price = Number(r.price) || 0;
+      const size = Number(r.size_m2 ?? r.size) || 200;
+      const ppm = size > 0 ? Math.round(price / size) : 0;
+      acc.push({
         title: String(r.title ?? r.address ?? `Terreno ${i + 1}`),
         location: String(r.location ?? r.colonia ?? 'Cimatario'),
         price,
         size,
         ppm,
         color: ppm > 8500 ? '#10b981' : ppm < 5000 ? '#ef4444' : '#f59e0b',
-        lat,
-        lng,
-        approxLocation: !hasRealCoords,
-      };
-    });
+        lat: latRaw,
+        lng: lngRaw,
+      });
+      return acc;
+    }, []);
+    return { propertyPoints: points, excludedCount: excluded };
   }, []);
 
   const floors3d = proformaInput.cus >= 2.4 ? 4 : 3;
@@ -167,7 +173,7 @@ export default function HbuTab() {
               {[
                 { prueba: '1. Legalmente permisible', analisis: 'Zonificación H2 (multifamiliar residencial permitido). COS 0.60 · CUS 1.8 confirmado. Sin restricciones monumentos históricos. RPP: aclarar fusión lotes (420m² escritura vs 660m² catastro).', veredicto: '✓ PASA', color: 'text-green-400 bg-green-500/10' },
                 { prueba: '2. Físicamente posible', analisis: '660m² plano, frente 22m (≥9m requerido), cuatro calles de acceso. COS 0.60 → huella 396m² holgada para programa 2TH+6VR. Sin pendiente significativa.', veredicto: '✓ PASA', color: 'text-green-400 bg-green-500/10' },
-                { prueba: '3. Financieramente factible', analisis: `Modelo 2VV+6VR: inversión ${fmtMoney(baseCase.costoTotal)} · ventas año 2 + renta recurrente ${fmtMoney(baseCase.noiAnual)}/año. TIR ${baseCase.tir}% · VPN ${baseCase.vpn >= 0 ? `positivo (${fmtMoney(baseCase.vpn)})` : `negativo (-${fmtMoney(Math.abs(baseCase.vpn))})`} a 15% al precio asking $7.0M · Cap rate 7.5% en línea con QRO nearshoring 2026.`, veredicto: baseCase.vpn >= 0 ? '✓ PASA' : '~ MARGINAL', color: baseCase.vpn >= 0 ? 'text-green-400 bg-green-500/10' : 'text-yellow-400 bg-yellow-500/10' },
+                { prueba: '3. Financieramente factible', analisis: `Modelo 2VV+6VR: inversión ${fmtPesos(baseCase.costoTotal)} · ventas año 2 + renta recurrente ${fmtPesos(baseCase.noiAnual)}/año. TIR ${baseCase.tir}% · VPN ${baseCase.vpn >= 0 ? `positivo (${fmtPesos(baseCase.vpn)})` : `negativo (-${fmtPesos(Math.abs(baseCase.vpn))})`} a 15% al precio asking $7.0M · Cap rate 7.5% en línea con QRO nearshoring 2026.`, veredicto: baseCase.vpn >= 0 ? '✓ PASA' : '~ MARGINAL', color: baseCase.vpn >= 0 ? 'text-green-400 bg-green-500/10' : 'text-yellow-400 bg-yellow-500/10' },
                 { prueba: '4. Máxima productividad', analisis: 'Entre usos legales: unifamiliar (ROI bajo), comercial PB (limitado por zona H), o híbrido co-living + townhouses. Gap co-living institucional ($8,950/mes) vs informal ($3,837/cuarto). 2VV+6VR maximiza GDV y TIR.', veredicto: '★ ÓPTIMO', color: 'text-[#a78bfa] bg-[#7c3aed]/20' },
               ].map((row, i) => (
                 <tr key={i}>
@@ -191,30 +197,30 @@ export default function HbuTab() {
         <div className="grid md:grid-cols-3 gap-4 mb-5">
           <div className="bg-[#111118] rounded-2xl p-4 border border-[#1e1e2e] space-y-2">
             <div className="text-xs font-semibold uppercase text-gray-400 tracking-wider">Enfoque 1 — Comparables</div>
-            <div className="text-2xl font-bold text-[#a78bfa]">{fmtMoney(compApproach.adjusted)}</div>
+            <div className="text-2xl font-bold text-[#a78bfa] whitespace-nowrap tabular-nums" style={{ fontSize: 'clamp(1.05rem, 2.4vw, 1.5rem)' }}>{fmtPesos(compApproach.adjusted)}</div>
             <div className="text-xs text-gray-400 space-y-0.5">
-              <div>Base: mediana {fmtMX(VALUATION.comps_stats.median_ppm)} $/m² × 660m² = {fmtMoney(compApproach.base)}</div>
+              <div>Base: mediana {fmtMX(VALUATION.comps_stats.median_ppm)} $/m² × 660m² = {fmtPesos(compApproach.base)}</div>
               <div>× Factor densidad CUS {proformaInput.cus}: {proformaInput.cus >= 2.4 ? '×1.40' : '×1.15'}</div>
               <div>× Prima ubicación/esquina: ×1.05</div>
-              <div className="text-gray-500">Rango: {fmtMoney(compApproach.low)} – {fmtMoney(compApproach.high)}</div>
+              <div className="text-gray-500">Rango: {fmtPesos(compApproach.low)} – {fmtPesos(compApproach.high)}</div>
             </div>
           </div>
           <div className="bg-[#111118] rounded-2xl p-4 border border-[#1e1e2e] space-y-2">
             <div className="text-xs font-semibold uppercase text-gray-400 tracking-wider">Enfoque 2 — Capitalización</div>
-            <div className="text-2xl font-bold text-[#10b981]">{fmtMoney(pf.valueCapitalized)}</div>
+            <div className="text-2xl font-bold text-[#10b981] whitespace-nowrap tabular-nums" style={{ fontSize: 'clamp(1.05rem, 2.4vw, 1.5rem)' }}>{fmtPesos(pf.valueCapitalized)}</div>
             <div className="text-xs text-gray-400 space-y-0.5">
-              <div>NOI anual ({proformaInput.lofts}L+{proformaInput.studios}E): {fmtMoney(pf.noiAnual)}</div>
-              <div>Cap rate: {(proformaInput.capRate * 100).toFixed(1)}% → Portfolio: {fmtMoney(pf.valueCapitalized)}</div>
-              <div className="text-green-400 font-semibold pt-1">GDV total: {fmtMoney(pf.gdv)}</div>
+              <div>NOI anual ({proformaInput.lofts}L+{proformaInput.studios}E): {fmtPesos(pf.noiAnual)}</div>
+              <div>Cap rate: {(proformaInput.capRate * 100).toFixed(1)}% → Portfolio: {fmtPesos(pf.valueCapitalized)}</div>
+              <div className="text-green-400 font-semibold pt-1">GDV total: {fmtPesos(pf.gdv)}</div>
             </div>
           </div>
           <div className="bg-[#111118] rounded-2xl p-4 border border-[#1e1e2e] space-y-2">
             <div className="text-xs font-semibold uppercase text-gray-400 tracking-wider">Enfoque 3 — RLV (Residual)</div>
-            <div className={`text-2xl font-bold ${pf.rlv >= 6500000 ? 'text-[#10b981]' : pf.rlv >= 5000000 ? 'text-yellow-400' : 'text-red-400'}`}>{fmtMoney(Math.max(pf.rlv, 0))}</div>
+            <div className={`text-2xl font-bold whitespace-nowrap tabular-nums ${pf.rlv >= 6500000 ? 'text-[#10b981]' : pf.rlv >= 5000000 ? 'text-yellow-400' : 'text-red-400'}`} style={{ fontSize: 'clamp(1.05rem, 2.4vw, 1.5rem)' }}>{fmtPesos(Math.max(pf.rlv, 0))}</div>
             <div className="text-xs text-gray-400 space-y-0.5">
-              <div>GDV: {fmtMoney(pf.gdv)}</div>
-              <div>- Costos duros: {fmtMoney(pf.costosDuros)}</div>
-              <div>- Costos blandos: {fmtMoney(pf.costosBlandos)}</div>
+              <div>GDV: {fmtPesos(pf.gdv)}</div>
+              <div>- Costos duros: {fmtPesos(pf.costosDuros)}</div>
+              <div>- Costos blandos: {fmtPesos(pf.costosBlandos)}</div>
               <div className={pf.rlv >= costoSuelo * 0.9 ? 'text-green-400' : 'text-yellow-400'}>RLV {pf.rlv >= costoSuelo ? '≥' : '<'} asking $7M</div>
             </div>
           </div>
@@ -222,16 +228,16 @@ export default function HbuTab() {
         <div className="p-4 bg-gradient-to-r from-[#7c3aed]/10 to-[#10b981]/10 rounded-2xl border border-[#7c3aed]/30">
           <div className="font-semibold mb-3">Reconciliación → Valor Indicado</div>
           <div className="grid md:grid-cols-3 gap-3 text-sm mb-3">
-            <div className="text-center"><div className="text-xs text-gray-400">Comparables (35%)</div><div className="font-mono">{fmtMoney(compApproach.adjusted)}</div></div>
-            <div className="text-center"><div className="text-xs text-gray-400">Capitalización (35%)</div><div className="font-mono">{fmtMoney(pf.gdv)}</div></div>
-            <div className="text-center"><div className="text-xs text-gray-400">RLV (30%)</div><div className="font-mono">{fmtMoney(Math.max(pf.rlv, 0))}</div></div>
+            <div className="text-center"><div className="text-xs text-gray-400">Comparables (35%)</div><div className="font-mono whitespace-nowrap tabular-nums">{fmtPesos(compApproach.adjusted)}</div></div>
+            <div className="text-center"><div className="text-xs text-gray-400">Capitalización (35%)</div><div className="font-mono whitespace-nowrap tabular-nums">{fmtPesos(pf.gdv)}</div></div>
+            <div className="text-center"><div className="text-xs text-gray-400">RLV (30%)</div><div className="font-mono whitespace-nowrap tabular-nums">{fmtPesos(Math.max(pf.rlv, 0))}</div></div>
           </div>
           {(() => {
             const rec = Math.round(compApproach.adjusted * 0.35 + pf.gdv * 0.35 + Math.max(pf.rlv, 0) * 0.30);
             return (
               <div className="text-center">
                 <div className="text-xs text-gray-400 mb-1">Valor reconciliado ponderado</div>
-                <div className="text-3xl font-bold text-white">{fmtMoney(rec)}</div>
+                <div className="text-3xl font-bold text-white whitespace-nowrap tabular-nums" style={{ fontSize: 'clamp(1.3rem, 4vw, 1.875rem)' }}>{fmtPesos(rec)}</div>
                 <div className={`text-sm mt-1 ${rec >= 6500000 ? 'text-green-400' : 'text-yellow-400'}`}>
                   Precio asking $7.0M — {rec >= 6500000 ? 'dentro del rango justificado' : 'por encima con supuestos actuales'}
                 </div>
@@ -256,7 +262,7 @@ export default function HbuTab() {
         <div className="text-xs text-gray-400 italic mb-4">{PRESETS[activePreset].description} — {PRESETS[activePreset].source}</div>
         <div className="grid md:grid-cols-3 gap-5 mb-5">
           {[
-            { label: 'Costo suelo', min: 4000000, max: 10000000, step: 250000, val: costoSuelo, onChange: (v: number) => setCostoSuelo(v), display: fmtMoney(costoSuelo) },
+            { label: 'Costo suelo', min: 4000000, max: 10000000, step: 250000, val: costoSuelo, onChange: (v: number) => setCostoSuelo(v), display: fmtPesos(costoSuelo) },
             { label: 'Cap rate renta', min: 0.05, max: 0.12, step: 0.005, val: capRate, onChange: (v: number) => setCapRate(v), display: `${(capRate * 100).toFixed(1)}%` },
             { label: 'Precio venta TH ($/m²)', min: 14000, max: 28000, step: 500, val: precioVentaM2, onChange: (v: number) => setPrecioVentaM2(v), display: `${fmtMX(precioVentaM2)} $/m²` },
           ].map(({ label, min, max, step, val, onChange, display }) => (
@@ -275,18 +281,18 @@ export default function HbuTab() {
           <KPICard title="RLV" value={Math.max(pf.rlv, 0)} isMonetary icon="🏘️" color={pf.rlv >= 6500000 ? 'success' : 'warning'} />
           <KPICard title="NOI anual" value={pf.noiAnual} isMonetary icon="🏦" color="info" />
           <KPICard title="VPN (15%)" value={pf.vpn} isMonetary icon="📈" color={pf.vpn > 0 ? 'success' : 'danger'} />
-          <KPICard title="TIR" value={pf.tir} suffix="%" icon="📊" color={pf.tir >= 20 ? 'success' : pf.tir >= 12 ? 'info' : 'danger'} />
-          <KPICard title="ROI total" value={pf.roi} suffix="%" icon="🚀" color={pf.roi >= 20 ? 'success' : 'info'} />
+          <KPICard title="TIR" value={pf.tir} suffix="%" decimals={1} icon="📊" color={pf.tir >= 20 ? 'success' : pf.tir >= 12 ? 'info' : 'danger'} />
+          <KPICard title="ROI total" value={pf.roi} suffix="%" decimals={1} icon="🚀" color={pf.roi >= 20 ? 'success' : 'info'} />
         </div>
         <div className="bg-[#0a0a0f] rounded-2xl p-4 border border-[#1e1e2e] text-xs mb-4">
           <div className="font-semibold mb-2 text-sm">Desglose financiero</div>
           <div className="grid md:grid-cols-2 gap-x-8 gap-y-1 text-gray-300">
-            <div className="flex justify-between"><span>m² venta ({proformaInput.townhouses}TH × {proformaInput.m2Townhouse}m²)</span><span className="font-mono">{pf.m2Venta} m²</span></div>
-            <div className="flex justify-between"><span>m² renta ({proformaInput.lofts}L+{proformaInput.studios}E)</span><span className="font-mono">{pf.m2Renta} m²</span></div>
-            <div className="flex justify-between"><span>Costos duros</span><span className="font-mono">{fmtMoney(pf.costosDuros)}</span></div>
-            <div className="flex justify-between"><span>Blandos (comisiones+contingencia)</span><span className="font-mono">{fmtMoney(pf.costosBlandos)}</span></div>
-            <div className="flex justify-between text-green-400"><span>Ingresos ventas TH</span><span className="font-mono">{fmtMoney(pf.valueSell)}</span></div>
-            <div className="flex justify-between text-blue-400"><span>Portfolio renta capitalizado</span><span className="font-mono">{fmtMoney(pf.valueCapitalized)}</span></div>
+            <div className="flex justify-between gap-3"><span>m² venta ({proformaInput.townhouses}TH × {proformaInput.m2Townhouse}m²)</span><span className="font-mono whitespace-nowrap tabular-nums">{fmtMX(pf.m2Venta)} m²</span></div>
+            <div className="flex justify-between gap-3"><span>m² renta ({proformaInput.lofts}L+{proformaInput.studios}E)</span><span className="font-mono whitespace-nowrap tabular-nums">{fmtMX(pf.m2Renta)} m²</span></div>
+            <div className="flex justify-between gap-3"><span>Costos duros</span><span className="font-mono whitespace-nowrap tabular-nums">{fmtPesos(pf.costosDuros)}</span></div>
+            <div className="flex justify-between gap-3"><span>Blandos (comisiones+contingencia)</span><span className="font-mono whitespace-nowrap tabular-nums">{fmtPesos(pf.costosBlandos)}</span></div>
+            <div className="flex justify-between gap-3 text-green-400"><span>Ingresos ventas TH</span><span className="font-mono whitespace-nowrap tabular-nums">{fmtPesos(pf.valueSell)}</span></div>
+            <div className="flex justify-between gap-3 text-blue-400"><span>Portfolio renta capitalizado</span><span className="font-mono whitespace-nowrap tabular-nums">{fmtPesos(pf.valueCapitalized)}</span></div>
           </div>
         </div>
         {pf.cashflows.length > 1 && (
@@ -356,10 +362,13 @@ export default function HbuTab() {
             ].map(({ label, c }) => <div key={label} className={`p-2 rounded border ${c}`}>{label}</div>)}
           </div>
           <div style={{ height: '420px', width: '100%' }}>
-            <MapboxMap propertyPoints={propertyPoints} fmtMoney={fmtMoney} />
+            <MapboxMap propertyPoints={propertyPoints} fmtMoney={fmtPesos} />
           </div>
           <div className="mt-1 text-[10px] text-gray-500">
-            Mapbox GL · {propertyPoints.filter(p => !p.approxLocation).length} inmuebles con coordenadas reales (geocoded) · {propertyPoints.filter(p => p.approxLocation).length} con ubicación aproximada (sin lat/lng en la fuente, mostrados en tono difuminado) · <strong>★ pin exacto</strong> Carlos Septién 53 con popup
+            Mapbox GL · {propertyPoints.length} comps con ubicación real (geocoded) · <strong>★ pin exacto</strong> Carlos Septién 53 con popup
+            {excludedCount > 0 && (
+              <> · {excludedCount} comps sin coordenadas en la fuente fueron excluidos del mapa (no se inventan posiciones)</>
+            )}
           </div>
         </div>
       </section>
@@ -418,12 +427,12 @@ export default function HbuTab() {
               <div className="grid md:grid-cols-2 gap-6 mb-5">
                 <div>
                   <div className="text-[10px] uppercase tracking-widest text-[#10b981] mb-2">Valor Indicado del Suelo (Reconciliado)</div>
-                  <div className="text-5xl font-bold text-white mb-1">{fmtMoney(rec)}</div>
-                  <div className="text-sm text-gray-400 mb-3">Rango: {fmtMoney(rangoLow)} – {fmtMoney(rangoHigh)}</div>
+                  <div className="font-bold text-white mb-1 whitespace-nowrap tabular-nums" style={{ fontSize: 'clamp(1.75rem, 6vw, 3rem)', lineHeight: 1.1 }}>{fmtPesos(rec)}</div>
+                  <div className="text-sm text-gray-400 mb-3">Rango: {fmtPesos(rangoLow)} – {fmtPesos(rangoHigh)}</div>
                   <div className="space-y-1 text-xs text-gray-400">
-                    <div className="flex justify-between"><span>Comparables (35%)</span><span className="font-mono text-gray-200">{fmtMoney(compApproach.adjusted)}</span></div>
-                    <div className="flex justify-between"><span>Capitalización (35%)</span><span className="font-mono text-gray-200">{fmtMoney(pf.gdv)}</span></div>
-                    <div className="flex justify-between"><span>RLV — Valor Residual (30%)</span><span className="font-mono text-gray-200">{fmtMoney(Math.max(pf.rlv, 0))}</span></div>
+                    <div className="flex justify-between gap-3"><span>Comparables (35%)</span><span className="font-mono text-gray-200 whitespace-nowrap tabular-nums">{fmtPesos(compApproach.adjusted)}</span></div>
+                    <div className="flex justify-between gap-3"><span>Capitalización (35%)</span><span className="font-mono text-gray-200 whitespace-nowrap tabular-nums">{fmtPesos(pf.gdv)}</span></div>
+                    <div className="flex justify-between gap-3"><span>RLV — Valor Residual (30%)</span><span className="font-mono text-gray-200 whitespace-nowrap tabular-nums">{fmtPesos(Math.max(pf.rlv, 0))}</span></div>
                   </div>
                 </div>
                 <div className="flex flex-col justify-between">
@@ -431,7 +440,7 @@ export default function HbuTab() {
                     <div className="text-[10px] uppercase tracking-widest text-gray-400 mb-2">Veredicto vs Asking $7,000,000 MXN</div>
                     <div className="text-3xl font-bold mb-1" style={{ color: verdictColor }}>{verdict}</div>
                     <div className="text-sm text-gray-400">
-                      {gap >= 0 ? `+${fmtMoney(gap)} sobre asking` : `${fmtMoney(Math.abs(gap))} por debajo del asking`}
+                      {gap >= 0 ? `+${fmtPesos(gap)} sobre asking` : `${fmtPesos(Math.abs(gap))} por debajo del asking`}
                     </div>
                     <div className="text-xs text-gray-500 mt-1">
                       El precio de $7M {justified ? 'se encuentra dentro del rango metodológicamente justificado' : 'está por encima del valor reconciliado con los supuestos actuales'}

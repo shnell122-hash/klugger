@@ -22,10 +22,14 @@ const PER_PAGE = 20;
 
 type SortKey = 'relevance' | 'price' | 'size' | 'ppm' | 'delta';
 
+const IMPLIED_EXPLANATION =
+  '"Implícito 660 m²" = precio de este comp normalizado al tamaño de tu predio (660 m²): $/m² del comp × 660. ' +
+  'No es el precio real al que se vendió — es una proyección para poder comparar terrenos de tamaños distintos en pie de igualdad.';
+
 const VS_ASKING_EXPLANATION =
-  '"vs Asking" compara el valor implícito del comp a 660 m² (su $/m² × 660) contra tu precio de asking. ' +
-  'Positivo = ese comp, ajustado a 660 m², vendería por más que tu asking (tu precio luce barato frente a ese comp). ' +
-  'Negativo = vendería por menos (tu precio luce caro frente a ese comp). ' +
+  '"% vs Asking" = qué tan barato (−) o caro (+) resulta ese comp, normalizado a 660 m², frente a tu asking de $7,000,000. ' +
+  'Negativo (−): el comp sale más barato que tu asking → tu precio luce caro frente a él. ' +
+  'Positivo (+): el comp sale más caro que tu asking → tu precio luce barato frente a él. ' +
   'Nota: es una extrapolación lineal de $/m²; en comps de tamaño muy distinto a 660 m² el % puede ser extremo y menos representativo.';
 
 export default function CompsTable({ data, filter, askingPrice = DEFAULT_ASKING_PRICE }: { data: Comp[]; filter: string; askingPrice?: number }) {
@@ -132,10 +136,15 @@ export default function CompsTable({ data, filter, askingPrice = DEFAULT_ASKING_
               <th className="px-3 py-2 text-right">Precio</th>
               <th className="px-3 py-2 text-right">m²</th>
               <th className="px-3 py-2 text-right">$/m²</th>
-              <th className="px-3 py-2 text-right">Implícito 660m²</th>
+              <th className="px-3 py-2 text-right">
+                <span className="inline-flex items-center gap-1 cursor-help border-b border-dotted border-gray-500" title={IMPLIED_EXPLANATION}>
+                  Implícito 660m²
+                  <span aria-hidden="true" className="text-[10px] text-gray-500">ⓘ</span>
+                </span>
+              </th>
               <th className="px-3 py-2 text-right">
                 <span className="inline-flex items-center gap-1 cursor-help border-b border-dotted border-gray-500" title={VS_ASKING_EXPLANATION}>
-                  vs Asking
+                  % vs Asking
                   <span aria-hidden="true" className="text-[10px] text-gray-500">ⓘ</span>
                 </span>
               </th>
@@ -217,7 +226,12 @@ export default function CompsTable({ data, filter, askingPrice = DEFAULT_ASKING_
         </button>
       </div>
 
-      <p className="text-[11px] text-gray-500 px-1 leading-relaxed">{VS_ASKING_EXPLANATION}</p>
+      <p className="text-[11px] text-gray-500 px-1 leading-relaxed">
+        <strong className="text-gray-400">Implícito 660 m²:</strong> {IMPLIED_EXPLANATION}
+      </p>
+      <p className="text-[11px] text-gray-500 px-1 leading-relaxed">
+        <strong className="text-gray-400">% vs Asking:</strong> {VS_ASKING_EXPLANATION}
+      </p>
     </div>
   );
 }
