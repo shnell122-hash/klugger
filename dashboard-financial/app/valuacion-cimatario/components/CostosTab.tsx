@@ -271,7 +271,7 @@ export default function CostosTab() {
               columna sin ancho fijo, toma el resto) a envolver texto en vez
               de forzar overflow-x en toda la tabla — así el contenido largo
               se lee completo sin scroll horizontal ni truncado. */}
-          <table className="w-full text-sm table-fixed">
+          <table className="w-full min-w-[560px] text-sm table-fixed">
             <thead className="bg-[#0a0a0f] text-gray-400">
               <tr>
                 <th className="px-3 py-2 text-left w-20">Fecha</th>
