@@ -5,8 +5,8 @@ import dynamic from 'next/dynamic';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
-  ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, ReferenceLine,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer,
 } from 'recharts';
 import KPICard from './KPICard';
 import { fmtMX } from '@/lib/format';
@@ -95,6 +95,133 @@ function Badge({ children, color = 'accent' }: { children: React.ReactNode; colo
 
 const AXIS_TICK = { fill: '#6b7280', fontSize: 10 };
 
+// ── Matriz de riesgos: heatmap prob × impacto ───────────────────────────────
+// A scatter chart plots 6 points on a blank canvas — it doesn't communicate
+// severity of the *unoccupied* space, and two of our six riesgos share the
+// exact same (probabilidad, impacto) coordinate, so they'd literally overlap
+// as one dot. The industry-standard risk-matrix visualization is a colored
+// grid (every cell pre-shaded by its own probabilidad × impacto severity)
+// with each riesgo pinned to its cell — that's what this renders instead.
+function riesgoColor(r: Riesgo): string {
+  return r.clasificacion === 'Importante' ? C.danger : C.warning;
+}
+function hexToRgb(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+// Severity = normalized probabilidad × impacto (1..100 → 0..1), interpolated
+// across the same success→warning→danger stops used everywhere else in this
+// dashboard, so "red" here means the same thing it means in a KPI card.
+const HEAT_STOPS: [number, [number, number, number]][] = [
+  [0, hexToRgb(C.success)],
+  [0.5, hexToRgb(C.warning)],
+  [1, hexToRgb(C.danger)],
+];
+function heatCellColor(probabilidad: number, impacto: number, alpha = 0.4): string {
+  const severity = (probabilidad * impacto) / 100;
+  let i = 0;
+  while (i < HEAT_STOPS.length - 2 && severity > HEAT_STOPS[i + 1][0]) i++;
+  const [t0, c0] = HEAT_STOPS[i];
+  const [t1, c1] = HEAT_STOPS[i + 1];
+  const t = t1 === t0 ? 0 : (severity - t0) / (t1 - t0);
+  const [r, g, b] = c0.map((v, idx) => Math.round(lerp(v, c1[idx], t)));
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function RiesgoHeatmap({ data }: { data: Riesgo[] }) {
+  const GRID_HEIGHT = 300;
+  const groups = useMemo(() => {
+    const map = new Map<string, { probabilidad: number; impacto: number; risks: Riesgo[] }>();
+    data.forEach((r) => {
+      const key = `${r.probabilidad}-${r.impacto}`;
+      const g = map.get(key);
+      if (g) g.risks.push(r);
+      else map.set(key, { probabilidad: r.probabilidad, impacto: r.impacto, risks: [r] });
+    });
+    return Array.from(map.entries()).map(([key, v]) => ({ key, ...v }));
+  }, [data]);
+
+  const cells = useMemo(() => {
+    const out: { key: string; probabilidad: number; impacto: number }[] = [];
+    for (let impacto = 10; impacto >= 1; impacto--) {
+      for (let probabilidad = 1; probabilidad <= 10; probabilidad++) {
+        out.push({ key: `${probabilidad}-${impacto}`, probabilidad, impacto });
+      }
+    }
+    return out;
+  }, []);
+
+  return (
+    <div className="flex gap-1.5">
+      <div className="flex items-center justify-center text-[10px] text-gray-500 shrink-0" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
+        Impacto →
+      </div>
+      <div className="flex flex-col justify-between items-end pr-1 text-[9px] text-gray-500 tabular-nums shrink-0" style={{ height: GRID_HEIGHT }}>
+        {Array.from({ length: 10 }, (_, i) => 10 - i).map((n) => <span key={n}>{n}</span>)}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="relative" style={{ height: GRID_HEIGHT }}>
+          {/* Layer 1: 10×10 severity-shaded cells (green → amber → red). */}
+          <div className="absolute inset-0 grid gap-[2px]" style={{ gridTemplateColumns: 'repeat(10, 1fr)', gridTemplateRows: 'repeat(10, 1fr)' }}>
+            {cells.map((c) => (
+              <div
+                key={c.key}
+                className="rounded-[3px]"
+                style={{ background: heatCellColor(c.probabilidad, c.impacto) }}
+                title={`Prob. ${c.probabilidad} × Impacto ${c.impacto} = ${c.probabilidad * c.impacto}`}
+              />
+            ))}
+          </div>
+          {/* Layer 2: one marker per occupied (probabilidad, impacto) cell —
+              placed on the *same* 10×10 grid so coordinates line up exactly
+              with the shaded cells underneath, no manual % math. */}
+          <div className="absolute inset-0 grid gap-[2px] pointer-events-none" style={{ gridTemplateColumns: 'repeat(10, 1fr)', gridTemplateRows: 'repeat(10, 1fr)' }}>
+            {groups.map((g) => {
+              const col = g.probabilidad;
+              const row = 11 - g.impacto;
+              const anchorH = col <= 3 ? 'left-0' : col >= 8 ? 'right-0' : 'left-1/2 -translate-x-1/2';
+              const anchorV = row <= 5 ? 'top-full mt-2' : 'bottom-full mb-2';
+              const primary = g.risks.find((r) => r.clasificacion === 'Importante') ?? g.risks[0];
+              return (
+                <div key={g.key} style={{ gridColumn: col, gridRow: row }} className="group/marker relative flex items-center justify-center pointer-events-auto">
+                  <span
+                    className="w-4 h-4 rounded-full ring-2 ring-white/60 shadow-md cursor-default transition-transform duration-150 group-hover/marker:scale-125 motion-reduce:transition-none motion-reduce:group-hover/marker:scale-100"
+                    style={{ background: riesgoColor(primary) }}
+                  />
+                  {g.risks.length > 1 && (
+                    <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-[#0a0a0f] border border-white/40 text-[8px] leading-[13px] text-center text-white font-semibold">
+                      {g.risks.length}
+                    </span>
+                  )}
+                  <div
+                    className={`absolute ${anchorH} ${anchorV} z-20 w-64 max-w-[70vw] bg-[#111118] border border-[#1e1e2e] rounded-lg p-3 text-xs shadow-xl opacity-0 invisible group-hover/marker:opacity-100 group-hover/marker:visible transition-opacity duration-150 motion-reduce:transition-none space-y-2`}
+                  >
+                    {g.risks.map((r, i) => (
+                      <div key={i} className={i > 0 ? 'pt-2 border-t border-[#1e1e2e]' : ''}>
+                        <div className="font-semibold text-white mb-1">{r.tipo} · {r.clasificacion} (crítico {r.valorCritico})</div>
+                        <div className="text-gray-300 mb-1.5">{r.amenaza}</div>
+                        <div className="text-gray-500 mb-1.5">Probabilidad {r.probabilidad}/10 · Impacto {r.impacto}/10</div>
+                        <div className="text-[#a78bfa]">{r.estrategia}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="flex justify-between text-[9px] text-gray-500 mt-1 tabular-nums">
+          {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => <span key={n}>{n}</span>)}
+        </div>
+        <div className="text-center text-[10px] text-gray-500 mt-1">Probabilidad →</div>
+      </div>
+    </div>
+  );
+}
+
 export default function EstudioMercadoTab({ onNavigateHbu }: EstudioMercadoTabProps) {
   // ── 1. Conectividad ──────────────────────────────────────────────────────
   const conectividadOrdenada = useMemo(
@@ -164,23 +291,6 @@ export default function EstudioMercadoTab({ onNavigateHbu }: EstudioMercadoTabPr
     { proyecto: 'Cimatario Secc. 2', mdp: Math.round((inversiones.data.cimatarioSeccion2.inversionMXN / 1_000_000) * 100) / 100 },
     { proyecto: 'Cimatario Secc. 3', mdp: Math.round((inversiones.data.cimatarioSeccion3.inversionMXN / 1_000_000) * 100) / 100 },
   ];
-
-  // ── 11. Riesgos — heatmap prob × impacto ────────────────────────────────
-  function riesgoColor(r: Riesgo): string {
-    return r.clasificacion === 'Importante' ? C.danger : C.warning;
-  }
-  function RiesgoTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: Riesgo }> }) {
-    if (!active || !payload?.length) return null;
-    const r = payload[0].payload;
-    return (
-      <div className="bg-[#111118] border border-[#1e1e2e] rounded-lg p-3 text-xs max-w-[260px] shadow-xl">
-        <div className="font-semibold text-white mb-1">{r.tipo} · {r.clasificacion} (crítico {r.valorCritico})</div>
-        <div className="text-gray-300 mb-1.5">{r.amenaza}</div>
-        <div className="text-gray-500 mb-1.5">Probabilidad {r.probabilidad}/10 · Impacto {r.impacto}/10</div>
-        <div className="text-[#a78bfa]">{r.estrategia}</div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-10">
@@ -876,30 +986,23 @@ export default function EstudioMercadoTab({ onNavigateHbu }: EstudioMercadoTabPr
           ))}
         </div>
 
-        <ChartCard title="Matriz de riesgos — probabilidad × impacto">
-          <ResponsiveContainer width="100%" height={300} debounce={50}>
-            <ScatterChart margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" />
-              <XAxis type="number" dataKey="probabilidad" name="Probabilidad" domain={[0, 10]} tick={AXIS_TICK} label={{ value: 'Probabilidad', position: 'insideBottom', offset: -5, fill: '#6b7280', fontSize: 11 }} />
-              <YAxis type="number" dataKey="impacto" name="Impacto" domain={[0, 10]} tick={AXIS_TICK} label={{ value: 'Impacto', angle: -90, position: 'insideLeft', fill: '#6b7280', fontSize: 11 }} />
-              <ReferenceLine x={5} stroke="#1e1e2e" />
-              <ReferenceLine y={5} stroke="#1e1e2e" />
-              <Tooltip content={<RiesgoTooltip />} cursor={{ strokeDasharray: '3 3' }} />
-              <Scatter data={riesgos.data} animationDuration={350} animationEasing="ease-out">
-                {riesgos.data.map((r, i) => <Cell key={i} fill={riesgoColor(r)} />)}
-              </Scatter>
-            </ScatterChart>
-          </ResponsiveContainer>
-          <div className="flex gap-3 mt-2 text-xs">
+        <ChartCard title="Matriz de riesgos — heatmap probabilidad × impacto">
+          <RiesgoHeatmap data={riesgos.data} />
+          <div className="flex flex-wrap gap-3 mt-3 text-xs">
             <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: C.danger }} /> Importante</span>
             <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: C.warning }} /> Apreciable</span>
+            <span className="flex items-center gap-1.5 text-gray-500">
+              <span className="w-2.5 h-2.5 rounded-[2px] inline-block" style={{ background: heatCellColor(2, 2, 0.6) }} /> Celda de baja severidad
+              <span className="w-2.5 h-2.5 rounded-[2px] inline-block ml-1" style={{ background: heatCellColor(10, 10, 0.6) }} /> alta severidad (prob. × impacto)
+            </span>
           </div>
+          <p className="text-[11px] text-gray-500 mt-2">Cada celda se colorea por su propia severidad (probabilidad × impacto); los 6 riesgos se ubican en su celda exacta — pasa el cursor sobre un marcador para ver detalle. Dos riesgos económicos comparten la celda (5, 9), agrupados bajo un solo marcador con contador.</p>
         </ChartCard>
 
-        {/* Scannable risk cards — the matrix above plots probabilidad × impacto,
-            but the tipo/amenaza/estrategia detail only surfaced on hover
-            (RiesgoTooltip). These cards make that same detail readable
-            at rest, sorted by valorCritico so the most severe risks lead. */}
+        {/* Scannable risk cards — the heatmap above plots probabilidad × impacto,
+            but the tipo/amenaza/estrategia detail only surfaces on hover of a
+            marker. These cards make that same detail readable at rest, sorted
+            by valorCritico so the most severe risks lead. */}
         <div>
           <h4 className="text-sm font-semibold text-gray-300 mb-3">Detalle de los 6 riesgos (ordenados por criticidad)</h4>
           <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">

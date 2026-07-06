@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  ScatterChart, Scatter, Line,
+  ComposedChart, Scatter, Line, ReferenceDot, Legend,
 } from 'recharts';
 import terrenosFullRaw from '../terrenos_full.json';
 import { dynamicBins, ols } from '@/lib/regression';
@@ -102,14 +102,23 @@ export default function DatabaseTab() {
   }).map((r: any) => ({ x: r.size_m2, y: r.price / 1000000, label: String(r.title || '').substring(0, 30) }));
 
   const modelPpm = cleanMedianPpm > 0 ? cleanMedianPpm : 7705;
-  const minX = scatterData.length > 0 ? Math.min(...scatterData.map(p => p.x)) : 100;
-  const maxX = scatterData.length > 0 ? Math.max(...scatterData.map(p => p.x)) : 4000;
+  // Include the subject property itself so the trend line's extremes always
+  // span it (avoids a regression segment that visually stops short of the
+  // 660m² marker when 660 happens to be outside the comps' own min/max m²).
+  const SUBJECT_SIZE_M2 = 660;
+  const SUBJECT_ASKING_PRICE = 7000000; // MXN, per MapboxMap.tsx / HbuTab.tsx / CompsTable.tsx
+  const minX = scatterData.length > 0 ? Math.min(SUBJECT_SIZE_M2, ...scatterData.map(p => p.x)) : 100;
+  const maxX = scatterData.length > 0 ? Math.max(SUBJECT_SIZE_M2, ...scatterData.map(p => p.x)) : 4000;
   const modelLine = [{ x: minX, y: (minX * modelPpm) / 1000000 }, { x: maxX, y: (maxX * modelPpm) / 1000000 }];
   const realPoints = scatterData.filter(p => p.x > 0 && p.y > 0);
   const olsResult = ols(realPoints);
   const { slope, intercept } = olsResult;
   const regressionLine = realPoints.length > 1
     ? [{ x: minX, y: slope * minX + intercept }, { x: maxX, y: slope * maxX + intercept }] : [];
+  // The subject land parcel (660 m²) at its asking price — plotted as a
+  // standalone highlighted marker so it's clear where it sits relative to
+  // the comps cloud and the OLS trend line.
+  const subjectPoint = { x: SUBJECT_SIZE_M2, y: SUBJECT_ASKING_PRICE / 1000000 };
 
   const exportCSV = () => {
     const listToExport = showOnlyValid ? cleanList : fullDB;
@@ -182,26 +191,88 @@ export default function DatabaseTab() {
         </div>
         <h3 className="text-lg font-semibold">Scatter: Precio vs m² + OLS</h3>
         <div className="chart-card-enter bg-[#111118] rounded-2xl p-4 border border-[#1e1e2e]">
-          <ResponsiveContainer width="100%" height={280} debounce={50}>
-            <ScatterChart>
+          <ResponsiveContainer width="100%" height={320} debounce={50}>
+            {/*
+              ComposedChart (not ScatterChart) is required here: Recharts'
+              <ScatterChart> only wires up axes/coordinates for <Scatter>
+              children, so the <Line> regression overlays we had before were
+              computing correct data but never actually painting — the chart
+              type silently ignored them. <ComposedChart> shares one
+              cartesian coordinate system across Scatter + Line +
+              ReferenceDot, which is Recharts' documented way to mix a
+              scatter cloud with a trend line. See
+              https://recharts.org/en-US/examples/ComposedChart
+            */}
+            <ComposedChart margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" />
-              <XAxis type="number" dataKey="x" name="m²" unit="m²" tick={{ fill: '#6b7280', fontSize: 10 }} />
+              <XAxis type="number" dataKey="x" name="m²" unit="m²" tick={{ fill: '#6b7280', fontSize: 10 }} domain={['dataMin', 'dataMax']} />
               <YAxis type="number" dataKey="y" name="Precio" unit="M" tick={{ fill: '#6b7280', fontSize: 10 }} />
               <Tooltip cursor={{ strokeDasharray: '3 3' }} />
+              <Legend wrapperStyle={{ fontSize: 11, color: '#9ca3af' }} />
               <Scatter
                 name="Inmuebles"
                 data={scatterData}
                 fill="#7c3aed"
-                fillOpacity={0.7}
+                fillOpacity={0.6}
                 animationDuration={350}
                 animationEasing="ease-out"
               />
-              {regressionLine.length > 0 && <Line type="linear" dataKey="y" data={regressionLine} stroke="#10b981" strokeWidth={2} strokeDasharray="4 2" dot={false} name="OLS" opacity={0.9} isAnimationActive={false} />}
-              {modelLine.length > 0 && <Line type="linear" dataKey="y" data={modelLine} stroke="#a78bfa" strokeWidth={3} dot={false} name="Modelo ppm" isAnimationActive={false} />}
-            </ScatterChart>
+              {regressionLine.length > 0 && (
+                <Line
+                  type="linear"
+                  dataKey="y"
+                  data={regressionLine}
+                  stroke="#10b981"
+                  strokeWidth={3}
+                  dot={false}
+                  activeDot={false}
+                  name={`Regresión OLS · R²=${olsResult.r2.toFixed(2)}`}
+                  legendType="line"
+                  isAnimationActive={false}
+                />
+              )}
+              {modelLine.length > 0 && (
+                <Line
+                  type="linear"
+                  dataKey="y"
+                  data={modelLine}
+                  stroke="#a78bfa"
+                  strokeWidth={2}
+                  strokeDasharray="4 2"
+                  dot={false}
+                  activeDot={false}
+                  name="Modelo ppm (mediana limpios)"
+                  legendType="line"
+                  isAnimationActive={false}
+                />
+              )}
+              {/*
+                Subject parcel (660 m², our asking price of $7,000,000 MXN —
+                see MapboxMap.tsx/HbuTab.tsx/CompsTable.tsx for the same
+                figure) plotted as a standalone highlighted marker so it's
+                immediately visible whether it sits above/below the comps
+                cloud and the OLS line.
+              */}
+              <ReferenceDot
+                x={subjectPoint.x}
+                y={subjectPoint.y}
+                r={9}
+                fill="#f59e0b"
+                stroke="#fff"
+                strokeWidth={2}
+                isFront
+                label={{
+                  value: 'Predio objeto 660 m² (asking $7.0M)',
+                  position: 'top',
+                  fill: '#f59e0b',
+                  fontSize: 11,
+                  fontWeight: 700,
+                }}
+              />
+            </ComposedChart>
           </ResponsiveContainer>
           <div className="text-xs text-gray-400 mt-2">
-            OLS (n={olsResult.n}): pendiente {slope.toFixed(4)} M/m² · R²={olsResult.r2.toFixed(3)} · Modelo ppm (morado): {modelPpm} $/m² × m²
+            OLS (n={olsResult.n}): pendiente {slope.toFixed(4)} M/m² · R²={olsResult.r2.toFixed(3)} (línea verde) · Modelo ppm (morado, punteado): {modelPpm} $/m² × m² · Punto ámbar ★: predio objeto 660 m² a precio asking $7,000,000 MXN.
           </div>
         </div>
       </div>

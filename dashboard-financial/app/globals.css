@@ -8,7 +8,43 @@
   --surface: #111118;
   --border:  #1e1e2e;
   --muted:   #3a3a5c;
-  --accent:  #7c3aed;
+
+  /* ------------------------------------------------------------------
+     Color system — restraint over variety (Emil Kowalski). One brand
+     green, one data-accent violet, and two reserved semantic colors.
+     Everything else in the palette (--bg/--surface/--border/--muted
+     above) is neutral chrome, not "color".
+
+     - --brand-green   Primary brand color. THE green. Older prototype
+                        chrome (map pins, PIN gate, 3D building preview)
+                        mixes this with a neon #00FF66 — that's legacy
+                        debt, not a second brand color. New/touched
+                        chrome (nav, headers, this file) standardizes on
+                        --brand-green only; please migrate old spots to
+                        it opportunistically instead of adding more
+                        #00FF66.
+     - --brand-violet  Data accent: active tab, links, highlighted
+                        figures, chart accents. Reads as "information",
+                        not identity — keep it off primary CTAs.
+     - --accent-amber  Semantic caution ONLY (warnings, mid-range
+                        verdicts). Never decorative.
+     - --danger        Semantic negative ONLY (bad deltas, errors,
+                        "malo" verdicts). Never decorative.
+
+     Other components should consume these vars (e.g.
+     `bg-[var(--brand-green)]`) instead of hardcoding hex, so the
+     palette stays centralized as more of the dashboard adopts it.
+     ------------------------------------------------------------------ */
+  --brand-green:        #10b981;
+  --brand-green-glow:   rgba(16, 185, 129, 0.3);
+  --brand-violet:       #7c3aed;
+  --brand-violet-light: #a78bfa;
+  --accent-amber:       #f59e0b;
+  --danger:             #ef4444;
+
+  /* Back-compat alias for the pre-existing --accent token (unused
+     directly, kept so nothing silently breaks if referenced). */
+  --accent: var(--brand-violet);
 
   /* Motion tokens — one shared language across the dashboard.
      Short durations, ease-out entering / ease-in leaving, springs reserved
@@ -42,7 +78,7 @@ body {
 
 /* Glow effect for accents */
 .glow-accent { box-shadow: 0 0 20px rgba(124, 58, 237, 0.3); }
-.glow-success { box-shadow: 0 0 20px rgba(16, 185, 129, 0.3); }
+.glow-success { box-shadow: 0 0 20px var(--brand-green-glow); }
 
 /* Recharts overrides */
 .recharts-cartesian-grid-horizontal line,

@@ -52,25 +52,37 @@ export const conectividad: Sourced<ConectividadPOI[]> = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────
-// 2. Proyección de población municipal
-// analisisCimatario2023.md §2.1 + Interpretación de Elementos Visuales §2 (Pág. 8)
+// 2. Proyección de población municipal (serie año por año 2022-2030)
+// transcripcionEstudioMercado2023.md Pág. 8 "PROYECCIONES DEMOGRÁFICAS: PAÍS, ESTADO
+// Y MUNICIPIO", tabla "Proyección del Estado y Municipio de Querétaro" (~L77-88)
 // ─────────────────────────────────────────────────────────────────────────
 
 export interface PoblacionPunto {
   anio: number;
   poblacionMunicipio: number;
+  poblacionEstado: number;
   esProyeccion: boolean;
 }
 
 export const proyeccionPoblacion: Sourced<PoblacionPunto[]> = {
   source:
-    'analisisCimatario2023.md §2.1 (Censo 2020: 1,049,777 hab) + Interpretación de Elementos Visuales §2 (Pág. 8: "pasando de 1,007,923 en 2022 a 1,138,178 estimados para 2030")',
+    'transcripcionEstudioMercado2023.md Pág. 8 "PROYECCIONES DEMOGRÁFICAS: PAÍS, ESTADO Y MUNICIPIO" — tabla "Proyección del Estado y Municipio de Querétaro" ' +
+    '(Fuente citada en el documento: "Investigado y analizado por VDD de acuerdo a Consulta Interactiva de Información Demográfica COESPO Querétaro"). ' +
+    'Serie completa año por año, todos los puntos (2022-2030) son proyección COESPO, no censo.',
   data: [
-    { anio: 2022, poblacionMunicipio: 1_007_923, esProyeccion: false },
-    { anio: 2030, poblacionMunicipio: 1_138_178, esProyeccion: true },
-    // FALTA EN FUENTE: puntos intermedios 2023-2029 no están explícitos en el documento;
-    // el texto solo indica una "tendencia al alza constante y predecible" (~130,000 nuevos
-    // residentes en el periodo). No se interpola para no alucinar cifras anuales.
+    { anio: 2022, poblacionMunicipio: 1_007_923, poblacionEstado: 2_358_758, esProyeccion: true },
+    { anio: 2023, poblacionMunicipio: 1_023_514, poblacionEstado: 2_397_293, esProyeccion: true },
+    { anio: 2024, poblacionMunicipio: 1_039_236, poblacionEstado: 2_435_115, esProyeccion: true },
+    { anio: 2025, poblacionMunicipio: 1_055_096, poblacionEstado: 2_472_207, esProyeccion: true },
+    { anio: 2026, poblacionMunicipio: 1_071_145, poblacionEstado: 2_508_557, esProyeccion: true },
+    { anio: 2027, poblacionMunicipio: 1_087_435, poblacionEstado: 2_544_144, esProyeccion: true },
+    { anio: 2028, poblacionMunicipio: 1_104_025, poblacionEstado: 2_578_973, esProyeccion: true },
+    { anio: 2029, poblacionMunicipio: 1_120_919, poblacionEstado: 2_613_029, esProyeccion: true },
+    { anio: 2030, poblacionMunicipio: 1_138_178, poblacionEstado: 2_646_299, esProyeccion: true },
+    // Nota: el municipio de Querétaro tuvo 1,049,777 hab. en el Censo 2020 (analisisCimatario2023.md
+    // §2.1), cifra mayor a la proyección COESPO de 1,007,923 para 2022. Es una inconsistencia
+    // presente en las propias fuentes (metodologías distintas: censo vs. proyección poblacional);
+    // se preserva tal cual, sin reconciliar, para no alucinar una cifra "corregida".
   ],
 };
 

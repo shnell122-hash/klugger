@@ -10,12 +10,16 @@ import HbuTab from './components/HbuTab';
 import AgentesTab from './components/AgentesTab';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
+// Order follows the investment narrative: value the asset, show the market
+// that justifies it, show the highest-and-best-use case built on that
+// market, then the supporting evidence (raw comps), then go-to-market and
+// automation. Keep render order below in sync with this array.
 const TABS = [
   { id: 'valuacion', label: '📊 Valuación' },
-  { id: 'database', label: '🗄️ Base de Datos' },
   { id: 'estudio-mercado', label: '📈 Estudio de Mercado' },
-  { id: 'marketing', label: '📣 Marketing + Estudio' },
   { id: 'hbu', label: '🏗️ HBU/HBV + Estudio Colonia' },
+  { id: 'database', label: '🗄️ Base de Datos' },
+  { id: 'marketing', label: '📣 Marketing + Estudio' },
   { id: 'agentes', label: '🤖 Agentes + Outreach WA' },
 ] as const;
 
@@ -42,39 +46,47 @@ export default function ValuacionDashboard() {
     // (here and in KPICard) automatically honor the OS-level
     // prefers-reduced-motion setting — no per-component opt-out needed.
     <MotionConfig reducedMotion="user">
-    <div className="min-h-screen bg-[#0a0a0f] text-[#e2e2f0] font-sans">
-      {/* Sticky header */}
-      <div className="sticky top-0 z-50 bg-[#0a0a0f]/95 backdrop-blur border-b border-[#1e1e2e]">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src="/assets/klugger-logo-vectorized.png" alt="Klugger logo" className="h-24 w-auto" />
-            <div>
-              <div className="font-semibold text-lg tracking-[-0.3px]">Klugger Inmuebles</div>
-              <div className="text-[10px] text-gray-500 -mt-0.5">CASO • Cimatario, Querétaro</div>
+    <div className="min-h-screen bg-[var(--bg)] text-[#e2e2f0] font-sans">
+      {/* Persistent header — rendered exactly once, above the tab nav, and
+          never inside the activeTab switch below. It carries every piece of
+          "who/what is this" context (brand, title, subtitle, source link) so
+          individual tabs don't need to restate it. Two rows: a slim sticky
+          brand bar, and a hero that scrolls with the page — grouped under
+          one semantic <header>, one mount, single source of truth. */}
+      <header>
+        <div className="sticky top-0 z-50 bg-[#0a0a0f]/95 backdrop-blur border-b border-[#1e1e2e]">
+          <div className="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <div className="flex items-center gap-3 min-w-0">
+              <img src="/assets/klugger-logo-vectorized.png" alt="Klugger logo" className="h-12 sm:h-24 w-auto shrink-0" />
+              <div className="min-w-0">
+                <div className="font-semibold text-lg tracking-[-0.3px] truncate">Klugger Inmuebles</div>
+                <div className="text-[10px] text-gray-500 -mt-0.5 truncate">CASO • Cimatario, Querétaro</div>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2 text-xs">
-            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#111118] border border-[#1e1e2e]">
-              <div className="w-1.5 h-1.5 bg-[#10b981] rounded-full animate-pulse" /> Datos Jun 2026
+            <div className="flex items-center gap-2 text-xs shrink-0">
+              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#111118] border border-[#1e1e2e] whitespace-nowrap">
+                <div className="w-1.5 h-1.5 bg-[var(--brand-green)] rounded-full animate-pulse shrink-0" /> Datos Jun 2026
+              </div>
+              <a href="https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/" target="_blank" className="underline text-[var(--brand-violet)] hover:text-[var(--brand-violet-light)] whitespace-nowrap">Fuente mercado</a>
             </div>
-            <a href="https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/" target="_blank" className="underline text-[#7c3aed] hover:text-[#a78bfa]">Fuente mercado</a>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-6xl mx-auto px-4 pt-6 pb-20 space-y-8">
-        {/* Hero */}
-        <div>
-          <div className="uppercase text-xs tracking-[2px] text-[#7c3aed] font-semibold mb-1">Valuación Comercial • Prototipo Roadmap</div>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-[-2.2px] text-white">Terreno 660 m² — Cimatario</h1>
-          <p className="mt-2 text-lg text-gray-400 max-w-2xl">Precio comercial estimado usando <span className="font-medium text-white">mediana de comps vacantes</span> × m² + ajustes por CUS 2.4 / potencial 12 unidades.</p>
+        {/* Hero — same persistent header, second row. Scrolls away with the
+            page (not sticky) so it doesn't eat viewport height on mobile. */}
+        <div className="max-w-6xl mx-auto px-4 pt-6">
+          <div className="uppercase text-xs tracking-[2px] text-[var(--brand-violet)] font-semibold mb-1">Valuación Comercial • Prototipo Roadmap</div>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-[-2.2px] text-white break-words">Terreno 660 m² — Cimatario</h1>
+          <p className="mt-2 text-base sm:text-lg text-gray-400 max-w-2xl">Precio comercial estimado usando <span className="font-medium text-white">mediana de comps vacantes</span> × m² + ajustes por CUS 2.4 / potencial 12 unidades.</p>
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             <span className="px-3 py-1 rounded-full bg-[#111118] border border-[#1e1e2e]">12 comps limpios (sin construcción)</span>
             <span className="px-3 py-1 rounded-full bg-[#111118] border border-[#1e1e2e]">HBU/HBV + Pro-forma DCF interactiva</span>
             <span className="px-3 py-1 rounded-full bg-[#111118] border border-[#1e1e2e]">Mobile-first • Recharts + glass</span>
           </div>
         </div>
+      </header>
 
+      <div className="max-w-6xl mx-auto px-4 pt-6 pb-20 space-y-8">
         {/* Tab nav — active indicator slides between tabs via layoutId,
             so the "pill" travels from its old position instead of popping
             (the movement originates from the tab itself). */}
@@ -90,7 +102,7 @@ export default function ValuacionDashboard() {
                 {isActive && (
                   <motion.div
                     layoutId="active-tab-indicator"
-                    className="absolute left-0 right-0 -bottom-px h-0.5 bg-[#7c3aed] rounded-full"
+                    className="absolute left-0 right-0 -bottom-px h-0.5 bg-[var(--brand-violet)] rounded-full"
                     transition={{ type: 'spring', stiffness: 400, damping: 34 }}
                   />
                 )}
@@ -112,10 +124,10 @@ export default function ValuacionDashboard() {
             className="space-y-8"
           >
             {activeTab === 'valuacion' && <ErrorBoundary label="Valuación"><ValuacionTab /></ErrorBoundary>}
-            {activeTab === 'database' && <ErrorBoundary label="Base de Datos"><DatabaseTab /></ErrorBoundary>}
             {activeTab === 'estudio-mercado' && <ErrorBoundary label="Estudio de Mercado"><EstudioMercadoTab onNavigateHbu={() => setActiveTab('hbu')} /></ErrorBoundary>}
-            {activeTab === 'marketing' && <ErrorBoundary label="Marketing"><MarketingTab /></ErrorBoundary>}
             {activeTab === 'hbu' && <ErrorBoundary label="HBU/HBV"><HbuTab /></ErrorBoundary>}
+            {activeTab === 'database' && <ErrorBoundary label="Base de Datos"><DatabaseTab /></ErrorBoundary>}
+            {activeTab === 'marketing' && <ErrorBoundary label="Marketing"><MarketingTab /></ErrorBoundary>}
             {activeTab === 'agentes' && <ErrorBoundary label="Agentes"><AgentesTab /></ErrorBoundary>}
           </motion.div>
         </AnimatePresence>

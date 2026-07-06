@@ -27,6 +27,18 @@ interface RawTerreno {
 
 const FULL_DB_COUNT = (terrenosFullRaw as RawTerreno[]).length || 1000;
 
+// Linear-interpolated percentile over a pre-sorted (ascending) numeric array.
+// Used to derive the headline market stats (median, p25, p75) straight from
+// the 537 real comps instead of the 12 hand-curated ones.
+function percentile(sortedAsc: number[], p: number): number {
+  if (sortedAsc.length === 0) return 0;
+  const idx = (sortedAsc.length - 1) * p;
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  if (lo === hi) return sortedAsc[lo];
+  return sortedAsc[lo] + (sortedAsc[hi] - sortedAsc[lo]) * (idx - lo);
+}
+
 export default function ValuacionTab() {
   const [search, setSearch] = useState('');
 
@@ -103,32 +115,73 @@ export default function ValuacionTab() {
 
   const askingPpmVsMedian = Math.round(((target.asking_ppm - stats.median_ppm) / stats.median_ppm) * 100);
 
+  // Headline market model: derived from all 537 real Lamudi comps, not the
+  // 12 hand-curated ones. `implied_for_target` on each real comp is already
+  // ppm × 660, so its median/p25/p75 IS the 660m²-base median/p25/p75 ppm ×
+  // 660 — no separate ppm array needed. This feeds the titular KPI cards;
+  // the 12-comp "curado" numbers (stats/models above) are kept and shown
+  // alongside for reconciliation, not replaced.
+  const market537 = useMemo(() => {
+    const impliedAsc = realComps.map((c) => c.implied_for_target).sort((a, b) => a - b);
+    const n = impliedAsc.length;
+    const base = percentile(impliedAsc, 0.5);
+    const p25Base = percentile(impliedAsc, 0.25);
+    const p75Base = percentile(impliedAsc, 0.75);
+    const adjust = (v: number) => Math.round(v * models.potential_multiplier * models.zone_premium);
+    const adjusted = adjust(base);
+    const deltaPct = ((adjusted - models.adjusted_median) / models.adjusted_median) * 100;
+    return {
+      n,
+      base: Math.round(base),
+      medianPpm: Math.round(base / target.m2),
+      p25Ppm: Math.round(p25Base / target.m2),
+      p75Ppm: Math.round(p75Base / target.m2),
+      adjusted,
+      p25Adjusted: adjust(p25Base),
+      p75Adjusted: adjust(p75Base),
+      deltaPct,
+    };
+  }, [realComps, target.m2, models.potential_multiplier, models.zone_premium, models.adjusted_median]);
+
+  const askingPpmVsMedian537 = Math.round(((target.asking_ppm - market537.medianPpm) / market537.medianPpm) * 100);
+
   return (
     <>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KPICard title="Precio Asking" value={target.asking_price} icon="🏷️" color="warning" isMonetary />
-        <KPICard title="Mediana Mercado $/m²" value={stats.median_ppm} suffix=" /m²" icon="📏" color="info" />
-        <KPICard title="Estimado Ajustado (CUS)" value={models.adjusted_median} icon="🚀" color="accent" isMonetary />
-        <KPICard title="Rango Consenso" value={`${fmtMX(models.consensus_low / 1e6, 1)}M - ${fmtMX(models.consensus_high / 1e6, 1)}M`} icon="📊" color="success" />
+        <KPICard title={`Mediana Mercado $/m² (n=${market537.n})`} value={market537.medianPpm} suffix=" /m²" icon="📏" color="info" />
+        <KPICard title={`Estimado Ajustado CUS (n=${market537.n})`} value={market537.adjusted} icon="🚀" color="accent" isMonetary />
+        <KPICard title={`Banda Mercado p25–p75 (n=${market537.n})`} value={`${fmtMX(market537.p25Adjusted / 1e6, 1)}M - ${fmtMX(market537.p75Adjusted / 1e6, 1)}M`} icon="📊" color="success" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <KPICard title={`Mediana Comps Curados $/m² (n=${stats.n})`} value={stats.median_ppm} suffix=" /m²" icon="🎯" color="info" />
+        <KPICard title={`Estimado Ajustado Curado CUS (n=${stats.n})`} value={models.adjusted_median} icon="🧮" color="accent" isMonetary />
+        <KPICard title={`Rango Consenso Curado ±8% (n=${stats.n})`} value={`${fmtMX(models.consensus_low / 1e6, 1)}M - ${fmtMX(models.consensus_high / 1e6, 1)}M`} icon="📐" color="success" />
+      </div>
+      <div className="text-xs text-gray-500 px-1 -mt-1">
+        Fila 1 (titular): modelo sobre los {market537.n} comps reales scrapeados de Lamudi — mercado amplio, incluye dispersión de zonas/condiciones fuera de Cimatario. Fila 2 (referencia fina): mismo modelo sobre los {stats.n} comps curados a mano (solo terrenos sin construcción en Cimatario) — ver reconciliación abajo.
       </div>
 
       <div className="glass rounded-3xl p-6 border border-[#1e1e2e]">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
           <div>
-            <div className="text-sm text-gray-400">Tu asking vs modelo mediana ajustada</div>
+            <div className="text-sm text-gray-400">Tu asking vs modelo mercado amplio (n={market537.n})</div>
             <div className="text-4xl font-bold font-mono tracking-tighter mt-1">
-              {fmtMoney(target.asking_price)} <span className="text-base align-super text-gray-500">vs ~{fmtMoney(models.adjusted_median)}</span>
+              {fmtMoney(target.asking_price)} <span className="text-base align-super text-gray-500">vs ~{fmtMoney(market537.adjusted)}</span>
             </div>
+            <div className="text-xs text-gray-500 mt-1">Modelo fino curado (n={stats.n}): ~{fmtMoney(models.adjusted_median)}</div>
           </div>
           <div className="text-right">
-            <div className={`inline-block px-4 py-1 rounded-2xl text-sm font-semibold ${target.asking_price <= models.adjusted_median ? 'bg-[#10b981]/15 text-[#10b981]' : 'bg-[#ef4444]/15 text-[#ef4444]'}`}>
-              {target.asking_price <= models.adjusted_median ? '✓ ALINEADO O LIGERAMENTE SUBVALORADO' : 'SOBRE PRECIO'}
+            <div className={`inline-block px-4 py-1 rounded-2xl text-sm font-semibold ${target.asking_price <= market537.adjusted ? 'bg-[#10b981]/15 text-[#10b981]' : 'bg-[#ef4444]/15 text-[#ef4444]'}`}>
+              {target.asking_price <= market537.adjusted ? '✓ ALINEADO O LIGERAMENTE SUBVALORADO' : 'SOBRE PRECIO'}
             </div>
-            <div className="text-xs text-gray-500 mt-1">Asking ${fmtMX(target.asking_ppm)}/m² • Mercado mediana limpia ${fmtMX(stats.median_ppm)}/m² (+{askingPpmVsMedian}%)</div>
+            <div className="text-xs text-gray-500 mt-1">
+              Asking ${fmtMX(target.asking_ppm)}/m² • Mercado amplio mediana ${fmtMX(market537.medianPpm)}/m² ({askingPpmVsMedian537 >= 0 ? '+' : ''}{askingPpmVsMedian537}%) • Curado mediana ${fmtMX(stats.median_ppm)}/m² ({askingPpmVsMedian >= 0 ? '+' : ''}{askingPpmVsMedian}%)
+            </div>
           </div>
         </div>
         <div className="mt-4 text-xs leading-relaxed text-gray-400">
-          Modelo principal: <span className="font-mono text-[#a78bfa]">{models.formula}</span><br />
+          Modelo mercado amplio (titular): <span className="font-mono text-[#a78bfa]">660 × mediana_ppm_{market537.n} × {models.potential_multiplier} × {models.zone_premium}</span> • Modelo curado (referencia): <span className="font-mono text-[#a78bfa]">{models.formula}</span><br />
           +40% por alto potencial densificación (CUS 2.4 permite ~12 aptos vs lotes típicos 1-2 viviendas en los comps).
         </div>
       </div>
@@ -136,26 +189,43 @@ export default function ValuacionTab() {
       <section className="space-y-4">
         <div className="flex items-baseline justify-between">
           <h2 className="text-xl font-semibold tracking-tight">Cómo se obtiene la valuación (fórmulas + números)</h2>
-          <div className="text-xs px-2 py-0.5 bg-[#1e1e2e] rounded">Fuente: comps_clean.json + modelo_precio_simple.py</div>
+          <div className="text-xs px-2 py-0.5 bg-[#1e1e2e] rounded">Fuente: comps_clean.json (n=12) + terrenos_full.json (n={market537.n})</div>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="glass rounded-2xl p-5 border border-[#1e1e2e] space-y-3 text-sm">
-            <div className="font-semibold text-[#a78bfa]">1. Mediana de comps vacantes (sin construcción)</div>
+            <div className="font-semibold text-[#a78bfa]">1a. Mediana de comps curados a mano (sin construcción)</div>
             <div className="font-mono text-lg">mediana_ppm = {fmtMX(stats.median_ppm)} $/m² <span className="text-xs text-gray-500">(n={stats.n})</span></div>
             <div className="text-gray-400">Base = 660 m² × {fmtMX(stats.median_ppm)} = <span className="text-white font-medium">{fmtMoney(models.base_median)}</span></div>
           </div>
           <div className="glass rounded-2xl p-5 border border-[#1e1e2e] space-y-3 text-sm">
-            <div className="font-semibold text-[#a78bfa]">2. Ajuste CUS / potencial desarrollo (roadmap)</div>
+            <div className="font-semibold text-[#a78bfa]">1b. Mediana de mercado amplio (comps reales scrapeados Lamudi)</div>
+            <div className="font-mono text-lg">mediana_ppm = {fmtMX(market537.medianPpm)} $/m² <span className="text-xs text-gray-500">(n={market537.n}, p25={fmtMX(market537.p25Ppm)} – p75={fmtMX(market537.p75Ppm)})</span></div>
+            <div className="text-gray-400">Base = 660 m² × {fmtMX(market537.medianPpm)} = <span className="text-white font-medium">{fmtMoney(market537.base)}</span></div>
+          </div>
+          <div className="glass rounded-2xl p-5 border border-[#1e1e2e] space-y-3 text-sm">
+            <div className="font-semibold text-[#a78bfa]">2. Ajuste CUS / potencial desarrollo (roadmap) — mismo ajuste para ambos modelos</div>
             <div>multiplicador_CUS = {models.potential_multiplier}× (12 unidades vs densidad baja de comps)</div>
             <div>multiplicador_zona = {models.zone_premium}× (plusvalía Cimatario)</div>
-            <div className="font-mono text-lg">valor_ajustado = {fmtMoney(models.base_median)} × {models.potential_multiplier} × {models.zone_premium} = <span className="text-[#10b981] font-semibold">{fmtMoney(models.adjusted_median)}</span></div>
+            <div className="font-mono text-sm">curado (n={stats.n}): {fmtMoney(models.base_median)} × {models.potential_multiplier} × {models.zone_premium} = <span className="text-[#10b981] font-semibold">{fmtMoney(models.adjusted_median)}</span></div>
+            <div className="font-mono text-sm">mercado amplio (n={market537.n}): {fmtMoney(market537.base)} × {models.potential_multiplier} × {models.zone_premium} = <span className="text-[#a78bfa] font-semibold">{fmtMoney(market537.adjusted)}</span></div>
+          </div>
+          <div className={`glass rounded-2xl p-5 border space-y-2 text-sm ${Math.abs(market537.deltaPct) >= 10 ? 'border-[#f59e0b]/50' : 'border-[#1e1e2e]'}`}>
+            <div className="font-semibold mb-1">3. Reconciliación: curado (n={stats.n}) vs mercado amplio (n={market537.n})</div>
+            <div className="text-xs md:text-sm text-gray-300">
+              El estimado ajustado de mercado amplio (<span className="font-mono">{fmtMoney(market537.adjusted)}</span>) es{' '}
+              <span className={`font-semibold ${market537.deltaPct >= 0 ? 'text-[#f59e0b]' : 'text-[#3b82f6]'}`}>{market537.deltaPct >= 0 ? '+' : ''}{market537.deltaPct.toFixed(1)}%</span>{' '}
+              vs. el modelo fino curado (<span className="font-mono">{fmtMoney(models.adjusted_median)}</span>).
+            </div>
+            <div className="text-[11px] text-gray-500 leading-relaxed pt-1">
+              Los {market537.n} comps de mercado amplio incluyen terrenos heterogéneos (distintas zonas de Querétaro, algunos con condición/ubicación no verificada a mano) — por eso el modelo curado de {stats.n} lotes vacantes en Cimatario se mantiene como referencia fina, pero la divergencia se muestra sin filtrar para que la valuación sea trazable a toda la data disponible, no solo a la muestra pequeña.
+            </div>
           </div>
           <div className="glass rounded-2xl p-5 border border-[#1e1e2e] space-y-2 text-sm lg:col-span-2">
             <div className="font-semibold mb-1">Referencias adicionales del modelo</div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-1 text-xs md:text-sm">
-              <div>Promedio comps (ajustado): <span className="font-medium text-white">{fmtMoney(models.adjusted_mean)}</span></div>
+              <div>Promedio comps curados (ajustado): <span className="font-medium text-white">{fmtMoney(models.adjusted_mean)}</span></div>
               <div>Lamudi area avg 6,433 $/m² (ajustado): <span className="font-medium text-white">{fmtMoney(models.lamudi_adjusted)}</span></div>
-              <div>Rango consenso (ajustado ±8%): <span className="font-medium text-[#10b981]">{fmtMoney(models.consensus_low)} — {fmtMoney(models.consensus_high)}</span></div>
+              <div>Rango consenso curado (ajustado ±8%): <span className="font-medium text-[#10b981]">{fmtMoney(models.consensus_low)} — {fmtMoney(models.consensus_high)}</span></div>
             </div>
             <div className="pt-2 text-[11px] text-gray-500">Nota: Este es prototipo inicial. Próximos pasos (roadmap): sklearn regression, features de vision (vistas, topografía), ajuste por tamaño y tiempo en mercado.</div>
           </div>
@@ -264,7 +334,7 @@ export default function ValuacionTab() {
 
       <div className="pt-4 border-t border-[#1e1e2e] text-xs text-gray-500 flex flex-col md:flex-row gap-2 md:items-center md:justify-between">
         <div>
-          Datos: modelo/KPIs calculados sobre 12 comps limpios curados a mano (terrenos sin construcción) • Vector de precios y tabla usan los {FULL_DB_COUNT} comps reales scrapeados de Lamudi. Modelo: <span className="font-mono">modelo_precio_simple.py</span> + <span className="font-mono">valuation_output.json</span>.
+          Datos: KPIs titulares y vector de precios calculados sobre los {FULL_DB_COUNT} comps reales scrapeados de Lamudi (mercado amplio) • Modelo fino de referencia calculado sobre 12 comps limpios curados a mano (terrenos sin construcción) — ver reconciliación arriba. Modelo: <span className="font-mono">modelo_precio_simple.py</span> + <span className="font-mono">valuation_output.json</span>.
         </div>
         <div className="flex gap-3">
           <button onClick={() => alert('En producción: re-ejecutar scraper + modelo + refresh.')} className="hover:text-white transition">Re-correr modelo (py)</button>
