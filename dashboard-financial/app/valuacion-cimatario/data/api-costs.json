@@ -1,0 +1,20 @@
+[
+  {
+    "date": "2026-07-05T20:00:00Z",
+    "api": "Google Geocoding",
+    "operation": "geocode 179 comps + validación predio",
+    "units": 182,
+    "unit_cost_usd": 0.005,
+    "cost_usd": 0.91,
+    "note": "179 comps sin coords → 74 calle + 105 colonia"
+  },
+  {
+    "date": "2026-07-05T20:15:00Z",
+    "api": "FAL flux/schnell",
+    "operation": "4 renders HBU (validación + 3 escenarios)",
+    "units": 4,
+    "unit_cost_usd": 0.003,
+    "cost_usd": 0.012,
+    "note": "hibrido/vertical/horizontal + test"
+  }
+]

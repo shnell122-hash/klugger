@@ -8,6 +8,7 @@ import EstudioMercadoTab from './components/EstudioMercadoTab';
 import MarketingTab from './components/MarketingTab';
 import HbuTab from './components/HbuTab';
 import AgentesTab from './components/AgentesTab';
+import CostosTab from './components/CostosTab';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Order follows the investment narrative: value the asset, show the market
@@ -21,6 +22,7 @@ const TABS = [
   { id: 'database', label: '🗄️ Base de Datos' },
   { id: 'marketing', label: '📣 Marketing + Estudio' },
   { id: 'agentes', label: '🤖 Agentes + Outreach WA' },
+  { id: 'costos', label: '💰 Costos API' },
 ] as const;
 
 type TabId = typeof TABS[number]['id'];
@@ -129,6 +131,7 @@ export default function ValuacionDashboard() {
             {activeTab === 'database' && <ErrorBoundary label="Base de Datos"><DatabaseTab /></ErrorBoundary>}
             {activeTab === 'marketing' && <ErrorBoundary label="Marketing"><MarketingTab /></ErrorBoundary>}
             {activeTab === 'agentes' && <ErrorBoundary label="Agentes"><AgentesTab /></ErrorBoundary>}
+            {activeTab === 'costos' && <ErrorBoundary label="Costos API"><CostosTab /></ErrorBoundary>}
           </motion.div>
         </AnimatePresence>
       </div>

@@ -72,43 +72,79 @@ export default function HbuTab() {
     return { base, adjusted, low: Math.round(base * 1.35), high: Math.round(base * 1.45 * 1.10) };
   }, [proformaInput.cus]);
 
-  // Solo se dibujan comps con lat/lng real (geocodificados en
-  // terrenos_full.json). Antes, los ~179 comps sin coordenadas se
-  // "resolvían" con un scatter golden-angle inventado alrededor de un
-  // centro arbitrario y se marcaban approxLocation:true — eso presenta
-  // posiciones ficticias como si fueran datos, lo cual es deshonesto en un
-  // mapa de inversión inmobiliaria. Decisión: excluirlos del mapa por
-  // completo en vez de fingir una ubicación. `excludedCount` se conserva
-  // para ser transparentes en el caption sobre cuántos quedaron fuera.
+  // Se dibujan los 537/537 comps de terrenos_full.json — todos traen lat/lng
+  // real (358 con coords del listing original + 179 geocodificados con
+  // Google). Antes se excluían del mapa los 179 geocodificados; ahora se
+  // muestran todos, pero honestamente diferenciados por precisión real
+  // (geo_precision de Google Geocoding: ROOFTOP/RANGE_INTERPOLATED = calle
+  // exacta; APPROXIMATE/GEOMETRIC_CENTER = centroide de colonia — MapboxMap
+  // los dibuja más tenues y lo aclara en el popup en vez de presentarlos
+  // como ubicaciones exactas). `excludedCount` se conserva por robustez
+  // (registros sin coords o sin precio/tamaño válidos) aunque hoy sea 0.
+  //
+  // La clasificación por color ya NO usa 3 umbrales fijos de $/m² que
+  // reutilizaban --danger/--accent-amber de forma decorativa (esos tokens
+  // están reservados a semántica de "malo"/"advertencia" en globals.css, no
+  // a "terreno caro"). En su lugar cada comp se tagea con su `tier` de
+  // precio por CUARTIL de $/m² calculado sobre el universo completo de
+  // comps — MapboxMap.tsx pinta cada tier con un tono de la rampa
+  // secuencial violeta (--brand-violet, ya designado "data accent" en
+  // globals.css). Esto reemplaza las 4-5 zonas dibujadas a mano (polígonos
+  // sin sustento cartográfico, ver feedback punto 10) por una clasificación
+  // derivada directamente de los datos y defendible.
   const { propertyPoints, excludedCount } = useMemo(() => {
-    const raw = (terrenosFullRaw as any[]).slice(0, 800);
+    const raw = terrenosFullRaw as any[];
     let excluded = 0;
-    const points = raw.reduce<Array<{
+
+    type Shaped = {
       title: string; location: string; price: number; size: number;
-      ppm: number; color: string; lat: number; lng: number;
-    }>>((acc, r: any, i: number) => {
-      const latRaw = Number(r.lat);
-      const lngRaw = Number(r.lng);
-      const hasRealCoords = Number.isFinite(latRaw) && Number.isFinite(lngRaw) && latRaw !== 0 && lngRaw !== 0;
-      if (!hasRealCoords) {
+      ppm: number; lat: number; lng: number; geoPrecision: string; isApprox: boolean;
+    };
+
+    const shaped = raw.reduce<Shaped[]>((acc, r: any, i: number) => {
+      const lat = Number(r.lat);
+      const lng = Number(r.lng);
+      const price = Number(r.price) || 0;
+      const size = Number(r.size_m2 ?? r.size) || 0;
+      const hasRealCoords = Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0;
+      if (!hasRealCoords || price <= 0 || size <= 0) {
         excluded += 1;
         return acc;
       }
-      const price = Number(r.price) || 0;
-      const size = Number(r.size_m2 ?? r.size) || 200;
-      const ppm = size > 0 ? Math.round(price / size) : 0;
+      // geo_precision viene de Google Geocoding para los ~179 comps sin
+      // coords en el listing original. Los ~358 restantes traen coords del
+      // propio listing (tan exactas como el portal las publicó) y se
+      // etiquetan "EXACT" por default.
+      const geoPrecision: string = r.geo_precision ?? 'EXACT';
+      const isApprox = geoPrecision === 'APPROXIMATE' || geoPrecision === 'GEOMETRIC_CENTER';
       acc.push({
         title: String(r.title ?? r.address ?? `Terreno ${i + 1}`),
         location: String(r.location ?? r.colonia ?? 'Cimatario'),
         price,
         size,
-        ppm,
-        color: ppm > 8500 ? '#10b981' : ppm < 5000 ? '#ef4444' : '#f59e0b',
-        lat: latRaw,
-        lng: lngRaw,
+        ppm: Math.round(price / size),
+        lat,
+        lng,
+        geoPrecision,
+        isApprox,
       });
       return acc;
     }, []);
+
+    const sortedPpm = shaped.map(p => p.ppm).sort((a, b) => a - b);
+    const quantile = (arr: number[], q: number) => {
+      const pos = (arr.length - 1) * q;
+      const lo = Math.floor(pos);
+      const hi = Math.min(lo + 1, arr.length - 1);
+      return arr[lo] + (arr[hi] - arr[lo]) * (pos - lo);
+    };
+    const q1 = quantile(sortedPpm, 0.25);
+    const q2 = quantile(sortedPpm, 0.5);
+    const q3 = quantile(sortedPpm, 0.75);
+    const tierOf = (ppm: number): 'bajo' | 'medio' | 'alto' | 'premium' =>
+      ppm <= q1 ? 'bajo' : ppm <= q2 ? 'medio' : ppm <= q3 ? 'alto' : 'premium';
+
+    const points = shaped.map(p => ({ ...p, tier: tierOf(p.ppm) }));
     return { propertyPoints: points, excludedCount: excluded };
   }, []);
 
@@ -353,14 +389,11 @@ export default function HbuTab() {
       <section>
         <h3 className="text-xl font-semibold mb-3">5. Mapa de Oportunidades</h3>
         <div className="glass rounded-3xl p-5 border border-[#1e1e2e]">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs mb-3">
-            {[
-              { label: 'Cimatario core — Expansión alta', c: 'bg-green-900/50 border-green-500/50' },
-              { label: 'Cumbres — Crecimiento moderado', c: 'bg-yellow-900/50 border-yellow-500/50' },
-              { label: 'Centro Sur — Estable', c: 'bg-blue-900/50 border-blue-500/50' },
-              { label: 'Periféricos saturados', c: 'bg-red-900/50 border-red-500/50' },
-            ].map(({ label, c }) => <div key={label} className={`p-2 rounded border ${c}`}>{label}</div>)}
-          </div>
+          {/* La leyenda de zonas dibujadas a mano (Cimatario core / Cumbres /
+              Centro Sur / Periféricos) se retiró — ver feedback punto 10: no
+              tenían sustento cartográfico. MapboxMap.tsx ahora dibuja su
+              propia leyenda (tiers de $/m² por cuartil + precisión de
+              ubicación) directamente sobre el mapa. */}
           <div style={{ height: '420px', width: '100%' }}>
             <MapboxMap propertyPoints={propertyPoints} fmtMoney={fmtPesos} />
           </div>

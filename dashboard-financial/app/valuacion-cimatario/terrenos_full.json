@@ -213,12 +213,14 @@
     "title": "Lote / Terreno en Venta en Las Misiones",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Calle Eusebio Francisco Kino 38, Cimatario, Santiago De Querétaro, Querétaro, 76030, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5802864,
+    "lng": -100.3921694,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-a9531eb888a6-9ef1-19e8b3a-9405-7288",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:02.591627+00:00"
+    "scraped_at": "2026-07-05T03:43:02.591627+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 1930000.0,
@@ -239,12 +241,14 @@
     "title": "Lote / Terreno en Venta en Centro Histórico",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Calle Corregidora 180-B-184-D, Centro, Santiago de Querétaro, Querétaro, 76000, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5879917,
+    "lng": -100.3897688,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-c119752411c1-3c4-19a0c4a-af18-762d",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:02.618391+00:00"
+    "scraped_at": "2026-07-05T03:43:02.618391+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 3800000.0,
@@ -317,12 +321,14 @@
     "title": "Lote / Terreno en Venta en Centro Sur",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "PuntOlivo, Prolongación Bernardo Quintana, Centro Sur, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.573938,
+    "lng": -100.3595435,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-33fa7c90f71e-e6d0-13793952-a1a0-3cb8",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:08.652780+00:00"
+    "scraped_at": "2026-07-05T03:43:08.652780+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 2100000.0,
@@ -330,12 +336,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Circuito a, Cañada, Santiago de Querétaro, Querétaro, 76237, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6201825,
+    "lng": -100.4460806,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-7c8ea2d7329a-c6fa-19c8e1e-8e6a-7285",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:08.662718+00:00"
+    "scraped_at": "2026-07-05T03:43:08.662718+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 1250000.0,
@@ -343,12 +351,14 @@
     "title": "Lote / Terreno en Venta en La Carbonera",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Carbonera, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6028226,
+    "lng": -100.4234198,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-415cf400fe97-1f03-7cfe79bf-aed3-4471",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:08.689338+00:00"
+    "scraped_at": "2026-07-05T03:43:08.689338+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 2180000.0,
@@ -447,12 +457,14 @@
     "title": "Lote / Terreno en Venta en Milenio III",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Privada Sendero del Reflejo, Milenio Tercera Sección, Santiago de Querétaro, Querétaro, 76060, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5905667,
+    "lng": -100.3481513,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-68467b07a3e5-3dca-19cc55c-939b-73c4",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=2",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:12.624419+00:00"
+    "scraped_at": "2026-07-05T03:43:12.624419+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 2000000.0,
@@ -460,12 +472,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76237, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6775608,
+    "lng": -100.3890951,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-a3418bf0975a-c30d-19bb84d-ba4d-7862",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=2",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:12.625159+00:00"
+    "scraped_at": "2026-07-05T03:43:12.625159+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 6772500.0,
@@ -486,12 +500,14 @@
     "title": "Lote / Terreno en Venta en La Vista",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Anillo Vial Fray Junípero Serra, Misión de Santiago, Fraccionamiento La Vista Residencial, Rinconada La Condesa, Querétaro, 76146, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6394441,
+    "lng": -100.3480426,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-26766eb74a6e-6534-19d4f2b-afa6-7c07",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=2",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:12.630044+00:00"
+    "scraped_at": "2026-07-05T03:43:12.630044+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 3223000.0,
@@ -525,12 +541,14 @@
     "title": "Lote / Terreno en Venta en La Vista",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "La Vista Residencial, Anillo Vial Fray Junípero Serra, Residencial La Vista, La vista Residencial, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6387135,
+    "lng": -100.3483684,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-21aa5926e9e5-c4d8-19910bd-a898-76b8",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=2",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:12.649251+00:00"
+    "scraped_at": "2026-07-05T03:43:12.649251+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 5085430.0,
@@ -538,12 +556,14 @@
     "title": "Lote / Terreno en Venta en Centro Sur",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "PuntOlivo, Prolongación Bernardo Quintana, Centro Sur, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.573938,
+    "lng": -100.3595435,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-61324ca510c4-33b1-2fbf2-953d-372c",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=2",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:12.649933+00:00"
+    "scraped_at": "2026-07-05T03:43:12.649933+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 3200000.0,
@@ -577,12 +597,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76237, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6775608,
+    "lng": -100.3890951,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-76b8788e6ff0-4a5c-19c315d-b81e-78ba",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=2",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:12.665214+00:00"
+    "scraped_at": "2026-07-05T03:43:12.665214+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 5300000.0,
@@ -590,12 +612,14 @@
     "title": "Lote / Terreno en Venta en Campanario",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "El Campanario, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6168441,
+    "lng": -100.3492959,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-10cd41b980a8-482e-19bc416-a78c-7492",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=2",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:12.671810+00:00"
+    "scraped_at": "2026-07-05T03:43:12.671810+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 2061000.0,
@@ -603,12 +627,14 @@
     "title": "Lote / Terreno en Venta en Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Parque Central Lomas del Campanario Norte, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6281875,
+    "lng": -100.3398125,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-8c80a42fed0f-f070-1cb6602b-ae01-4d0b",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=2",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:12.672609+00:00"
+    "scraped_at": "2026-07-05T03:43:12.672609+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 771000.0,
@@ -629,12 +655,14 @@
     "title": "Lote / Terreno en Venta en Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Carretera Libramiento Sur Poniente, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5525955,
+    "lng": -100.3702883,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-88e5fb4e5107-43d6-b2949d1f-9c86-481c",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=2",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:12.687178+00:00"
+    "scraped_at": "2026-07-05T03:43:12.687178+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 2250000.0,
@@ -668,12 +696,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76237, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6775608,
+    "lng": -100.3890951,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-619a5b913d94-1edd-19e29ff-a4b0-73c6",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=3",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:15.644462+00:00"
+    "scraped_at": "2026-07-05T03:43:15.644462+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 2850000.0,
@@ -746,12 +776,14 @@
     "title": "Lote / Terreno en Venta en Centro Sur",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Centro Sur, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5911101,
+    "lng": -100.3508634,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-20031dba55c-8160-1949dc7-aff2-7cff",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=3",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:15.709890+00:00"
+    "scraped_at": "2026-07-05T03:43:15.709890+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 6000000.0,
@@ -759,12 +791,14 @@
     "title": "Lote / Terreno en Venta en San Francisquito",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Calle 21 De Marzo 30, San Francisquito, Santiago De Querétaro, Querétaro, 76058, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5897324,
+    "lng": -100.3854816,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-b5caa819199e-cf7-19d5069-bf26-7177",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=3",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:15.715435+00:00"
+    "scraped_at": "2026-07-05T03:43:15.715435+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 44057000.0,
@@ -941,12 +975,14 @@
     "title": "Lote / Terreno en Venta en El Mirador",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Calle Cuauhtémoc, San Isidro Miranda, El Marqués, Querétaro, 76246, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5989411,
+    "lng": -100.3969692,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-6ad8c2af4c8d-ed9-19e3986-92a8-7ac2",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=3",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:15.851853+00:00"
+    "scraped_at": "2026-07-05T03:43:15.851853+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 1620000.0,
@@ -954,12 +990,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76237, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6775608,
+    "lng": -100.3890951,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-80f7d8283a2b-6619-19dbded-9002-766c",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=3",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:15.861716+00:00"
+    "scraped_at": "2026-07-05T03:43:15.861716+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 1620270.0,
@@ -967,12 +1005,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76237, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6775608,
+    "lng": -100.3890951,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-174bc78acb40-1a98-19dbdd7-9721-7936",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=3",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:15.870849+00:00"
+    "scraped_at": "2026-07-05T03:43:15.870849+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 700000.0,
@@ -1058,12 +1098,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76237, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6775608,
+    "lng": -100.3890951,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-b3693904fb69-2418-19bb889-b781-7296",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=4",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:20.143544+00:00"
+    "scraped_at": "2026-07-05T03:43:20.143544+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 3958000.0,
@@ -1123,12 +1165,14 @@
     "title": "Lote / Terreno en Venta en Centro Sur",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "PuntOlivo, Prolongación Bernardo Quintana, Centro Sur, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.573938,
+    "lng": -100.3595435,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-f6144214b18c-18ab-7d556819-a67b-3e66",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=5",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:23.345020+00:00"
+    "scraped_at": "2026-07-05T03:43:23.345020+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 1650000.0,
@@ -1136,12 +1180,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Circuito a, Cañada, Santiago de Querétaro, Querétaro, 76237, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6201825,
+    "lng": -100.4460806,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-c88a8259693-3ecc-19c8e2d-92b6-7c55",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=5",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:23.345386+00:00"
+    "scraped_at": "2026-07-05T03:43:23.345386+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 2075000.0,
@@ -1149,12 +1195,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Circuito a, Cañada, Santiago de Querétaro, Querétaro, 76237, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6201825,
+    "lng": -100.4460806,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-12ef2323764b-a4d0-19c8e1b-a10f-77e7",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=5",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:23.345740+00:00"
+    "scraped_at": "2026-07-05T03:43:23.345740+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 1740000.0,
@@ -1162,12 +1210,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Circuito a, Cañada, Santiago de Querétaro, Querétaro, 76237, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6201825,
+    "lng": -100.4460806,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-291637aa6ab-867b-19c8e11-8cbc-7676",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=5",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:23.346137+00:00"
+    "scraped_at": "2026-07-05T03:43:23.346137+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 3826789.0,
@@ -1188,12 +1238,14 @@
     "title": "Lote / Terreno en Venta en Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76146, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6182789,
+    "lng": -100.3469826,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-8401da6d7ba-ec0a-1993b58-8b37-71c1",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=6",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:28.727196+00:00"
+    "scraped_at": "2026-07-05T03:43:28.727196+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 35500000.0,
@@ -1201,12 +1253,14 @@
     "title": "Lote / Terreno en Venta en Campanario",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Calle Campanario Del Rosario, El Campanario, Santiago de Querétaro, Querétaro, 76146, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6236228,
+    "lng": -100.3414635,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-a4173c4b23e5-7908-19e2a02-a553-7c2e",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=6",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:28.737166+00:00"
+    "scraped_at": "2026-07-05T03:43:28.737166+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 7621250.0,
@@ -1214,12 +1268,14 @@
     "title": "Lote / Terreno en Venta en Loma Dorada",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Loma Dorada, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5943225,
+    "lng": -100.3659308,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-42818616378b-46a2-19e89da-a174-7696",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=6",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:28.806954+00:00"
+    "scraped_at": "2026-07-05T03:43:28.806954+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 2280000.0,
@@ -1240,12 +1296,14 @@
     "title": "Lote / Terreno en Venta en Centro Sur",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Boulevard Bernardo Quintana, Centro Sur, Querétaro, 76090, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5728086,
+    "lng": -100.359645,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-5c6e8aaa74f7-e27d-1949dc7-ab01-7c59",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=6",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:28.822107+00:00"
+    "scraped_at": "2026-07-05T03:43:28.822107+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 3400000.0,
@@ -1318,12 +1376,14 @@
     "title": "Lote / Terreno en Venta en Arboledas del Parque",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Privada Fresneda 201, Arboledas Del Parque, Santiago De Querétaro, Querétaro, 76140, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6206527,
+    "lng": -100.3879574,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-d8e376c3701d-3ea1-1949a84-8e2e-797f",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=6",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:28.963430+00:00"
+    "scraped_at": "2026-07-05T03:43:28.963430+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 2500000.0,
@@ -1331,12 +1391,14 @@
     "title": "Lote / Terreno en Venta en Huertas La Joya",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5887932,
+    "lng": -100.3898881,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-3bcce6df0ae6-5bcd-78db3eac-bc32-36be",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=6",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:28.985354+00:00"
+    "scraped_at": "2026-07-05T03:43:28.985354+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 18550000.0,
@@ -1357,12 +1419,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Santiago de Querétaro, Querétaro Centro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5920203,
+    "lng": -100.3919033,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-4294e602c97d-bc63-1a408f5c-b51d-3c32",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=6",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:29.027491+00:00"
+    "scraped_at": "2026-07-05T03:43:29.027491+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 2673891.0,
@@ -1370,12 +1434,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Santiago de Querétaro, Querétaro Centro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5920203,
+    "lng": -100.3919033,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-55a95128a56c-f276-bc6041af-bafa-38ed",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=6",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:29.068584+00:00"
+    "scraped_at": "2026-07-05T03:43:29.068584+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 2190000.0,
@@ -1422,12 +1488,14 @@
     "title": "Lote / Terreno en Venta en Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Anillo Vial Fray Junípero Serra 8900, Residencial La Vista, La vista Residencial, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6393868,
+    "lng": -100.3478597,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-d81df640e035-cc0c-3fa21394-a104-3b4f",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=7",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:33.220529+00:00"
+    "scraped_at": "2026-07-05T03:43:33.220529+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 4390000.0,
@@ -1513,12 +1581,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Lago, Santiago de Querétaro, Querétaro, 76237, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.602133,
+    "lng": -100.4326889,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-4cbcd97942b0-8721-19e411e-a39d-777b",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=7",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:33.283429+00:00"
+    "scraped_at": "2026-07-05T03:43:33.283429+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 1720000.0,
@@ -1552,12 +1622,14 @@
     "title": "Lote / Terreno en Venta en El Refugio",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Calle Campo Real, El Refugio Residencial, Querétaro, 76146, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6523807,
+    "lng": -100.3494599,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-25dcd38c84df-7eca-19d7a8e-b5b9-7672",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=7",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:33.308085+00:00"
+    "scraped_at": "2026-07-05T03:43:33.308085+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 4664000.0,
@@ -1565,12 +1637,14 @@
     "title": "Lote / Terreno en Venta en San Isidro Buenavista",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Paseo de la República, San Isidro Buenavista, Buenavista, Querétaro, 76223, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.7866054,
+    "lng": -100.4516601,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-a749121926cd-849-19bb862-aa9b-7800",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=7",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:33.314298+00:00"
+    "scraped_at": "2026-07-05T03:43:33.314298+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 1750000.0,
@@ -1578,12 +1652,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Circuito a, Cañada, Santiago de Querétaro, Querétaro, 76237, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6201825,
+    "lng": -100.4460806,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-6c064e0950c6-83c9-19bfdee-8d23-753e",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=7",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:33.314646+00:00"
+    "scraped_at": "2026-07-05T03:43:33.314646+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 1905000.0,
@@ -1656,12 +1732,14 @@
     "title": "Lote / Terreno en Venta en La Vista",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "La Vista Residencial, Anillo Vial Fray Junípero Serra, Residencial La Vista, La vista Residencial, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6387135,
+    "lng": -100.3483684,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-5aab3f09ab48-b355-1991198-8325-70b5",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=8",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:37.749744+00:00"
+    "scraped_at": "2026-07-05T03:43:37.749744+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 2387532.0,
@@ -1708,12 +1786,14 @@
     "title": "Lote / Terreno en Venta en Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Lago de Juriquilla Fraccionamiento, Juriquilla, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.7056432,
+    "lng": -100.4684485,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-33a796e66728-210f-19958be-8a8c-7186",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=8",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:37.753792+00:00"
+    "scraped_at": "2026-07-05T03:43:37.753792+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 2097480.0,
@@ -1721,12 +1801,14 @@
     "title": "Lote / Terreno en Venta en La Vista",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "La Vista Residencial, Anillo Vial Fray Junípero Serra, Residencial La Vista, La vista Residencial, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6387135,
+    "lng": -100.3483684,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-988e43b45c94-1222-199117e-a538-7721",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=8",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:37.754158+00:00"
+    "scraped_at": "2026-07-05T03:43:37.754158+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 2926700.0,
@@ -1747,12 +1829,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Circuito a, Cañada, Santiago de Querétaro, Querétaro, 76237, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6201825,
+    "lng": -100.4460806,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-e440cf97d7b-6f38-19c8e21-8591-7bc6",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=8",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:37.757471+00:00"
+    "scraped_at": "2026-07-05T03:43:37.757471+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 2370000.0,
@@ -1786,12 +1870,14 @@
     "title": "Lote / Terreno en Venta en San José Buenavista",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Experiencia Ecuestre, Querétaro, 76230, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5840153,
+    "lng": -100.3956122,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-31bbcd58f1b3-5baa-19c556a-8aee-770c",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=8",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:37.801747+00:00"
+    "scraped_at": "2026-07-05T03:43:37.801747+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 3029000.0,
@@ -1799,12 +1885,14 @@
     "title": "Lote / Terreno en Venta en La Vista",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Avenida La Vista 1037, Fraccionamiento La Vista Residencial, Rinconada La Condesa, Querétaro, 76146, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6419028,
+    "lng": -100.3493073,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-81215d1ae841-3ad-19a0ba6-9d0f-7943",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=8",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:37.805750+00:00"
+    "scraped_at": "2026-07-05T03:43:37.805750+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 2450000.0,
@@ -1864,12 +1952,14 @@
     "title": "Lote / Terreno en Venta en Milenio III",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Milenio III, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5951924,
+    "lng": -100.3479663,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-a468edb1a2e3-4616-4faf06bc-9fff-31d9",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=8",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:37.864874+00:00"
+    "scraped_at": "2026-07-05T03:43:37.864874+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 4100000.0,
@@ -1890,12 +1980,14 @@
     "title": "Lote / Terreno en Venta en Buenavista",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Polígono Empresarial Buenavista, Automotriz, Buenavista, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.83818,
+    "lng": -100.4771349,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-7dd388124e37-e52c-19d68dc-8476-7475",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=9",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:41.795443+00:00"
+    "scraped_at": "2026-07-05T03:43:41.795443+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 16990000.0,
@@ -1903,12 +1995,14 @@
     "title": "Lote / Terreno en Venta en Centro Sur",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Calle Licenciado Manuel Gómez Morín 1004, Centro Sur, Santiago De Querétaro, Querétaro, 76090, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5598564,
+    "lng": -100.3616603,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-ae137258d917-5d91-19e2a0d-87a8-7423",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=9",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:41.800720+00:00"
+    "scraped_at": "2026-07-05T03:43:41.800720+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 3000000.0,
@@ -1968,12 +2062,14 @@
     "title": "Lote / Terreno en Venta en Palmares",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Calle Palma Latania, Palmares de Querétaro, Santiago de Querétaro, Querétaro, 76127, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6598198,
+    "lng": -100.4252604,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-5685efbfc027-20fe-19b7dd4-b05c-7be5",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=9",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:41.880718+00:00"
+    "scraped_at": "2026-07-05T03:43:41.880718+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 2850000.0,
@@ -1994,12 +2090,14 @@
     "title": "Lote / Terreno en Venta en Milenio III",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Milenio III, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5951924,
+    "lng": -100.3479663,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-520e850879c7-9b29-19cda90-bcf8-773a",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=9",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:41.896567+00:00"
+    "scraped_at": "2026-07-05T03:43:41.896567+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 2850000.0,
@@ -2059,12 +2157,14 @@
     "title": "Lote / Terreno en Venta en Milenio III",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Milenio III, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5951924,
+    "lng": -100.3479663,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-d714ccf01d68-8c18-19d17e3-831d-753d",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=9",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:41.948987+00:00"
+    "scraped_at": "2026-07-05T03:43:41.948987+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 1390000.0,
@@ -2098,12 +2198,14 @@
     "title": "Lote / Terreno en Venta en San Francisquito",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Privada San José De La Montaña Acceso Electricistas 302, San Francisquito, Santiago De Querétaro, Querétaro, 76058, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5879162,
+    "lng": -100.3820485,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-2eb9997b5de7-2f51-1954f75-a02a-7253",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=9",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:41.977491+00:00"
+    "scraped_at": "2026-07-05T03:43:41.977491+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 2963460.0,
@@ -2111,12 +2213,14 @@
     "title": "Lote / Terreno en Venta en Loma Dorada",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Cerrada Loma de Querétaro 35, Loma Dorada, Querétaro, 76060, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5926533,
+    "lng": -100.3638405,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-92c05f5f0055-dfcb-c3bf05ef-bbc7-3538",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=9",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:41.982239+00:00"
+    "scraped_at": "2026-07-05T03:43:41.982239+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 6772500.0,
@@ -2176,12 +2280,14 @@
     "title": "Lote / Terreno en Venta en Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Juriquilla Grand, La Antigua Juriquilla, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.7422605,
+    "lng": -100.4723877,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-cd1d14d6f7a2-4840-1990c26-9242-79b2",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=9",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:42.032987+00:00"
+    "scraped_at": "2026-07-05T03:43:42.032987+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 1620270.0,
@@ -2189,12 +2295,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76237, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6775608,
+    "lng": -100.3890951,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-279869e05132-a0eb-19dbdf7-80ac-7390",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=9",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:42.057986+00:00"
+    "scraped_at": "2026-07-05T03:43:42.057986+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 1686690.0,
@@ -2202,12 +2310,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76237, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6775608,
+    "lng": -100.3890951,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-e3f66a60a110-e6d6-19dbdf6-b7ef-70b9",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=9",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:42.069792+00:00"
+    "scraped_at": "2026-07-05T03:43:42.069792+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 6000000.0,
@@ -2384,12 +2494,14 @@
     "title": "Lote / Terreno en Venta en Buenavista",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Camino a Loma del Chino, Buenavista, Querétaro, 76225, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.8483612,
+    "lng": -100.4774849,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-7b1e075d1b21-1803-56238347-b122-3b83",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=10",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:45.896768+00:00"
+    "scraped_at": "2026-07-05T03:43:45.896768+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 2850000.0,
@@ -2397,12 +2509,14 @@
     "title": "Lote / Terreno en Venta en Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5887932,
+    "lng": -100.3898881,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-d2af1dfd4873-2101-c88a5d65-a291-35c9",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=11",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:49.271412+00:00"
+    "scraped_at": "2026-07-05T03:43:49.271412+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 4118400.0,
@@ -2423,12 +2537,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76237, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6775608,
+    "lng": -100.3890951,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-c0213e9e2b51-56a6-19e416f-a052-74ee",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=11",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:49.281808+00:00"
+    "scraped_at": "2026-07-05T03:43:49.281808+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 1620000.0,
@@ -2436,12 +2552,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76237, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6775608,
+    "lng": -100.3890951,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-47e62ff3ddda-e651-19e41ce-ad59-777e",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=11",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:49.285939+00:00"
+    "scraped_at": "2026-07-05T03:43:49.285939+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 3715000.0,
@@ -2514,12 +2632,14 @@
     "title": "Lote / Terreno en Venta en Balcones",
     "location": "Juriquilla, Querétaro Arteaga",
     "address": "76226, Real de Juriquilla, Querétaro, MEX, Juriquilla, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.7258454,
+    "lng": -100.4677503,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-ae879f3af246-2cf2-194af22-ba03-71c3",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=11",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:49.317692+00:00"
+    "scraped_at": "2026-07-05T03:43:49.317692+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 7705000.0,
@@ -2540,12 +2660,14 @@
     "title": "Lote / Terreno en Venta en 5 de Febrero",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Autotransportes de Carga Maguersa, Calle Fray San Martín de Porres 100, Felipe Carrillo Puerto, Querétaro, 76139, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6054695,
+    "lng": -100.4213064,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-ceba1334ac2-d967-19d7a26-baa1-7f5b",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=11",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:49.338584+00:00"
+    "scraped_at": "2026-07-05T03:43:49.338584+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 4300000.0,
@@ -2553,12 +2675,14 @@
     "title": "Lote / Terreno en Venta en Centro Sur",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Kalidecoracion Persianas, Pasto, Laminados, Tapices, Y Mucho Más, Centro Sur, Querétaro, 76090, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5705002,
+    "lng": -100.3582107,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-6e08cc2a9dd5-3eae-19a0c13-9b1d-76f2",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=11",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:49.346708+00:00"
+    "scraped_at": "2026-07-05T03:43:49.346708+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 2650000.0,
@@ -2735,12 +2859,14 @@
     "title": "Lote / Terreno en Venta en La Vista",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "La Vista Residencial, Anillo Vial Fray Junípero Serra, Residencial La Vista, La vista Residencial, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6387135,
+    "lng": -100.3483684,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-b4cebb4ce692-f41-19911b9-ad2e-74ab",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=12",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:54.060704+00:00"
+    "scraped_at": "2026-07-05T03:43:54.060704+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 30000000.0,
@@ -2995,12 +3121,14 @@
     "title": "Lote / Terreno en Venta en La Vista",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "La Vista Residencial, Anillo Vial Fray Junípero Serra, Residencial La Vista, La vista Residencial, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6387135,
+    "lng": -100.3483684,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-e306b0203f90-7e2e-19741a7-b610-7c05",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=13",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:58.884668+00:00"
+    "scraped_at": "2026-07-05T03:43:58.884668+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 1280000.0,
@@ -3008,12 +3136,14 @@
     "title": "Lote / Terreno en Venta en Mirador del Campanario",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Mirador del Campanario 1174, Cto. Mirador del Campanario, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6047652,
+    "lng": -100.3580584,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-5ecc5ce4dd59-ef4d-19e2404-8b11-75c1",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=13",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:58.894787+00:00"
+    "scraped_at": "2026-07-05T03:43:58.894787+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 3309712.0,
@@ -3034,12 +3164,14 @@
     "title": "Lote / Terreno en Venta en La Gloria",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Carretera Estatal 18, Santiago De Querétaro, Querétaro, 76177, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5872034,
+    "lng": -100.4171198,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-564d0abcc528-66b8-19e6946-900f-726c",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=13",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:43:58.931523+00:00"
+    "scraped_at": "2026-07-05T03:43:58.931523+00:00",
+    "geo_source": "google",
+    "geo_precision": "RANGE_INTERPOLATED"
   },
   {
     "price": 2600000.0,
@@ -3190,12 +3322,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Altozano Querétaro, Anillo Vial Fray Junípero Serra, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.671126,
+    "lng": -100.3969311,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-cfabd0512de9-d6ab-19e7f57-b1a0-7143",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=14",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:03.312836+00:00"
+    "scraped_at": "2026-07-05T03:44:03.312836+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 2980000.0,
@@ -3203,12 +3337,14 @@
     "title": "Lote / Terreno en Venta en Loma Dorada",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Avenida Loma de la Cañada 136-142, Loma Dorada, Santiago de Querétaro, Querétaro, 76060, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.590829,
+    "lng": -100.3630005,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-ac1781cd9fc8-2d16-193755b-b976-727c",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=14",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:03.319948+00:00"
+    "scraped_at": "2026-07-05T03:44:03.319948+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 12000000.0,
@@ -3333,12 +3469,14 @@
     "title": "Lote / Terreno en Venta en Huertas La Joya",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Avenida de las Huertas, Huertas la Joya, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6263443,
+    "lng": -100.5026405,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-21630160339a-d5b3-1971e71-83f1-7f2d",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=14",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:03.430623+00:00"
+    "scraped_at": "2026-07-05T03:44:03.430623+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 1875000.0,
@@ -3411,12 +3549,14 @@
     "title": "Lote / Terreno en Venta en Huertas La Joya",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Avenida Mirador de Querétaro, Huertas La Joya, Sonterra, Delegación Felipe Carrillo Puerto, Municipio de Querétaro, Querétaro, 38183, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.619494,
+    "lng": -100.5009498,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-f3f6bca94913-8475-19c9e5b-a8c0-7a20",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=14",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:03.507915+00:00"
+    "scraped_at": "2026-07-05T03:44:03.507915+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 576000.0,
@@ -3450,12 +3590,14 @@
     "title": "Lote / Terreno en Venta en Milenio III",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Calle Senda De Los Recuerdos 69, Milenio 3a. Ion, Santiago De Querétaro, Querétaro, 76060, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5973036,
+    "lng": -100.3457428,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-2b277d2a9e56-3c19-1b66d75a-9578-3ea9",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=15",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:08.388296+00:00"
+    "scraped_at": "2026-07-05T03:44:08.388296+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 10000000.0,
@@ -3463,12 +3605,14 @@
     "title": "Lote / Terreno en Venta en San Mateo",
     "location": "Santiago de Querétaro, Querétaro Arteaga",
     "address": "Avenida José Sánchez, Colonia Santa Catarina, Santiago de Querétaro, Querétaro, 76157, MEX, Santiago de Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6039119,
+    "lng": -100.4007611,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-8b2f96ac2ec5-d540-19a1179-b88e-7361",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=15",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:08.407858+00:00"
+    "scraped_at": "2026-07-05T03:44:08.407858+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 850000.0,
@@ -3489,12 +3633,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76237, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6775608,
+    "lng": -100.3890951,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-84ead69debdc-1b3d-19dbdeb-91bc-73cd",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=16",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:13.582898+00:00"
+    "scraped_at": "2026-07-05T03:44:13.582898+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 1620270.0,
@@ -3502,12 +3648,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76237, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6775608,
+    "lng": -100.3890951,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-1aa640466957-d399-19dbdfc-b2d1-7f01",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=16",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:13.595733+00:00"
+    "scraped_at": "2026-07-05T03:44:13.595733+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 1620000.0,
@@ -3515,12 +3663,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76237, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6775608,
+    "lng": -100.3890951,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-f1e7786ea72c-a0f0-19dbdef-b027-79f6",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=16",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:13.606806+00:00"
+    "scraped_at": "2026-07-05T03:44:13.606806+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 1686690.0,
@@ -3528,12 +3678,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76237, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6775608,
+    "lng": -100.3890951,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-57816dbff02e-738a-19dbdeb-8a1b-7b69",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=16",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:13.618901+00:00"
+    "scraped_at": "2026-07-05T03:44:13.618901+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 1620270.0,
@@ -3541,12 +3693,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76237, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6775608,
+    "lng": -100.3890951,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-76a1b69515eb-426f-19dbdf7-b7ec-721e",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=16",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:13.630994+00:00"
+    "scraped_at": "2026-07-05T03:44:13.630994+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 1620270.0,
@@ -3554,12 +3708,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76237, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6775608,
+    "lng": -100.3890951,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-652ed41a59ac-1370-19dbdd7-8fe8-74f2",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=16",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:13.645553+00:00"
+    "scraped_at": "2026-07-05T03:44:13.645553+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 1775000.0,
@@ -3567,12 +3723,14 @@
     "title": "Lote / Terreno en Venta en Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Avenida Santa Lucía, Hacienda Juriquilla Santa Fé, Querétaro, 76100, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6875375,
+    "lng": -100.4493954,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-2bf91c9bebc8-4f83-19db23f-9609-7b97",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=16",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:13.657805+00:00"
+    "scraped_at": "2026-07-05T03:44:13.657805+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 5300000.0,
@@ -3736,12 +3894,14 @@
     "title": "Lote / Terreno en Venta en Pinto",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Camino a El Pinto, Querétaro, 76223, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.8021592,
+    "lng": -100.4107618,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-becb62075337-48c3-a935dc3e-a415-36d1",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=17",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:17.536842+00:00"
+    "scraped_at": "2026-07-05T03:44:17.536842+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 1250000.0,
@@ -3749,12 +3909,14 @@
     "title": "Lote / Terreno en Venta en Mirador del Campanario",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Privada Mirador del Campanario, Mirador Campanario, Santiago de Querétaro, Querétaro, 76146, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6066996,
+    "lng": -100.3590592,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-dbe9cf8fe553-fa97-19a1345-a7d5-7d4c",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=17",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:17.542075+00:00"
+    "scraped_at": "2026-07-05T03:44:17.542075+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 2400000.0,
@@ -3762,12 +3924,14 @@
     "title": "Lote / Terreno en Venta en La Capilla",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "La Capilla, Galindas, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5853562,
+    "lng": -100.4184194,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-46331faa9a38-53bf-19d30e5-83c1-740c",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=17",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:17.552508+00:00"
+    "scraped_at": "2026-07-05T03:44:17.552508+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 8000000.0,
@@ -3892,12 +4056,14 @@
     "title": "Lote / Terreno en Venta en Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Lomas Del Campanario Norte Central Park, Calle Tercera Campanario de la Inmaculada, Querétaro, 76146, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6281875,
+    "lng": -100.3398125,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-d7475ae816a4-b85a-19c030e-a52b-7afb",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=17",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:17.640476+00:00"
+    "scraped_at": "2026-07-05T03:44:17.640476+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 3817730.0,
@@ -3905,12 +4071,14 @@
     "title": "Lote / Terreno en Venta en Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76146, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6182789,
+    "lng": -100.3469826,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-c35d28863cca-68e3-19a0bba-942b-748a",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=17",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:17.647059+00:00"
+    "scraped_at": "2026-07-05T03:44:17.647059+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 4789000.0,
@@ -3918,12 +4086,14 @@
     "title": "Lote / Terreno en Venta en Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Lomas Del Campanario Norte Central Park, Calle Tercera Campanario de la Inmaculada, Querétaro, 76146, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6281875,
+    "lng": -100.3398125,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-2db65825a441-e66-19c0303-b66c-737e",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=17",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:17.651744+00:00"
+    "scraped_at": "2026-07-05T03:44:17.651744+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 1653582.0,
@@ -3931,12 +4101,14 @@
     "title": "Lote / Terreno en Venta en Campanario",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "San Miguel, El Campanario 01, El Campanario, Santiago de Querétaro, Querétaro, 76146, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.611105,
+    "lng": -100.3777725,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-2098810a4911-e787-19bb886-805c-7c39",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=18",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:21.504475+00:00"
+    "scraped_at": "2026-07-05T03:44:21.504475+00:00",
+    "geo_source": "google",
+    "geo_precision": "RANGE_INTERPOLATED"
   },
   {
     "price": 34163000.0,
@@ -3944,12 +4116,14 @@
     "title": "Lote / Terreno en Venta en Campanario",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "San Miguel, El Campanario 01, El Campanario, Santiago de Querétaro, Querétaro, 76146, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.611105,
+    "lng": -100.3777725,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-bb673185a2cb-5916-19bb85d-a07d-7f2a",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=18",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:21.504855+00:00"
+    "scraped_at": "2026-07-05T03:44:21.504855+00:00",
+    "geo_source": "google",
+    "geo_precision": "RANGE_INTERPOLATED"
   },
   {
     "price": 8591000.0,
@@ -3957,12 +4131,14 @@
     "title": "Lote / Terreno en Venta en San Isidro Buenavista",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Paseo de la República, San Isidro Buenavista, Buenavista, Querétaro, 76223, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.7866054,
+    "lng": -100.4516601,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-826aee5962e5-cd72-19bb85a-aa40-7251",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=18",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:21.505207+00:00"
+    "scraped_at": "2026-07-05T03:44:21.505207+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 5232600.0,
@@ -3970,12 +4146,14 @@
     "title": "Lote / Terreno en Venta en San Isidro Buenavista",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Paseo de la República, San Isidro Buenavista, Buenavista, Querétaro, 76223, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.7866054,
+    "lng": -100.4516601,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-34c13d04ec96-91ad-19bb882-a277-7d8c",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=18",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:21.520484+00:00"
+    "scraped_at": "2026-07-05T03:44:21.520484+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 1800000.0,
@@ -3983,12 +4161,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76237, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6775608,
+    "lng": -100.3890951,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-ba06fe7a42f1-98f1-19bb86a-bcc9-77b6",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=18",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:21.521121+00:00"
+    "scraped_at": "2026-07-05T03:44:21.521121+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 3780000.0,
@@ -4087,12 +4267,14 @@
     "title": "Lote / Terreno en Venta en La Vista",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "La Vista Residencial, Anillo Vial Fray Junípero Serra, Residencial La Vista, La vista Residencial, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6387135,
+    "lng": -100.3483684,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-cce5527c0ace-e91e-19911ab-b0a3-757e",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=19",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:24.503477+00:00"
+    "scraped_at": "2026-07-05T03:44:24.503477+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 3032427.0,
@@ -4139,12 +4321,14 @@
     "title": "Lote / Terreno en Venta en Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Lago de Juriquilla Fraccionamiento, Juriquilla, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.7056432,
+    "lng": -100.4684485,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-88bb252200d9-4685-19958d0-bbb6-77be",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=19",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:24.505752+00:00"
+    "scraped_at": "2026-07-05T03:44:24.505752+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 1835510.0,
@@ -4191,12 +4375,14 @@
     "title": "Lote / Terreno en Venta en La Vista",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "La Vista Residencial, Anillo Vial Fray Junípero Serra, Residencial La Vista, La vista Residencial, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6387135,
+    "lng": -100.3483684,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-6f122ead8f72-4cd3-19911d0-a99c-706d",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=20",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:29.921798+00:00"
+    "scraped_at": "2026-07-05T03:44:29.921798+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 1835510.0,
@@ -4321,12 +4507,14 @@
     "title": "Lote / Terreno en Venta en La Vista",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Avenida La Vista 1037, Fraccionamiento La Vista Residencial, Rinconada La Condesa, Querétaro, 76146, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6419028,
+    "lng": -100.3493073,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-474fd12b3192-7530-19a0a64-b584-7441",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=20",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:30.175453+00:00"
+    "scraped_at": "2026-07-05T03:44:30.175453+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 6300000.0,
@@ -4360,12 +4548,14 @@
     "title": "Lote / Terreno en Venta en El Refugio",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Tequisquiapan, El Refugio Residencial, Querétaro, 76146, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.646425,
+    "lng": -100.3499413,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-8f9915f26d68-7e0f-19eb687-a9ab-786d",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=20",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:30.207148+00:00"
+    "scraped_at": "2026-07-05T03:44:30.207148+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 10976201.0,
@@ -4386,12 +4576,14 @@
     "title": "Lote / Terreno en Venta en Tlacote El Bajo",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Tlacote el Bajo, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6626237,
+    "lng": -100.5054541,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-f5aa7d3e10f8-5029-66759afc-95e5-3b42",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=21",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:33.242750+00:00"
+    "scraped_at": "2026-07-05T03:44:33.242750+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 1200000.0,
@@ -4399,12 +4591,14 @@
     "title": "Lote / Terreno en Venta en Campanario",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "El Campanario, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6168441,
+    "lng": -100.3492959,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-14e8adbc31ce-2180-b82f23bd-8a5c-45ec",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=21",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:33.243699+00:00"
+    "scraped_at": "2026-07-05T03:44:33.243699+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 4715990.0,
@@ -4412,12 +4606,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Altozano Querétaro, Anillo Vial Fray Junípero Serra, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.671126,
+    "lng": -100.3969311,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-f24731b48e77-fb3d-193c721-8533-7496",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=21",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:33.256362+00:00"
+    "scraped_at": "2026-07-05T03:44:33.256362+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 4231556.0,
@@ -4425,12 +4621,14 @@
     "title": "Lote / Terreno en Venta en Lomas del Campanario III",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Lomas del Campanario III, El Campanario, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6134066,
+    "lng": -100.3680757,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-9f192b24385c-e518-235b9d14-bda8-4306",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=21",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:33.277026+00:00"
+    "scraped_at": "2026-07-05T03:44:33.277026+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 15000000.0,
@@ -4477,12 +4675,14 @@
     "title": "Lote / Terreno en Venta en Cuesta Bonita",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Prolongación Constituyentes, Cuesta Bonita, Santiago de Querétaro, Querétaro, 76063, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5883238,
+    "lng": -100.3487286,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-21ff623ab0d0-b6a1-19cff5b-b368-7148",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=21",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:33.513263+00:00"
+    "scraped_at": "2026-07-05T03:44:33.513263+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 3870000.0,
@@ -4490,12 +4690,14 @@
     "title": "Lote / Terreno en Venta en Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Delegación Cayetano Rubio, La Purísima, Municipio de Querétaro, Querétaro, 76146, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5999076,
+    "lng": -100.356583,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-1a0f4b76a27-5b93-19e42d7-bdac-7bbd",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=21",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:33.567376+00:00"
+    "scraped_at": "2026-07-05T03:44:33.567376+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 4400000.0,
@@ -4542,12 +4744,14 @@
     "title": "Lote / Terreno en Venta en El Zapote",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5887932,
+    "lng": -100.3898881,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-35c61c853c3f-60fd-66efecc6-97c4-3af1",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=21",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:33.615714+00:00"
+    "scraped_at": "2026-07-05T03:44:33.615714+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 2500000.0,
@@ -4568,12 +4772,14 @@
     "title": "Lote / Terreno en Venta en Jardines de San José",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76146, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6182789,
+    "lng": -100.3469826,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-2c78e8c4fedc-88e0-19e2a0b-a59a-7de0",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=21",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:33.747279+00:00"
+    "scraped_at": "2026-07-05T03:44:33.747279+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 55000000.0,
@@ -4581,12 +4787,14 @@
     "title": "Lote / Terreno en Venta en Campanario",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Avenida Hacienda El Campanario, El Campanario, Querétaro, 76144, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6167311,
+    "lng": -100.3492523,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-f03098ac6d0d-8867-19e2a12-9293-7675",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=21",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:33.779539+00:00"
+    "scraped_at": "2026-07-05T03:44:33.779539+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 5500000.0,
@@ -4594,12 +4802,14 @@
     "title": "Lote / Terreno en Venta en Arboledas",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Calle Nogal 800, Colonia Arboledas, Santiago de Querétaro, Querétaro, 76140, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6128406,
+    "lng": -100.3819263,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-9278c7d8592-d70f-19e2a03-9bbd-7c16",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=21",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:33.812283+00:00"
+    "scraped_at": "2026-07-05T03:44:33.812283+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 1850000.0,
@@ -4620,12 +4830,14 @@
     "title": "Lote / Terreno en Venta en Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Cañadas La Porta, Prolongación Constituyentes Oriente, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5936778,
+    "lng": -100.3561699,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-cbc5ced3d65f-36d5-192b145-8de3-7d0b",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=21",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:33.877148+00:00"
+    "scraped_at": "2026-07-05T03:44:33.877148+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 5465000.0,
@@ -4659,12 +4871,14 @@
     "title": "Lote / Terreno en Venta en Altavista",
     "location": "Juriquilla, Querétaro Arteaga",
     "address": "Paseo de la República, Jurica, Querétaro, 76100, MEX, Juriquilla, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6817488,
+    "lng": -100.4350172,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-bd17564ebea9-119-19b7c9b-b144-7138",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=22",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:38.555359+00:00"
+    "scraped_at": "2026-07-05T03:44:38.555359+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 760000.0,
@@ -4672,12 +4886,14 @@
     "title": "Lote / Terreno en Venta en Peñuelas",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Calle Albañiles 32, Peñuelas, Santiago de Querétaro, Querétaro, 76148, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6328771,
+    "lng": -100.3975728,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-d96f19b7aff0-82c8-19c2c35-a411-7551",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=22",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:38.559817+00:00"
+    "scraped_at": "2026-07-05T03:44:38.559817+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 2172500.0,
@@ -4698,12 +4914,14 @@
     "title": "Lote / Terreno en Venta en Las Misiones",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Circuito de las Misiones, Las Misiones, Santiago de Querétaro, Querétaro, 76030, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5767086,
+    "lng": -100.3929687,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-cc9b64b8fe10-c816-f7c3dc51-ba3c-379e",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=22",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:38.592092+00:00"
+    "scraped_at": "2026-07-05T03:44:38.592092+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 14134206.0,
@@ -4737,12 +4955,14 @@
     "title": "Lote / Terreno en Venta en La Gloria",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Avenida Provincia Santa Elena, Provincia Santa Elena, Santiago de Querétaro, Querétaro, 76177, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5893353,
+    "lng": -100.4316123,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-18caef1a736a-d69e-192164d-9990-7aff",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=22",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:38.624984+00:00"
+    "scraped_at": "2026-07-05T03:44:38.624984+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 32811000.0,
@@ -4750,12 +4970,14 @@
     "title": "Lote / Terreno en Venta en La Granja",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Calle del Jacal 7, La Granja, Santiago de Querétaro, Querétaro, 76180, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5719355,
+    "lng": -100.4068016,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-1da936bd7a54-abcd-194dcfb-96cd-7adc",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=22",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:38.633608+00:00"
+    "scraped_at": "2026-07-05T03:44:38.633608+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 1620270.0,
@@ -4763,12 +4985,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76237, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6775608,
+    "lng": -100.3890951,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-d7c4fed88bec-264d-19dbddf-83a7-76cf",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=22",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:38.639286+00:00"
+    "scraped_at": "2026-07-05T03:44:38.639286+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 1853730.0,
@@ -4776,12 +5000,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76237, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6775608,
+    "lng": -100.3890951,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-9d506f5ec289-6c19-19dbdf9-91e2-704d",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=22",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:38.654520+00:00"
+    "scraped_at": "2026-07-05T03:44:38.654520+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 1900000.0,
@@ -4789,12 +5015,14 @@
     "title": "Lote / Terreno en Venta en Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Lomas del Campanario Norte Central Park, Calle Tercera Campanario de la Inmaculada, Querétaro, 76146, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6281875,
+    "lng": -100.3398125,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-7416e6b273a-db37-19dd126-95be-7276",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=22",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:38.669393+00:00"
+    "scraped_at": "2026-07-05T03:44:38.669393+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 3400158.0,
@@ -4815,12 +5043,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Santiago de Querétaro, Querétaro Centro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5920203,
+    "lng": -100.3919033,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-2c3861f5e191-bd10-c0704775-835d-3445",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=22",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:38.710490+00:00"
+    "scraped_at": "2026-07-05T03:44:38.710490+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 4240000.0,
@@ -4867,12 +5097,14 @@
     "title": "Lote / Terreno en Venta en Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Cañadas La Porta, Prolongación Constituyentes Oriente, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5936778,
+    "lng": -100.3561699,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-66c85fe49c58-2945-c51de83c-8c23-35d2",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=22",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:38.781573+00:00"
+    "scraped_at": "2026-07-05T03:44:38.781573+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 4399999.0,
@@ -4919,12 +5151,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Altozano Querétaro, Anillo Vial Fray Junípero Serra, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.671126,
+    "lng": -100.3969311,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-84359855c8d0-5b04-19705a1-8744-803b",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=22",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:38.813641+00:00"
+    "scraped_at": "2026-07-05T03:44:38.813641+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 6652800.0,
@@ -4932,12 +5166,14 @@
     "title": "Lote / Terreno en Venta en Santa Rosa de Jauregui",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Camino a El Pinto, Querétaro, 76223, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.8021592,
+    "lng": -100.4107618,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-b28d687062ec-274b-d67f23f1-9504-33ee",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=23",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:41.767371+00:00"
+    "scraped_at": "2026-07-05T03:44:41.767371+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 1260000.0,
@@ -4958,12 +5194,14 @@
     "title": "Lote / Terreno en Venta en Loma Dorada",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Calle Loma de la Cañada, Loma Dorada, Hércules, Delegación Cayetano Rubio, Santiago de Querétaro, Municipio de Querétaro, Querétaro, 76049, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.594164,
+    "lng": -100.3664972,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-82983ff422a9-bbf2-19ef81b-9c68-7bcc",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=23",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:41.798869+00:00"
+    "scraped_at": "2026-07-05T03:44:41.798869+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 1846845.0,
@@ -4971,12 +5209,14 @@
     "title": "Lote / Terreno en Venta en Jofre",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Entrada La Luz - Presa de Becerra, Buenavista, La Estancia de Palo Dulce, Delegación Santa Rosa Jáuregui, La Luz, Municipio de Querétaro, Querétaro, 76212, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.8635147,
+    "lng": -100.4797174,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-fe6a6bd87d32-be41-19ef7fc-afae-7c3a",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=23",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:41.800579+00:00"
+    "scraped_at": "2026-07-05T03:44:41.800579+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 7550000.0,
@@ -4984,12 +5224,14 @@
     "title": "Lote / Terreno en Venta en Jurica",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Calle Tabachines 420-420, Jurica, Santiago de Querétaro, Querétaro, 76100, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6465402,
+    "lng": -100.4398129,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-6302c80849a3-ef0a-19be935-8c6a-7d23",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=23",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:41.822637+00:00"
+    "scraped_at": "2026-07-05T03:44:41.822637+00:00",
+    "geo_source": "google",
+    "geo_precision": "RANGE_INTERPOLATED"
   },
   {
     "price": 1100000.0,
@@ -5010,12 +5252,14 @@
     "title": "Lote / Terreno en Venta en Privada Arboledas",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Privada Arboledas 3-8, Privada Arboledas, Santiago de Querétaro, Querétaro, 76140, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6205957,
+    "lng": -100.3845211,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-e27e2227ff3a-21a7-19bb858-81f1-7ef7",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=24",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:45.305899+00:00"
+    "scraped_at": "2026-07-05T03:44:45.305899+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 3425000.0,
@@ -5023,12 +5267,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76237, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6775608,
+    "lng": -100.3890951,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-ba3a63fb0657-5746-19bb861-af18-7069",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=24",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:45.306603+00:00"
+    "scraped_at": "2026-07-05T03:44:45.306603+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 4458993.0,
@@ -5036,12 +5282,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76237, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6775608,
+    "lng": -100.3890951,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-5b661b46bfd-7e06-19bb863-961b-7d1d",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=24",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:45.308404+00:00"
+    "scraped_at": "2026-07-05T03:44:45.308404+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 2797398.0,
@@ -5075,12 +5323,14 @@
     "title": "Lote / Terreno en Venta en La Vista",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Avenida La Vista 1037, Querétaro, 76146, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6419028,
+    "lng": -100.3493073,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-1bcbb92d5254-3a72-19d4f26-85c8-747a",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=24",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:45.309470+00:00"
+    "scraped_at": "2026-07-05T03:44:45.309470+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 5232600.0,
@@ -5166,12 +5416,14 @@
     "title": "Lote / Terreno en Venta en La Vista",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "La Vista Residencial, Anillo Vial Fray Junípero Serra, Residencial La Vista, La vista Residencial, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6387135,
+    "lng": -100.3483684,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-641f2c1fe815-3399-1991168-9c7a-7813",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=24",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:45.322328+00:00"
+    "scraped_at": "2026-07-05T03:44:45.322328+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 4376451.0,
@@ -5244,12 +5496,14 @@
     "title": "Lote / Terreno en Venta en Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76146, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6182789,
+    "lng": -100.3469826,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-efdb4d2d7665-98bd-193c6e4-ae69-7903",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=25",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:49.973099+00:00"
+    "scraped_at": "2026-07-05T03:44:49.973099+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 6756750.0,
@@ -5270,12 +5524,14 @@
     "title": "Lote / Terreno en Venta en Santa Rosa de Jauregui",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Santa Rosa Jauregui, Centro, Santa Rosa Jáuregui, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.7418029,
+    "lng": -100.4477326,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-2b39d7381cf4-e641-19a32c7-935e-7310",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=25",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:49.988834+00:00"
+    "scraped_at": "2026-07-05T03:44:49.988834+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 1120000.0,
@@ -5309,12 +5565,14 @@
     "title": "Lote / Terreno en Venta en El Jacal",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "El Jacal, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5678926,
+    "lng": -100.4136698,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-17e9d86d2e04-bad-196cbdb-a205-75a4",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=25",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:50.039087+00:00"
+    "scraped_at": "2026-07-05T03:44:50.039087+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 1077531.0,
@@ -5322,12 +5580,14 @@
     "title": "Lote / Terreno en Venta en El Jacal",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "El Jacal, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5678926,
+    "lng": -100.4136698,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-32247df9d7ad-bfcf-196cbdf-a0db-75a3",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=25",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:50.039868+00:00"
+    "scraped_at": "2026-07-05T03:44:50.039868+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 2150000.0,
@@ -5374,12 +5634,14 @@
     "title": "Lote / Terreno en Venta en Milenio III",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Milenio III, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5951924,
+    "lng": -100.3479663,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-870a6dfc67c6-bde2-19db2c3-bc0b-73fd",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=25",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:50.114303+00:00"
+    "scraped_at": "2026-07-05T03:44:50.114303+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 21394800.0,
@@ -5413,12 +5675,14 @@
     "title": "Lote / Terreno en Venta en El Jacal",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Prolongación Ignacio Zaragoza, El Jacal, Santiago de Querétaro, Querétaro, 76180, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5675243,
+    "lng": -100.4148812,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-36c7cfd5110f-6c2b-19b7d73-852d-7b68",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=26",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:52.924302+00:00"
+    "scraped_at": "2026-07-05T03:44:52.924302+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 3223000.0,
@@ -5491,12 +5755,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76237, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6775608,
+    "lng": -100.3890951,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-e0f50bf68e52-b5b0-19dbdd6-bd32-7df0",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=27",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:56.870552+00:00"
+    "scraped_at": "2026-07-05T03:44:56.870552+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 1620270.0,
@@ -5504,12 +5770,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76237, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6775608,
+    "lng": -100.3890951,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-f3396411773e-4dfc-19dbdfb-8ddf-7ebf",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=27",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:56.891762+00:00"
+    "scraped_at": "2026-07-05T03:44:56.891762+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 1620270.0,
@@ -5517,12 +5785,14 @@
     "title": "Lote / Terreno en Venta en Altozano el Nuevo Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76237, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6775608,
+    "lng": -100.3890951,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-db74d06a7aac-77e2-19dbdfc-ad28-7161",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=27",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:56.912015+00:00"
+    "scraped_at": "2026-07-05T03:44:56.912015+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 6000000.0,
@@ -5556,12 +5826,14 @@
     "title": "Lote / Terreno en Venta en Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Lomas Del Campanario Norte Central Park, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6281875,
+    "lng": -100.3398125,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-28580a352860-7e53-f1dcd5b2-a8f6-387b",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=27",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:56.932453+00:00"
+    "scraped_at": "2026-07-05T03:44:56.932453+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 1823898.0,
@@ -5582,12 +5854,14 @@
     "title": "Lote / Terreno en Venta en Centro Histórico",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Hotel Casa Once, Barrio La Cruz, Santiago de Querétaro, Querétaro, 76000, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5943031,
+    "lng": -100.3887913,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-396996668e23-e833-1993929-8118-73a5",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=27",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:56.949331+00:00"
+    "scraped_at": "2026-07-05T03:44:56.949331+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 3662500.0,
@@ -5660,12 +5934,14 @@
     "title": "Lote / Terreno en Venta en San Isidro Buenavista",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "San Isidro Buenavista, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.7897222,
+    "lng": -100.4497222,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-470f67e40c18-6bdf-fbc689b-9d52-36a7",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=27",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:57.022778+00:00"
+    "scraped_at": "2026-07-05T03:44:57.022778+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 1500000.0,
@@ -5712,12 +5988,14 @@
     "title": "Lote / Terreno en Venta en Aurora",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Calle Estrella Polar 708-708, La Aurora, Santa María Magdalena, Querétaro, 76137, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5975945,
+    "lng": -100.4514631,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-1ea0acbb8bbb-39ca-19ebe0a-ac8a-7996",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=27",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:44:57.044136+00:00"
+    "scraped_at": "2026-07-05T03:44:57.044136+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 1700000.0,
@@ -5764,12 +6042,14 @@
     "title": "Lote / Terreno en Venta en Lomas del Campanario III",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Privada Campanario 96, Lomas del Campanario II, Santiago de Querétaro, Querétaro, 76146, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6141499,
+    "lng": -100.3641798,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-cc5703411586-3fa1-19a0aa2-8364-7ce1",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=28",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:02.364475+00:00"
+    "scraped_at": "2026-07-05T03:45:02.364475+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 6119000.0,
@@ -5777,12 +6057,14 @@
     "title": "Lote / Terreno en Venta en San Isidro Buenavista",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Paseo de la República, San Isidro Buenavista, Buenavista, Querétaro, 76223, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.7866054,
+    "lng": -100.4516601,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-d72957f00952-a64d-19bb87a-b144-74db",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=28",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:02.406677+00:00"
+    "scraped_at": "2026-07-05T03:45:02.406677+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 6119000.0,
@@ -5790,12 +6072,14 @@
     "title": "Lote / Terreno en Venta en San Isidro Buenavista",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Paseo de la República, San Isidro Buenavista, Buenavista, Querétaro, 76223, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.7866054,
+    "lng": -100.4516601,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-5881c7eff880-a050-19bb875-97be-7515",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=28",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:02.408343+00:00"
+    "scraped_at": "2026-07-05T03:45:02.408343+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 2500000.0,
@@ -5842,12 +6126,14 @@
     "title": "Lote / Terreno en Venta en Arboledas",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Anillo Vial Fray Junípero Serra, Arboledas, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6137739,
+    "lng": -100.3803113,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-d908aa56080a-e3e5-19d2850-8ac6-7100",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=28",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:02.448450+00:00"
+    "scraped_at": "2026-07-05T03:45:02.448450+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 3692102.0,
@@ -5933,12 +6219,14 @@
     "title": "Lote / Terreno en Venta en Campanario",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Calle de Corpus Cristi, El Campanario, Santiago de Querétaro, Querétaro, 76146, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6168441,
+    "lng": -100.3492959,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-bab48a096bf0-8491-19a0c5c-b293-73a8",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=28",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:02.590787+00:00"
+    "scraped_at": "2026-07-05T03:45:02.590787+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 1232000.0,
@@ -5972,12 +6260,14 @@
     "title": "Lote / Terreno en Venta en Centro Sur",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "PuntOlivo, Prolongación Bernardo Quintana, Centro Sur, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.573938,
+    "lng": -100.3595435,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-517572827d40-4698-23d38afa-953c-339c",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=29",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:06.854087+00:00"
+    "scraped_at": "2026-07-05T03:45:06.854087+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 1835510.0,
@@ -6024,12 +6314,14 @@
     "title": "Lote / Terreno en Venta en Felipe Carrillo Puerto",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Los Rosales, Felipe Carrillo Puerto, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6150295,
+    "lng": -100.435103,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-eca4f92cb32-a83b-19cbdfb-8c21-71dd",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=29",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:07.012571+00:00"
+    "scraped_at": "2026-07-05T03:45:07.012571+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 1850000.0,
@@ -6037,12 +6329,14 @@
     "title": "Lote / Terreno en Venta en El Salitre",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "El Salitre, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6658384,
+    "lng": -100.4221186,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-26e9db07b315-f017-3b701629-b8a9-44db",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=29",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:07.094893+00:00"
+    "scraped_at": "2026-07-05T03:45:07.094893+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 2350000.0,
@@ -6050,12 +6344,14 @@
     "title": "Lote / Terreno en Venta en Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76146, Santiago de Querétaro, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6182789,
+    "lng": -100.3469826,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-ad74867067f4-1906-19d1e46-a45e-750b",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=30",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:11.365603+00:00"
+    "scraped_at": "2026-07-05T03:45:11.365603+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 3100000.0,
@@ -6076,12 +6372,14 @@
     "title": "Lote / Terreno en Venta en Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Boulevard Bernardo Quintana, Santiago de Querétaro, Querétaro, 76090, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5728086,
+    "lng": -100.359645,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-d4f739710621-1ba9-3c6fdb36-9b11-3c60",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=30",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:11.408646+00:00"
+    "scraped_at": "2026-07-05T03:45:11.408646+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 3500000.0,
@@ -6154,12 +6452,14 @@
     "title": "Lote / Terreno en Venta en El Pedregal de Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Calle Grafito 146, Balcones Del Acueducto, Santiago De Querétaro, Querétaro, 76144, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6067286,
+    "lng": -100.3723709,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-dcc4b988ba78-cdda-19e2f25-b3df-7b2f",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=30",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:11.476347+00:00"
+    "scraped_at": "2026-07-05T03:45:11.476347+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 1678050.0,
@@ -6167,12 +6467,14 @@
     "title": "Lote / Terreno en Venta en Grand Juriquilla",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "76223, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.7766237,
+    "lng": -100.4384172,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-1de7e7d69e87-363c-c873cba6-876a-33aa",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=30",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:11.488380+00:00"
+    "scraped_at": "2026-07-05T03:45:11.488380+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 18293000.0,
@@ -6193,12 +6495,14 @@
     "title": "Lote / Terreno en Venta en La Vista",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Avenida La Vista 1037, Altos la Vista, Delegación Epigmenio González, La Purísima, Municipio de Querétaro, Querétaro, 76146, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6411223,
+    "lng": -100.3489015,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-e89487a357de-a58c-19f197e-a6bd-77ed",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=30",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:11.521127+00:00"
+    "scraped_at": "2026-07-05T03:45:11.521127+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 4500000.0,
@@ -6245,12 +6549,14 @@
     "title": "Lote / Terreno en Venta en Lomas de Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "La Vista Residencial,  Querétaro ,  Querétaro , México , Argentina, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6387135,
+    "lng": -100.3483684,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-b955cac2df59-fedf-19d4f25-af5c-78dc",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=30",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:11.565377+00:00"
+    "scraped_at": "2026-07-05T03:45:11.565377+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 2350000.0,
@@ -6297,12 +6603,14 @@
     "title": "Lote / Terreno en Venta en El Bosque",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Calle Jacarandas 12, Del Bosque, Querétaro, 76209, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5651389,
+    "lng": -100.410304,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-ba09fe7d69e7-64b4-fe83a440-a7d1-31a0",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=31",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:16.057634+00:00"
+    "scraped_at": "2026-07-05T03:45:16.057634+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 3976000.0,
@@ -6362,12 +6670,14 @@
     "title": "Lote / Terreno en Venta en Centro Histórico",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Avenida Universidad 30, Centro, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5983978,
+    "lng": -100.3930207,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-22821443771c-76cb-c0b143ce-b6bf-502b",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=31",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:16.096429+00:00"
+    "scraped_at": "2026-07-05T03:45:16.096429+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 3680000.0,
@@ -6531,12 +6841,14 @@
     "title": "Lote / Terreno en Venta en Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Lomas Del Campanario Norte Central Park, Querétaro, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6281875,
+    "lng": -100.3398125,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-7a53da91ed12-9b92-192692f-8f67-7eab",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=32",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:19.904166+00:00"
+    "scraped_at": "2026-07-05T03:45:19.904166+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 830000.0,
@@ -6557,12 +6869,14 @@
     "title": "Lote / Terreno en Venta en Campanario",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Privada Campanario 98, Lomas del Campanario I, Santiago de Querétaro, Querétaro, 76146, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6139726,
+    "lng": -100.3627137,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-ad8ae15964ac-3a15-19e6536-afe9-7ec4",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=32",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:19.924887+00:00"
+    "scraped_at": "2026-07-05T03:45:19.924887+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 1450000.0,
@@ -6570,12 +6884,14 @@
     "title": "Lote / Terreno en Venta en El Refugio",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Calle Venta del Refugio, El Refugio Residencial, Querétaro, 76146, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6518717,
+    "lng": -100.3482274,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-f13443b7d2dd-f81d-19e416e-aaf3-78f1",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=32",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:19.925280+00:00"
+    "scraped_at": "2026-07-05T03:45:19.925280+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 1050000.0,
@@ -6583,12 +6899,14 @@
     "title": "Lote / Terreno en Venta en El Refugio",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Anillo Vial Fray Junípero Serra, El Refugio Residencial, Querétaro, 76146, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.654881,
+    "lng": -100.3466071,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-72eed55eb8bb-8132-19e4198-abc2-7ce6",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=32",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:19.925658+00:00"
+    "scraped_at": "2026-07-05T03:45:19.925658+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 1027934.0,
@@ -6622,12 +6940,14 @@
     "title": "Lote / Terreno en Venta en Centro Sur",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Epic, Avenida Fray Luis de León, Centro Sur, Querétaro, 76090, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5674823,
+    "lng": -100.3669078,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-8eb771123551-7f2c-dd8d1bdb-bf6e-3533",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=33",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:24.829834+00:00"
+    "scraped_at": "2026-07-05T03:45:24.829834+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 7116000.0,
@@ -6635,12 +6955,14 @@
     "title": "Lote / Terreno en Venta en Jurica",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Calle Tabachines 420-420, Jurica, Santiago de Querétaro, Querétaro, 76100, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6465402,
+    "lng": -100.4398129,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-1661559ccd00-e85e-19a0c38-9f93-763d",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=33",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:24.839345+00:00"
+    "scraped_at": "2026-07-05T03:45:24.839345+00:00",
+    "geo_source": "google",
+    "geo_precision": "RANGE_INTERPOLATED"
   },
   {
     "price": 6396000.0,
@@ -6648,12 +6970,14 @@
     "title": "Lote / Terreno en Venta en Jurica",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Calle Tabachines 420-420, Jurica, Santiago de Querétaro, Querétaro, 76100, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6465402,
+    "lng": -100.4398129,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-419fcb9ace92-157b-19a0c35-8d6b-7776",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=33",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:24.839820+00:00"
+    "scraped_at": "2026-07-05T03:45:24.839820+00:00",
+    "geo_source": "google",
+    "geo_precision": "RANGE_INTERPOLATED"
   },
   {
     "price": 8200000.0,
@@ -6661,12 +6985,14 @@
     "title": "Lote / Terreno en Venta en Jurica",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Avenida Jacarandas 146, Jurica, Santiago De Querétaro, Querétaro, 76100, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6705153,
+    "lng": -100.4507529,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-b860e57a1231-b026-19a5265-a89f-73d7",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=33",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:24.849049+00:00"
+    "scraped_at": "2026-07-05T03:45:24.849049+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 9000000.0,
@@ -6674,12 +7000,14 @@
     "title": "Lote / Terreno en Venta en Jurica",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Avenida De Los Laureles 324, Jurica, Santiago De Querétaro, Querétaro, 76100, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6720123,
+    "lng": -100.4454886,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-cf4eae2897df-6706-19b7d9c-b085-7a6b",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=33",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:24.860396+00:00"
+    "scraped_at": "2026-07-05T03:45:24.860396+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 7550000.0,
@@ -6700,12 +7028,14 @@
     "title": "Lote / Terreno en Venta en Jurica",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Avenida Segunda De Fresnos 1019, Jurica, Santiago De Querétaro, Querétaro, 76100, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6616527,
+    "lng": -100.4440757,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-7441b3314136-d596-19a0bc8-9c62-72b1",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=33",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:24.861276+00:00"
+    "scraped_at": "2026-07-05T03:45:24.861276+00:00",
+    "geo_source": "google",
+    "geo_precision": "RANGE_INTERPOLATED"
   },
   {
     "price": 7430000.0,
@@ -6713,12 +7043,14 @@
     "title": "Lote / Terreno en Venta en San Isidro Buenavista",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Paseo de la República, San Isidro Buenavista, Buenavista, Querétaro, 76223, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.7866054,
+    "lng": -100.4516601,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-8ff68273f2aa-ef09-19bb877-aca8-7e82",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=33",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:24.872090+00:00"
+    "scraped_at": "2026-07-05T03:45:24.872090+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 2000000.0,
@@ -6726,12 +7058,14 @@
     "title": "Lote / Terreno en Venta en Ciudad del Sol",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Circuito Puerta del Sol, Valle de Santiago Sector 3, Santiago de Querétaro, Querétaro, 76116, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6437094,
+    "lng": -100.4819383,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-1387c7ca6df4-fbe4-19bb86a-b229-7c3c",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=33",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:24.873461+00:00"
+    "scraped_at": "2026-07-05T03:45:24.873461+00:00",
+    "geo_source": "google",
+    "geo_precision": "GEOMETRIC_CENTER"
   },
   {
     "price": 1115000.0,
@@ -6765,12 +7099,14 @@
     "title": "Lote / Terreno en Venta en Jurica",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Avenida Jacarandas 137, Jurica, Santiago De Querétaro, Querétaro, 76100, MEX, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6703289,
+    "lng": -100.4511,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-df6a910f3573-853b-19d0ec5-aaaa-7949",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=33",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:24.896608+00:00"
+    "scraped_at": "2026-07-05T03:45:24.896608+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 5141642.0,
@@ -6778,12 +7114,14 @@
     "title": "Lote / Terreno en Venta en Centro Sur",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "PuntOlivo, Prolongación Bernardo Quintana, Centro Sur, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.573938,
+    "lng": -100.3595435,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-b4e5713c9cb3-dce8-ef6c9561-9bf4-37b5",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=34",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:29.440194+00:00"
+    "scraped_at": "2026-07-05T03:45:29.440194+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 5130213.0,
@@ -6791,12 +7129,14 @@
     "title": "Lote / Terreno en Venta en Centro Sur",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "PuntOlivo, Prolongación Bernardo Quintana, Centro Sur, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.573938,
+    "lng": -100.3595435,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-40fad4b3227b-7b85-b46ce286-8540-3adc",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=34",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:29.453001+00:00"
+    "scraped_at": "2026-07-05T03:45:29.453001+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 3179850.0,
@@ -6804,12 +7144,14 @@
     "title": "Lote / Terreno en Venta en Loma Dorada",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Prol. Constituyentes Ote. 1, Vista Dorada, 76060 Santiago de Querétaro, Qro., México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5903166,
+    "lng": -100.3365201,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-bd19d92a20b8-b01c-95a9767a-a552-4fc3",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=34",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:29.453689+00:00"
+    "scraped_at": "2026-07-05T03:45:29.453689+00:00",
+    "geo_source": "google",
+    "geo_precision": "RANGE_INTERPOLATED"
   },
   {
     "price": 2667883.0,
@@ -6817,12 +7159,14 @@
     "title": "Lote / Terreno en Venta en Loma Dorada",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Prol. Constituyentes Ote. 1, Vista Dorada, 76060 Santiago de Querétaro, Qro., México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5903166,
+    "lng": -100.3365201,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-cb421f9ac62e-2bbe-434cf749-9007-4927",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=34",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:29.454279+00:00"
+    "scraped_at": "2026-07-05T03:45:29.454279+00:00",
+    "geo_source": "google",
+    "geo_precision": "RANGE_INTERPOLATED"
   },
   {
     "price": 2783749.0,
@@ -6830,12 +7174,14 @@
     "title": "Lote / Terreno en Venta en Loma Dorada",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Prol. Constituyentes Ote. 1, Vista Dorada, 76060 Santiago de Querétaro, Qro., México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5903166,
+    "lng": -100.3365201,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-9d1960a884c1-bce-e27164f7-b66a-41ef",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=34",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:29.468112+00:00"
+    "scraped_at": "2026-07-05T03:45:29.468112+00:00",
+    "geo_source": "google",
+    "geo_precision": "RANGE_INTERPOLATED"
   },
   {
     "price": 4737946.0,
@@ -6843,12 +7189,14 @@
     "title": "Lote / Terreno en Venta en Centro Sur",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "PuntOlivo, Prolongación Bernardo Quintana, Centro Sur, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.573938,
+    "lng": -100.3595435,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-371c43797c05-6b5f-a2c4b73a-ad6b-3672",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=34",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:29.468647+00:00"
+    "scraped_at": "2026-07-05T03:45:29.468647+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 2661546.0,
@@ -6856,12 +7204,14 @@
     "title": "Lote / Terreno en Venta en Loma Dorada",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Prol. Constituyentes Ote. 1, Vista Dorada, 76060 Santiago de Querétaro, Qro., México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5903166,
+    "lng": -100.3365201,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-e603c4aa9377-2379-e103a410-83cc-416e",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=34",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:29.469084+00:00"
+    "scraped_at": "2026-07-05T03:45:29.469084+00:00",
+    "geo_source": "google",
+    "geo_precision": "RANGE_INTERPOLATED"
   },
   {
     "price": 4347682.0,
@@ -6869,12 +7219,14 @@
     "title": "Lote / Terreno en Venta en Centro Sur",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "PuntOlivo, Prolongación Bernardo Quintana, Centro Sur, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.573938,
+    "lng": -100.3595435,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-3341654d297d-334d-c78eb5b5-8ce7-3636",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=34",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:29.482616+00:00"
+    "scraped_at": "2026-07-05T03:45:29.482616+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 2665702.0,
@@ -6882,12 +7234,14 @@
     "title": "Lote / Terreno en Venta en Loma Dorada",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Prol. Constituyentes Ote. 1, Vista Dorada, 76060 Santiago de Querétaro, Qro., México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5903166,
+    "lng": -100.3365201,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-d94fdb419cc0-2da8-85abd257-84be-4577",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=34",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:29.483422+00:00"
+    "scraped_at": "2026-07-05T03:45:29.483422+00:00",
+    "geo_source": "google",
+    "geo_precision": "RANGE_INTERPOLATED"
   },
   {
     "price": 1825000.0,
@@ -6947,12 +7301,14 @@
     "title": "Lote / Terreno en Venta en Jurica",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Jurica, Santiago de Querétaro, Querétaro, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.6582325,
+    "lng": -100.4443402,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-db090c3f0b1f-bd9a-192c675-a900-704b",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=35",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:33.518802+00:00"
+    "scraped_at": "2026-07-05T03:45:33.518802+00:00",
+    "geo_source": "google",
+    "geo_precision": "APPROXIMATE"
   },
   {
     "price": 3950000.0,
@@ -6960,12 +7316,14 @@
     "title": "Lote / Terreno en Venta en Querétaro",
     "location": "Querétaro, Querétaro Arteaga",
     "address": "Delegación Cayetano Rubio, La Purísima, Municipio de Querétaro, Querétaro, 76146, México, Querétaro, Querétaro Arteaga",
-    "lat": null,
-    "lng": null,
+    "lat": 20.5999076,
+    "lng": -100.356583,
     "link": "https://www.lamudi.com.mx/detalle/41032-73-2af43aae7422-6376-19e42d7-ad4c-777f",
     "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/?page=35",
     "portal": "lamudi",
-    "scraped_at": "2026-07-05T03:45:33.631562+00:00"
+    "scraped_at": "2026-07-05T03:45:33.631562+00:00",
+    "geo_source": "google",
+    "geo_precision": "ROOFTOP"
   },
   {
     "price": 3200000.0,
