@@ -4,6 +4,7 @@ import React, { useMemo, useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
+  LineChart, Line, ReferenceLine,
 } from 'recharts';
 import landScoresRaw from '../data/scores/land-scores.json';
 import scoresReportRaw from '../data/scores/scores-report.json';
@@ -226,6 +227,89 @@ export default function RankingTab() {
   // ── Top-5 con desglose (punto 3) ──────────────────────────────────────────
   const top5 = joined.slice(0, 5);
 
+  // ── Feedback german: ¿podemos competir en precio? ────────────────────────
+  // Metodología (misma del pipeline, ejecutada en cliente sobre los propios
+  // JSON — no se inventa nada nuevo): land_score(predio, precio) = F + w1·S1(precio).
+  // F = Σ_{i≠1} wi·Si(predio) es la parte FIJA (S2..S7 son geoespaciales, no
+  // dependen del precio de venta). S1(precio) = 100 − normRank(ppm, X), con
+  // ppm = precio / size_m2 del predio y X = $/m² de todos los comps del
+  // mercado, winsorizado a [p5,p95]. Para "equiparar al top-5" se invierte:
+  // dado el score del top-5 (T), se resuelve S1_need = (T − F)/w1 y se busca
+  // (binary search monótono) el ppm cuyo normRank produce ese S1.
+  const priceCompetitiveness = useMemo(() => {
+    const predioSub = predioScorecard.subscores as Record<SubscoreKey, number>;
+    const predioInfo = predioScorecard.predio as { size_m2: number; asking: number; ppm: number };
+    const w = WEIGHTS;
+
+    const F = (Object.keys(w) as SubscoreKey[])
+      .filter((k) => k !== 'S1')
+      .reduce((acc, k) => acc + w[k] * (predioSub[k] ?? 0), 0);
+
+    const X = [...landScores.comps.map((c) => c.ppm)].sort((a, b) => a - b);
+    const p5 = quantile(X, 0.05);
+    const p95 = quantile(X, 0.95);
+
+    function normRank(x: number): number {
+      let lt = 0, eq = 0;
+      for (const v of X) { if (v < x) lt++; else if (v === x) eq++; }
+      return (100 * (lt + 0.5 * eq)) / X.length;
+    }
+    function s1OfPpm(ppm: number): number {
+      const winsorized = Math.min(Math.max(ppm, p5), p95);
+      return 100 - normRank(winsorized);
+    }
+    function scoreOfPrice(price: number): number {
+      return F + w.S1 * s1OfPpm(price / predioInfo.size_m2);
+    }
+
+    const s1Max = s1OfPpm(p5); // techo de S1: vender al $/m² más barato del mercado (p5)
+    const scoreMax = F + w.S1 * s1Max;
+
+    const scoresDesc = [...landScores.comps.map((c) => c.score)].sort((a, b) => b - a);
+    const top5Score = scoresDesc[4];
+
+    const s1Need = (top5Score - F) / w.S1;
+    const feasible = s1Need <= s1Max;
+
+    let priceNeeded: number | null = null;
+    let ppmNeeded: number | null = null;
+    if (feasible) {
+      const targetRank = 100 - s1Need;
+      let lo = X[0], hi = X[X.length - 1];
+      for (let i = 0; i < 60; i++) {
+        const mid = (lo + hi) / 2;
+        if (normRank(mid) < targetRank) lo = mid; else hi = mid;
+      }
+      ppmNeeded = (lo + hi) / 2;
+      priceNeeded = ppmNeeded * predioInfo.size_m2;
+    }
+
+    const discountPct = priceNeeded != null ? (1 - priceNeeded / predioInfo.asking) * 100 : null;
+    const margin = scoreMax - top5Score; // >0 y "grande" = supera con holgura; ~0 = empata
+    const verdictKind: 'wins' | 'ties' | 'loses' = !feasible ? 'loses' : margin >= 1 ? 'wins' : 'ties';
+
+    // Curva de sensibilidad precio → score, barrida $1M–$9M (rango pedido).
+    const curve: { price: number; score: number }[] = [];
+    const steps = 32;
+    for (let i = 0; i <= steps; i++) {
+      const price = 1_000_000 + ((9_000_000 - 1_000_000) * i) / steps;
+      curve.push({ price, score: scoreOfPrice(price) });
+    }
+
+    const scoreNow = F + w.S1 * (predioSub.S1 ?? 0);
+    const scoresAsc = [...scoresDesc].sort((a, b) => a - b);
+    let ltNow = 0, eqNow = 0;
+    for (const v of scoresAsc) { if (v < scoreNow) ltNow++; else if (v === scoreNow) eqNow++; }
+    const percentilNow = (100 * (ltNow + 0.5 * eqNow)) / scoresAsc.length;
+
+    return {
+      F, p5, p95, s1Max, scoreMax, top5Score, s1Need, feasible, verdictKind,
+      priceNeeded, ppmNeeded, discountPct, margin, curve, scoreNow, percentilNow,
+      asking: predioInfo.asking, sizeM2: predioInfo.size_m2,
+      s6Value: predioSub.S6 ?? null,
+    };
+  }, []);
+
   // ── Tabla filtrable/ordenable/paginada (punto 2) ─────────────────────────
   const processed = useMemo(() => {
     let list = joined;
@@ -320,6 +404,114 @@ export default function RankingTab() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Feedback german: análisis de competitividad por precio ────────────── */}
+      <div className="rounded-2xl p-5 border border-[var(--danger)]/30 bg-[#111118]">
+        <h3 className="text-lg font-semibold mb-1">💰 ¿Podemos competir en precio?</h3>
+        <p className="text-sm text-gray-300 mb-4 max-w-3xl">
+          {priceCompetitiveness.verdictKind === 'wins' && (
+            <>Compitiendo solo en precio <strong className="text-[var(--brand-green)]">SÍ se puede superar</strong> al
+              top-5: bajando a {fmtMoney(priceCompetitiveness.priceNeeded ?? 0)} el land score sube a{' '}
+              {priceCompetitiveness.scoreMax.toFixed(1)}/100, por encima del top-5 ({priceCompetitiveness.top5Score.toFixed(1)})
+              con margen +{priceCompetitiveness.margin.toFixed(1)} pts.</>
+          )}
+          {priceCompetitiveness.verdictKind === 'ties' && (
+            <>Compitiendo solo en precio: <strong className="text-[var(--danger)]">NO se puede superar al top-5 con
+              holgura.</strong> Incluso vendiendo al $/m² más barato observado en el mercado (percentil 5), el techo del
+              land score del predio es <strong className="text-white">{priceCompetitiveness.scoreMax.toFixed(1)}/100</strong> —
+              contra un top-5 de <strong className="text-white">{priceCompetitiveness.top5Score.toFixed(1)}</strong>: apenas
+              empata, no lo supera con margen real.</>
+          )}
+          {priceCompetitiveness.verdictKind === 'loses' && (
+            <>Compitiendo solo en precio <strong className="text-[var(--danger)]">no alcanza</strong>: incluso vendiendo al
+              $/m² más barato del mercado, el techo del land score es {priceCompetitiveness.scoreMax.toFixed(1)}/100, por
+              debajo del top-5 ({priceCompetitiveness.top5Score.toFixed(1)}). Imposible por precio.</>
+          )}
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+          <div className="bg-[#0a0a0f] rounded-xl p-3 border border-[#1e1e2e]">
+            <div className="text-xs text-gray-500 uppercase tracking-wide">Precio para equiparar al top-5</div>
+            {priceCompetitiveness.priceNeeded != null ? (
+              <>
+                <div className="text-2xl font-mono font-bold text-white">{fmtMoney(priceCompetitiveness.priceNeeded)}</div>
+                <div className="text-xs text-gray-400 mt-1">
+                  ${fmtMX(priceCompetitiveness.ppmNeeded ?? 0)}/m² ·{' '}
+                  <span className="text-[var(--accent-amber)]">−{(priceCompetitiveness.discountPct ?? 0).toFixed(0)}%</span> vs
+                  asking {fmtMoney(priceCompetitiveness.asking)}
+                </div>
+                <div className="text-[11px] text-gray-500 mt-1">= vender al percentil ~5 del mercado</div>
+              </>
+            ) : (
+              <div className="text-sm text-gray-400 mt-2">No existe precio que alcance — imposible por precio.</div>
+            )}
+          </div>
+
+          <div className="bg-[#0a0a0f] rounded-xl p-3 border border-[#1e1e2e]">
+            <div className="text-xs text-gray-500 uppercase tracking-wide">Techo de score (precio de regalo)</div>
+            <div className="text-2xl font-mono font-bold text-white">
+              {priceCompetitiveness.scoreMax.toFixed(1)}<span className="text-sm text-gray-500">/100</span>
+            </div>
+            <div className="text-xs text-gray-400 mt-1">
+              vs top-5 = {priceCompetitiveness.top5Score.toFixed(1)} · hoy = {priceCompetitiveness.scoreNow.toFixed(1)}
+            </div>
+            <div className="text-[11px] text-gray-500 mt-1">F (parte fija, no depende del precio) = {priceCompetitiveness.F.toFixed(2)}</div>
+          </div>
+
+          <div className="bg-[#0a0a0f] rounded-xl p-3 border border-[#1e1e2e]">
+            <div className="text-xs text-gray-500 uppercase tracking-wide">Cuello de botella</div>
+            <div className="text-2xl font-mono font-bold text-[var(--accent-amber)]">
+              {priceCompetitiveness.s6Value != null ? priceCompetitiveness.s6Value.toFixed(1) : '—'}
+            </div>
+            <div className="text-xs text-gray-400 mt-1">
+              S6 — {SUBSCORE_LABEL.S6}: es geoespacial (densidad de competencia alrededor), el precio no lo arregla — solo
+              mueve S1 (peso {WEIGHTS.S1}).
+            </div>
+          </div>
+        </div>
+
+        <div className="chart-card-enter bg-[#0a0a0f] rounded-xl p-4 border border-[#1e1e2e]">
+          <h4 className="text-sm font-semibold text-gray-300 mb-1">Sensibilidad: land score del predio vs. precio de venta</h4>
+          <p className="text-[11px] text-gray-500 mb-3">
+            Barrido $1M–$9M. La curva se aplana porque S1 solo pesa {WEIGHTS.S1} del score total — nunca despega por
+            encima del nivel del top-5, ni vendiendo por debajo del mercado.
+          </p>
+          <ResponsiveContainer width="100%" height={220} debounce={50}>
+            <LineChart data={priceCompetitiveness.curve} margin={{ left: -10, top: 8, right: 12 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" />
+              <XAxis
+                dataKey="price"
+                tick={{ fill: '#6b7280', fontSize: 10 }}
+                tickFormatter={(v: number) => `$${(v / 1_000_000).toFixed(1)}M`}
+              />
+              <YAxis domain={[0, 100]} tick={{ fill: '#6b7280', fontSize: 10 }} />
+              <Tooltip
+                labelFormatter={(v: number) => `Precio ${fmtMoney(v)}`}
+                formatter={(v: number) => [v.toFixed(1), 'Land score']}
+                contentStyle={{ background: '#111118', border: '1px solid #1e1e2e' }}
+              />
+              <ReferenceLine
+                x={priceCompetitiveness.asking}
+                stroke={C.amber}
+                strokeDasharray="4 4"
+                label={{ value: `asking $${(priceCompetitiveness.asking / 1_000_000).toFixed(0)}M`, fill: C.amber, fontSize: 10, position: 'insideTopRight' }}
+              />
+              <ReferenceLine
+                y={priceCompetitiveness.top5Score}
+                stroke={C.violetLight}
+                strokeDasharray="4 4"
+                label={{ value: `top-5 (${priceCompetitiveness.top5Score.toFixed(1)})`, fill: C.violetLight, fontSize: 10, position: 'insideBottomLeft' }}
+              />
+              <Line type="monotone" dataKey="score" stroke={C.green} strokeWidth={2} dot={false} animationDuration={350} animationEasing="ease-out" />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        <p className="text-sm text-gray-300 mt-4 max-w-3xl">
+          La ventaja del predio son sus fundamentales (percentil ~{priceCompetitiveness.percentilNow.toFixed(0)}) y el
+          upside de HBU, no una guerra de precios.
+        </p>
       </div>
 
       {/* Punto 1 — clasificación / tipología de los 537 */}
