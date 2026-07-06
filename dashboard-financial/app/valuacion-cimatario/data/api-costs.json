@@ -70,5 +70,14 @@
     "unit_cost_usd": 0.05,
     "cost_usd": 0.05,
     "note": "estimado por ancho de banda (~pocos MB via geo.iproyal.com MX)"
+  },
+  {
+    "date": "2026-07-06T05:30:00Z",
+    "api": "Google Geocoding",
+    "operation": "v8 top-up: geocode 231 comps sin coords (dataset 852->1,439)",
+    "units": 231,
+    "unit_cost_usd": 0.005,
+    "cost_usd": 1.16,
+    "note": "210 geocodificados, 21 sin ubicar; total 1,418/1,439 con coords"
   }
 ]

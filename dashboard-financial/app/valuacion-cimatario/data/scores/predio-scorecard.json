@@ -6,15 +6,15 @@
     "asking": 7000000,
     "ppm": 10606
   },
-  "surface": 87.36,
+  "surface": 88.38,
   "subscores": {
-    "S1": 26.08,
-    "S2": 87.36,
-    "S3": 93.63,
-    "S4": 94.11,
-    "S5": 97.72,
-    "S6": 41.85,
-    "S7": 98.56
+    "S1": 16.93,
+    "S2": 88.38,
+    "S3": 95.98,
+    "S4": 96.26,
+    "S5": 98.38,
+    "S6": 39.32,
+    "S7": 99.01
   },
   "raw": {
     "k_ancla": 24.05,
@@ -26,37 +26,37 @@
   },
   "lentes": {
     "desarrollador": {
-      "score": 73.35,
-      "percentil": 94.71,
-      "ranking_en_537": 45,
+      "score": 72.61,
+      "percentil": 94.99,
+      "ranking_en_537": 72,
       "weakest": "S1",
       "weakest_label": "valor ($/m² relativo)",
       "gap_top_decil_pts": 0,
-      "veredicto": "Score 73.4/100, percentil 94.7 de 537. Punto más débil: valor ($/m² relativo) (26.1 pts)."
+      "veredicto": "Score 72.6/100, percentil 95.0 de 537. Punto más débil: valor ($/m² relativo) (16.9 pts)."
     },
     "comprador": {
-      "score": 74.08,
-      "percentil": 89.42,
-      "ranking_en_537": 89,
-      "weakest": "S6",
-      "weakest_label": "competencia neta",
-      "gap_top_decil_pts": 0.37,
-      "veredicto": "Score 74.1/100, percentil 89.4 de 537. Punto más débil: competencia neta (41.9 pts).",
-      "safety_is_proxy": true
-    },
-    "inversionista": {
-      "score": 75.73,
-      "percentil": 92.19,
-      "ranking_en_537": 66,
+      "score": 72.75,
+      "percentil": 93.02,
+      "ranking_en_537": 100,
       "weakest": "S6",
       "weakest_label": "competencia neta",
       "gap_top_decil_pts": 0,
-      "veredicto": "El predio es más atractivo para el perfil inversionista (score 75.7/100, percentil 92.2 de 537). Su punto más débil bajo este lente es competencia neta (41.9 pts). Para entrar al top-decil necesitaría subir ~0.0 pts, principalmente vía competencia neta.",
+      "veredicto": "Score 72.8/100, percentil 93.0 de 537. Punto más débil: competencia neta (39.3 pts).",
+      "safety_is_proxy": true
+    },
+    "inversionista": {
+      "score": 74.42,
+      "percentil": 93.72,
+      "ranking_en_537": 90,
+      "weakest": "S1",
+      "weakest_label": "valor ($/m² relativo)",
+      "gap_top_decil_pts": 0,
+      "veredicto": "El predio es más atractivo para el perfil inversionista (score 74.4/100, percentil 93.7 de 537). Su punto más débil bajo este lente es valor ($/m² relativo) (16.9 pts). Para entrar al top-decil necesitaría subir ~0.0 pts, principalmente vía valor ($/m² relativo).",
       "liquidity_is_proxy": true,
-      "liquidity_n_comps_1500m": 71
+      "liquidity_n_comps_1500m": 75
     }
   },
-  "veredicto_texto": "El predio es más atractivo para el perfil inversionista (score 75.7/100, percentil 92.2 de 537). Su punto más débil bajo este lente es competencia neta (41.9 pts). Para entrar al top-decil necesitaría subir ~0.0 pts, principalmente vía competencia neta.",
+  "veredicto_texto": "El predio es más atractivo para el perfil inversionista (score 74.4/100, percentil 93.7 de 537). Su punto más débil bajo este lente es valor ($/m² relativo) (16.9 pts). Para entrar al top-decil necesitaría subir ~0.0 pts, principalmente vía valor ($/m² relativo).",
   "para_quien_es_mejor": "inversionista",
   "modifiers": {
     "topo_modifier_applied": false,

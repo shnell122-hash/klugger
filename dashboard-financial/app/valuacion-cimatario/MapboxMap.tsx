@@ -137,6 +137,18 @@ const LAYER_BORDER = {
   inversion: 'var(--brand-green)',
 };
 
+// Glifo representativo por capa, para el swatch principal de la leyenda
+// (feedback: "la leyenda debe mostrar el ícono real, no un cuadrito de
+// color"). Las subcategorías completas ya se listan debajo de cada capa
+// cuando está expandida; este es solo el ícono del renglón "maestro".
+const LAYER_REP_EMOJI: Record<keyof typeof LAYER_BORDER, string> = {
+  ancla: ANCLA_SUBCAT.universidad.emoji,
+  competencia: COMPETENCIA_SUBCAT.multifamiliar_renta.emoji,
+  consumo: CONSUMO_SUBCAT.cafe_especialidad.emoji,
+  equipamiento: EQUIPAMIENTO_SUBCAT.educacion.emoji,
+  inversion: '🏗️',
+};
+
 function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
   const toRad = (d: number) => (d * Math.PI) / 180;
@@ -212,9 +224,18 @@ export default function MapboxMap({ fmtMoney }: MapboxMapProps) {
     []
   );
 
-  // Cache de divIcons por (emoji, borde, tamaño) — se construyen una sola
-  // vez y se reusan en los ~650 puntos de Google Places, en vez de crear
-  // un L.DivIcon nuevo por marcador en cada render.
+  // Cache de divIcons por (emoji, borde, tamaño) — "badge" cuadrado
+  // redondeado + colita triangular (forma de pin), NUNCA un círculo: los
+  // círculos quedan reservados EXCLUSIVAMENTE para las propiedades
+  // (CircleMarker, más abajo). Feedback de german: ancla/POI se veían
+  // "demasiado parecidos a dots" con la chip circular anterior — a golpe
+  // de vista ahora la familia visual se separa por FORMA (badge vs.
+  // círculo), no solo por color. El borde grueso sigue siendo el token
+  // de LAYER_BORDER (violeta/verde/gris de marca, ninguno inventado) y el
+  // glifo es lo que distingue la subcategoría dentro de cada capa. Los
+  // íconos se construyen una sola vez y se reusan en los ~650 puntos de
+  // Google Places, en vez de crear un L.DivIcon nuevo por marcador en
+  // cada render.
   const iconCache = useMemo(() => {
     const cache = new Map<string, L.DivIcon>();
     return {
@@ -222,12 +243,19 @@ export default function MapboxMap({ fmtMoney }: MapboxMapProps) {
         const key = `${emoji}|${border}|${size}`;
         let icon = cache.get(key);
         if (!icon) {
+          const tail = Math.round(size * 0.34);
+          const total = size + tail;
+          const radius = Math.round(size * 0.26);
+          const half = Math.max(2, Math.round(tail * 0.55));
           icon = L.divIcon({
-            html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:rgba(17,17,24,0.94);border:1.5px solid ${border};display:flex;align-items:center;justify-content:center;font-size:${Math.round(size * 0.52)}px;line-height:1;box-shadow:0 1px 4px rgba(0,0,0,0.55);">${emoji}</div>`,
+            html: `<div style="position:relative;width:${size}px;height:${total}px;">
+              <div style="width:${size}px;height:${size}px;border-radius:${radius}px;background:rgba(15,15,22,0.96);border:2.5px solid ${border};box-shadow:0 2px 6px rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;font-size:${Math.round(size * 0.54)}px;line-height:1;">${emoji}</div>
+              <div style="position:absolute;left:50%;top:${size - 2}px;width:0;height:0;transform:translateX(-50%);border-left:${half}px solid transparent;border-right:${half}px solid transparent;border-top:${tail}px solid ${border};"></div>
+            </div>`,
             className: '',
-            iconSize: [size, size],
-            iconAnchor: [size / 2, size / 2],
-            popupAnchor: [0, -size / 2 - 2],
+            iconSize: [size, total],
+            iconAnchor: [size / 2, total],
+            popupAnchor: [0, -total],
           });
           cache.set(key, icon);
         }
@@ -650,7 +678,7 @@ export default function MapboxMap({ fmtMoney }: MapboxMapProps) {
 
         <label className="map-legend-row">
           <input type="checkbox" checked={layers.anclas} onChange={() => toggle('anclas')} />
-          <span className="map-legend-swatch" style={{ border: `1.5px solid ${LAYER_BORDER.ancla}`, borderRadius: '50%' }} />
+          <LegendBadge emoji={LAYER_REP_EMOJI.ancla} border={LAYER_BORDER.ancla} />
           <span style={{ flex: 1 }}>Anclas</span>
           <span className="map-legend-count">{anclas.length}</span>
         </label>
@@ -667,7 +695,7 @@ export default function MapboxMap({ fmtMoney }: MapboxMapProps) {
 
         <label className="map-legend-row">
           <input type="checkbox" checked={layers.competencia} onChange={() => toggle('competencia')} />
-          <span className="map-legend-swatch" style={{ border: `1.5px solid ${LAYER_BORDER.competencia}`, borderRadius: '50%' }} />
+          <LegendBadge emoji={LAYER_REP_EMOJI.competencia} border={LAYER_BORDER.competencia} />
           <span style={{ flex: 1 }}>Competencia</span>
           <span className="map-legend-count">{competencia.length}</span>
         </label>
@@ -684,7 +712,7 @@ export default function MapboxMap({ fmtMoney }: MapboxMapProps) {
 
         <label className="map-legend-row">
           <input type="checkbox" checked={layers.consumo} onChange={() => toggle('consumo')} />
-          <span className="map-legend-swatch" style={{ border: `1.5px solid ${LAYER_BORDER.consumo}`, borderRadius: '50%' }} />
+          <LegendBadge emoji={LAYER_REP_EMOJI.consumo} border={LAYER_BORDER.consumo} />
           <span style={{ flex: 1 }}>Consumo usuario meta</span>
           <span className="map-legend-count">{consumo.length}</span>
         </label>
@@ -701,7 +729,7 @@ export default function MapboxMap({ fmtMoney }: MapboxMapProps) {
 
         <label className="map-legend-row">
           <input type="checkbox" checked={layers.equipamiento} onChange={() => toggle('equipamiento')} />
-          <span className="map-legend-swatch" style={{ border: `1.5px solid ${LAYER_BORDER.equipamiento}`, borderRadius: '50%' }} />
+          <LegendBadge emoji={LAYER_REP_EMOJI.equipamiento} border={LAYER_BORDER.equipamiento} />
           <span style={{ flex: 1 }}>Equipamiento</span>
           <span className="map-legend-count">{equipamiento.length}</span>
         </label>
@@ -718,7 +746,7 @@ export default function MapboxMap({ fmtMoney }: MapboxMapProps) {
 
         <label className="map-legend-row">
           <input type="checkbox" checked={layers.inversion} onChange={() => toggle('inversion')} />
-          <span className="map-legend-swatch" style={{ border: '1.5px solid var(--brand-green)', borderRadius: '50%' }} />
+          <LegendBadge emoji={LAYER_REP_EMOJI.inversion} border={LAYER_BORDER.inversion} />
           <span style={{ flex: 1 }}>Inversión + polos</span>
           <span className="map-legend-count">{proyectos.length + polos.length}</span>
         </label>
@@ -823,6 +851,34 @@ export default function MapboxMap({ fmtMoney }: MapboxMapProps) {
         }
       `}</style>
     </div>
+  );
+}
+
+// Mini-badge de leyenda — mismo lenguaje visual que los íconos reales del
+// mapa (cuadrado redondeado + borde grueso por capa), a escala de renglón
+// de leyenda. Reemplaza el swatch circular anterior porque un círculo
+// hueco en la leyenda mandaba la señal equivocada: "esto también es un
+// dot". Sin colita (a 14px la colita no se lee), pero misma forma NO
+// circular y mismo glifo real que el marcador en el mapa.
+function LegendBadge({ emoji, border, size = 14 }: { emoji: string; border: string; size?: number }) {
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: size,
+        height: size,
+        flexShrink: 0,
+        borderRadius: Math.round(size * 0.26),
+        background: 'rgba(15,15,22,0.96)',
+        border: `1.5px solid ${border}`,
+        fontSize: Math.round(size * 0.64),
+        lineHeight: 1,
+      }}
+    >
+      {emoji}
+    </span>
   );
 }
 

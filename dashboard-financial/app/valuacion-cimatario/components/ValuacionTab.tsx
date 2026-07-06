@@ -10,6 +10,7 @@ import { fmtMoney, fmtMX } from '@/lib/format';
 import KPICard from './KPICard';
 import CompsTable from './CompsTable';
 import ScorecardPredio from './ScorecardPredio';
+import MetodologiaScoring from './MetodologiaScoring';
 import terrenosFullRaw from '../terrenos_full.json';
 
 interface RawTerreno {
@@ -188,6 +189,8 @@ export default function ValuacionTab() {
       </div>
 
       <ScorecardPredio />
+
+      <MetodologiaScoring />
 
       <section className="space-y-4">
         <div className="flex items-baseline justify-between">
