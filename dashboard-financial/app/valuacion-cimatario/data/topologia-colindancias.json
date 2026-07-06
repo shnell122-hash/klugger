@@ -1,0 +1,400 @@
+{
+  "predio": {
+    "lat": 20.5822759,
+    "lng": -100.3887838,
+    "address": "Lic. Carlos Septién García 53, Col. Cimatario, Querétaro"
+  },
+  "geocode": [
+    {
+      "formatted": "C. Carlos Septién García 53, Cimatario, 76030 Santiago de Querétaro, Qro., México",
+      "types": [
+        "street_address",
+        "subpremise"
+      ]
+    },
+    {
+      "formatted": "C. Carlos Septién García 52, Cimatario, 76030 Santiago de Querétaro, Qro., México",
+      "types": [
+        "car_rental",
+        "establishment",
+        "point_of_interest"
+      ]
+    },
+    {
+      "formatted": "C. Carlos Septién García 55, Cimatario, 76030 Santiago de Querétaro, Qro., México",
+      "types": [
+        "premise",
+        "street_address"
+      ]
+    },
+    {
+      "formatted": "C. Carlos Septién García 48, Cimatario, 76030 Santiago de Querétaro, Qro., México",
+      "types": [
+        "street_address"
+      ]
+    }
+  ],
+  "adyacentes": [
+    {
+      "name": "Santiago de Querétaro",
+      "types": [
+        "locality",
+        "political"
+      ],
+      "lat": 20.5887932,
+      "lng": -100.3898881,
+      "vicinity": "Santiago de Querétaro"
+    },
+    {
+      "name": "Secundaria Instituto Plancarte",
+      "types": [
+        "school",
+        "point_of_interest",
+        "establishment"
+      ],
+      "lat": 20.5819394,
+      "lng": -100.3880486,
+      "vicinity": "Florencio Rosas 1, Santiago de Querétaro",
+      "business_status": "OPERATIONAL"
+    },
+    {
+      "name": "Inmobiliaria Yospi, S.A. De C.V.",
+      "types": [
+        "real_estate_agency",
+        "point_of_interest",
+        "establishment"
+      ],
+      "lat": 20.581825,
+      "lng": -100.3893526,
+      "vicinity": "Florencio Rosas 24, Cimatario, Santiago de Querétaro",
+      "business_status": "OPERATIONAL"
+    },
+    {
+      "name": "Bazar Causa",
+      "types": [
+        "furniture_store",
+        "home_goods_store",
+        "clothing_store",
+        "point_of_interest",
+        "store",
+        "establishment"
+      ],
+      "lat": 20.5821841,
+      "lng": -100.389404,
+      "vicinity": "Ignacio M. de Las Casas 45, Cimatario, Santiago de Querétaro",
+      "business_status": "OPERATIONAL"
+    },
+    {
+      "name": "Grupo Mente Saludable Centro Integral de Psicología",
+      "types": [
+        "health",
+        "point_of_interest",
+        "establishment"
+      ],
+      "lat": 20.5819207,
+      "lng": -100.3891547,
+      "vicinity": "Florencio Rosas 20-despacho 301, Cimatario, Santiago de Querétaro",
+      "business_status": "OPERATIONAL"
+    },
+    {
+      "name": "Kto Seguridad Privada S.A. de C.V.",
+      "types": [
+        "point_of_interest",
+        "establishment"
+      ],
+      "lat": 20.582762,
+      "lng": -100.388549,
+      "vicinity": "José María Truchuelo 46, Cimatario, Santiago de Querétaro",
+      "business_status": "OPERATIONAL"
+    },
+    {
+      "name": "G2 Ingeniería Para la Construcción S.A. de C.V.",
+      "types": [
+        "point_of_interest",
+        "establishment"
+      ],
+      "lat": 20.5818538,
+      "lng": -100.3893128,
+      "vicinity": "Florencio Rosas 24, Cimatario, Santiago de Querétaro",
+      "business_status": "OPERATIONAL"
+    },
+    {
+      "name": "Filtros y Purificadores de Agua",
+      "types": [
+        "point_of_interest",
+        "establishment"
+      ],
+      "lat": 20.5824012,
+      "lng": -100.389117,
+      "vicinity": "Calle Carlos Septién García, Cimatario, Santiago de Querétaro",
+      "business_status": "OPERATIONAL"
+    },
+    {
+      "name": "ProMéxico Querétaro",
+      "types": [
+        "point_of_interest",
+        "establishment"
+      ],
+      "lat": 20.5827271,
+      "lng": -100.3891343,
+      "vicinity": "Calle Wenceslao Sánchez de la Barquera, Cimatario, Santiago de Querétaro",
+      "business_status": "OPERATIONAL"
+    },
+    {
+      "name": "NutrigenMx",
+      "types": [
+        "health",
+        "point_of_interest",
+        "establishment"
+      ],
+      "lat": 20.5819026,
+      "lng": -100.3892735,
+      "vicinity": "102, Florencio Rosas 20, Cimatario, Santiago de Querétaro",
+      "business_status": "OPERATIONAL"
+    },
+    {
+      "name": "Torres Guzman Jose",
+      "types": [
+        "point_of_interest",
+        "establishment"
+      ],
+      "lat": 20.5822268,
+      "lng": -100.3880334,
+      "vicinity": "Florencio Rosas 6, Cimatario, Santiago de Querétaro",
+      "business_status": "OPERATIONAL"
+    },
+    {
+      "name": "Imagen Consultores",
+      "types": [
+        "point_of_interest",
+        "establishment"
+      ],
+      "lat": 20.5829368,
+      "lng": -100.3885702,
+      "vicinity": "Calle Wenceslao Sánchez de la Barquera 8, Cimatario, Santiago de Querétaro",
+      "business_status": "OPERATIONAL"
+    },
+    {
+      "name": "Colegio Plancartino",
+      "types": [
+        "primary_school",
+        "school",
+        "point_of_interest",
+        "establishment"
+      ],
+      "lat": 20.5818419,
+      "lng": -100.3880433,
+      "vicinity": "76030, Florencio Rosas 8, Cimatario, Santiago de Querétaro",
+      "business_status": "OPERATIONAL"
+    },
+    {
+      "name": "FUNDAp,S.C",
+      "types": [
+        "point_of_interest",
+        "establishment"
+      ],
+      "lat": 20.5826474,
+      "lng": -100.3896246,
+      "vicinity": "Calle Wenceslao Sánchez de la Barquera 22, Cimatario, Santiago de Querétaro",
+      "business_status": "OPERATIONAL"
+    },
+    {
+      "name": "Deloga Pastelería",
+      "types": [
+        "cafe",
+        "bakery",
+        "food",
+        "point_of_interest",
+        "store",
+        "establishment"
+      ],
+      "lat": 20.5831743,
+      "lng": -100.3887221,
+      "vicinity": "José María Truchuelo 42, Cimatario, Santiago de Querétaro",
+      "business_status": "OPERATIONAL"
+    },
+    {
+      "name": "QroSoft",
+      "types": [
+        "point_of_interest",
+        "establishment"
+      ],
+      "lat": 20.5823866,
+      "lng": -100.3891203,
+      "vicinity": "Calle Carlos Septién García 44, Cimatario, Santiago de Querétaro",
+      "business_status": "OPERATIONAL"
+    },
+    {
+      "name": "Alegretza",
+      "types": [
+        "point_of_interest",
+        "establishment"
+      ],
+      "lat": 20.5817639,
+      "lng": -100.3889829,
+      "vicinity": "Florencio Rosas 7, Santiago de Querétaro",
+      "business_status": "OPERATIONAL"
+    },
+    {
+      "name": "Negocys",
+      "types": [
+        "point_of_interest",
+        "establishment"
+      ],
+      "lat": 20.5821439,
+      "lng": -100.3881051,
+      "vicinity": "Florencio Rosas, Santiago de Querétaro",
+      "business_status": "OPERATIONAL"
+    },
+    {
+      "name": "Arta",
+      "types": [
+        "point_of_interest",
+        "establishment"
+      ],
+      "lat": 20.5818918,
+      "lng": -100.3892943,
+      "vicinity": "Florencio Rosas 20, Cimatario, Santiago de Querétaro",
+      "business_status": "OPERATIONAL"
+    },
+    {
+      "name": "Cimatario",
+      "types": [
+        "sublocality_level_1",
+        "sublocality",
+        "political"
+      ],
+      "lat": 20.5810239,
+      "lng": -100.3912012,
+      "vicinity": "Cimatario"
+    }
+  ],
+  "anclas": {
+    "university": [
+      {
+        "name": "Universidad CNCI Querétaro",
+        "dist_approx_m": 732,
+        "rating": 3.8
+      },
+      {
+        "name": "INTELIGENCIA ARTIFICIAL, COMPONNETES ELECTRONICOS Y ROBOTICA",
+        "dist_approx_m": 906,
+        "rating": 4.3
+      },
+      {
+        "name": "Bellas Artes del Centro",
+        "dist_approx_m": 1026,
+        "rating": 4.8
+      },
+      {
+        "name": "Grupo ISIMA Querétaro",
+        "dist_approx_m": 1144,
+        "rating": 4.1
+      },
+      {
+        "name": "Universidad Interamericana Del Norte",
+        "dist_approx_m": 1348,
+        "rating": 1
+      }
+    ],
+    "hospital": [
+      {
+        "name": "VOLUNTARIADO DEL CENAEC",
+        "dist_approx_m": 543
+      },
+      {
+        "name": "Menos Kilos mas Vida",
+        "dist_approx_m": 839
+      },
+      {
+        "name": "Dannel Derma",
+        "dist_approx_m": 969
+      },
+      {
+        "name": "Grupo Médico Zaragoza",
+        "dist_approx_m": 1007,
+        "rating": 4.5
+      },
+      {
+        "name": "Hospital H+ Querétaro",
+        "dist_approx_m": 1209,
+        "rating": 4.2
+      }
+    ],
+    "shopping_mall": [
+      {
+        "name": "PLAZA EL RAYO",
+        "dist_approx_m": 254,
+        "rating": 5
+      },
+      {
+        "name": "SISTEMAS AUTOMATICOS TECA SA DE CV",
+        "dist_approx_m": 349,
+        "rating": 1
+      },
+      {
+        "name": "PLAZA MARA",
+        "dist_approx_m": 504,
+        "rating": 3.7
+      },
+      {
+        "name": "Plaza gama",
+        "dist_approx_m": 520
+      },
+      {
+        "name": "PLAZA GALERIAS CONSTITUYENTES",
+        "dist_approx_m": 717,
+        "rating": 4.2
+      }
+    ],
+    "supermarket": [
+      {
+        "name": "La Central",
+        "dist_approx_m": 445,
+        "rating": 4.2
+      },
+      {
+        "name": "Tiendas 3B",
+        "dist_approx_m": 489,
+        "rating": 4.3
+      },
+      {
+        "name": "La Guadalupana Súper Bodega",
+        "dist_approx_m": 648,
+        "rating": 4.1
+      },
+      {
+        "name": "Garis Querétaro Casa Blanca",
+        "dist_approx_m": 1200,
+        "rating": 4.3
+      },
+      {
+        "name": "Servicio Comercial Garis, S.A. De C.V.",
+        "dist_approx_m": 1465,
+        "rating": 4.2
+      }
+    ]
+  },
+  "streetview": {
+    "0": {
+      "status": "OK",
+      "date": "2024-05",
+      "pano_id": "M5OKgjaS0ZF3hIHw4nygmw"
+    },
+    "90": {
+      "status": "OK",
+      "date": "2024-05",
+      "pano_id": "M5OKgjaS0ZF3hIHw4nygmw"
+    },
+    "180": {
+      "status": "OK",
+      "date": "2024-05",
+      "pano_id": "M5OKgjaS0ZF3hIHw4nygmw"
+    },
+    "270": {
+      "status": "OK",
+      "date": "2024-05",
+      "pano_id": "M5OKgjaS0ZF3hIHw4nygmw"
+    }
+  }
+}

@@ -5,12 +5,14 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import dynamic from 'next/dynamic';
+import { useReducedMotion } from 'framer-motion';
 import { computeProforma, PRESETS, DEFAULT_INPUT } from '@/lib/proforma';
 import { ESTUDIO2023 } from '../data/estudio2023';
 import { VALUATION } from '../data/comps';
 import { fmtMX } from '@/lib/format';
 import KPICard from './KPICard';
 import terrenosFullRaw from '../terrenos_full.json';
+import topologiaRaw from '../data/topologia-colindancias.json';
 
 // Whole-peso formatter for this tab's money displays. The shared fmtMoney()
 // in lib/format.ts always renders 2 decimals ("$14,832,340.00"); every value
@@ -37,6 +39,50 @@ const FinObra3DBuilding = dynamic(() => import('../FinObra3DBuilding'), {
   ssr: false,
   loading: () => <div style={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0f', color: '#666', borderRadius: 12 }}>Cargando modelo 3D...</div>,
 });
+
+// Los 3 escenarios de uso alternativo (HBU) generados como render conceptual
+// (FAL/kling) — conectan visualmente con la comparación RLV as-vacant y con
+// la sección "Colindancias" (misma topología real de lote 660m² 22×30m).
+const HBU_SCENARIOS = [
+  { key: 'hibrido', label: 'Híbrido — co-living mixto', desc: 'Townhouses en venta + lofts/estudios en renta (uso declarado del pitch).', video: '/assets/hbu_hibrido.mp4', poster: '/assets/hbu_hibrido_poster.jpg' },
+  { key: 'vertical', label: 'Vertical — torre residencial', desc: 'Máxima densidad sobre el mismo lote, escenario CUS alto.', video: '/assets/hbu_vertical.mp4', poster: '/assets/hbu_vertical_poster.jpg' },
+  { key: 'horizontal', label: 'Horizontal — townhouses low-rise', desc: 'Baja densidad, huella extendida sobre los 660m².', video: '/assets/hbu_horizontal.mp4', poster: '/assets/hbu_horizontal_poster.jpg' },
+] as const;
+
+// Tipos de Google Places demasiado genéricos para describir el giro de un
+// negocio (aplican a casi cualquier resultado y no aportan información) —
+// se filtran antes de elegir el "tipo principal" legible de cada adyacente.
+const GENERIC_PLACE_TYPES = new Set([
+  'point_of_interest', 'establishment', 'political', 'locality',
+  'sublocality', 'sublocality_level_1', 'premise', 'subpremise', 'street_address',
+]);
+
+const PLACE_TYPE_LABELS: Record<string, string> = {
+  school: 'Escuela',
+  primary_school: 'Primaria',
+  real_estate_agency: 'Inmobiliaria',
+  furniture_store: 'Mueblería / decoración',
+  home_goods_store: 'Artículos para el hogar',
+  clothing_store: 'Tienda de ropa',
+  health: 'Consultorio / salud',
+  cafe: 'Café',
+  bakery: 'Panadería',
+  food: 'Alimentos',
+  store: 'Comercio',
+};
+
+function mainPlaceType(types: string[]): string {
+  const t = types.find((x) => !GENERIC_PLACE_TYPES.has(x));
+  if (!t) return 'Negocio / oficina (sin giro público en Google)';
+  return PLACE_TYPE_LABELS[t] ?? t.replace(/_/g, ' ');
+}
+
+const ANCLA_LABELS: Record<string, string> = {
+  university: 'Universidad / educación',
+  hospital: 'Salud / hospital',
+  shopping_mall: 'Plaza / centro comercial',
+  supermarket: 'Supermercado',
+};
 
 export default function HbuTab() {
   const [activePreset, setActivePreset] = useState(0);
@@ -152,6 +198,37 @@ export default function HbuTab() {
   const triggerAnim = () => { setIsAnimating(true); setTimeout(() => setIsAnimating(false), 2200); };
   const E = ESTUDIO2023;
   const foda = E.foda;
+  const prefersReducedMotion = useReducedMotion();
+  const topo = topologiaRaw as any;
+
+  // Adyacentes reales (radio ~120 m, Google Places). "Santiago de Querétaro"
+  // y "Cimatario" se excluyen: son la localidad/colonia que envuelve al
+  // punto (types locality/sublocality/political), no negocios vecinos —
+  // incluirlos como "adyacentes" sería engañoso. Se limita a 12 filas para
+  // que la lista sea escaneable; el resto queda contado en el pie.
+  const { adyacentesVisibles, adyacentesTotal, adyacentesOcultos } = useMemo(() => {
+    const raw: any[] = topo.adyacentes ?? [];
+    const real = raw.filter((a) => {
+      const types: string[] = a.types ?? [];
+      return !(types.includes('locality') || types.includes('sublocality_level_1'));
+    });
+    return {
+      adyacentesVisibles: real.slice(0, 12),
+      adyacentesTotal: real.length,
+      adyacentesOcultos: Math.max(real.length - 12, 0),
+    };
+  }, [topo]);
+
+  const anclasOrdenadas = useMemo(() => {
+    const anclas = topo.anclas ?? {};
+    return Object.entries(anclas).map(([cat, items]) => ({
+      cat,
+      label: ANCLA_LABELS[cat] ?? cat,
+      items: [...(items as any[])].sort((a, b) => a.dist_approx_m - b.dist_approx_m),
+    }));
+  }, [topo]);
+
+  const streetviewDate: string = topo.streetview?.['0']?.date ?? 'fecha no disponible';
 
   return (
     <div className="space-y-8">
@@ -367,20 +444,105 @@ export default function HbuTab() {
             </div>
           </div>
           <FinObra3DBuilding floors={floors3d} units={proformaInput.townhouses + proformaInput.lofts + proformaInput.studios} scenario={scenario3d} anim={isAnimating} />
-          <div className="mt-4 rounded-xl overflow-hidden border border-[#1e1e2e]">
-            <video
-              src="/assets/finobra-animation.mp4"
-              autoPlay
-              muted
-              loop
-              playsInline
-              className="w-full"
-              style={{ maxHeight: 260, objectFit: 'cover', display: 'block' }}
-            />
-            <div className="bg-[#0a0a0f] px-3 py-1.5 text-[10px] text-gray-500 flex justify-between">
-              <span>Animación FinObra 3D — edificio objeto Cimatario</span>
-              <span className="text-[#10b981]">Klugger verde #00FF66</span>
+
+          <div className="mt-6">
+            <div className="text-sm font-medium mb-0.5">Galería de escenarios HBU — comparación de uso alternativo</div>
+            <div className="text-xs text-gray-500 mb-3">Mismo lote (660m², 22×30m) bajo tres programas distintos. Conecta con la comparación RLV as-vacant y con la topología real de colindancias.</div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {HBU_SCENARIOS.map((s) => (
+                <div key={s.key} className="rounded-xl overflow-hidden border border-[#1e1e2e] bg-[#111118]">
+                  <video
+                    src={s.video}
+                    poster={s.poster}
+                    controls
+                    muted
+                    loop={!prefersReducedMotion}
+                    playsInline
+                    className="w-full bg-[#0a0a0f]"
+                    style={{ maxHeight: 220, objectFit: 'cover', display: 'block' }}
+                  />
+                  <div className="px-3 py-2">
+                    <div className="text-xs font-medium text-gray-200">{s.label}</div>
+                    <div className="text-[10px] text-gray-500 mt-0.5">{s.desc}</div>
+                  </div>
+                </div>
+              ))}
             </div>
+            <div className="mt-2 text-[10px] text-gray-500">
+              Renders conceptuales generados con IA (FAL/kling), informados por la topología real de colindancias (ver sección de Colindancias). No son levantamientos arquitectónicos.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* COLINDANCIAS Y CONTEXTO URBANO — topología real (Google Places / Maps) */}
+      <section>
+        <h3 className="text-xl font-semibold mb-3">Colindancias y contexto urbano (topología real)</h3>
+        <div className="glass rounded-3xl p-6 border border-[#1e1e2e] space-y-5">
+          <div className="text-sm text-gray-300 space-y-2">
+            <p>
+              El geocoding inverso del punto exacto del predio resuelve, en el mismo tramo de calle, a las direcciones vecinas
+              {' '}<strong className="text-white">#48, #52 y #55</strong> de C. Carlos Septién García — confirmación adicional de que el predio
+              tiene frente de calle directo (consistente con la doble fachada de 22×30 m ya documentada), no un lote interior.
+            </p>
+            <p>
+              De los {topo.adyacentes?.length ?? 0} puntos catalogados por Google Places en un radio de ~120 m, {adyacentesTotal} son negocios
+              o instituciones reales (se excluyen 2 entradas puramente administrativas: la localidad "Santiago de Querétaro" y la colonia
+              "Cimatario", que no son vecinos). El mosaico es de <strong className="text-white">uso mixto de escala barrial</strong>: escuelas
+              (Secundaria y Colegio Instituto Plancarte/Plancartino), consultorios de salud, una inmobiliaria, comercio menor (pastelería,
+              mueblería) y una decena de oficinas y despachos pequeños (ingeniería, consultoría, seguridad, software) — sin naves industriales
+              ni torres identificadas en el radio. Este entorno respalda el HBU de co-living / uso mixto sobre alternativas puramente
+              unifamiliares o comerciales de gran formato.
+            </p>
+          </div>
+
+          <div>
+            <div className="text-xs font-semibold uppercase text-gray-400 tracking-wider mb-2">
+              Adyacentes (radio ~120 m){adyacentesOcultos > 0 && <span className="normal-case font-normal text-gray-500"> — mostrando {adyacentesVisibles.length} de {adyacentesTotal}</span>}
+            </div>
+            <div className="overflow-auto rounded-xl border border-[#1e1e2e]">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-[10px] text-gray-500 bg-[#0a0a0f]">
+                    <th className="text-left py-2 px-3">Nombre</th>
+                    <th className="text-left py-2 px-3">Tipo principal</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#1e1e2e]">
+                  {adyacentesVisibles.map((a: any, i: number) => (
+                    <tr key={i} className="bg-[#111118]">
+                      <td className="py-2 px-3 text-gray-200">{a.name}</td>
+                      <td className="py-2 px-3 text-gray-400">{mainPlaceType(a.types ?? [])}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {adyacentesOcultos > 0 && (
+              <div className="mt-1 text-[10px] text-gray-500">+{adyacentesOcultos} adyacentes más en el mismo radio (lista completa disponible en la fuente de datos).</div>
+            )}
+          </div>
+
+          <div>
+            <div className="text-xs font-semibold uppercase text-gray-400 tracking-wider mb-2">Anclas urbanas por categoría</div>
+            <div className="space-y-3">
+              {anclasOrdenadas.map(({ cat, label, items }) => (
+                <div key={cat}>
+                  <div className="text-[10px] text-gray-500 mb-1">{label}</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {items.map((it: any, i: number) => (
+                      <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-[#7c3aed]/15 text-[#a78bfa] border border-[#7c3aed]/30">
+                        {it.name} <span className="text-gray-400">· {it.dist_approx_m} m</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="text-[10px] text-gray-500 border-t border-[#1e1e2e] pt-3">
+            Fuente: Google Places / Maps Platform · StreetView disponible (paneles {streetviewDate}, 4 orientaciones).
           </div>
         </div>
       </section>

@@ -16,5 +16,23 @@
     "unit_cost_usd": 0.003,
     "cost_usd": 0.012,
     "note": "hibrido/vertical/horizontal + test"
+  },
+  {
+    "date": "2026-07-05T21:49:00Z",
+    "api": "FAL kling-video 1.6 std i2v",
+    "operation": "3 videos HBU (image-to-video 5s)",
+    "units": 3,
+    "unit_cost_usd": 0.30,
+    "cost_usd": 0.90,
+    "note": "hibrido/vertical/horizontal desde renders; 5s c/u"
+  },
+  {
+    "date": "2026-07-05T21:45:00Z",
+    "api": "Google Places / Maps",
+    "operation": "topología colindancias (reverse geocode + nearby x5 + StreetView metadata x4)",
+    "units": 6,
+    "unit_cost_usd": 0.028,
+    "cost_usd": 0.17,
+    "note": "colindancias predio + anclas (univ/hospital/mall/super); SV metadata sin costo"
   }
 ]
