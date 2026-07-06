@@ -9,6 +9,7 @@ import { VALUATION, SELL_TIME_DATA, TARGET_SELL_EST } from '../data/comps';
 import { fmtMoney, fmtMX } from '@/lib/format';
 import KPICard from './KPICard';
 import CompsTable from './CompsTable';
+import ScorecardPredio from './ScorecardPredio';
 import terrenosFullRaw from '../terrenos_full.json';
 
 interface RawTerreno {
@@ -185,6 +186,8 @@ export default function ValuacionTab() {
           +40% por alto potencial densificación (CUS 2.4 permite ~12 aptos vs lotes típicos 1-2 viviendas en los comps).
         </div>
       </div>
+
+      <ScorecardPredio />
 
       <section className="space-y-4">
         <div className="flex items-baseline justify-between">

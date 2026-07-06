@@ -1,0 +1,71 @@
+{
+  "predio": {
+    "lat": 20.5822759,
+    "lng": -100.3887838,
+    "size_m2": 660,
+    "asking": 7000000,
+    "ppm": 10606
+  },
+  "surface": 87.36,
+  "subscores": {
+    "S1": 26.08,
+    "S2": 87.36,
+    "S3": 93.63,
+    "S4": 94.11,
+    "S5": 97.72,
+    "S6": 41.85,
+    "S7": 98.56
+  },
+  "raw": {
+    "k_ancla": 24.05,
+    "k_consumo": 8.29,
+    "k_equip": 15.25,
+    "k_sat": 0.24,
+    "k_val": 2.41,
+    "k_growth": 2.68
+  },
+  "lentes": {
+    "desarrollador": {
+      "score": 73.35,
+      "percentil": 94.71,
+      "ranking_en_537": 45,
+      "weakest": "S1",
+      "weakest_label": "valor ($/m² relativo)",
+      "gap_top_decil_pts": 0,
+      "veredicto": "Score 73.4/100, percentil 94.7 de 537. Punto más débil: valor ($/m² relativo) (26.1 pts)."
+    },
+    "comprador": {
+      "score": 74.08,
+      "percentil": 89.42,
+      "ranking_en_537": 89,
+      "weakest": "S6",
+      "weakest_label": "competencia neta",
+      "gap_top_decil_pts": 0.37,
+      "veredicto": "Score 74.1/100, percentil 89.4 de 537. Punto más débil: competencia neta (41.9 pts).",
+      "safety_is_proxy": true
+    },
+    "inversionista": {
+      "score": 75.73,
+      "percentil": 92.19,
+      "ranking_en_537": 66,
+      "weakest": "S6",
+      "weakest_label": "competencia neta",
+      "gap_top_decil_pts": 0,
+      "veredicto": "El predio es más atractivo para el perfil inversionista (score 75.7/100, percentil 92.2 de 537). Su punto más débil bajo este lente es competencia neta (41.9 pts). Para entrar al top-decil necesitaría subir ~0.0 pts, principalmente vía competencia neta.",
+      "liquidity_is_proxy": true,
+      "liquidity_n_comps_1500m": 71
+    }
+  },
+  "veredicto_texto": "El predio es más atractivo para el perfil inversionista (score 75.7/100, percentil 92.2 de 537). Su punto más débil bajo este lente es competencia neta (41.9 pts). Para entrar al top-decil necesitaría subir ~0.0 pts, principalmente vía competencia neta.",
+  "para_quien_es_mejor": "inversionista",
+  "modifiers": {
+    "topo_modifier_applied": false,
+    "value_pts": 0
+  },
+  "flags": {
+    "growth_included": true,
+    "growth_amount_weighted": true,
+    "safety_is_proxy": true,
+    "liquidity_is_proxy": true
+  }
+}

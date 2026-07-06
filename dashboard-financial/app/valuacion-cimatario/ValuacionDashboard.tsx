@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MotionConfig, AnimatePresence, motion } from 'framer-motion';
 import ValuacionTab from './components/ValuacionTab';
 import DatabaseTab from './components/DatabaseTab';
+import RankingTab from './components/RankingTab';
 import EstudioMercadoTab from './components/EstudioMercadoTab';
 import MarketingTab from './components/MarketingTab';
 import HbuTab from './components/HbuTab';
@@ -13,13 +14,16 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Order follows the investment narrative: value the asset, show the market
 // that justifies it, show the highest-and-best-use case built on that
-// market, then the supporting evidence (raw comps), then go-to-market and
-// automation. Keep render order below in sync with this array.
+// market, then the supporting evidence (raw comps + full-market ranking),
+// then go-to-market and automation. Keep render order below in sync with
+// this array. 'ranking' sits right after 'database' — it's the same 537-comp
+// population, just scored/classified instead of raw.
 const TABS = [
   { id: 'valuacion', label: '📊 Valuación' },
   { id: 'estudio-mercado', label: '📈 Estudio de Mercado' },
   { id: 'hbu', label: '🏗️ HBU/HBV + Estudio Colonia' },
   { id: 'database', label: '🗄️ Base de Datos' },
+  { id: 'ranking', label: '🏆 Ranking de Terrenos' },
   { id: 'marketing', label: '📣 Marketing + Estudio' },
   { id: 'agentes', label: '🤖 Agentes + Outreach WA' },
   { id: 'costos', label: '💰 Costos API' },
@@ -42,6 +46,22 @@ const tabContentVariants = {
 
 export default function ValuacionDashboard() {
   const [activeTab, setActiveTab] = useState<TabId>('valuacion');
+
+  // Cross-tab navigation hook for other agents/components: dispatch
+  // `new CustomEvent('klugger:switch-tab', { detail: 'ranking' })` (or any
+  // other TabId) anywhere in this window and this dashboard will switch to
+  // it. Validated against TABS so a typo'd/foreign detail is a no-op instead
+  // of silently landing on `undefined`.
+  useEffect(() => {
+    function handleSwitchTab(e: Event) {
+      const detail = (e as CustomEvent<string>).detail;
+      if (TABS.some((t) => t.id === detail)) {
+        setActiveTab(detail as TabId);
+      }
+    }
+    window.addEventListener('klugger:switch-tab', handleSwitchTab as EventListener);
+    return () => window.removeEventListener('klugger:switch-tab', handleSwitchTab as EventListener);
+  }, []);
 
   return (
     // reducedMotion="user" makes every motion.* component in this subtree
@@ -129,6 +149,7 @@ export default function ValuacionDashboard() {
             {activeTab === 'estudio-mercado' && <ErrorBoundary label="Estudio de Mercado"><EstudioMercadoTab onNavigateHbu={() => setActiveTab('hbu')} /></ErrorBoundary>}
             {activeTab === 'hbu' && <ErrorBoundary label="HBU/HBV"><HbuTab /></ErrorBoundary>}
             {activeTab === 'database' && <ErrorBoundary label="Base de Datos"><DatabaseTab /></ErrorBoundary>}
+            {activeTab === 'ranking' && <ErrorBoundary label="Ranking de Terrenos"><RankingTab /></ErrorBoundary>}
             {activeTab === 'marketing' && <ErrorBoundary label="Marketing"><MarketingTab /></ErrorBoundary>}
             {activeTab === 'agentes' && <ErrorBoundary label="Agentes"><AgentesTab /></ErrorBoundary>}
             {activeTab === 'costos' && <ErrorBoundary label="Costos API"><CostosTab /></ErrorBoundary>}

@@ -1,0 +1,5754 @@
+[
+  {
+    "place_id": "ChIJE6WgeO1F04UR4pa0m_kqupA",
+    "name": "Hermanos Coronel Cremería - Colonia Cimatario",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.5814721,
+    "lng": -100.3925395,
+    "dist_predio_m": 401,
+    "rating": 3.7,
+    "user_ratings": 3,
+    "price_level": null,
+    "vicinity": "Calle Fray Sebastián de Aparicio 28, Cimatario, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJfS7W1PJF04URL1yghq2w9rA",
+    "name": "Tiendas 3B estadio",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.5844471,
+    "lng": -100.3855411,
+    "dist_predio_m": 415,
+    "rating": 4.1,
+    "user_ratings": 103,
+    "price_level": null,
+    "vicinity": "Gonzalo Río Arronte 29, Villas del Sur, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJIdmeGNJE04UR3RDqmuo0aYk",
+    "name": "La Central",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.5840458,
+    "lng": -100.3849488,
+    "dist_predio_m": 445,
+    "rating": 4.2,
+    "user_ratings": 11,
+    "price_level": null,
+    "vicinity": "Avenida Luis Pasteur Sur 394, zona dos extendida, Villas del Sur, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJTd_GttVE04UR0pDaJH1e5q4",
+    "name": "Tiendas 3B",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.5850273,
+    "lng": -100.3924486,
+    "dist_predio_m": 489,
+    "rating": 4.3,
+    "user_ratings": 264,
+    "price_level": null,
+    "vicinity": "J. Encarnación Cabrera 10, Centro, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJ2da6U-xF04URPEx8Z1f2L4g",
+    "name": "Douglas Ramón Pérez Cruz",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.5862503,
+    "lng": -100.3916729,
+    "dist_predio_m": 535,
+    "rating": 1,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "15, Fernando de Tapia 13, Centro, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJmanXpNVE04URVa4AoysyOOA",
+    "name": "San Juan Abarrotes (AUTOSERVICIO)",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.5853797,
+    "lng": -100.3927913,
+    "dist_predio_m": 541,
+    "rating": 3.8,
+    "user_ratings": 11,
+    "price_level": null,
+    "vicinity": "Fernando de Tapia 35, Centro, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJR_S2D9ZE04URvdaWJxcwB4k",
+    "name": "VOLUNTARIADO DEL CENAEC",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.5818906,
+    "lng": -100.3939876,
+    "dist_predio_m": 543,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "1, Calle Fray Juan de Zumárraga 42, Cimatario, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJkRkijdVE04URrz31UVYbtnM",
+    "name": "La Guadalupana Súper Bodega",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.5843887,
+    "lng": -100.3945882,
+    "dist_predio_m": 648,
+    "rating": 4.1,
+    "user_ratings": 309,
+    "price_level": null,
+    "vicinity": "Calle Melchor Ocampo 88 SUR, Centro, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJKaJ7tbJF04UROmYavjSiRSo",
+    "name": "Wild Fork Constituyentes",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.5875689,
+    "lng": -100.3850771,
+    "dist_predio_m": 704,
+    "rating": 4.6,
+    "user_ratings": 19,
+    "price_level": null,
+    "vicinity": "Avenida Constituyentes Oriente 7-1, San Francisquito, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJfZbBwopF04URl7pSyPro_tc",
+    "name": "Súper Naturista",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.5884291,
+    "lng": -100.3907889,
+    "dist_predio_m": 715,
+    "rating": 4,
+    "user_ratings": 20,
+    "price_level": null,
+    "vicinity": "Plaza de la Mujer Qro, Cristóbal Colón No. 2-Local 678, Centro, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJG_zIg85E04URhOVWv0OJ2JE",
+    "name": "PLAZA GALERIAS CONSTITUYENTES",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.5843236,
+    "lng": -100.3822505,
+    "dist_predio_m": 717,
+    "rating": 4.2,
+    "user_ratings": 7880,
+    "price_level": null,
+    "vicinity": "Avenida Constituyentes Oriente 34, Mercurio, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJg11urq9F04URNfhEyV5H6No",
+    "name": "Bodega Aurrerá Querétaro",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.5846578,
+    "lng": -100.3822598,
+    "dist_predio_m": 729,
+    "rating": 3.8,
+    "user_ratings": 8791,
+    "price_level": null,
+    "vicinity": "Avenida Constituyentes Oriente 34, Las Alamedas, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJH2XqytRE04URLtNIpmAkzjQ",
+    "name": "Universidad CNCI Querétaro",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.58722909999999,
+    "lng": -100.393419,
+    "dist_predio_m": 732,
+    "rating": 3.8,
+    "user_ratings": 34,
+    "price_level": null,
+    "vicinity": "Avenida Zaragoza Poniente 11-int 201, Centro, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJgdBy1D9F04URBryRy_EzJbs",
+    "name": "Hermanos Coronel Cremería - El Laurel",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.5823633,
+    "lng": -100.3813728,
+    "dist_predio_m": 772,
+    "rating": 1,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "1a. Calle de Laurel 123, zona dos extendida, El Laurel, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJ1WpLdm1F04URukXtiOPDjwE",
+    "name": "Miscelánea Lulú",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.5775763,
+    "lng": -100.3947341,
+    "dist_predio_m": 810,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Calle General Lazaro Cardenas 21, Casa Blanca, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJzzT3cJFF04URkJbeNHs6O6w",
+    "name": "PLAYO CEYLAN Queretaro",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.5851427,
+    "lng": -100.3814314,
+    "dist_predio_m": 829,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Avenida Constituyentes 40-Sótano 2, zona dos extendida, Mercurio, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJL8aCOipF04URl9cTRJTW_ws",
+    "name": "Menos Kilos mas Vida",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.5837429,
+    "lng": -100.3966917,
+    "dist_predio_m": 839,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Del Cañaveral 5, El Carrizal, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ10pvGCtb04URPSJSyEULo4w",
+    "name": "INTELIGENCIA ARTIFICIAL, COMPONNETES ELECTRONICOS Y ROBOTICA",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.5902349,
+    "lng": -100.3906481,
+    "dist_predio_m": 906,
+    "rating": 4.3,
+    "user_ratings": 136,
+    "price_level": null,
+    "vicinity": "Avenida Reforma Oriente 3, Centro, Santiago de Querétaro",
+    "types": [
+      "electronics_store",
+      "university",
+      "store",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJmfYYzCtF04URBYFbx_9NoXg",
+    "name": "Dannel Derma",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.5837857,
+    "lng": -100.3979514,
+    "dist_predio_m": 969,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Avenida del Bejuco 30, El Carrizal, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "store"
+    ]
+  },
+  {
+    "place_id": "ChIJKWZgFCtb04URS0e27iRG02c",
+    "name": "Waldo's Corregidora",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.590903,
+    "lng": -100.390683,
+    "dist_predio_m": 979,
+    "rating": 3.9,
+    "user_ratings": 1466,
+    "price_level": null,
+    "vicinity": "Calle Corregidora 47, Centro, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJlcGSAStF04URRzsNhvTAYow",
+    "name": "Grupo Médico Zaragoza",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.5860754,
+    "lng": -100.3975648,
+    "dist_predio_m": 1007,
+    "rating": 4.5,
+    "user_ratings": 4,
+    "price_level": null,
+    "vicinity": "Av Ignacio Zaragoza 39-B pte, Centro, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "doctor",
+      "health",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ_dJkGytb04URR14lBXl3StU",
+    "name": "Bellas Artes del Centro",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.5911519,
+    "lng": -100.3914748,
+    "dist_predio_m": 1026,
+    "rating": 4.8,
+    "user_ratings": 20,
+    "price_level": null,
+    "vicinity": "Calle Independencia, Centro, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJcytbXNlE04URDRQ3HDvMtf0",
+    "name": "Sanatorio Queretaro",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.5728004,
+    "lng": -100.3894751,
+    "dist_predio_m": 1056,
+    "rating": 3.8,
+    "user_ratings": 72,
+    "price_level": null,
+    "vicinity": "Calle 11 311, Lomas de Casa Blanca, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJczO0ettE04URWjVu0RzMXoc",
+    "name": "Grupo ISIMA Querétaro",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.5723928,
+    "lng": -100.3857175,
+    "dist_predio_m": 1144,
+    "rating": 4.1,
+    "user_ratings": 272,
+    "price_level": null,
+    "vicinity": "Circuito Moisés Solana 503, Vista Alegre, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJjZFMCixF04URxCvkMS5azVc",
+    "name": "Cancer Center Tec 100 By MRC International",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.5836931,
+    "lng": -100.4000609,
+    "dist_predio_m": 1184,
+    "rating": 4.1,
+    "user_ratings": 13,
+    "price_level": null,
+    "vicinity": "Ignacio Zaragoza Poniente 263 H 16 1er Piso y Sótano 3 de la Torre Médica 2, Hospital Médica Tec, De Santiago 100, Hercules, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "doctor",
+      "health",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJlTQQiytF04UR1GfstX3o95A",
+    "name": "Dr Roberto Paredes",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.5844064,
+    "lng": -100.4000413,
+    "dist_predio_m": 1196,
+    "rating": 5,
+    "user_ratings": 2,
+    "price_level": null,
+    "vicinity": "Calle Privada Ignacio Zaragoza 16, El Carrizal, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJtZI1xihF04URInL6X0N28DU",
+    "name": "Garis Querétaro Casa Blanca",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.5783797,
+    "lng": -100.399529,
+    "dist_predio_m": 1200,
+    "rating": 4.3,
+    "user_ratings": 1382,
+    "price_level": null,
+    "vicinity": "Heriberto Allera 6, Casa Blanca, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJcZT3HJxb04UR9ZmrP8nS-aU",
+    "name": "The American Shop QRO",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.5930596,
+    "lng": -100.3881496,
+    "dist_predio_m": 1201,
+    "rating": 4.4,
+    "user_ratings": 126,
+    "price_level": null,
+    "vicinity": "Dr, Calle Rio de la Loza Sur 10A, Centro, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJDZ9EJS1b04UR72pJm5bh1MI",
+    "name": "Hospital H+ Querétaro",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.5841899,
+    "lng": -100.4002203,
+    "dist_predio_m": 1209,
+    "rating": 4.2,
+    "user_ratings": 1372,
+    "price_level": null,
+    "vicinity": "Calle Privada Ignacio Zaragoza 16, Centro, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJXXkoAixF04URZEZQyJt-izQ",
+    "name": "Tec. 100",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.5829082,
+    "lng": -100.4005308,
+    "dist_predio_m": 1225,
+    "rating": 4.1,
+    "user_ratings": 281,
+    "price_level": null,
+    "vicinity": "Avenida Tecnológico 100, San Angel, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "doctor",
+      "health",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJhf_He4tb04URjY9RqMuDENg",
+    "name": "Bazar Quince Norte",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.5924413,
+    "lng": -100.3955131,
+    "dist_predio_m": 1330,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Calle Vicente Guerrero 15, Centro, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJuZeufTJb04URr0Ec-PNZU_8",
+    "name": "Colegio Universitario de la Santa Cruz",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.5933814,
+    "lng": -100.3837486,
+    "dist_predio_m": 1342,
+    "rating": 4.2,
+    "user_ratings": 5,
+    "price_level": null,
+    "vicinity": "s/n de, Calle Independencia, Calle Felipe Luna Sur &, La Cruz, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJI9HEnstE04URk8VZcHQ6qKQ",
+    "name": "Clínica Integral del Pie",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.5865613,
+    "lng": -100.3767028,
+    "dist_predio_m": 1345,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Prolongación Constituyentes 305, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJvykOa5ZE04UR4w4RhVPbDuw",
+    "name": "Universidad Interamericana Del Norte",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.5767353,
+    "lng": -100.3772714,
+    "dist_predio_m": 1348,
+    "rating": 1,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Avenida Luis Vega Monrroy 324, Plazas del Sol 1ra Sección, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJE7ZmIypb04URV2HOS2LvBNY",
+    "name": "Súper Naturista",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.5941003,
+    "lng": -100.3928535,
+    "dist_predio_m": 1381,
+    "rating": 4.4,
+    "user_ratings": 148,
+    "price_level": null,
+    "vicinity": "Calle Benito Juárez Norte 20, Centro, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "food",
+      "health"
+    ]
+  },
+  {
+    "place_id": "ChIJGS5p1Jtb04URXQyarWxD2zY",
+    "name": "Oxxo Juárez Nte QRF",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.5946197,
+    "lng": -100.3932169,
+    "dist_predio_m": 1448,
+    "rating": 3.5,
+    "user_ratings": 6,
+    "price_level": null,
+    "vicinity": "Calle Benito Juárez Norte 71, Centro, Santiago de Querétaro",
+    "types": [
+      "convenience_store",
+      "supermarket",
+      "grocery_or_supermarket",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJ0d4rPsZE04URlA-lUKjQs2I",
+    "name": "Clínica Medica Ameu",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.5773978,
+    "lng": -100.3758335,
+    "dist_predio_m": 1453,
+    "rating": 3.5,
+    "user_ratings": 53,
+    "price_level": null,
+    "vicinity": "520 Avenida Luis M, Avenida Luis Vega Monrroy, Plazas del Sol 1ra Sección, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJaxMmHcNE04URuWcWODoKFhY",
+    "name": "Servicio Comercial Garis, S.A. De C.V.",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.5708282,
+    "lng": -100.3818089,
+    "dist_predio_m": 1465,
+    "rating": 4.2,
+    "user_ratings": 4073,
+    "price_level": null,
+    "vicinity": "Carrera a, Carretera Huimilpan 101, Terranova, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJRZDfxy1F04URO8Esc0lmBdU",
+    "name": "Red Dental Familiar",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.5836188,
+    "lng": -100.4034544,
+    "dist_predio_m": 1534,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "De La Pradera 99, Colonia del Prado, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJazJ1Y9Na04URYzYPTx3l2Do",
+    "name": "CEAD",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.59063519999999,
+    "lng": -100.4006041,
+    "dist_predio_m": 1542,
+    "rating": 5,
+    "user_ratings": 9,
+    "price_level": null,
+    "vicinity": "Avenida del 57 55, Centro, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJfUwLMd1E04URIEze85ZrGVM",
+    "name": "Centenaria Y Benemérita Escuela Normal del Estado De Querétaro \"Andrés Balvanera\"",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.5688934,
+    "lng": -100.3841371,
+    "dist_predio_m": 1565,
+    "rating": 4.6,
+    "user_ratings": 74,
+    "price_level": null,
+    "vicinity": "San Mateo s/n, Vista Alegre, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJH-Jkd8pE04URrj8fmzI0RCI",
+    "name": "Plaza de las Américas Querétaro",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.5875174,
+    "lng": -100.3740359,
+    "dist_predio_m": 1642,
+    "rating": 4,
+    "user_ratings": 11937,
+    "price_level": null,
+    "vicinity": "Avenida Constituyentes Oriente 183, Plaza de las Americas, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJjxy26cdE04URWOK7i4wgK6E",
+    "name": "Scotiabank Plaza Colinas",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.5774415,
+    "lng": -100.3734416,
+    "dist_predio_m": 1685,
+    "rating": 3.1,
+    "user_ratings": 43,
+    "price_level": null,
+    "vicinity": "Avenida Luis Vega Monrroy 402, Colinas del Cimatario, Santiago de Querétaro",
+    "types": [
+      "bank",
+      "shopping_mall",
+      "finance",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJUXw4xcpE04UR6fcxPFpCGbs",
+    "name": "Imperial Barberìa",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.5894128,
+    "lng": -100.3743915,
+    "dist_predio_m": 1695,
+    "rating": 4.7,
+    "user_ratings": 87,
+    "price_level": null,
+    "vicinity": "76050, Perú 71, Plaza de las Americas, Santiago de Querétaro",
+    "types": [
+      "hair_care",
+      "shopping_mall",
+      "health",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJg_t76spE04URWjgyaqavgoU",
+    "name": "Soriana Hiper Constituyentes",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.5884581,
+    "lng": -100.3736287,
+    "dist_predio_m": 1721,
+    "rating": 3.6,
+    "user_ratings": 2384,
+    "price_level": null,
+    "vicinity": "Ejército Republicano 148, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "atm",
+      "pharmacy",
+      "grocery_or_supermarket"
+    ]
+  },
+  {
+    "place_id": "ChIJqw-aMy1F04URhD7rZSxMz8w",
+    "name": "Maestría En Endodoncia",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.5880998,
+    "lng": -100.4041557,
+    "dist_predio_m": 1726,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Calle 2-Interior 209, Niños Heroes, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJf_pwOy5F04URzW8bcNjY8FU",
+    "name": "IMSS Hospital General Regional No. 1",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.5832654,
+    "lng": -100.4055165,
+    "dist_predio_m": 1745,
+    "rating": 2.9,
+    "user_ratings": 329,
+    "price_level": null,
+    "vicinity": "Avenida 5 de Febrero 102, IMSS, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJn7v8_i5b04URAGLwjzTTD7M",
+    "name": "Waldo's",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.5978376,
+    "lng": -100.3864405,
+    "dist_predio_m": 1747,
+    "rating": 3.9,
+    "user_ratings": 895,
+    "price_level": null,
+    "vicinity": "Manuel Gutiérrez Nájera 77, Centro, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJHzKjAm5b04URcmqN0D72ahY",
+    "name": "Bodega Aurrera Express, Querétaro Centro",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.597549,
+    "lng": -100.3932357,
+    "dist_predio_m": 1760,
+    "rating": 3.8,
+    "user_ratings": 1605,
+    "price_level": null,
+    "vicinity": "Calle Corregidora 152-152 A, Centro, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJtyBui9Za04URTSbhr_Sdh8U",
+    "name": "Universidad para el Liderazgo Talanton",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.5959467,
+    "lng": -100.3978701,
+    "dist_predio_m": 1790,
+    "rating": 5,
+    "user_ratings": 4,
+    "price_level": null,
+    "vicinity": "Calle Melchor Ocampo Norte 56, Centro, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJOfqWwdJa04URVFeTfUR0y88",
+    "name": "Farmacias Benavides",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.589643,
+    "lng": -100.404367,
+    "dist_predio_m": 1817,
+    "rating": 3.6,
+    "user_ratings": 41,
+    "price_level": null,
+    "vicinity": "Avenida Tecnológico 20A, Santiago de Querétaro",
+    "types": [
+      "pharmacy",
+      "supermarket",
+      "grocery_or_supermarket",
+      "doctor"
+    ]
+  },
+  {
+    "place_id": "ChIJvRxNzTNF04URaApUwLZCCgg",
+    "name": "Galerías Querétaro",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.577726,
+    "lng": -100.405598,
+    "dist_predio_m": 1822,
+    "rating": 4.4,
+    "user_ratings": 29342,
+    "price_level": null,
+    "vicinity": "Avenida 5 de Febrero 99, Esq, Acceso Carretera Celaya Cuota, Los Virreyes, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJP-6CTihb04URAaMZp_Q19vg",
+    "name": "INICISA UNIVERSIDAD QUERETARO",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.5984137,
+    "lng": -100.3926895,
+    "dist_predio_m": 1840,
+    "rating": 3,
+    "user_ratings": 22,
+    "price_level": null,
+    "vicinity": "Avenida Universidad 34, Centro, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ1wUbJh9b04URi7hUXPEaQOQ",
+    "name": "Tiendas 3B Juarez",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.5979975,
+    "lng": -100.3942869,
+    "dist_predio_m": 1840,
+    "rating": 4.3,
+    "user_ratings": 679,
+    "price_level": null,
+    "vicinity": "Calle Benito Juárez Norte 104A, Centro, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJMQTIPChb04URONsc8AHQeqM",
+    "name": "Centro De Estudios Universitarios Londres",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.597876,
+    "lng": -100.394707,
+    "dist_predio_m": 1841,
+    "rating": 4.4,
+    "user_ratings": 90,
+    "price_level": null,
+    "vicinity": "Avenida Universidad 5, Centro, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJHbuZCi9b04UR5YO3guQ4jok",
+    "name": "Classika Tattoo Shop",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.5996218,
+    "lng": -100.3862701,
+    "dist_predio_m": 1946,
+    "rating": 4.7,
+    "user_ratings": 84,
+    "price_level": null,
+    "vicinity": "centro, Centro, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "store",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJjfydPyhb04URLiw4o20IsaI",
+    "name": "Hospital del Sagrado Corazón de Jesús",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.5993814,
+    "lng": -100.3933952,
+    "dist_predio_m": 1962,
+    "rating": 3.1,
+    "user_ratings": 113,
+    "price_level": null,
+    "vicinity": "Avenida Universidad 17, Centro, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "doctor",
+      "health",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJwWgRozFF04URO8pHblk3m7A",
+    "name": "Unidad Pediatrica",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.5805323,
+    "lng": -100.4081191,
+    "dist_predio_m": 2022,
+    "rating": 4.9,
+    "user_ratings": 11,
+    "price_level": null,
+    "vicinity": "Virrey de Bucareli 103, Los Virreyes, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJi0p34dda04URrOBKbv6x8ko",
+    "name": "CIES \"Vasconcelos\"",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.5995254,
+    "lng": -100.3950078,
+    "dist_predio_m": 2025,
+    "rating": 2.5,
+    "user_ratings": 2,
+    "price_level": null,
+    "vicinity": "Calle Invierno 41, Centro, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJYw9IgbdE04URDH4kwey5Tmo",
+    "name": "Avanta Querétaro",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.5793606,
+    "lng": -100.3695245,
+    "dist_predio_m": 2031,
+    "rating": 4,
+    "user_ratings": 49,
+    "price_level": null,
+    "vicinity": "Avenida Luis Vega Monrroy 1001, Centro Sur, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ002jrDFF04URuh_GEOnOgAA",
+    "name": "Medicina Hiperbarica Camara",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.5792787,
+    "lng": -100.4082935,
+    "dist_predio_m": 2058,
+    "rating": 4.2,
+    "user_ratings": 10,
+    "price_level": null,
+    "vicinity": "Virrey de Revillagigedo 128, Los Virreyes, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "doctor",
+      "health",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJeemmtzZb04URwWMiXrFnsAk",
+    "name": "Plaza Zinc",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.5973616,
+    "lng": -100.3770774,
+    "dist_predio_m": 2073,
+    "rating": 4.3,
+    "user_ratings": 51,
+    "price_level": null,
+    "vicinity": "Calle Juan Caballero y Osio 73, San Javier, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJsRMj3TVb04UR1JxWvysoYRc",
+    "name": "Barrio Santiago",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.59510239999999,
+    "lng": -100.3741048,
+    "dist_predio_m": 2090,
+    "rating": 4.2,
+    "user_ratings": 51,
+    "price_level": null,
+    "vicinity": "76050, Calzada de los Arcos 100, Carretas, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "lodging",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJbRfxGtFa04URvEihNa6KR2Y",
+    "name": "Zona Corte",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.5963735,
+    "lng": -100.4023668,
+    "dist_predio_m": 2111,
+    "rating": 5,
+    "user_ratings": 2,
+    "price_level": null,
+    "vicinity": "Local D114 Plaza d Río el 190, Avenida Universidad, El Retablo, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJMXpKhzlb04URmQOSWnMuu_M",
+    "name": "CISAV",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.5752341,
+    "lng": -100.3698441,
+    "dist_predio_m": 2121,
+    "rating": 4.9,
+    "user_ratings": 7,
+    "price_level": null,
+    "vicinity": "Avenida Fray Luis de León 1000, Centro Sur, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJRQGTKCZF04URZq7LHqD3UyU",
+    "name": "Instituto Ciudad de las Artes CDA",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.5805161,
+    "lng": -100.4091274,
+    "dist_predio_m": 2127,
+    "rating": 3.9,
+    "user_ratings": 28,
+    "price_level": null,
+    "vicinity": "Prolongación Avenida Zaragoza 35, Los Virreyes, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJN59Kjc1a04URBCGNmWDABEw",
+    "name": "Turissste",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.5927291,
+    "lng": -100.4061603,
+    "dist_predio_m": 2150,
+    "rating": 3.8,
+    "user_ratings": 4,
+    "price_level": null,
+    "vicinity": "Centro Universitario, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJCSKOHdJa04URZYRdiruUgbs",
+    "name": "Tecnológico Nacional de México Campus Querétaro",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.593298,
+    "lng": -100.4057863,
+    "dist_predio_m": 2153,
+    "rating": 4.5,
+    "user_ratings": 500,
+    "price_level": null,
+    "vicinity": "Avenida Tecnológico S/N, Centro Histórico, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJeQilhyVb04UREtxDH3DvETc",
+    "name": "Universidad Marista de Querétaro",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6014181,
+    "lng": -100.3853829,
+    "dist_predio_m": 2158,
+    "rating": 4.5,
+    "user_ratings": 364,
+    "price_level": null,
+    "vicinity": "Marte 2, Las Brujas, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJsxvAwh9F04URMciTohiJq5A",
+    "name": "CEREDI Querétaro",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.563743,
+    "lng": -100.3954994,
+    "dist_predio_m": 2176,
+    "rating": 4.6,
+    "user_ratings": 11,
+    "price_level": null,
+    "vicinity": "76086, Rosas Rojas 2, Reforma Agraria 1ra Sección, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJSWZ4B89a04URPSU8IoxNcRE",
+    "name": "ISSSTE Hospital General de Querétaro",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.5931612,
+    "lng": -100.4071635,
+    "dist_predio_m": 2264,
+    "rating": 3.2,
+    "user_ratings": 229,
+    "price_level": null,
+    "vicinity": "Avenida Tecnológico 101, Las Campanas, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ41SabDNF04URbbxCikx2b3s",
+    "name": "Matador Niños héroes",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.5860916,
+    "lng": -100.4102787,
+    "dist_predio_m": 2277,
+    "rating": 4.2,
+    "user_ratings": 88,
+    "price_level": null,
+    "vicinity": "Calle Francisco I. Madero 326, Niños Heroes, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJee2XRDpF04URQf7eGBHOk58",
+    "name": "Walmart Plaza De Toros",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.574208,
+    "lng": -100.4091459,
+    "dist_predio_m": 2302,
+    "rating": 4.2,
+    "user_ratings": 13996,
+    "price_level": 1,
+    "vicinity": "Kiosco SC 5749, Autopista, Querétaro - Celaya 5501, El Jacal, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJHzgqADZb04URTdagw07rgtE",
+    "name": "Colegio Charles Dickens",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.5942032,
+    "lng": -100.3705925,
+    "dist_predio_m": 2312,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Boulevard Bernardo Quintana Arrioja 132, Carretas, Santiago de Querétaro",
+    "types": [
+      "university",
+      "primary_school",
+      "school",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJAbjlIjFF04URokI63fxVi4w",
+    "name": "Facultad de Medicina - UAQ",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.579456,
+    "lng": -100.4108412,
+    "dist_predio_m": 2317,
+    "rating": 4.6,
+    "user_ratings": 218,
+    "price_level": null,
+    "vicinity": "Clavel 200, Prados de La Capilla, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJf_URm8xa04URMIRDNU1hfq8",
+    "name": "Facultad De Química. Universidad Autónoma De Querétaro",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.5903635,
+    "lng": -100.4109996,
+    "dist_predio_m": 2481,
+    "rating": 4.7,
+    "user_ratings": 140,
+    "price_level": null,
+    "vicinity": "Cerro de las Campanas S/N-Edificio 5, Centro Universitario, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJc3oCyyNb04URBxquzDCTq-U",
+    "name": "ALLSPORTS QRO",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.5963526,
+    "lng": -100.4075799,
+    "dist_predio_m": 2506,
+    "rating": 4,
+    "user_ratings": 96,
+    "price_level": null,
+    "vicinity": "Enfrente de la chelas, Prol. Tecnológico Nte. 1, 2do piso La Piedad, 76150 Santiago de Querétaro, Qro A un lado del matador, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJlyKvszRF04URu4_sgycFj_Y",
+    "name": "CONTABILIDAD GUBERNAMENTAL",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.5876163,
+    "lng": -100.4124758,
+    "dist_predio_m": 2537,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Avenida 5 de Febrero 102-2, Las Campanas, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "accounting",
+      "finance",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ3WIEviZb04URc2p2Zyolhr4",
+    "name": "Megaplaza",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6054206,
+    "lng": -100.3902151,
+    "dist_predio_m": 2578,
+    "rating": 3.1,
+    "user_ratings": 8,
+    "price_level": null,
+    "vicinity": "76160, Avenida Corregidora Norte 300, Mega Plaza, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJV1hTpc5a04URVhRYsU4hChU",
+    "name": "Posgrado FCA UAQ",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.5942818,
+    "lng": -100.4113602,
+    "dist_predio_m": 2703,
+    "rating": 4.7,
+    "user_ratings": 13,
+    "price_level": null,
+    "vicinity": "Cerro de las Campanas, Centro Universitario, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJU542YGJF04UR3YZGnomkLtM",
+    "name": "CORPORATIVO LOMAS BC",
+    "categoria": "ancla",
+    "subcat": "corporativo",
+    "lat": 20.5798313,
+    "lng": -100.3629042,
+    "dist_predio_m": 2708,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Prol. Bernardo Quintana 300, Centro Sur, 76090 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJnZygD_lb04UR6DxxXfVBwUI",
+    "name": "IZA Business Centers Torre 57",
+    "categoria": "ancla",
+    "subcat": "corporativo",
+    "lat": 20.5798,
+    "lng": -100.362898,
+    "dist_predio_m": 2709,
+    "rating": 4.5,
+    "user_ratings": 320,
+    "price_level": null,
+    "vicinity": "Acceso a La Central 300-Piso 14, Centro Sur, 76090 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest",
+      "real_estate_agency"
+    ]
+  },
+  {
+    "place_id": "ChIJBU-h7cta04URUQ86V6BMcto",
+    "name": "Facultad de Ingeniería UAQ",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.5926437,
+    "lng": -100.4124072,
+    "dist_predio_m": 2716,
+    "rating": 4.5,
+    "user_ratings": 28,
+    "price_level": null,
+    "vicinity": "Edificio I, Cerro de las Campanas S/N, Centro Universitario, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJb1jRajtb04URYPGmyn_eTkg",
+    "name": "Clínica Integral Care",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6058319,
+    "lng": -100.3817919,
+    "dist_predio_m": 2719,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Calle Circuito Alamos 65, Alamos 2da Sección, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJPScnYMla04URkpmWb5Lp9L8",
+    "name": "Edificio F - Facultad de Química",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.5923564,
+    "lng": -100.4126718,
+    "dist_predio_m": 2728,
+    "rating": 4.8,
+    "user_ratings": 4,
+    "price_level": null,
+    "vicinity": "Cerro de las Campanas s/n, Las Campanas, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJgU7MbbBE04UR0Wtl3vYaiEo",
+    "name": "Edificio Torre 57",
+    "categoria": "ancla",
+    "subcat": "corporativo",
+    "lat": 20.5799024,
+    "lng": -100.3626708,
+    "dist_predio_m": 2731,
+    "rating": 4.5,
+    "user_ratings": 250,
+    "price_level": null,
+    "vicinity": "Prol. Bernardo Quintana 300, Centro Sur, 76090 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJhXhGtDlF04URmr1vBoyDZ1s",
+    "name": "Plaza Dalí",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.5742759,
+    "lng": -100.4141993,
+    "dist_predio_m": 2791,
+    "rating": 4.5,
+    "user_ratings": 59,
+    "price_level": null,
+    "vicinity": "Boulevard Jardines de la Hacienda 1401, Jardines de la Hacienda, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ26T5S-tE04URlkTSgyi5tvo",
+    "name": "Plaza Sur 40",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.5618443,
+    "lng": -100.3730231,
+    "dist_predio_m": 2802,
+    "rating": 4.3,
+    "user_ratings": 943,
+    "price_level": null,
+    "vicinity": "Boulevard Centro Sur 40, La Alhambra, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJC_E-PXuC04UR1n050mgNADw",
+    "name": "Hospital Angeles Querétaro",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.5809159,
+    "lng": -100.4166589,
+    "dist_predio_m": 2906,
+    "rating": 3.2,
+    "user_ratings": 313,
+    "price_level": null,
+    "vicinity": "Calle Bernardino del Razo 21, Ensueño, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJjdvm3D1F04URIjNlk9r25Pk",
+    "name": "Millstone Plaza",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.5660523,
+    "lng": -100.4109786,
+    "dist_predio_m": 2931,
+    "rating": 4.2,
+    "user_ratings": 105,
+    "price_level": null,
+    "vicinity": "Avenida Paseo Constituyentes 809, Residencial del Valle, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJI5MIvCNb04URf7AjIxfiNRs",
+    "name": "TOYO FOODS BOSQUES",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6089545,
+    "lng": -100.3870737,
+    "dist_predio_m": 2972,
+    "rating": 4.4,
+    "user_ratings": 420,
+    "price_level": null,
+    "vicinity": "Manufactura 48 19, Bosques, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJo9YCy7xE04URZcsY0epKY-E",
+    "name": "CORPORATIVO HORUS",
+    "categoria": "ancla",
+    "subcat": "corporativo",
+    "lat": 20.5730756,
+    "lng": -100.3617622,
+    "dist_predio_m": 2993,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "AV. ARMANDO BIRLAIN SCHAFLER 2001 A TORRE 1 PISO 8A1, Centro Sur, 76090 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJIUdoWLxE04URXUavCjlMOek",
+    "name": "Centro de Negocios Avanti Querétaro Central Park",
+    "categoria": "ancla",
+    "subcat": "corporativo",
+    "lat": 20.5731754,
+    "lng": -100.3616471,
+    "dist_predio_m": 3001,
+    "rating": 4.5,
+    "user_ratings": 31,
+    "price_level": null,
+    "vicinity": "Torre corporativa II, Central Park, C. Armando Birlain Shafler 2001-Mezzanine, Centro Sur, 76090 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJjZXKEABF04URNUubKM3dFKQ",
+    "name": "Centro de Negocios SEUI",
+    "categoria": "ancla",
+    "subcat": "corporativo",
+    "lat": 20.5731176,
+    "lng": -100.3616384,
+    "dist_predio_m": 3004,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Central Park Torre 300, Marqués de La Villa del Villar del Aguila, Centro Sur, 76090 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJMz7aqbxE04URvfkY41OERsw",
+    "name": "CORPORATIVO 2 CENTRAL PARK",
+    "categoria": "ancla",
+    "subcat": "corporativo",
+    "lat": 20.5733466,
+    "lng": -100.361195,
+    "dist_predio_m": 3039,
+    "rating": 4.6,
+    "user_ratings": 51,
+    "price_level": null,
+    "vicinity": "Central Park, C. Armando Birlain Shafler 2001, Centro Sur, 76090 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJEf7J1jxb04UR459OXZg4GZs",
+    "name": "Medicina de Rehabilitación.",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6099408,
+    "lng": -100.3830083,
+    "dist_predio_m": 3134,
+    "rating": 4.9,
+    "user_ratings": 17,
+    "price_level": null,
+    "vicinity": "Calle Circuito Jardín 3-N°3, Alamos 3ra Sección, Santiago de Querétaro",
+    "types": [
+      "physiotherapist",
+      "hospital",
+      "doctor",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJK9vC1jxb04URyU8mGIMNcs8",
+    "name": "Electromiografía. Estudios EMG. Neurodiagnóstico",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6099808,
+    "lng": -100.3830262,
+    "dist_predio_m": 3138,
+    "rating": 4.7,
+    "user_ratings": 16,
+    "price_level": null,
+    "vicinity": "entre los Cafés Starbucks y Micaela, Calle Circuito Jardín 3, Alamos 3ra Sección, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJW1N6fqRE04URAJtEyLR14kg",
+    "name": "UR Global Querétaro | Consultoría Empresarial",
+    "categoria": "ancla",
+    "subcat": "corporativo",
+    "lat": 20.573435,
+    "lng": -100.359274,
+    "dist_predio_m": 3225,
+    "rating": 4.4,
+    "user_ratings": 83,
+    "price_level": null,
+    "vicinity": "Plaza Q7001, Blvd. Bernardo Quintana 7001-Interior / Suite, 76090 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "finance",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJLxgOZqRE04URZOWVKZqc6wA",
+    "name": "Torres Prisma",
+    "categoria": "ancla",
+    "subcat": "corporativo",
+    "lat": 20.5736867,
+    "lng": -100.3587261,
+    "dist_predio_m": 3272,
+    "rating": 4.7,
+    "user_ratings": 24,
+    "price_level": null,
+    "vicinity": "Prol. Bernardo Quintana 7001, Centro Sur, 76090 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJkykBDiJb04UR0QpWCJEsQT8",
+    "name": "Plaza Laborcilla",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6123297,
+    "lng": -100.3882167,
+    "dist_predio_m": 3342,
+    "rating": 4.3,
+    "user_ratings": 564,
+    "price_level": null,
+    "vicinity": "Avenida Corregidora Norte 907-A, Parques del Alamo, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJU7hfh8Na04URCFIVe7c6MJc",
+    "name": "SUPER Q T235 - CAMINO REAL",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6057091,
+    "lng": -100.4091838,
+    "dist_predio_m": 3361,
+    "rating": 4.2,
+    "user_ratings": 61,
+    "price_level": null,
+    "vicinity": "Epigmenio González 7-A, ZONA INDUSTRIAL, Santiago de Querétaro",
+    "types": [
+      "convenience_store",
+      "supermarket",
+      "bakery",
+      "grocery_or_supermarket"
+    ]
+  },
+  {
+    "place_id": "ChIJ3aSMBd5a04URwpOLKD2p1_c",
+    "name": "Ambulancias Médica del Futuro Querétaro",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6114809,
+    "lng": -100.3999345,
+    "dist_predio_m": 3449,
+    "rating": 4.7,
+    "user_ratings": 9,
+    "price_level": null,
+    "vicinity": "Calle Felipe Ángeles, Tecnologico, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ-bE4apFE04URZps5Ty6GbXo",
+    "name": "PLAZA BELEA",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.5599313,
+    "lng": -100.3656977,
+    "dist_predio_m": 3457,
+    "rating": 4.1,
+    "user_ratings": 195,
+    "price_level": null,
+    "vicinity": "Boulevard Centro Sur, Colinas del Cimatario, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "hardware_store",
+      "dentist",
+      "gym"
+    ]
+  },
+  {
+    "place_id": "ChIJDdENTB9b04URCIOKmV9LjPw",
+    "name": "Plaza El Puente",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6139732,
+    "lng": -100.3893585,
+    "dist_predio_m": 3525,
+    "rating": 4,
+    "user_ratings": 763,
+    "price_level": null,
+    "vicinity": "Epigmenio González 913, Alámos, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJCTm78pBE04UR_Zg8U4aQwP8",
+    "name": "Momentum Centro Sur",
+    "categoria": "ancla",
+    "subcat": "corporativo",
+    "lat": 20.5608634,
+    "lng": -100.3636627,
+    "dist_predio_m": 3537,
+    "rating": 4.4,
+    "user_ratings": 381,
+    "price_level": null,
+    "vicinity": "Av Fray Luis de León 7072-Oficina 1001, Colinas del Cimatario, 76090 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJbYmJmB9b04UR81DHYduZkjU",
+    "name": "Soriana Híper Plaza del parque",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6141862,
+    "lng": -100.3923675,
+    "dist_predio_m": 3568,
+    "rating": 4,
+    "user_ratings": 4056,
+    "price_level": null,
+    "vicinity": "Epigmenio González 25, Plaza del Parque, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "atm",
+      "pharmacy",
+      "grocery_or_supermarket"
+    ]
+  },
+  {
+    "place_id": "ChIJD7YG6h9b04URnQ_RL8eXNX0",
+    "name": "Costco Querétaro",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6141523,
+    "lng": -100.3937775,
+    "dist_predio_m": 3582,
+    "rating": 4.4,
+    "user_ratings": 18832,
+    "price_level": 2,
+    "vicinity": "Boulevard Bernardo Quintana A.4107, Plaza del Parque, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJMcYalRhb04UR0ZCDIIpH8wo",
+    "name": "Plaza Boulevares",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6145646,
+    "lng": -100.387504,
+    "dist_predio_m": 3593,
+    "rating": 4.2,
+    "user_ratings": 17868,
+    "price_level": null,
+    "vicinity": "Boulevard Bernardo Quintana Arrioja 4100, Alamos 3ra Sección, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJffP0erRa04URv7mXlr_HHeI",
+    "name": "Farrieta Instrumental",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.59057779999999,
+    "lng": -100.4223424,
+    "dist_predio_m": 3613,
+    "rating": 4.4,
+    "user_ratings": 12,
+    "price_level": null,
+    "vicinity": "Prol .Oceano Indigo # 84 25.Residencial Italia, Bodega, Puertas del Sol, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ05C5Dx9b04URmfWjahMzuBE",
+    "name": "Plaza del Parque",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6147834,
+    "lng": -100.3913075,
+    "dist_predio_m": 3624,
+    "rating": 4.3,
+    "user_ratings": 25400,
+    "price_level": null,
+    "vicinity": "Prolongación Corregidora Norte 691, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ_____35Q04UR-2SWrVIy_i0",
+    "name": "Instituto de Soldadura y Tecnología de Union",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6141111,
+    "lng": -100.3807683,
+    "dist_predio_m": 3637,
+    "rating": 4.6,
+    "user_ratings": 7,
+    "price_level": null,
+    "vicinity": "Anillo Vial Fray Junípero Serra, Satelite, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJI9TnoZBE04UR-BLaGd5SNTw",
+    "name": "Torre Lomas",
+    "categoria": "ancla",
+    "subcat": "corporativo",
+    "lat": 20.5613937,
+    "lng": -100.361763,
+    "dist_predio_m": 3648,
+    "rating": 4.2,
+    "user_ratings": 150,
+    "price_level": null,
+    "vicinity": "Lic. Manuel Gómez Morin 3870, Centro Sur, 76090 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJgRJkhuda04URNEkBiI4z1KQ",
+    "name": "ITESM QRO",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6122177,
+    "lng": -100.4036883,
+    "dist_predio_m": 3673,
+    "rating": 4.7,
+    "user_ratings": 118,
+    "price_level": null,
+    "vicinity": "Prolongacion Tecnologico 801, San Pablo, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJs4UAIWBb04URYilKAjuK7PM",
+    "name": "Corporativo Titanium",
+    "categoria": "ancla",
+    "subcat": "corporativo",
+    "lat": 20.6115399,
+    "lng": -100.3705566,
+    "dist_predio_m": 3767,
+    "rating": 4.2,
+    "user_ratings": 58,
+    "price_level": null,
+    "vicinity": "Avenida Hacienda El Campanario 86, 76146 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest",
+      "real_estate_agency"
+    ]
+  },
+  {
+    "place_id": "ChIJdYcuGgBF04URPcMRY1Qijo4",
+    "name": "Torre IMAE centro sur",
+    "categoria": "ancla",
+    "subcat": "corporativo",
+    "lat": 20.5635035,
+    "lng": -100.3580872,
+    "dist_predio_m": 3817,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "BOULEVARD BERNARDO QUINTANA ARRIOJA 9670, Blvd. Centro Sur 9800, Centro Sur, 76090 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJXaRRN-ha04UROk-29mnupk8",
+    "name": "Tecnológico de Monterrey",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.613099,
+    "lng": -100.405883,
+    "dist_predio_m": 3862,
+    "rating": 4.7,
+    "user_ratings": 684,
+    "price_level": null,
+    "vicinity": "Epigmenio González 500, Fracc, San Pablo, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ24gGYABb04URvmZYqqEaWLI",
+    "name": "Torre Luma Capital",
+    "categoria": "ancla",
+    "subcat": "corporativo",
+    "lat": 20.596152,
+    "lng": -100.3541474,
+    "dist_predio_m": 3922,
+    "rating": 4.4,
+    "user_ratings": 10,
+    "price_level": null,
+    "vicinity": "Camino Real De Carretas 229 INT 2-12 Momentum Iii, Lote Condominio 2, Milenio III, 76060 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ58MCd-ha04URXWNnMQWnIQk",
+    "name": "Escuela de arquitectura, arte y diseño (Itesm)",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6137952,
+    "lng": -100.4061606,
+    "dist_predio_m": 3944,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Unnamed Road, Soriana, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJryfOKxdb04URdquKnbVgAcA",
+    "name": "Universidad Cuauhtémoc Querétaro Sede Fray Junípero Serra",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6188867,
+    "lng": -100.381033,
+    "dist_predio_m": 4150,
+    "rating": 3.6,
+    "user_ratings": 80,
+    "price_level": null,
+    "vicinity": "Avenida de la Salvación 761, Ejido Bolaños, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ_7OTMhdb04URnJvI7eD8zug",
+    "name": "Torre Tayco",
+    "categoria": "ancla",
+    "subcat": "corporativo",
+    "lat": 20.6190687,
+    "lng": -100.3813217,
+    "dist_predio_m": 4164,
+    "rating": 4.1,
+    "user_ratings": 17,
+    "price_level": null,
+    "vicinity": "Av. de la Salvación, Balcones Coloniales, 76144 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJNWtSvOla04UR9kYuSAWj7eY",
+    "name": "Corporativo Blanco",
+    "categoria": "ancla",
+    "subcat": "corporativo",
+    "lat": 20.6140575,
+    "lng": -100.4109115,
+    "dist_predio_m": 4218,
+    "rating": 4.1,
+    "user_ratings": 386,
+    "price_level": null,
+    "vicinity": "Prol. Tecnológico, San Pablo, 76159 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJJ0n9P-Ra04UR90B_GKKU4bk",
+    "name": "Universidad Internacional de Querétaro UNIQ",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.619288,
+    "lng": -100.4014091,
+    "dist_predio_m": 4320,
+    "rating": 4.2,
+    "user_ratings": 61,
+    "price_level": null,
+    "vicinity": "Avenida Peñuelas 20, San Pedrito Peñuelas I, Santiago de Querétaro",
+    "types": [
+      "university",
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJPzBASe9a04URvCTtVjV2riA",
+    "name": "Dra Hualtal Chong",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6173213,
+    "lng": -100.4072798,
+    "dist_predio_m": 4346,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Soriana, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJB9YNSu9a04URHLML34Dxv_4",
+    "name": "Hospital Star Médica Querétaro",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6172894,
+    "lng": -100.4073977,
+    "dist_predio_m": 4349,
+    "rating": 3.8,
+    "user_ratings": 2073,
+    "price_level": null,
+    "vicinity": "Boulevard Bernardo Quintana Arrioja 4060, San Pablo, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJMbvfw79a04URSEvyenJZ8Cw",
+    "name": "UNITEC Campus Querétaro | Universidad en Querétaro",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6101428,
+    "lng": -100.4182316,
+    "dist_predio_m": 4359,
+    "rating": 3.3,
+    "user_ratings": 646,
+    "price_level": null,
+    "vicinity": "Avenida 5 de Febrero 1412, San Pablo, Santiago de Querétaro",
+    "types": [
+      "university",
+      "accounting",
+      "health",
+      "finance"
+    ]
+  },
+  {
+    "place_id": "ChIJ-_czMyxF04URYQXwE5r13dQ",
+    "name": "AAedics. Tu médico de cabecera.",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.617487,
+    "lng": -100.4072729,
+    "dist_predio_m": 4363,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Prolongación Bernardo Quintana 4060-Int 702, San Pablo, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJw9w44kpb04UR4tabfxgLCXc",
+    "name": "Medico De La Familia",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6176578,
+    "lng": -100.406941,
+    "dist_predio_m": 4365,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Soriana, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJU4w2m7Rb04URR3CJ5KGG-cY",
+    "name": "Dr. Alfonso Marcelo Bareño Ramírez, Geriatra",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.617485,
+    "lng": -100.4073258,
+    "dist_predio_m": 4365,
+    "rating": 2.3,
+    "user_ratings": 3,
+    "price_level": null,
+    "vicinity": "Prolongación Bernardo Quintana #4060, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "hospital",
+      "health",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJFWnP1-ha04URkW_NUlCTcsE",
+    "name": "CHEDRAUI QUERETARO II",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6168435,
+    "lng": -100.408809,
+    "dist_predio_m": 4373,
+    "rating": 3.9,
+    "user_ratings": 3205,
+    "price_level": null,
+    "vicinity": "Prolongación Bernardo Quintana 4032, San Pablo, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJD7axdNFb04UR6B7lUzXYFRw",
+    "name": "Oncólogo",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6177595,
+    "lng": -100.4080972,
+    "dist_predio_m": 4428,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Unnamed Road, Soriana, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJPVpowOVa04URGoY4QoXcDDg",
+    "name": "Plaza Cristal",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6194068,
+    "lng": -100.4045365,
+    "dist_predio_m": 4442,
+    "rating": 3.9,
+    "user_ratings": 44,
+    "price_level": null,
+    "vicinity": "Avenida Pie de la Cuesta 104A, Desarrollo San Pablo, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "cafe",
+      "dentist",
+      "beauty_salon"
+    ]
+  },
+  {
+    "place_id": "ChIJxVpuHn1b04UR4GaGOfyY2e0",
+    "name": "Instituto Tecnológico de la Construcción. Campus Querétaro",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.61933299999999,
+    "lng": -100.4064184,
+    "dist_predio_m": 4511,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Río Yaqui 101, Desarrollo San Pablo, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJO2lddNRE04URJczRnMvC8eo",
+    "name": "FotoQuerétaro",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6228721,
+    "lng": -100.3926394,
+    "dist_predio_m": 4532,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "José María Truchuelo 10, Constituyentes, Santiago de Querétaro",
+    "types": [
+      "university",
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJkRM2we5a04URaMFhFe6FFKo",
+    "name": "Plaza El Punto",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6181899,
+    "lng": -100.4095916,
+    "dist_predio_m": 4543,
+    "rating": 3.9,
+    "user_ratings": 398,
+    "price_level": null,
+    "vicinity": "Prolongación Bernardo Quintana 4030, San Pablo, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJqVYfQh1b04URD-xH048NDGU",
+    "name": "Plaza 2000",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6229967,
+    "lng": -100.3935608,
+    "dist_predio_m": 4555,
+    "rating": 4.5,
+    "user_ratings": 165,
+    "price_level": null,
+    "vicinity": "Avenida Paseo de la Constitución LB, Constituyentes, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "store",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ5zEGmu5a04URC930-LK6DeQ",
+    "name": "Balcon Campestre",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6192488,
+    "lng": -100.4108736,
+    "dist_predio_m": 4710,
+    "rating": 4,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Prolongación Bernardo Quintana 4038, Balcón Campestre, San Pablo, 76159, San Pablo, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ-R0fVihF04URy2ByRyjWMD4",
+    "name": "Maestrias UNICEQ | Maestrias en Queretaro",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.613496,
+    "lng": -100.4194953,
+    "dist_predio_m": 4719,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Avenida 5 de Febrero 1602, San Pablo, Santiago de Querétaro",
+    "types": [
+      "university",
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJHQQIWqVb04URZ1n3PSsKjZM",
+    "name": "Farmacias Benavides",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.621867,
+    "lng": -100.405515,
+    "dist_predio_m": 4734,
+    "rating": 3.1,
+    "user_ratings": 34,
+    "price_level": null,
+    "vicinity": "Avenida Pie de la Cuesta 509, Lomas de San Pablo, Santiago de Querétaro",
+    "types": [
+      "pharmacy",
+      "supermarket",
+      "grocery_or_supermarket",
+      "doctor"
+    ]
+  },
+  {
+    "place_id": "ChIJ374tXA9F04URVWQUZzw_ZX8",
+    "name": "UNICEQ Carrera de enfermería | Enfermería",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6134458,
+    "lng": -100.4197797,
+    "dist_predio_m": 4735,
+    "rating": 5,
+    "user_ratings": 2,
+    "price_level": null,
+    "vicinity": "Avenida 5 de Febrero 1602, San Pablo, Santiago de Querétaro",
+    "types": [
+      "university",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJr7FbqfRa04UR3Oz3H9kJR_k",
+    "name": "Hospital de Adicciones El Camino a Gabriel Arcángel",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6197571,
+    "lng": -100.4171481,
+    "dist_predio_m": 5107,
+    "rating": 4.5,
+    "user_ratings": 153,
+    "price_level": null,
+    "vicinity": "Allende 20, San Pablo, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJS-8fAPJa04URCLhSC3qJPfc",
+    "name": "IMSS Atención médica continua",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.623411,
+    "lng": -100.4116369,
+    "dist_predio_m": 5156,
+    "rating": 3.1,
+    "user_ratings": 59,
+    "price_level": null,
+    "vicinity": "Playa Mocambo, Desarrollo San Pablo, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJH_GoHPJa04UR6c6eCHl238c",
+    "name": "Unidad de Medicina Familiar 15. Clínica IMSS UMF # 15",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6237692,
+    "lng": -100.4115142,
+    "dist_predio_m": 5185,
+    "rating": 2.6,
+    "user_ratings": 216,
+    "price_level": null,
+    "vicinity": "Avenida Cerro Sombrerete 263, Las Americas, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJt4QjpPpa04URaxRDXauqiWE",
+    "name": "Universidad Pedagógica Nacional Unidad 22-A Querétaro.",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6262049,
+    "lng": -100.4065463,
+    "dist_predio_m": 5223,
+    "rating": 4.6,
+    "user_ratings": 80,
+    "price_level": null,
+    "vicinity": "Av. Pie de la Cuesta N° 299, Desarrollo San Pablo, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ2fk0mSlb04URvUqcQBaX2Xk",
+    "name": "uaq. lenguas y letras",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6269756,
+    "lng": -100.4049611,
+    "dist_predio_m": 5248,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Acceso 51, San Pablo I, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJmQpwzglb04URtzxusnNYp2U",
+    "name": "Tienda",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6288682,
+    "lng": -100.4058459,
+    "dist_predio_m": 5477,
+    "rating": 5,
+    "user_ratings": 5,
+    "price_level": null,
+    "vicinity": "Calle Ahuizotl 26, San Pablo I, Santiago de Querétaro",
+    "types": [
+      "grocery_or_supermarket",
+      "supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJ0X2xr4xa04URE7bEktU_W7Q",
+    "name": "Rockolas karaoke VERMONT",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6254599,
+    "lng": -100.4170506,
+    "dist_predio_m": 5631,
+    "rating": 3.8,
+    "user_ratings": 16,
+    "price_level": null,
+    "vicinity": "Calle Tonatiu 200, San Pablo IV, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJV5ezQvda04UR_YmzNQDhhQ4",
+    "name": "Plaza El Faro",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6303224,
+    "lng": -100.4069023,
+    "dist_predio_m": 5666,
+    "rating": 4.3,
+    "user_ratings": 2580,
+    "price_level": null,
+    "vicinity": "76160, Avenida Pie de la Cuesta 46A, Rivera y Tamayo, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJadhY7Zxb04URuYEd_ZJNqYQ",
+    "name": "Mini súper \"Lili\"",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6237718,
+    "lng": -100.4208214,
+    "dist_predio_m": 5693,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Calle Peña de Bernal 208, Las Americas, Santiago de Querétaro",
+    "types": [
+      "grocery_or_supermarket",
+      "supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJOW9gK_ha04URdRI0sX9pFLE",
+    "name": "Autopartes Austral",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6325549,
+    "lng": -100.4060935,
+    "dist_predio_m": 5874,
+    "rating": 4.5,
+    "user_ratings": 2,
+    "price_level": null,
+    "vicinity": "Avenida Pie de la Cuesta Mz 31-608 Lt 4, Valle de San Pablo, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJK9hAP_ha04URfQY8AwnHDG4",
+    "name": "Bodega Aurrera San Pablo",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6334367,
+    "lng": -100.4047217,
+    "dist_predio_m": 5926,
+    "rating": 4.1,
+    "user_ratings": 7308,
+    "price_level": null,
+    "vicinity": "Avenida Pie De La Cuesta 1486 Int 0, Tecnicos, Vicente Lopez, San Pablo, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJ7djhpYVb04UR345yU8sJAX4",
+    "name": "CLINBA",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6298385,
+    "lng": -100.4151803,
+    "dist_predio_m": 5960,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Noche Buena 310, La Esperanza, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJM2Z5TgBb04URs6CPFtDF0U4",
+    "name": "Plaza la cuesta del Coyote.",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6338022,
+    "lng": -100.4060671,
+    "dist_predio_m": 6005,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Nuevo Horizonte 100, Nuevo Horizonte, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJZ3C-y5Fb04URQTlBVbMxNH4",
+    "name": "Bodega Aurrera Express, Av. Sombrerete",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6314709,
+    "lng": -100.4134878,
+    "dist_predio_m": 6044,
+    "rating": 3.9,
+    "user_ratings": 256,
+    "price_level": null,
+    "vicinity": "Avenida Cerro Sombrerete S/N, San Pablo, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJYRpMdx2D04UR2zVaESV5cZo",
+    "name": "Hunab Ku, Centro de Estudios Poético-Educativos",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6348862,
+    "lng": -100.4044913,
+    "dist_predio_m": 6074,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Calle Tecnicos 254, San Pedrito Peñuelas I, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJn19Kt_Va04URAHRV6wtwIaU",
+    "name": "PLAZA \" LOS CIPRESES\"",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6322864,
+    "lng": -100.4132167,
+    "dist_predio_m": 6115,
+    "rating": 4.1,
+    "user_ratings": 83,
+    "price_level": null,
+    "vicinity": "76125 de, Avenida Cerro Sombrerete 1006, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJLzVasrhb04UR8_AJ1LRjc0Q",
+    "name": "Cremeria Hermanos Coronel - Platón",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6361758,
+    "lng": -100.4007372,
+    "dist_predio_m": 6121,
+    "rating": 3.3,
+    "user_ratings": 6,
+    "price_level": null,
+    "vicinity": "Calle Mecánicos 4, Peñuelas, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJ-xHI6-tb04URaDjxrYp0k0Q",
+    "name": "Poste de la gonorria",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6286984,
+    "lng": -100.4221232,
+    "dist_predio_m": 6220,
+    "rating": 5,
+    "user_ratings": 8,
+    "price_level": null,
+    "vicinity": "Calle Cerro de la Bufa 612, Carlos María de Bustamante, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJmUDDAHNb04URQb4AtPQhZ8Y",
+    "name": "KEEL AUTOCLIMAS",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6340999,
+    "lng": -100.4140004,
+    "dist_predio_m": 6332,
+    "rating": 4.8,
+    "user_ratings": 65,
+    "price_level": null,
+    "vicinity": "Avenida Cerro Sombrerete #1122, Punta San Carlos, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "car_repair",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJF6v5QKtb04UR5gpY057UMDA",
+    "name": "Hospital San Pedro",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.640685,
+    "lng": -100.3936493,
+    "dist_predio_m": 6515,
+    "rating": 3,
+    "user_ratings": 31,
+    "price_level": null,
+    "vicinity": "Panaderos 2, San Pedrito Peñuelas I, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJP4lzEiVF04URz_pI9OHEJJc",
+    "name": "Universidad Dóxa | universidad cristiana, Querétaro",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6407802,
+    "lng": -100.3938053,
+    "dist_predio_m": 6526,
+    "rating": 3.7,
+    "user_ratings": 6,
+    "price_level": null,
+    "vicinity": "Panaderos 4, San Pedrito Peñuelas I, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJJaK6-5Nb04URdIDjtlYnZSQ",
+    "name": "La Finca de los Angeles",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.638657,
+    "lng": -100.409219,
+    "dist_predio_m": 6620,
+    "rating": 4.7,
+    "user_ratings": 6,
+    "price_level": null,
+    "vicinity": null,
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJrdqbpVZa04URZur2ZCruj-4",
+    "name": "Central de Servicios a la Comunidad (CESECO) Norte",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6407479,
+    "lng": -100.4008949,
+    "dist_predio_m": 6623,
+    "rating": 4.6,
+    "user_ratings": 18,
+    "price_level": null,
+    "vicinity": "PLATÓN ESQUINA CON Avenida Eurípides 91, San Pedrito Peñuelas I, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJB1qnejxb04URIEL1wi91GGo",
+    "name": "Mari Torres",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6396303,
+    "lng": -100.4065102,
+    "dist_predio_m": 6639,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Pie de La Cuesta 1709, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ1zb9CBBb04URPjZNOVvzohw",
+    "name": "Doctor",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6426011,
+    "lng": -100.3955751,
+    "dist_predio_m": 6745,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Calle Plateros 40, San Pedrito Peñuelas I, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJoXR6VIha04UR_VeHnV6eCZE",
+    "name": "Torre Altius",
+    "categoria": "ancla",
+    "subcat": "corporativo",
+    "lat": 20.6320068,
+    "lng": -100.4262763,
+    "dist_predio_m": 6768,
+    "rating": 4.3,
+    "user_ratings": 67,
+    "price_level": null,
+    "vicinity": "Av. 5 de Febrero 1716-A, Jurica, 76127 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJFQx-6FZb04URiJ3dc_0ZNTo",
+    "name": "Sanador",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6429468,
+    "lng": -100.3956784,
+    "dist_predio_m": 6784,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Calle Plateros 121-119, San Pedrito Peñuelas I, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJt2YJx5Nb04URfSceyyX27L0",
+    "name": "Medical Service",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6403354,
+    "lng": -100.4107965,
+    "dist_predio_m": 6850,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "76148, Misión Bucareli Sur, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJGR1jeV5a04URIrxMTmKFYb8",
+    "name": "Plaza Comercial Bucareli",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6401548,
+    "lng": -100.4147192,
+    "dist_predio_m": 6979,
+    "rating": 4.3,
+    "user_ratings": 80,
+    "price_level": null,
+    "vicinity": "Avenida Cerro Sombrerete 1080, Misión Bucareli Sur, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJr2Eh7olb04URXF50VcPpKKI",
+    "name": "Plaza comercial las moras",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6439448,
+    "lng": -100.3758428,
+    "dist_predio_m": 6988,
+    "rating": 4.5,
+    "user_ratings": 23,
+    "price_level": null,
+    "vicinity": "Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJtz_-M9Zb04URVgIBayuL1yU",
+    "name": "Walmart Portal Querétaro",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6400611,
+    "lng": -100.4158853,
+    "dist_predio_m": 7017,
+    "rating": 4.4,
+    "user_ratings": 1375,
+    "price_level": null,
+    "vicinity": "Avenida Cerro Sombrerete 1199, Epigmenio Gonzalez, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJdbkvXdNb04URXnzgAPgYzTg",
+    "name": "Soriana Híper Peñuelas",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.64095649999999,
+    "lng": -100.414464,
+    "dist_predio_m": 7051,
+    "rating": 4,
+    "user_ratings": 4902,
+    "price_level": null,
+    "vicinity": "Avenida Cerro Sombrerete 1198, Misión Bucareli Sur, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "atm",
+      "pharmacy",
+      "grocery_or_supermarket"
+    ]
+  },
+  {
+    "place_id": "ChIJ5_jog1Ba04URwyiHBaVHq4I",
+    "name": "Escuela Normal Superior de Queretaro",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6437508,
+    "lng": -100.4056708,
+    "dist_predio_m": 7058,
+    "rating": 5,
+    "user_ratings": 9,
+    "price_level": null,
+    "vicinity": "Ricardo Flores Magon, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJTcScTnhQ04URHE5HFyA1MSc",
+    "name": "Alas Qro",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.623126,
+    "lng": -100.4420717,
+    "dist_predio_m": 7169,
+    "rating": 4.1,
+    "user_ratings": 1653,
+    "price_level": null,
+    "vicinity": "Calle Dublín revolución av 1220, Avenida Tempano, El Rocio, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJR-xY_zNb04URUA7s4In3eA4",
+    "name": "Bodega Aurrera Express, Lomas de San Pedrito",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6452127,
+    "lng": -100.4048568,
+    "dist_predio_m": 7195,
+    "rating": 3.8,
+    "user_ratings": 315,
+    "price_level": null,
+    "vicinity": "Avenida Pie de la Cuesta S/N, San Pedrito Peñuelas I, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJSzeGED5b04UR0co4hAagaM4",
+    "name": "Dra Sanchez Juana",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6465184,
+    "lng": -100.4035018,
+    "dist_predio_m": 7306,
+    "rating": 5,
+    "user_ratings": 3,
+    "price_level": null,
+    "vicinity": "Diamante 825, Lomas de San Pedrito, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJr_LuprJb04URAuMUTXvHOU0",
+    "name": "GAAP I.A.P",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6480779,
+    "lng": -100.3937311,
+    "dist_predio_m": 7335,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Santiago del Río 32, Jardines de Villas de Santiago, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ1cWicMRb04URHd222g1_5FE",
+    "name": "Miscelánea MI PEQUEÑA SARAHI",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6463372,
+    "lng": -100.4080319,
+    "dist_predio_m": 7400,
+    "rating": 5,
+    "user_ratings": 2,
+    "price_level": null,
+    "vicinity": "Rubén Jaramillo, Ricardo Flores Magon, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJL0SQtlpa04URQCLLw5sCDa4",
+    "name": "Miscelánea Lety",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6466402,
+    "lng": -100.4071626,
+    "dist_predio_m": 7408,
+    "rating": 4.4,
+    "user_ratings": 27,
+    "price_level": null,
+    "vicinity": "Cebadal 2, Libertad, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJOyU4O05a04URPX6-ArTH3DA",
+    "name": "Optics Center",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6479167,
+    "lng": -100.4023178,
+    "dist_predio_m": 7434,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Calle de las Ánimas 133, Lomas de San Pedrito, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJIxuhhUJb04URMbXcsL86dd4",
+    "name": "Dentista UNAM",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.648243,
+    "lng": -100.4034844,
+    "dist_predio_m": 7493,
+    "rating": 4,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Avenida Belén 529, Lomas de San Pedrito, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ4TUZQ0Va04URWpYGnlTjZN0",
+    "name": "Miscelanea Rodrigo",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6480771,
+    "lng": -100.4067502,
+    "dist_predio_m": 7552,
+    "rating": 3.7,
+    "user_ratings": 7,
+    "price_level": null,
+    "vicinity": "Cebadal 118, Lomas de San Pedrito, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJCScCYXhb04URMgGjVwovTW4",
+    "name": "Pradera",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6500992,
+    "lng": -100.3836545,
+    "dist_predio_m": 7560,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Simón Bolívar 5, Lomas de San Jose, San José el Alto",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJubkrAgBb04URYwqX6SnDTCE",
+    "name": "BANCO DE SANGRE. HOSPITAL SAN JOSE",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6505755,
+    "lng": -100.3852673,
+    "dist_predio_m": 7603,
+    "rating": 4,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "San José 1196, Independencia, San José el Alto",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJSalu70Ra04URya5jKyGAT4o",
+    "name": "Abarrotes El Eclipse",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6477371,
+    "lng": -100.4103168,
+    "dist_predio_m": 7616,
+    "rating": 3.8,
+    "user_ratings": 18,
+    "price_level": null,
+    "vicinity": "Arco de La Gloria 102 10, San Pedrito los Arcos, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJm9nbi4Rb04UREvR2fM3BfoQ",
+    "name": "Miscelánea Naomi",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6505285,
+    "lng": -100.3824541,
+    "dist_predio_m": 7618,
+    "rating": 5,
+    "user_ratings": 3,
+    "price_level": null,
+    "vicinity": "Avenida Epigmenio Gonzalez 123, Nueva Creacion, San José el Alto",
+    "types": [
+      "convenience_store",
+      "supermarket",
+      "grocery_or_supermarket",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJIWenfOZb04URygIC79SCfxo",
+    "name": "Neufrolojia Y Dialisis",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6477602,
+    "lng": -100.4108069,
+    "dist_predio_m": 7634,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "col, Segunda de Álamos, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJjfkk6Wda04URYcUOGYQKgNc",
+    "name": "Abarrotera de Queretaro",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.64541359999999,
+    "lng": -100.4182959,
+    "dist_predio_m": 7663,
+    "rating": 4.9,
+    "user_ratings": 9,
+    "price_level": null,
+    "vicinity": "Calle 6 113, Sergio Villaseñor, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJrUVhV9tb04URXde90eG25Oo",
+    "name": "Miscelanea Anita",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6452153,
+    "lng": -100.420043,
+    "dist_predio_m": 7718,
+    "rating": 4,
+    "user_ratings": 4,
+    "price_level": null,
+    "vicinity": "Calle 17 125, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJUfhVXGZb04URT9nk3m7Zo38",
+    "name": "Waldo's Calzada Belen",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6487508,
+    "lng": -100.4112899,
+    "dist_predio_m": 7754,
+    "rating": 3.8,
+    "user_ratings": 104,
+    "price_level": null,
+    "vicinity": "CALLE CALZ. DE BELÉN 102-99, San Pedrito los Arcos, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJZf-6ebpb04URrQDzbWV9ZVM",
+    "name": "Dervmax",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6520251,
+    "lng": -100.3832107,
+    "dist_predio_m": 7777,
+    "rating": 4.1,
+    "user_ratings": 29,
+    "price_level": null,
+    "vicinity": "Simón Bolívar, Libertadores de America, San José el Alto",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJJ5gi3JFb04UR42YbNslKOpo",
+    "name": "Abarrotes san juditas tadeo",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6459019,
+    "lng": -100.4204736,
+    "dist_predio_m": 7806,
+    "rating": 4.6,
+    "user_ratings": 11,
+    "price_level": null,
+    "vicinity": "Lomas de San Pedrito, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJN4QkLgBb04URMpZoq-L65Cs",
+    "name": "Plaza Comercial Dolcemondo (UNDER CONSTRUCTION)",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6465704,
+    "lng": -100.3585039,
+    "dist_predio_m": 7813,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "El Refugio",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ6RCOmDNb04UR11AHVloTaZU",
+    "name": "Bodega Aurrera Express, Plaza Belén",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6482015,
+    "lng": -100.4158524,
+    "dist_predio_m": 7853,
+    "rating": 3.9,
+    "user_ratings": 1221,
+    "price_level": null,
+    "vicinity": "Avenida Cerro Sombrerete 2041, Desarrollo Centro Norte, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJrx0pGQBb04URvdMWozZskmI",
+    "name": "Motonet San José",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.65291719999999,
+    "lng": -100.3865856,
+    "dist_predio_m": 7858,
+    "rating": 5,
+    "user_ratings": 2,
+    "price_level": null,
+    "vicinity": "Escuadrón 201 7, Independencia, San José el Alto",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJYa9V0k9b04URYyfxI7mhvW4",
+    "name": "Neto San Jose el Alto Qro 778",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.653193,
+    "lng": -100.382348,
+    "dist_predio_m": 7914,
+    "rating": 4.7,
+    "user_ratings": 12,
+    "price_level": null,
+    "vicinity": "Carretera a Chichimequillas y calle Oasis, San José el Alto",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJp-WmNYdb04URudM7iBvC_4M",
+    "name": "El Refugio Mall",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6445545,
+    "lng": -100.3513213,
+    "dist_predio_m": 7947,
+    "rating": 4.5,
+    "user_ratings": 1506,
+    "price_level": null,
+    "vicinity": "Peña de Bernal, El Refugio, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJCc3_PfJb04URK7ajdf6NCOw",
+    "name": "Cremería Hermanos Coronel San José",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6537254,
+    "lng": -100.3807316,
+    "dist_predio_m": 7989,
+    "rating": 5,
+    "user_ratings": 2,
+    "price_level": null,
+    "vicinity": "San Jose el Alto, 76147 San José el Alto, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJte-sbr1b04URufLMWf_EYBQ",
+    "name": "Bodega Aurrerá Express San José el Alto",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6539312,
+    "lng": -100.3811442,
+    "dist_predio_m": 8007,
+    "rating": 3.8,
+    "user_ratings": 1083,
+    "price_level": null,
+    "vicinity": "Monterrey 904 San José El Alto, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJfV4QYlVb04URis42lHPG7Lw",
+    "name": "Miscelánea CARET",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6543084,
+    "lng": -100.3818153,
+    "dist_predio_m": 8042,
+    "rating": 5,
+    "user_ratings": 2,
+    "price_level": null,
+    "vicinity": "Campeche 7, San Jose el Alto, San José el Alto",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ08AKY0Nb04URI8Ul15WQSSw",
+    "name": "uni",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6532256,
+    "lng": -100.4040285,
+    "dist_predio_m": 8047,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Avenida Pie de la Cuesta 2501, Nacional, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJzeP0bgBb04UR75cw6TnScDE",
+    "name": "UTEQ - Acceso",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.65334739999999,
+    "lng": -100.4046172,
+    "dist_predio_m": 8073,
+    "rating": 4.6,
+    "user_ratings": 5,
+    "price_level": null,
+    "vicinity": "De La Patria, Nacional, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJQWWYTABb04UREfpnFps57Rk",
+    "name": "juriquilla",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6549293,
+    "lng": -100.3965254,
+    "dist_predio_m": 8119,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Santiago de María 412, Villas de Santiago, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJQZPiBABb04URIyzCWQcBsoU",
+    "name": "Gasolineras",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6552314,
+    "lng": -100.3945079,
+    "dist_predio_m": 8134,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Avenida Turmalina 439, Villas de Santiago, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJDYhjY0ha04URGFLH428oJ9k",
+    "name": "UTEQ",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6539445,
+    "lng": -100.4060938,
+    "dist_predio_m": 8170,
+    "rating": 4.5,
+    "user_ratings": 1005,
+    "price_level": null,
+    "vicinity": "Avenida Pie de la Cuesta 2501, Nacional, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJrfWlbABb04URaIFITo8Iz-s",
+    "name": "Materias primas MAR",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6552908,
+    "lng": -100.3791516,
+    "dist_predio_m": 8181,
+    "rating": 4.4,
+    "user_ratings": 7,
+    "price_level": null,
+    "vicinity": "Michoacán 482, San Jose el Alto, San José el Alto",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJmffXGadQ04URYgxw2x4r9UU",
+    "name": "plaza norte",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6446312,
+    "lng": -100.4313791,
+    "dist_predio_m": 8230,
+    "rating": 4.2,
+    "user_ratings": 3808,
+    "price_level": null,
+    "vicinity": "Avenida 5 de Febrero 2125-Local 17, Benito Juárez, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJMU9QfHpa04URdqEQFdmJAPs",
+    "name": "JB Lashes Queretaro",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.645041,
+    "lng": -100.4314443,
+    "dist_predio_m": 8272,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Avenida 5 de Febrero 2125, Benito Juárez, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJqV75WW1b04URzbKIn8CMIzI",
+    "name": "Edificio DEA G",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6555875,
+    "lng": -100.4038906,
+    "dist_predio_m": 8302,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "MH4W+6CQ, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJxQE3kVlb04UROL8rydDdrUg",
+    "name": "Universidad Tecnológica de Querétaro (UTEQ), puerta 6 acceso al auditorio.",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6554887,
+    "lng": -100.4070018,
+    "dist_predio_m": 8359,
+    "rating": 3.5,
+    "user_ratings": 4,
+    "price_level": null,
+    "vicinity": "De La Democracia, Nacional, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ6YvwPvBb04URRnGQbYKoV4c",
+    "name": "EPAD (Educación Presencial a Distancia del Instituto Tecnológico de Querétaro)",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6574937,
+    "lng": -100.3925291,
+    "dist_predio_m": 8373,
+    "rating": 5,
+    "user_ratings": 2,
+    "price_level": null,
+    "vicinity": "Calle Santiago Zacatlán s/n, Villas de Santiago, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJxUyuE_pb04URtlIwX9sSYNs",
+    "name": "IGE (Edificio principal)",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6577435,
+    "lng": -100.3897916,
+    "dist_predio_m": 8392,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Calle Santiago Zacatlán 507, Villas de Santiago, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJGyuAt7Vb04URNrR8Xa7CdME",
+    "name": "Laboratorio de Ingeniería Mecatrónica del Tecnológico Nacional de México Campus Querétaro",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.65776409999999,
+    "lng": -100.3905742,
+    "dist_predio_m": 8396,
+    "rating": 2.9,
+    "user_ratings": 8,
+    "price_level": null,
+    "vicinity": "Calle Santiago Zacatlán, Villas de Santiago, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJt4iQ99Fa04URiTkSHXqQ510",
+    "name": "Tecnológico Nacional de México Campus Querétaro - Plantel Norte",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6578881,
+    "lng": -100.3890951,
+    "dist_predio_m": 8408,
+    "rating": 4.4,
+    "user_ratings": 109,
+    "price_level": null,
+    "vicinity": "Calle Santiago Zacatlán S/N, Villas de Santiago, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ4bdhGwBb04URdLsU10ei47Q",
+    "name": "Plaza Fresnos",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.651699,
+    "lng": -100.3557284,
+    "dist_predio_m": 8451,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Avenida Euripides, El Refugio",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJBfEOlVxb04URpn-2ZUDbiKc",
+    "name": "CENTRO DE PRODUCTIVIDAD E INNOVACIÓN PARA LA INDUSTRIA 4.0 (CEPRODI 4.0)",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6572588,
+    "lng": -100.4034504,
+    "dist_predio_m": 8476,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Avenida Pie de la Cuesta, Nacional, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJn49NXnlc04URepH47K7TZRg",
+    "name": "Quiwi Center",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6463473,
+    "lng": -100.3445705,
+    "dist_predio_m": 8481,
+    "rating": 4.2,
+    "user_ratings": 1171,
+    "price_level": null,
+    "vicinity": "Anillo Vial Fray Junípero Serra 9390, El Refugio, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJqbTfdwBb04URE3Jj8bTxV5s",
+    "name": "HOSPITAL SAN PEDRO",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6581854,
+    "lng": -100.3972347,
+    "dist_predio_m": 8486,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Avenida Pascual Alcocer Vega 230, Villas de Santiago, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJMZwHHm5b04URaUQfLyslY2s",
+    "name": "Creativity and Innovation Center 4.0 CIC 4.0 UTEQ",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6574895,
+    "lng": -100.4034559,
+    "dist_predio_m": 8502,
+    "rating": 4.6,
+    "user_ratings": 21,
+    "price_level": null,
+    "vicinity": "Nacional, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJERuBG3Fa04URgsJIwAF1JZg",
+    "name": "Urban Center Jurica",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.648828,
+    "lng": -100.433114,
+    "dist_predio_m": 8721,
+    "rating": 4.4,
+    "user_ratings": 8799,
+    "price_level": null,
+    "vicinity": "Avenida 5 de Febrero 9200, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "bank",
+      "lodging",
+      "finance"
+    ]
+  },
+  {
+    "place_id": "ChIJKSTAL4hb04URE7AaT26_5vs",
+    "name": "Plaza Palmas",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6527592,
+    "lng": -100.3504109,
+    "dist_predio_m": 8796,
+    "rating": 4.2,
+    "user_ratings": 446,
+    "price_level": null,
+    "vicinity": "Venta del Refugio #510, El Refugio, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJzXVAZyFb04URx4lxC3O1usA",
+    "name": "Recomandados",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6622389,
+    "lng": -100.3925834,
+    "dist_predio_m": 8900,
+    "rating": 5,
+    "user_ratings": 8,
+    "price_level": null,
+    "vicinity": "Sotavento, Anillo Vial Fray Junípero Serra 16950, Parque Industrial Sotavento, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ2Z3wPHZc04UR2lolaiL6RWQ",
+    "name": "Plaza el Olivo",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6545808,
+    "lng": -100.3490479,
+    "dist_predio_m": 9041,
+    "rating": 4.4,
+    "user_ratings": 292,
+    "price_level": null,
+    "vicinity": "Campo Real 1602, El Refugio, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJfetjeQBb04UR5PcGfsG3wcE",
+    "name": "Gym Queretaro",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.65642979999999,
+    "lng": -100.3527934,
+    "dist_predio_m": 9056,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Paseo Real 181, El Refugio",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJC6VGDABb04URVUxFp8B7PxY",
+    "name": "St Austin Medical Center",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.658048,
+    "lng": -100.356072,
+    "dist_predio_m": 9087,
+    "rating": 5,
+    "user_ratings": 4,
+    "price_level": null,
+    "vicinity": "Anillo vial fray Junipero Serra, Lote D, fracción C, ext 12900, La Espiga, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ62LcGgBd04URfQYjtXIVkqY",
+    "name": "Plaza Pabellón el Refugio",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6551471,
+    "lng": -100.3491206,
+    "dist_predio_m": 9094,
+    "rating": 4.3,
+    "user_ratings": 3,
+    "price_level": null,
+    "vicinity": "Campo Real 1606, El Refugio, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJw8YlhXNa04URwzU2a9On9Wg",
+    "name": "Kubica Oficinas en Jurica",
+    "categoria": "ancla",
+    "subcat": "corporativo",
+    "lat": 20.6536138,
+    "lng": -100.4336015,
+    "dist_predio_m": 9202,
+    "rating": 4.2,
+    "user_ratings": 112,
+    "price_level": null,
+    "vicinity": "Torre Kubica, 110, Priv. de los Industriales 110, Jurica, 76127 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJR0jm9Ctd04URcjdB-DAnsxc",
+    "name": "Uaq facultad de medicina",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6540077,
+    "lng": -100.3415101,
+    "dist_predio_m": 9372,
+    "rating": 1,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "La Pradera, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJvYxHMnBc04URdKnOFRNfNrc",
+    "name": "PLAZA ALTA",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6537914,
+    "lng": -100.3393899,
+    "dist_predio_m": 9469,
+    "rating": 4.2,
+    "user_ratings": 22,
+    "price_level": null,
+    "vicinity": "Boulevard Bisonte 11-Local B, La Pradera, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJs1zHArNd04URFaHDEg-ofp8",
+    "name": "The Town Community & Shops",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6594443,
+    "lng": -100.3477431,
+    "dist_predio_m": 9585,
+    "rating": 5,
+    "user_ratings": 5,
+    "price_level": null,
+    "vicinity": "Campo Real 1611, El Refugio, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJV0buIwBd04UR1juae5pf9SI",
+    "name": "Plaza Urbanvalley",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6604332,
+    "lng": -100.3488985,
+    "dist_predio_m": 9631,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Anillo Vial Fray Junípero Serra 12150, El Refugio",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJi5MqdlVd04URafuguaMNgWE",
+    "name": "Plaza El Trebol",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.660712,
+    "lng": -100.3488158,
+    "dist_predio_m": 9663,
+    "rating": 4,
+    "user_ratings": 162,
+    "price_level": null,
+    "vicinity": "Anillo Vial Fray Junípero Serra 12150, El Refugio, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJETMOxmhd04URsYQiOSfqC6o",
+    "name": "Plaza la Herradura",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.66089029999999,
+    "lng": -100.349193,
+    "dist_predio_m": 9664,
+    "rating": 4.3,
+    "user_ratings": 103,
+    "price_level": null,
+    "vicinity": "Anillo Vial Fray Junípero Serra 12200, plaza la Herradura, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJxwYRjXNc04UROOrtu7Jjik8",
+    "name": "Plaza La Cima",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6583413,
+    "lng": -100.3435519,
+    "dist_predio_m": 9680,
+    "rating": 4.3,
+    "user_ratings": 230,
+    "price_level": null,
+    "vicinity": "Anillo Vial II Fray Junipero Serra 11384 El Refugio Deleg, Epigmenio Gonzalez, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ6Sv_rwRa04URoaMk9xCpVY8",
+    "name": "Corporativo Uptown Querétaro",
+    "categoria": "ancla",
+    "subcat": "corporativo",
+    "lat": 20.6744677,
+    "lng": -100.4290006,
+    "dist_predio_m": 11073,
+    "rating": 4.6,
+    "user_ratings": 114,
+    "price_level": null,
+    "vicinity": "Anillo Vial Fray Junipero Serra, Uptown Juriquilla, Epigmenio Gonzalez, 76280 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJC-Q1Uj9b04UR-uIed1PLihc",
+    "name": "Torre Cápita",
+    "categoria": "ancla",
+    "subcat": "corporativo",
+    "lat": 20.6714012,
+    "lng": -100.4379101,
+    "dist_predio_m": 11151,
+    "rating": 4.6,
+    "user_ratings": 178,
+    "price_level": null,
+    "vicinity": "Av. Antea 1032, Jurica, 76127 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJn49ene9b04URAwCYK-4QDi8",
+    "name": "Level Querétaro oficina",
+    "categoria": "ancla",
+    "subcat": "corporativo",
+    "lat": 20.6723312,
+    "lng": -100.4381101,
+    "dist_predio_m": 11253,
+    "rating": 4.5,
+    "user_ratings": 74,
+    "price_level": null,
+    "vicinity": "Av. Antea 1130, Jurica, 76127 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJs8iDMQFa04URzX8TLf-gGrk",
+    "name": "Antea",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6749427,
+    "lng": -100.4360122,
+    "dist_predio_m": 11416,
+    "rating": 4.6,
+    "user_ratings": 46418,
+    "price_level": null,
+    "vicinity": "Carretera Querétaro, San Luis Potosí - Santiago de Querétaro 12401, Félix Osores Sotomayor, El Salitre",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJyzDFNwda04URBBZ1I5P2xOw",
+    "name": "Querétaro Business Park Torre 1",
+    "categoria": "ancla",
+    "subcat": "corporativo",
+    "lat": 20.6753554,
+    "lng": -100.4386458,
+    "dist_predio_m": 11578,
+    "rating": 4.5,
+    "user_ratings": 223,
+    "price_level": null,
+    "vicinity": "Av. Antea 1088, Jurica, 76127 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest",
+      "real_estate_agency"
+    ]
+  },
+  {
+    "place_id": "ChIJafneyQBa04URR8S9nuU6G2A",
+    "name": "Antea",
+    "categoria": "ancla",
+    "subcat": "corporativo",
+    "lat": 20.6756135,
+    "lng": -100.4384973,
+    "dist_predio_m": 11597,
+    "rating": 4.6,
+    "user_ratings": 69,
+    "price_level": null,
+    "vicinity": "Avenida Antea 1088, Av. Antea Col-No. 1088, Jurica, 76127 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJX21beJpb04URtzL7OI5XzYw",
+    "name": "Queretaro Business Park Torre 3",
+    "categoria": "ancla",
+    "subcat": "corporativo",
+    "lat": 20.6765711,
+    "lng": -100.4384755,
+    "dist_predio_m": 11691,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Av. Antea 1098, Jurica, 76127 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ1VBauM9X04URKT6jnmvzwcI",
+    "name": "MIIsuperIIc",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6799702,
+    "lng": -100.4553905,
+    "dist_predio_m": 12886,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Violetas 1, Jurica Pueblo, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJ8UfyXwBX04URy_8hAIkbmjY",
+    "name": "Clínica manca quereraro",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.68675,
+    "lng": -100.4458889,
+    "dist_predio_m": 13049,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Avenida los Portones 1151, Juriquilla",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJnRwr0mRF04URBiEaaYv3nCA",
+    "name": "Dra. Enoé Cruz Martínez",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6868587,
+    "lng": -100.4459929,
+    "dist_predio_m": 13064,
+    "rating": 4.6,
+    "user_ratings": 31,
+    "price_level": null,
+    "vicinity": "Avenida los Portones 1151-1, Juriquilla",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJFbhfHgBX04UR-rLwu30iD3s",
+    "name": "Hospital Idaly Medical",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6869989,
+    "lng": -100.446007,
+    "dist_predio_m": 13079,
+    "rating": 3.9,
+    "user_ratings": 116,
+    "price_level": null,
+    "vicinity": "Avenida los Portones 1151-1, Juriquilla",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJKdP4OVxZ04URtReZZQExB5k",
+    "name": "Dra. Elvia Ramírez",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6916982,
+    "lng": -100.4377347,
+    "dist_predio_m": 13190,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Avenida de las Ciencias 2058, Juriquilla",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJBc0kU3BZ04URVu5BioBDie0",
+    "name": "Alento | Rehabilitación y deglución",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6916982,
+    "lng": -100.4377347,
+    "dist_predio_m": 13190,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Hospital MOSCATI, Avenida de las Ciencias 2058, Juriquilla",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJDdDwL3NX04UROy2B7oicx-c",
+    "name": "Nominas H Moscati",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6915886,
+    "lng": -100.4397012,
+    "dist_predio_m": 13260,
+    "rating": 4,
+    "user_ratings": 2,
+    "price_level": null,
+    "vicinity": "Avenida de las Ciencias, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJw-msgRFX04URRnK3EKGMGVg",
+    "name": "Salud y Nutrición Integral",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6920657,
+    "lng": -100.4385489,
+    "dist_predio_m": 13261,
+    "rating": 5,
+    "user_ratings": 41,
+    "price_level": null,
+    "vicinity": "Av. de las Ciencias 2058, Hospital Moscati, Consultorio 1617, Piso 16, Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "doctor",
+      "health",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJSVtQSNFZ04URuOs21nPc_s8",
+    "name": "Hospital Moscati",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6920657,
+    "lng": -100.4385489,
+    "dist_predio_m": 13261,
+    "rating": 4,
+    "user_ratings": 1481,
+    "price_level": null,
+    "vicinity": "Avenida de las Ciencias 2058, Juriquilla",
+    "types": [
+      "hospital",
+      "pharmacy",
+      "doctor",
+      "health"
+    ]
+  },
+  {
+    "place_id": "ChIJYe2f_-lZ04URotZx1rlXShU",
+    "name": "Dr. Jonathan Michell Llanas – Ginecología y Medicina Materno Fetal",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6925076,
+    "lng": -100.4389942,
+    "dist_predio_m": 13324,
+    "rating": 5,
+    "user_ratings": 25,
+    "price_level": null,
+    "vicinity": "Avenida de las Ciencias 2058-1411, Colonia Rancho Largo, Juriquilla",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJa-aqYPFZ04URdc-WncDH1SI",
+    "name": "Odontología Rodrigo Millán",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6925076,
+    "lng": -100.4389942,
+    "dist_predio_m": 13324,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Hospital Moscati, Avenida de las Ciencias 2058, Juriquilla",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ_6nouJpZ04UR2rZST_TPJ6Y",
+    "name": "FISIOFLEX Terapia física y rehabilitación",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6925076,
+    "lng": -100.4389942,
+    "dist_predio_m": 13324,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Hospital Moscati, Avenida de las Ciencias 2058-Piso 20 consultorio 2016-A, Juriquilla",
+    "types": [
+      "physiotherapist",
+      "hospital",
+      "health",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJvRjRgvdd04URJFBHt91JUyM",
+    "name": "Dr. Marco Acosta Medicina Estética | Medicina Rejuvenecedora y Antienvejecimiento",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6925076,
+    "lng": -100.4389942,
+    "dist_predio_m": 13324,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Avenida de las Ciencias 2058-76226, Juriquilla",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJzRGuZclX04URkNE0bYRHJpU",
+    "name": "中国超市旺旺食品商店WANGWANG",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6921177,
+    "lng": -100.4406304,
+    "dist_predio_m": 13352,
+    "rating": 5,
+    "user_ratings": 4,
+    "price_level": null,
+    "vicinity": "Anillo Vial Fray Junípero Serra 2651, Santa Fé, Juriquilla",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJvV975cVZ04URcj5_o7g_fmQ",
+    "name": "H-E-B Juriquilla",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6938371,
+    "lng": -100.4376524,
+    "dist_predio_m": 13407,
+    "rating": 4.6,
+    "user_ratings": 10886,
+    "price_level": null,
+    "vicinity": "Avenida de las Ciencias 2060, Santiago de Querétaro",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJBejImxZX04URTTL02buJiNE",
+    "name": "Mashedana clinic",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6933719,
+    "lng": -100.4402421,
+    "dist_predio_m": 13464,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Juriquilla Santa Fe, BLVD de las ciencias 2077 Plaza, Santa Elena 3",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJc3uCb1dX04UROZHTAt_g1IE",
+    "name": "Walmart Express Juriquilla",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6917322,
+    "lng": -100.4447757,
+    "dist_predio_m": 13494,
+    "rating": 4.3,
+    "user_ratings": 4102,
+    "price_level": null,
+    "vicinity": "Anillo Vial Fray Junípero Serra 2701, Santa Fé, Juriquilla",
+    "types": [
+      "supermarket",
+      "liquor_store",
+      "grocery_or_supermarket",
+      "store"
+    ]
+  },
+  {
+    "place_id": "ChIJ6eDhFlZX04URidhEyJqOg4s",
+    "name": "Consultorio medico",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.6916626,
+    "lng": -100.4449883,
+    "dist_predio_m": 13496,
+    "rating": 1,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Anillo Vial Fray Junípero Serra 2701, Santa Fé, Juriquilla",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJlfUVVldX04URulFXzmbppks",
+    "name": "Espacio Juriquilla",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6917633,
+    "lng": -100.4448369,
+    "dist_predio_m": 13500,
+    "rating": 4.4,
+    "user_ratings": 1743,
+    "price_level": null,
+    "vicinity": "Anillo Vial Fray Junípero Serra No. 2701, Santa Fé, Juriquilla",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ345yvmlX04URCZwY3-jd4xY",
+    "name": "Chedraui Selecto Juriquilla",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.69069769999999,
+    "lng": -100.4486078,
+    "dist_predio_m": 13568,
+    "rating": 4.5,
+    "user_ratings": 5070,
+    "price_level": null,
+    "vicinity": "Anillo Vial Fray Junípero Serra 3301, Santa Fé, Juriquilla",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJY_CQgeJZ04URhg08i-yZfDE",
+    "name": "Farmacias Benavides",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6947348,
+    "lng": -100.4396196,
+    "dist_predio_m": 13578,
+    "rating": 3.4,
+    "user_ratings": 42,
+    "price_level": null,
+    "vicinity": "Blvd. De Las Ciencias 2 S/N, Juriquilla",
+    "types": [
+      "pharmacy",
+      "supermarket",
+      "grocery_or_supermarket",
+      "doctor"
+    ]
+  },
+  {
+    "place_id": "ChIJOdKYFHxX04URtx-jq2AHZj4",
+    "name": "SUPER Q T257 - BLVD DE LAS CIENCIAS",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6956277,
+    "lng": -100.4402919,
+    "dist_predio_m": 13696,
+    "rating": 3.7,
+    "user_ratings": 3,
+    "price_level": null,
+    "vicinity": "BLVD. DE LAS CIENCIAS, NUM30001, LOCAL C JURIQUILLA, Santiago de Querétaro",
+    "types": [
+      "convenience_store",
+      "bakery",
+      "supermarket",
+      "grocery_or_supermarket"
+    ]
+  },
+  {
+    "place_id": "ChIJ75NJXABX04URjzSN9lS9Dj8",
+    "name": "Laboratorio Nacional de Identificación y Caracterización Vegetal (LaniVeg)",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.6979317,
+    "lng": -100.4400445,
+    "dist_predio_m": 13923,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Avenida de las Ciencias S/N, Juriquilla",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJFYEos9pX04UR9qX62NSviyE",
+    "name": "Plaza The Village AT Juriquilla",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6980213,
+    "lng": -100.4405683,
+    "dist_predio_m": 13953,
+    "rating": 4.4,
+    "user_ratings": 62,
+    "price_level": null,
+    "vicinity": "Santa Fé, Juriquilla",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ10tNMgBX04URN1uNUiqtKno",
+    "name": "Check Point Santa Fe",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.6987832,
+    "lng": -100.4404734,
+    "dist_predio_m": 14027,
+    "rating": 2.7,
+    "user_ratings": 13,
+    "price_level": null,
+    "vicinity": "Avenida de las Ciencias, Santa Fé, Juriquilla",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJDSDqJ19X04UR6boXIjZBNog",
+    "name": "Torres Premier Querétaro",
+    "categoria": "ancla",
+    "subcat": "corporativo",
+    "lat": 20.6986788,
+    "lng": -100.4423838,
+    "dist_predio_m": 14094,
+    "rating": 4.5,
+    "user_ratings": 32,
+    "price_level": null,
+    "vicinity": "Torres Premier 202, Santa Fé, 76320 Juriquilla, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJpcLZ38ta04URAMgxXG6cCx8",
+    "name": "Facultad de Ciencias Naturales de la Universidad Autónoma de Querétaro",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.7009444,
+    "lng": -100.4432879,
+    "dist_predio_m": 14363,
+    "rating": 4.8,
+    "user_ratings": 189,
+    "price_level": null,
+    "vicinity": "Avenida de las Ciencias S/N, Delegación, Juriquilla",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ73rPVl5X04URh3w4ZBuOYBY",
+    "name": "Edificio Principal",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.7011081,
+    "lng": -100.4429355,
+    "dist_predio_m": 14365,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Aparcamiento, Aparcamiento, Juriquilla",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJfTJlrV9X04UROEooWBONBYg",
+    "name": "Clínica Universitaria de Nutrición",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.7015157,
+    "lng": -100.4423192,
+    "dist_predio_m": 14382,
+    "rating": 5,
+    "user_ratings": 4,
+    "price_level": null,
+    "vicinity": "Avenida de las Ciencias s/n, Juriquilla",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ_YwUHgBX04UR-0iWUVQYwV4",
+    "name": "Laboratorio de Microscopía Electrónica de Barrido \"LANIVEG\"",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.7008981,
+    "lng": -100.4440917,
+    "dist_predio_m": 14391,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "PH24+99, Juriquilla",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ91Ae7UhX04URDm38gzUhEjI",
+    "name": "Laboratorio de Neurotoxicología y Neuropsiquiatría Traslacional",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.70061099999999,
+    "lng": -100.4454167,
+    "dist_predio_m": 14418,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Campus UNAM 3001, Juriquilla",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJd6dVvWBX04URgEmhNA15aOc",
+    "name": "Universidad Autónoma de Querétaro, Campus Juriquilla",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.7019,
+    "lng": -100.4429458,
+    "dist_predio_m": 14446,
+    "rating": 4.6,
+    "user_ratings": 66,
+    "price_level": null,
+    "vicinity": "Avenida de las Ciencias s/n, Nuevo Juriquilla, Juriquilla",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ_zETwl1X04URjpAkcK8rj5E",
+    "name": "Universidad Nacional Autónoma de México Campus Juriquilla",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.70041879999999,
+    "lng": -100.447239,
+    "dist_predio_m": 14477,
+    "rating": 4.7,
+    "user_ratings": 324,
+    "price_level": null,
+    "vicinity": "Boulevard Juriquilla 3001, Juriquilla, la mesa, Juriquilla",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJV6oG3l1X04URimTsSYi3rYI",
+    "name": "Coordinación de Servicios Administrativos Campus UNAM Juriquilla",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.7020691,
+    "lng": -100.4456055,
+    "dist_predio_m": 14574,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Juriquilla",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJASCafQBX04UR7fqg4mKrf8U",
+    "name": "CETESU FI UAQ",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.7037073,
+    "lng": -100.4418279,
+    "dist_predio_m": 14587,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Rancho Largo",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJzagv3sta04URbBqIdqw5Xxg",
+    "name": "Facultad de Informática UAQ",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.7043191,
+    "lng": -100.4438718,
+    "dist_predio_m": 14732,
+    "rating": 4.8,
+    "user_ratings": 151,
+    "price_level": null,
+    "vicinity": "PH34+6W, Avenida de las Ciencias S/N, Juriquilla",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJe9twMABX04URsIU9iWIUJ2Q",
+    "name": "Universidad",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.7049263,
+    "lng": -100.443337,
+    "dist_predio_m": 14772,
+    "rating": 1,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "U.A.Q, Santiago de Querétaro",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJPWNeX2BX04URyhITbUruHKk",
+    "name": "Plaza Tiara",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.7054776,
+    "lng": -100.4423602,
+    "dist_predio_m": 14790,
+    "rating": 4.4,
+    "user_ratings": 1955,
+    "price_level": null,
+    "vicinity": "Juriquilla",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJb7FYyyJX04UR3wj_PZlr6wE",
+    "name": "Fresh Market Juriquilla",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6924173,
+    "lng": -100.4687231,
+    "dist_predio_m": 14805,
+    "rating": 4.6,
+    "user_ratings": 12,
+    "price_level": null,
+    "vicinity": "Avenida de las Torres 351, Juriquilla",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJY6UHuGBX04URfEi5yE6sRVg",
+    "name": "Laboratorio Universitario de Biomecánica",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.7051957,
+    "lng": -100.4445361,
+    "dist_predio_m": 14848,
+    "rating": 5,
+    "user_ratings": 2,
+    "price_level": null,
+    "vicinity": "Blvd. 3001, Campus UNAM 3001, Juriquilla",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJO-FN5mBX04UR-26W8QUWJNw",
+    "name": "Fresko",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.7059459,
+    "lng": -100.4440002,
+    "dist_predio_m": 14903,
+    "rating": 4.3,
+    "user_ratings": 3963,
+    "price_level": null,
+    "vicinity": "Boulevard Jurica la Campana 899, Juriquilla",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJSVz6gJRX04URV-KwY_iYbFM",
+    "name": "Plaza Campanar",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.7067397,
+    "lng": -100.4424678,
+    "dist_predio_m": 14925,
+    "rating": 4.8,
+    "user_ratings": 16,
+    "price_level": null,
+    "vicinity": "Residencial Caletto, Boulevard Jurica la Campana 914, Juriquilla",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJK11ZSclX04UR1aRQk4Nxayo",
+    "name": "Dra Erika Okhuysen Cerda",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.7034465,
+    "lng": -100.4508773,
+    "dist_predio_m": 14943,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "San Jeremias 154, Manzanares, Juriquilla",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJr5gDtylX04URwtZi9RHJjoI",
+    "name": "Mi Consultorio Juriquilla",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.7067981,
+    "lng": -100.4431228,
+    "dist_predio_m": 14956,
+    "rating": 2,
+    "user_ratings": 4,
+    "price_level": null,
+    "vicinity": "Boulevard Jurica la Campana 917-Local A, Juriquilla",
+    "types": [
+      "hospital",
+      "doctor",
+      "health",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJVweDTkBX04UR_fGmgtQe_po",
+    "name": "Plaza Gran Campana Juriquilla",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.7071358,
+    "lng": -100.442771,
+    "dist_predio_m": 14977,
+    "rating": 4.7,
+    "user_ratings": 33,
+    "price_level": null,
+    "vicinity": "Boulevard Jurica la Campana 918, Juriquilla",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJIyN1D2dX04URJOKnA3owcwM",
+    "name": "Escuela Nacional de Estudios Superiores Unidad Juriquilla UNAM (ENES Juriquilla)",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.7051105,
+    "lng": -100.4483729,
+    "dist_predio_m": 15000,
+    "rating": 4.8,
+    "user_ratings": 71,
+    "price_level": null,
+    "vicinity": "Boulevard Juriquilla 3001, Juriquilla",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJl25ocnNX04URVfQYKfAqtUM",
+    "name": "CHIME",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.7062812,
+    "lng": -100.4456719,
+    "dist_predio_m": 15006,
+    "rating": 5,
+    "user_ratings": 2,
+    "price_level": null,
+    "vicinity": "Jurica Acueducto, Juriquilla",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ08qL6GBX04UR3XURiGqPse8",
+    "name": "Urban Center Juriquilla",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.707057,
+    "lng": -100.4438624,
+    "dist_predio_m": 15012,
+    "rating": 4.4,
+    "user_ratings": 2323,
+    "price_level": null,
+    "vicinity": "Residencial Caletto, Paseo de Libero, Juriquilla",
+    "types": [
+      "shopping_mall",
+      "supermarket",
+      "grocery_or_supermarket",
+      "dentist"
+    ]
+  },
+  {
+    "place_id": "ChIJ9wIFdgBX04UR4OOToghw9nU",
+    "name": "Bulevar juriquiilla",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.7062502,
+    "lng": -100.4473419,
+    "dist_predio_m": 15072,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Boulevard Juriquilla, Jurica Acueducto, Juriquilla",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJDR5K3mZX04URWEIiH4ftq4Q",
+    "name": "Servicomp Juriquilla",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.7066461,
+    "lng": -100.446588,
+    "dist_predio_m": 15081,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "No. 3100 Local 40,, Boulevard Universitario, Juriquilla",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJN35MJQBX04UR5P_QDG0ZGBU",
+    "name": "Escuela",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.7072815,
+    "lng": -100.4450751,
+    "dist_predio_m": 15084,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Calle U.V.M, Nuevo Juriquilla, Juriquilla",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJK6X932ZX04URbsNBiMe14S4",
+    "name": "Plaza Juriquilla",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.7071058,
+    "lng": -100.4466731,
+    "dist_predio_m": 15131,
+    "rating": 4.4,
+    "user_ratings": 4923,
+    "price_level": null,
+    "vicinity": "Boulevard Juriquilla 3100, Jurica Acueducto, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJj9oBkjtX04URXmSy5-SIHqg",
+    "name": "Minisuper La Cumbre",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.6954681,
+    "lng": -100.469512,
+    "dist_predio_m": 15132,
+    "rating": 3.9,
+    "user_ratings": 10,
+    "price_level": null,
+    "vicinity": "Lago Cuitzeo 305, Cumbres del Lago, Juriquilla",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJ4xdiVGZX04URwQfnT_MyqXQ",
+    "name": "Plaza Cuatro Elementos - Juriquilla",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.70652919999999,
+    "lng": -100.4483739,
+    "dist_predio_m": 15144,
+    "rating": 4.3,
+    "user_ratings": 436,
+    "price_level": null,
+    "vicinity": "Juriquilla",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJudyMwGZX04URhH1Gdd_8wbE",
+    "name": "Plaza Juriquilla",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.7078865,
+    "lng": -100.4469468,
+    "dist_predio_m": 15222,
+    "rating": 4.3,
+    "user_ratings": 2516,
+    "price_level": null,
+    "vicinity": "Boulevard Universitario 540, Jurica Acueducto, Santiago de Querétaro",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ0VSs82ZX04URspUUbl_LuD8",
+    "name": "Stock Outlet",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.7076516,
+    "lng": -100.4475949,
+    "dist_predio_m": 15225,
+    "rating": 4.2,
+    "user_ratings": 308,
+    "price_level": null,
+    "vicinity": "R. M. Clemencia Borja Taboada 540, Int. 35, Jurica Acueducto, Juriquilla",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJk1lV9WZX04UR2xd2ZBesKos",
+    "name": "Plaza Acueducto",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.7076925,
+    "lng": -100.4482295,
+    "dist_predio_m": 15256,
+    "rating": 4.2,
+    "user_ratings": 46,
+    "price_level": null,
+    "vicinity": "Unnamed Road, Manzanares, Juriquilla",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJex6C8WZX04URshypYAYyFEk",
+    "name": "Aju Mart Juriquilla",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.7081652,
+    "lng": -100.4474101,
+    "dist_predio_m": 15270,
+    "rating": 4.4,
+    "user_ratings": 67,
+    "price_level": null,
+    "vicinity": "Juriquilla",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJ5z8tNQBX04UR6em5JtkfCpE",
+    "name": "KAW",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.7043991,
+    "lng": -100.4560028,
+    "dist_predio_m": 15275,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Juriquilla",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ5bwVo2ZX04URSeJmKZjCnn8",
+    "name": "Plaza Amarras",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.7086753,
+    "lng": -100.4465255,
+    "dist_predio_m": 15285,
+    "rating": 4.2,
+    "user_ratings": 531,
+    "price_level": null,
+    "vicinity": "Calle San Felipe de Jesús 502, Manzanares, Juriquilla",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJrwIbP2FX04URs9OUCneEfFM",
+    "name": "UVM Querétaro - Universidad del Valle de México",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.7092,
+    "lng": -100.4456806,
+    "dist_predio_m": 15305,
+    "rating": 3.3,
+    "user_ratings": 402,
+    "price_level": null,
+    "vicinity": "Naranjos Punta Juriquilla 1000, Santa Rosa Jáuregui, Santiago de Querétaro",
+    "types": [
+      "university",
+      "accounting",
+      "finance",
+      "school"
+    ]
+  },
+  {
+    "place_id": "ChIJaToUfGZX04URcuShrAFOMKE",
+    "name": "Pabellón Médico Juriquilla",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.7088129,
+    "lng": -100.4483675,
+    "dist_predio_m": 15376,
+    "rating": 3.3,
+    "user_ratings": 28,
+    "price_level": null,
+    "vicinity": "Calle R. M. Clemencia Borja Taboada 538, Juriquilla",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ6-fnSK1Q04UR0Z9hsKYS5vQ",
+    "name": "Unidad Médica Juriquilla UMJ",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.7093207,
+    "lng": -100.4471696,
+    "dist_predio_m": 15378,
+    "rating": 4.2,
+    "user_ratings": 11,
+    "price_level": null,
+    "vicinity": "Calle Acueducto de Zacatecas 521, Jurica Acueducto, Juriquilla",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJkYqeEThX04URYzXVMdJvYVE",
+    "name": "Plaza Calixhe",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.7091058,
+    "lng": -100.447888,
+    "dist_predio_m": 15385,
+    "rating": 4.6,
+    "user_ratings": 89,
+    "price_level": null,
+    "vicinity": "Calle R. M. Clemencia Borja Taboada 523, Manzanares, Juriquilla",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ__8_LmRX04URPkrbMPLx3y8",
+    "name": "Oftaplast",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.7099714,
+    "lng": -100.4476465,
+    "dist_predio_m": 15464,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Torre Médica MEDICI Consultorio 11, Calle Acueducto de Zacatecas # 516, Jurica Acueducto, Juriquilla",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJWYqKsVhX04URw9rQHVL5w40",
+    "name": "Universidad de HVAC",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.7102939,
+    "lng": -100.4486878,
+    "dist_predio_m": 15540,
+    "rating": 3.6,
+    "user_ratings": 5,
+    "price_level": null,
+    "vicinity": "Calle R. M. Clemencia Borja Taboada 522-Piso 2, Jurica Acueducto, Juriquilla",
+    "types": [
+      "university",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJiwNzBj5X04URjtG35mMp3dc",
+    "name": "Plaza Zentral",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.701608,
+    "lng": -100.4675145,
+    "dist_predio_m": 15594,
+    "rating": 4.4,
+    "user_ratings": 330,
+    "price_level": null,
+    "vicinity": "Lago de Chapala 167, Cumbres del Lago, Juriquilla",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ_fjz1z5X04URq1E5-HUsSuA",
+    "name": "ALPHA CENTER",
+    "categoria": "ancla",
+    "subcat": "hospital",
+    "lat": 20.7113709,
+    "lng": -100.4482704,
+    "dist_predio_m": 15632,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Santiago de Querétaro",
+    "types": [
+      "hospital",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJI-zpFmNX04URyo_n-EgVYU0",
+    "name": "Plaza La Punta Juriquilla",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.7133348,
+    "lng": -100.4439246,
+    "dist_predio_m": 15662,
+    "rating": 4.3,
+    "user_ratings": 246,
+    "price_level": null,
+    "vicinity": "Boulevard de la Campana 961, Manzanares, Juriquilla",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJfcE-nCVX04UR-whemO_g0pc",
+    "name": "Bara juriquilla",
+    "categoria": "ancla",
+    "subcat": "supermercado",
+    "lat": 20.7140109,
+    "lng": -100.4423619,
+    "dist_predio_m": 15673,
+    "rating": 4.2,
+    "user_ratings": 51,
+    "price_level": null,
+    "vicinity": "Juriquilla",
+    "types": [
+      "supermarket",
+      "grocery_or_supermarket",
+      "store",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJKU_GG2xX04URgrAlj2tygXI",
+    "name": "Instituto J Guadalupe Ramirez Alvarez",
+    "categoria": "ancla",
+    "subcat": "plaza_mall",
+    "lat": 20.7098036,
+    "lng": -100.4570099,
+    "dist_predio_m": 15858,
+    "rating": 3.8,
+    "user_ratings": 5,
+    "price_level": null,
+    "vicinity": "La Primavera",
+    "types": [
+      "shopping_mall",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJK9IUAX9X04URAXlWM3VOkDw",
+    "name": "STA Education",
+    "categoria": "ancla",
+    "subcat": "universidad",
+    "lat": 20.7247811,
+    "lng": -100.4427336,
+    "dist_predio_m": 16811,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Boulevard Privada Juriquilla 128, Privada Juriquilla, Juriquilla",
+    "types": [
+      "university",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  }
+]

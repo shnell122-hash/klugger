@@ -1,0 +1,212 @@
+{
+  "proyectos": [
+    {
+      "nombre": "Carretera 210 (modernización)",
+      "tipo": "obra pública - infraestructura vial",
+      "monto_mdp": null,
+      "ubicacion_texto": "El Marqués, Qro. (corredor conurbado Querétaro-El Marqués, sin tramo específico en la fuente)",
+      "lat": 20.6113606,
+      "lng": -100.3288581,
+      "geo_precision": "aproximada (centroide municipal, la fuente no da tramo/km)",
+      "fuente": "analisisCimatario2023.md; transcripcionEstudioMercado2023.md",
+      "cita_breve": "\"Modernización de la carretera 210 busca mejorar el nivel de servicio de la vía y mejorar la oferta vial de los municipios conurbados de Querétaro y El Marqués.\" (SDUOP, obra pública 2021). También citada en analisisCimatario2023.md 3.2 como \"Modernización vial para los municipios conurbados\".",
+      "dist_predio_m": 7026
+    },
+    {
+      "nombre": "Carretera 540 (ampliación 2 a 6 carriles + ciclovía)",
+      "tipo": "obra pública - infraestructura vial",
+      "monto_mdp": null,
+      "ubicacion_texto": "El Marqués, Qro., tramo km 8 al 9+500, dirección Querétaro-Chichimequillas",
+      "lat": 20.7240577,
+      "lng": -100.338567,
+      "geo_precision": "aproximada (punto sobre carretera Qro-Chichimequillas cercano al km 9 citado)",
+      "fuente": "analisisCimatario2023.md; transcripcionEstudioMercado2023.md",
+      "cita_breve": "\"Modernización de 1.5 km de carretera (del kilómetro 8 al 9+500). Ampliación de dos a seis carriles... En dirección Querétaro Chichimequillas se incluirá una ciclovía.\" (SDUOP, obra pública 2021).",
+      "dist_predio_m": 16609
+    },
+    {
+      "nombre": "Libramiento Santa Bárbara-Palmillas",
+      "tipo": "obra pública - infraestructura vial",
+      "monto_mdp": null,
+      "ubicacion_texto": "Corregidora-Huimilpan-Amealco-San Juan del Río, Qro. (ruta multi-municipio, sin tramo puntual)",
+      "lat": 20.5232388,
+      "lng": -100.4584732,
+      "geo_precision": "aproximada (punto de referencia 'Santa Bárbara', la ruta cruza 4 municipios y la fuente no puntualiza)",
+      "fuente": "transcripcionEstudioMercado2023.md",
+      "cita_breve": "\"Libramiento Santa Bárbara-Palmillas: Ampliación de 2 a 4 carriles, adecuación de señalización, rehabilitación de carpeta asfáltica existente.\" SDUOP, ubicación 'Corregidora-Huimilpan-Amealco-San Juan del Río'.",
+      "dist_predio_m": 9785
+    },
+    {
+      "nombre": "Polideportivo y Centro de Arte Emergente y Urbano",
+      "tipo": "obra pública - equipamiento deportivo/cultural",
+      "monto_mdp": null,
+      "ubicacion_texto": "Centro Alameda, Zona Centro de Querétaro",
+      "lat": 20.585863,
+      "lng": -100.384181,
+      "geo_precision": "zona (Centro Alameda; sin dirección exacta del edificio en la fuente)",
+      "fuente": "analisisCimatario2023.md; transcripcionEstudioMercado2023.md",
+      "cita_breve": "\"Construcción de un Polideportivo con Centro de Arte Emergente y Urbano en el Centro Alameda, en la zona centro de la Ciudad de Querétaro. Edificio de dos niveles de 3,400 m2.\" (SDUOP, obra pública 2021).",
+      "dist_predio_m": 623
+    },
+    {
+      "nombre": "Imagen Urbana de Huimilpan",
+      "tipo": "obra pública - imagen urbana/turismo",
+      "monto_mdp": null,
+      "ubicacion_texto": "Huimilpan, Qro. (cabecera municipal)",
+      "lat": 20.3736714,
+      "lng": -100.2746876,
+      "geo_precision": "municipio (cabecera de Huimilpan; la fuente no da dirección específica)",
+      "fuente": "transcripcionEstudioMercado2023.md",
+      "cita_breve": "\"Imagen Urbana de Huimilpan: Mejoramiento de banquetas, cableado subterráneo en calles principales, resane de fachadas... Museo de Sitio de la Iglesia de San Miguel Arcángel.\" SDUOP.",
+      "dist_predio_m": 26063
+    },
+    {
+      "nombre": "Puente de la Historia (puente alterno)",
+      "tipo": "obra pública - infraestructura vial/patrimonio",
+      "monto_mdp": null,
+      "ubicacion_texto": "San Juan del Río, Qro., acceso al centro histórico",
+      "lat": 20.3846136,
+      "lng": -100.0100657,
+      "geo_precision": "alta confianza (POI localizado por nombre, coincide con descripción de acceso al centro de San Juan del Río)",
+      "fuente": "transcripcionEstudioMercado2023.md",
+      "cita_breve": "\"Construcción de un puente alterno al Puente de la Historia para garantizar la conservación del monumento histórico... dignificando uno de los principales pasos hacia el centro de San Juan del Río.\" SDUOP.",
+      "dist_predio_m": 45159
+    },
+    {
+      "nombre": "Subestación eléctrica Querétaro",
+      "tipo": "obra pública - infraestructura eléctrica",
+      "monto_mdp": 98.1,
+      "ubicacion_texto": "Estado de Querétaro (sin municipio ni dirección específica en la fuente)",
+      "lat": null,
+      "lng": null,
+      "geo_precision": "unlocated",
+      "fuente": "transcripcionEstudioMercado2023.md",
+      "cita_breve": "\"Subestación eléctrica Querétaro: Instalación de un banco de transformación trifásico en el Estado con un monto de inversión de 98.1 MDP.\" Gobierno Federal; columna 'Ubicación' vacía en la tabla fuente.",
+      "dist_predio_m": null
+    },
+    {
+      "nombre": "Rehabilitación de calles e infraestructura Col. Cimatario, 2da Sección",
+      "tipo": "obra pública - infraestructura urbana/vial",
+      "monto_mdp": 55.973831,
+      "ubicacion_texto": "Colonia Cimatario, 2da Sección, Delegación Centro Histórico, Santiago de Querétaro",
+      "lat": 20.5810239,
+      "lng": -100.3912012,
+      "geo_precision": "zona (centroide de la colonia; la fuente no detalla calles de la 2da Sección)",
+      "fuente": "analisisCimatario2023.md; transcripcionEstudioMercado2023.md",
+      "cita_breve": "\"Rehabilitación de calles e infraestructura de la Colonia Cimatario 2da Sección, Delegación Centro Histórico. Inicio 12-abril-21, Fin 27-sept-2021, Avance 51%, Inversión $55,973,831.\"",
+      "dist_predio_m": 288
+    },
+    {
+      "nombre": "Rehabilitación de calle e infraestructura Col. Cimatario, 3era Sección",
+      "tipo": "obra pública - infraestructura urbana/vial",
+      "monto_mdp": 63.542306,
+      "ubicacion_texto": "Colonia Cimatario, 3era Sección, Delegación Centro Histórico, Santiago de Querétaro",
+      "lat": 20.5810239,
+      "lng": -100.3912012,
+      "geo_precision": "zona (centroide de la colonia; la fuente no detalla calles de la 3era Sección)",
+      "fuente": "analisisCimatario2023.md; transcripcionEstudioMercado2023.md",
+      "cita_breve": "\"Rehabilitación de calle e infraestructura de la Colonia Cimatario 3era Sección, Delegación Centro Histórico. Inicio 02-agosto-2021, Fin 20-dic-2021, Avance 0%, Inversión $63,542,306.\"",
+      "dist_predio_m": 288
+    },
+    {
+      "nombre": "Cloud-HQ Campus Data Center",
+      "tipo": "inversión privada - centro de datos",
+      "monto_mdp": 14942,
+      "ubicacion_texto": "Querétaro (la fuente solo dice \"Querétaro\", sin municipio ni dirección)",
+      "lat": null,
+      "lng": null,
+      "geo_precision": "unlocated",
+      "fuente": "analisisCimatario2023.md; transcripcionEstudioMercado2023.md",
+      "cita_breve": "\"Cloud-HQ, Campus Data Center. Ubicación: Querétaro. Inversión: 14,942 MDP. Año: 2024. La firma estadounidense CloudHQ instalará un campus de data centers en Querétaro...\" (VDD).",
+      "dist_predio_m": null
+    },
+    {
+      "nombre": "Swoboda Mechatronics",
+      "tipo": "inversión privada - planta industrial",
+      "monto_mdp": null,
+      "ubicacion_texto": "San Juan del Río, Qro.",
+      "lat": 20.3951106,
+      "lng": -99.9856344,
+      "geo_precision": "municipio (la fuente da municipio, no dirección de la planta)",
+      "fuente": "analisisCimatario2023.md; transcripcionEstudioMercado2023.md",
+      "cita_breve": "\"Swoboda Mechatronics. Ubicación: San Juan del Río, Qro. Inversión: 30 MDD. Superficie: 7,000 m2. Año: 2024. Compañía alemana dedicada a la fabricación de componentes electromecánicos.\" (VDD). [30 MDD, no convertido a MDP en la fuente]",
+      "dist_predio_m": 46867
+    },
+    {
+      "nombre": "Hospital Ángeles (torre de hospitalización, Centro Sur)",
+      "tipo": "inversión privada - hospital",
+      "monto_mdp": 216,
+      "ubicacion_texto": "Centro Sur, Qro. (terreno de 4.69 ha propiedad de Prodemex)",
+      "lat": 20.5633642,
+      "lng": -100.3583698,
+      "geo_precision": "alta confianza (POI localizado por nombre en Blvd. Bernardo Quintana, Centro Sur)",
+      "fuente": "analisisCimatario2023.md; transcripcionEstudioMercado2023.md",
+      "cita_breve": "\"Hospital Angeles. Ubicación: Centro Sur, Qro. Inversión: 216 MDP. Superficie: 4.69 Has. Año: 2022... torre de hospitalización (torre médica)...\" (VDD). analisisCimatario2023.md la describe como \"Complejo médico privado de 21 pisos en un terreno de 4.69 hectáreas\".",
+      "dist_predio_m": 3801
+    },
+    {
+      "nombre": "Hotel Westin Querétaro",
+      "tipo": "inversión privada - hotel/oficinas/vivienda (uso mixto)",
+      "monto_mdp": null,
+      "ubicacion_texto": "Centro Sur, Qro.",
+      "lat": 20.5717189,
+      "lng": -100.3624216,
+      "geo_precision": "zona (centroide de Centro Sur; no se pudo confirmar la dirección exacta de la torre por nombre en Google Places)",
+      "fuente": "analisisCimatario2023.md; transcripcionEstudioMercado2023.md",
+      "cita_breve": "\"Hotel Westin Querétaro. Ubicación: Centro Sur, Qro. Edificio de 37 niveles, 188 m de altura... 9 niveles del Hotel Westin, 9 niveles más para oficinas, 14 niveles para departamentos.\" (VDD). analisisCimatario2023.md: \"Rascacielos mixto de 37 niveles (188 metros)... inversión no especificada en pesos en la fuente\".",
+      "dist_predio_m": 2985
+    }
+  ],
+  "polos_crecimiento": [
+    {
+      "nombre": "Corredor NE Zibatá - El Refugio (El Marqués)",
+      "lat": 20.6652,
+      "lng": -100.341,
+      "intensidad": "alta",
+      "descripcion": "Fuente: la muestra de 24 desarrollos verticales/horizontales en venta usada en el estudio de mercado (transcripcionEstudioMercado2023.md, tabla de competencia) concentra el mayor número de proyectos activos en 'El Marqués', incluyendo varios explícitamente en 'El Refugio' (Villa Carriedo, Rivello Residencial, Zirahuén Residencial, Agaves, Torre de Piedra Bugambilia, Paseo San Junípero, La Sierra Residencial) y en Zibatá (Adara Lifestyle con 726 unidades, Muna Querétaro 136 unidades, oferta de co-living Altana/Xéntric Anáhuac ligada a la Universidad Anáhuac en Zibatá). Público: Zibatá y El Refugio son, de forma documentada en planeación urbana estatal, el corredor de expansión residencial/educativo más dinámico del municipio de El Marqués desde la década de 2010.",
+      "evidencia": "mixta (fuente principal: volumen de desarrollos listados en el estudio; público: consolidación conocida del corredor)",
+      "dist_predio_m": 10476
+    },
+    {
+      "nombre": "Juriquilla",
+      "lat": 20.6962084,
+      "lng": -100.4506587,
+      "intensidad": "alta",
+      "descripcion": "Fuente: Juriquilla aparece como el primer punto de interés en la tabla de distancias/tiempos desde el predio (analisisCimatario2023.md 1.2: '18.6 km / 18 min'), señal de que el estudio lo trata como referencia obligada de conectividad y crecimiento. La transcripción menciona además la UVM Juriquilla como polo educativo que atrae vivienda compartida ('mayores opciones de vivienda compartida cerca de universidades privadas... la UVM en Juriquilla'). Público: Juriquilla es reconocido históricamente como el polo de expansión residencial, corporativo y educativo (campus UNAM, parques corporativos) del norte de la ciudad de Querétaro desde los años 2000.",
+      "evidencia": "mixta (fuente: tabla de distancias y mención UVM; público: consolidación histórica del polo)",
+      "dist_predio_m": 14211
+    },
+    {
+      "nombre": "Corredor industrial El Marqués (Carreteras 210 / 540)",
+      "lat": 20.6113606,
+      "lng": -100.3288581,
+      "intensidad": "media",
+      "descripcion": "Fuente: dos obras públicas de modernización vial en ejecución (2021) están ubicadas explícitamente en El Marqués: Carretera 210 ('modernización... para los municipios conurbados de Querétaro y El Marqués') y Carretera 540 ('ampliación de dos a seis carriles... en dirección Querétaro-Chichimequillas'), ambas SDUOP. Público: El Marqués concentra el corredor industrial y aeroespacial/automotriz más grande de la zona metropolitana de Querétaro (parques industriales sobre Bernardo Quintana y alrededores), lo que sostiene la inversión vial documentada.",
+      "evidencia": "mixta (fuente: obras SDUOP citadas; público: rol industrial conocido de El Marqués)",
+      "dist_predio_m": 7026
+    },
+    {
+      "nombre": "Centro Sur - Corredor Constituyentes / Autopista 57",
+      "lat": 20.5717189,
+      "lng": -100.3624216,
+      "intensidad": "media",
+      "descripcion": "Fuente: los dos megaproyectos privados de mayor escala descritos en el estudio -el Hospital Ángeles (216 MDP, torre de hospitalización) y el Hotel Westin Querétaro (rascacielos mixto de 37 niveles)- se ubican en Centro Sur. El resumen ejecutivo de analisisCimatario2023.md señala expresamente 'centros corporativos clave de oficinas (en zonas como Centro Sur, Álamos y Milenio III)' como parte de la conectividad del predio, y la cercanía de este a la Autopista México-Querétaro 57 vía Prolongación Corregidora Sur. Es el polo de crecimiento más próximo al predio de Cimatario.",
+      "evidencia": "fuente (megaproyectos Centro Sur y mención explícita de corredor corporativo en el resumen ejecutivo)",
+      "dist_predio_m": 2985
+    },
+    {
+      "nombre": "Corredor E San Juan del Río - Aeropuerto",
+      "lat": 20.3898,
+      "lng": -100.0,
+      "intensidad": "baja",
+      "descripcion": "Fuente: inversión privada Swoboda Mechatronics (30 MDD, planta de 7,000 m2) ubicada en San Juan del Río, más la obra pública 'Puente de la Historia' en la misma ciudad; adicionalmente, el Aeropuerto Internacional de Querétaro figura en la tabla de distancias desde el predio (32.6 km / 31 min), como punto de interés relevante pero el más alejado de los prioritarios. Público: el corredor Querétaro-San Juan del Río sobre la autopista 57, con el aeropuerto intercontinental de carga en Colón cerca de esa ruta, es un eje de crecimiento industrial/logístico documentado del estado, de menor intensidad relativa para el mercado residencial que interesa a este proyecto.",
+      "evidencia": "mixta (fuente: Swoboda + Puente de la Historia + distancia al aeropuerto; público: rol logístico-industrial del corredor)",
+      "dist_predio_m": 45804
+    }
+  ],
+  "predio": {
+    "lat": 20.5822759,
+    "lng": -100.3887838
+  },
+  "notas_metodologia": "Dataset construido exclusivamente a partir de dos fuentes primarias del caso: analisisCimatario2023.md y transcripcionEstudioMercado2023.md (ambas VDD, estudio de mercado 2021-2023 para el predio Carlos Septién García 53, Col. Cimatario). No se incluyeron los ~24 desarrollos de vivienda listados como 'competencia' de mercado (Cap. Análisis de Competencia) porque son comparables de precio, no proyectos de inversión/obra citados como tales en el texto; esos datos ya viven en competencia.json. Geocodificación: Google Geocoding API para ubicaciones administrativas/viales (colonias, municipios, tramos de carretera) y Google Places Find Place para POIs con nombre propio (Puente de la Historia, Hospital Ángeles). geo_precision documenta el nivel de confianza: 'alta confianza' = POI encontrado por nombre y coincide con la descripción de la fuente; 'zona' = centroide de colonia/zona citada, sin dirección exacta en la fuente; 'municipio' = centroide del municipio citado; 'aproximada' = punto representativo sobre una vialidad/ruta sin tramo exacto dado; 'unlocated' = la fuente no da ubicación suficiente para geocodificar con confianza (Subestación eléctrica sin municipio/dirección; Cloud-HQ solo dice 'Querétaro' sin más detalle) y NO se inventaron coordenadas para estos casos. Los montos en MDD (Swoboda Mechatronics, 30 MDD) se dejaron sin convertir a MDP porque la fuente no da el tipo de cambio usado; monto_mdp queda null para ese caso y el dato se preserva en cita_breve. polos_crecimiento: cada polo distingue explícitamente en su campo 'descripcion' qué proviene de las fuentes citadas y qué es conocimiento público general sobre la expansión urbana de Querétaro (ejes NE hacia Juriquilla/El Marqués/Zibatá, corredor industrial de El Marqués, corredor Constituyentes/Autopista 57, corredor E San Juan del Río-aeropuerto). El campo 'evidencia' resume el balance fuente/público de cada polo. Los 5 polos no son un listado exhaustivo de toda la expansión de Querétaro, sino los que tienen respaldo directo o indirecto en el material del caso más contexto público verificable, priorizando relevancia para el predio de Cimatario. dist_predio_m se calculó con fórmula de haversine desde predio.lat/lng; es null cuando geo_precision es 'unlocated'."
+}

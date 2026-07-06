@@ -40,13 +40,35 @@ const FinObra3DBuilding = dynamic(() => import('../FinObra3DBuilding'), {
   loading: () => <div style={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0f', color: '#666', borderRadius: 12 }}>Cargando modelo 3D...</div>,
 });
 
-// Los 3 escenarios de uso alternativo (HBU) generados como render conceptual
+// Los 3 modelos de uso alternativo (HBU) generados como render conceptual
 // (FAL/kling) — conectan visualmente con la comparación RLV as-vacant y con
 // la sección "Colindancias" (misma topología real de lote 660m² 22×30m).
+// Cada modelo gobierna, a la vez, qué animación se muestra y qué escenario
+// toma el <FinObra3DBuilding> (mapeo abajo) — un solo selector para ambos.
 const HBU_SCENARIOS = [
   { key: 'hibrido', label: 'Híbrido — co-living mixto', desc: 'Townhouses en venta + lofts/estudios en renta (uso declarado del pitch).', video: '/assets/hbu_hibrido.mp4', poster: '/assets/hbu_hibrido_poster.jpg' },
   { key: 'vertical', label: 'Vertical — torre residencial', desc: 'Máxima densidad sobre el mismo lote, escenario CUS alto.', video: '/assets/hbu_vertical.mp4', poster: '/assets/hbu_vertical_poster.jpg' },
   { key: 'horizontal', label: 'Horizontal — townhouses low-rise', desc: 'Baja densidad, huella extendida sobre los 660m².', video: '/assets/hbu_horizontal.mp4', poster: '/assets/hbu_horizontal_poster.jpg' },
+] as const;
+
+type HbuModeloKey = typeof HBU_SCENARIOS[number]['key'];
+
+// Mapea cada modelo renderizado al escenario que entiende FinObra3DBuilding
+// (residencial/mixto/max), para que el mismo selector gobierne animación +
+// modelo 3D + caption sin duplicar controles.
+const MODELO_TO_SCENARIO3D: Record<HbuModeloKey, 'residencial' | 'mixto' | 'max'> = {
+  hibrido: 'mixto',
+  vertical: 'max',
+  horizontal: 'residencial',
+};
+
+// Street View estático del predio (Google Street View, panel 2024-05),
+// 4 orientaciones fijas — ver feedback punto 7.
+const STREETVIEW_HEADINGS = [
+  { heading: 0, dir: 'N', label: 'Norte', src: '/assets/predio_streetview_0.jpg' },
+  { heading: 90, dir: 'E', label: 'Este', src: '/assets/predio_streetview_90.jpg' },
+  { heading: 180, dir: 'S', label: 'Sur', src: '/assets/predio_streetview_180.jpg' },
+  { heading: 270, dir: 'O', label: 'Oeste', src: '/assets/predio_streetview_270.jpg' },
 ] as const;
 
 // Tipos de Google Places demasiado genéricos para describir el giro de un
@@ -89,8 +111,11 @@ export default function HbuTab() {
   const [costoSuelo, setCostoSuelo] = useState(DEFAULT_INPUT.costoSuelo);
   const [capRate, setCapRate] = useState(DEFAULT_INPUT.capRate);
   const [precioVentaM2, setPrecioVentaM2] = useState(DEFAULT_INPUT.precioVentaM2);
-  const [scenario3d, setScenario3d] = useState<'residencial' | 'mixto' | 'max'>('residencial');
+  const [modeloHbu, setModeloHbu] = useState<HbuModeloKey>('hibrido');
+  const [streetviewHeading, setStreetviewHeading] = useState<typeof STREETVIEW_HEADINGS[number]['heading']>(0);
   const [isAnimating, setIsAnimating] = useState(false);
+  const scenario3d = MODELO_TO_SCENARIO3D[modeloHbu];
+  const modeloActivo = HBU_SCENARIOS.find((s) => s.key === modeloHbu)!;
 
   const proformaInput = useMemo(() => {
     const base = { ...DEFAULT_INPUT, ...PRESETS[activePreset].delta };
@@ -433,45 +458,108 @@ export default function HbuTab() {
           <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
             <div>
               <div className="text-sm font-medium">{floors3d} niveles · {proformaInput.townhouses + proformaInput.lofts + proformaInput.studios} unidades · CUS {proformaInput.cus} · Lote 660m² (22×30m)</div>
-              <div className="text-xs text-gray-500 mt-0.5">Arrastra para orbitar. Cambiar preset actualiza el modelo.</div>
+              <div className="text-xs text-gray-500 mt-0.5">Modelo: <strong className="text-gray-300">{modeloActivo.label}</strong> · arrastra para orbitar.</div>
             </div>
-            <div className="flex gap-2 flex-wrap">
-              {(['residencial', 'mixto', 'max'] as const).map(s => (
-                <button key={s} onClick={() => setScenario3d(s)}
-                  className={`px-3 py-1 rounded-xl text-xs border transition ${scenario3d === s ? 'bg-[#7c3aed] border-[#7c3aed] text-white' : 'border-[#1e1e2e] text-gray-400'}`}>{s}</button>
-              ))}
-              <button onClick={triggerAnim} className="px-4 py-1 rounded-xl bg-[#10b981] hover:bg-[#059669] text-white text-xs">▶ Animar</button>
-            </div>
+            <button onClick={triggerAnim} className="px-4 py-1 rounded-xl bg-[var(--brand-green)] hover:opacity-90 text-white text-xs self-start">▶ Animar</button>
           </div>
           <FinObra3DBuilding floors={floors3d} units={proformaInput.townhouses + proformaInput.lofts + proformaInput.studios} scenario={scenario3d} anim={isAnimating} />
 
           <div className="mt-6">
-            <div className="text-sm font-medium mb-0.5">Galería de escenarios HBU — comparación de uso alternativo</div>
-            <div className="text-xs text-gray-500 mb-3">Mismo lote (660m², 22×30m) bajo tres programas distintos. Conecta con la comparación RLV as-vacant y con la topología real de colindancias.</div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-sm font-medium mb-0.5">Animación del modelo seleccionado</div>
+            <div className="text-xs text-gray-500 mb-3">Mismo lote (660m², 22×30m) bajo tres programas distintos. El modelo elegido gobierna la animación destacada y el modelo 3D de arriba. Conecta con la comparación RLV as-vacant y con la topología real de colindancias.</div>
+
+            {/* Selector de modelo — un solo control liga animación + FinObra3DBuilding */}
+            <div className="flex flex-wrap gap-2 mb-4">
               {HBU_SCENARIOS.map((s) => (
-                <div key={s.key} className="rounded-xl overflow-hidden border border-[#1e1e2e] bg-[#111118]">
-                  <div className="aspect-video w-full overflow-hidden rounded-xl bg-[#0a0a0f]">
-                    <video
-                      src={s.video}
-                      poster={s.poster}
-                      controls
-                      muted
-                      loop={!prefersReducedMotion}
-                      playsInline
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="px-3 py-2">
-                    <div className="text-xs font-medium text-gray-200">{s.label}</div>
-                    <div className="text-[10px] text-gray-500 mt-0.5">{s.desc}</div>
-                  </div>
-                </div>
+                <button key={s.key} onClick={() => setModeloHbu(s.key)}
+                  className={`px-3 py-1.5 rounded-2xl text-xs border transition ${modeloHbu === s.key ? 'bg-[var(--brand-violet)] text-white border-[var(--brand-violet)]' : 'border-[#1e1e2e] hover:bg-[#1a1a22] text-gray-300'}`}>
+                  {s.label}
+                </button>
               ))}
             </div>
+
+            {/* Animación destacada del modelo activo (solo esta autoplay-capaz reproduce a la vez) */}
+            <div className="rounded-xl overflow-hidden border border-[var(--brand-violet)]/40 bg-[#111118]">
+              <div className="aspect-video w-full overflow-hidden bg-[#0a0a0f]">
+                <video
+                  key={modeloActivo.key}
+                  src={modeloActivo.video}
+                  poster={modeloActivo.poster}
+                  controls
+                  muted
+                  autoPlay={!prefersReducedMotion}
+                  loop={!prefersReducedMotion}
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="px-3 py-2">
+                <div className="text-xs font-medium text-gray-200">{modeloActivo.label}</div>
+                <div className="text-[10px] text-gray-500 mt-0.5">{modeloActivo.desc}</div>
+              </div>
+            </div>
+
+            {/* Miniaturas de los otros dos modelos — no reproducen simultáneamente */}
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              {HBU_SCENARIOS.filter((s) => s.key !== modeloHbu).map((s) => (
+                <button key={s.key} onClick={() => setModeloHbu(s.key)}
+                  className="text-left rounded-xl overflow-hidden border border-[#1e1e2e] bg-[#111118] hover:border-[var(--brand-violet)]/60 transition">
+                  <div className="aspect-video w-full overflow-hidden bg-[#0a0a0f]">
+                    <img src={s.poster} alt={s.label} className="w-full h-full object-cover opacity-80" />
+                  </div>
+                  <div className="px-3 py-2">
+                    <div className="text-xs font-medium text-gray-300">{s.label}</div>
+                    <div className="text-[10px] text-gray-500 mt-0.5">Ver esta animación →</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+
             <div className="mt-2 text-[10px] text-gray-500">
               Renders conceptuales generados con IA (FAL/kling), informados por la topología real de colindancias (ver sección de Colindancias). No son levantamientos arquitectónicos.
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* SECCIÓN 4B: STREET VIEW DEL PREDIO */}
+      <section>
+        <h3 className="text-xl font-semibold mb-3">Street View del predio (Carlos Septién 53)</h3>
+        <div className="glass rounded-3xl p-6 border border-[#1e1e2e]">
+          <div className="text-xs text-gray-500 mb-4">Panel Google Street View · {streetviewDate} · 4 orientaciones — se aprecia la doble fachada real de 22×30 m sobre calle.</div>
+
+          <div className="flex flex-wrap gap-2 mb-4">
+            {STREETVIEW_HEADINGS.map((sv) => (
+              <button key={sv.heading} onClick={() => setStreetviewHeading(sv.heading)}
+                className={`px-3 py-1.5 rounded-2xl text-xs border transition ${streetviewHeading === sv.heading ? 'bg-[var(--brand-violet)] text-white border-[var(--brand-violet)]' : 'border-[#1e1e2e] hover:bg-[#1a1a22] text-gray-300'}`}>
+                {sv.dir} · {sv.heading}°
+              </button>
+            ))}
+          </div>
+
+          <div className="rounded-xl overflow-hidden border border-[#1e1e2e] bg-[#0a0a0f]">
+            <div className="aspect-video w-full overflow-hidden">
+              <img
+                src={STREETVIEW_HEADINGS.find((sv) => sv.heading === streetviewHeading)!.src}
+                alt={`Street View del predio, orientación ${STREETVIEW_HEADINGS.find((sv) => sv.heading === streetviewHeading)!.label}`}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="px-3 py-2 text-[10px] text-gray-500">
+              Google Street View · panel {streetviewDate} · orientación {STREETVIEW_HEADINGS.find((sv) => sv.heading === streetviewHeading)!.label} ({streetviewHeading}°)
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+            {STREETVIEW_HEADINGS.map((sv) => (
+              <button key={sv.heading} onClick={() => setStreetviewHeading(sv.heading)}
+                className={`rounded-xl overflow-hidden border bg-[#111118] text-left transition ${streetviewHeading === sv.heading ? 'border-[var(--brand-violet)]' : 'border-[#1e1e2e] hover:border-[var(--brand-violet)]/50'}`}>
+                <div className="aspect-video w-full overflow-hidden bg-[#0a0a0f]">
+                  <img src={sv.src} alt={`Street View ${sv.label}`} className="w-full h-full object-cover" />
+                </div>
+                <div className="px-2 py-1 text-[10px] text-gray-400">{sv.dir} · {sv.heading}°</div>
+              </button>
+            ))}
           </div>
         </div>
       </section>

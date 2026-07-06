@@ -17,6 +17,10 @@ import {
   inversiones, foda, riesgos, haiv, predio,
 } from '../data/estudio-mercado';
 import type { CoLivingListing, CuartoRentaLevantamiento, Riesgo } from '../data/estudio-mercado';
+// Veredicto de scoring (537 comps urbanos) — mismo patrón de import JSON que
+// api-costs.json en CostosTab.tsx / topologia-colindancias.json en HbuTab.tsx.
+import predioScorecard from '../data/scores/predio-scorecard.json';
+import scoresReport from '../data/scores/scores-report.json';
 
 // react-leaflet touches `window` on import — must stay client-only, same
 // pattern already used by HbuTab.tsx for this exact component.
@@ -222,6 +226,78 @@ function RiesgoHeatmap({ data }: { data: Riesgo[] }) {
   );
 }
 
+// ── Export JSON del estudio completo ────────────────────────────────────────
+// Empaqueta exactamente los datasets que este tab ya importa de
+// data/estudio-mercado.ts (cada uno con su { source, data } tal cual se
+// consumen arriba) + el veredicto de scoring de los 537 comps urbanos
+// (data/scores/*.json). No se calcula ni se inventa nada nuevo aquí — es un
+// snapshot 1:1 de lo que el usuario ya ve renderizado en las 12 secciones.
+const ESTUDIO_EXPORT_PAYLOAD = {
+  meta: {
+    titulo: 'Estudio de Mercado — Colonia Cimatario',
+    exportadoDesde: 'Tab "Estudio de Mercado" del dashboard Klugger (EstudioMercadoTab.tsx)',
+    nota: 'Snapshot 1:1 de los datasets ya usados en el UI, fieles a analisisCimatario2023.md / transcripcionEstudioMercado2023.md + el veredicto de scoring de los 537 comps urbanos. No contiene datos derivados que no existan ya en el tab.',
+  },
+  conectividad,
+  demografia: { proyeccionPoblacion, estructuraEdad, cimatarioEdad, migracion },
+  vivienda: { viviendaTipologia, mercadoBigDataVsInegi },
+  saludEducacion: { salud, educacion },
+  empleoEconomia: { empleo, idh },
+  poi: { ecosistema5km },
+  mercadoInmobiliario: { benchmarks, coLivingListings, cuartosRentaLevantamiento },
+  inversiones,
+  foda,
+  riesgos,
+  haiv,
+  predio,
+  scoring: { predioScorecard, scoresReport },
+};
+
+function exportEstudioCompleto() {
+  const blob = new Blob([JSON.stringify(ESTUDIO_EXPORT_PAYLOAD, null, 2)], { type: 'application/json' });
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(blob),
+    download: 'estudio-cimatario-completo.json',
+  });
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ── Integraciones cruzadas Estudio → HBU / mapa ─────────────────────────────
+// Otro agente escucha este evento en ValuacionDashboard.tsx y hace
+// setActiveTab(detail). IDs tomados literalmente del array TABS de ese
+// archivo (solo lectura, no se edita aquí): 'hbu' = "🏗️ HBU/HBV + Estudio
+// Colonia", 'database' = "🗄️ Base de Datos" (dueño del mapa de comparables).
+function switchTab(tabId: 'hbu' | 'database') {
+  window.dispatchEvent(new CustomEvent('klugger:switch-tab', { detail: tabId }));
+}
+
+function CrossLinkBar({ text, links }: {
+  text: React.ReactNode;
+  links: { label: string; tabId: 'hbu' | 'database'; variant?: 'violet' | 'green' }[];
+}) {
+  return (
+    <div className="glass rounded-2xl p-5 border border-[#1e1e2e] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <p className="text-sm text-gray-400 max-w-xl">{text}</p>
+      <div className="flex flex-wrap gap-2 shrink-0">
+        {links.map((l) => (
+          <button
+            key={`${l.tabId}-${l.label}`}
+            onClick={() => switchTab(l.tabId)}
+            className={`px-4 py-2.5 rounded-2xl text-sm font-medium border transition-colors duration-150 whitespace-nowrap ${
+              l.variant === 'green'
+                ? 'bg-[var(--brand-green)]/15 text-[var(--brand-green)] border-[var(--brand-green)]/30 hover:bg-[var(--brand-green)]/25'
+                : 'bg-[var(--brand-violet)]/15 text-[var(--brand-violet-light)] border-[var(--brand-violet)]/30 hover:bg-[var(--brand-violet)]/25'
+            }`}
+          >
+            {l.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function EstudioMercadoTab({ onNavigateHbu }: EstudioMercadoTabProps) {
   // ── 1. Conectividad ──────────────────────────────────────────────────────
   const conectividadOrdenada = useMemo(
@@ -303,6 +379,18 @@ export default function EstudioMercadoTab({ onNavigateHbu }: EstudioMercadoTabPr
           (p. ej. una serie numérica de ciclo de vida, o puntos intermedios 2023-2029 de población), se omite y se aclara en el
           texto en vez de interpolar o inventar.
         </p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          onClick={exportEstudioCompleto}
+          className="px-4 py-2.5 rounded-2xl bg-[var(--brand-green)]/15 text-[var(--brand-green)] border border-[var(--brand-green)]/30 hover:bg-[var(--brand-green)]/25 text-sm font-medium transition-colors duration-150 whitespace-nowrap"
+        >
+          ⬇ Exportar estudio (JSON)
+        </button>
+        <span className="text-[11px] text-gray-500 max-w-md leading-snug">
+          Las 12 secciones de este tab + el veredicto de scoring (predio-scorecard, scores-report) en un solo archivo.
+        </span>
       </div>
 
       {/* ── 1. Conectividad & movilidad ─────────────────────────────────── */}
@@ -850,6 +938,16 @@ export default function EstudioMercadoTab({ onNavigateHbu }: EstudioMercadoTabPr
           (posible plan base vs. premium); se conserva tal cual, sin reconciliar.</p>
         </div>
         <Source>{benchmarks.source} · {coLivingListings.source} · {cuartosRentaLevantamiento.source}</Source>
+
+        <CrossLinkBar
+          text={<>El premium del co-living institucional (2.3× el informal) y los benchmarks de venta $/m² son el insumo directo
+          de la mezcla de producto evaluada en el modelo HAIV — y los comparables urbanos detrás de esos precios viven
+          georreferenciados en la Base de Datos.</>}
+          links={[
+            { label: 'Ver en HBU/HBV →', tabId: 'hbu', variant: 'violet' },
+            { label: 'Ver mapa →', tabId: 'database', variant: 'green' },
+          ]}
+        />
       </section>
 
       {/* ── 9. Ciclo de vida & oportunidad ───────────────────────────────── */}
@@ -887,6 +985,12 @@ export default function EstudioMercadoTab({ onNavigateHbu }: EstudioMercadoTabPr
           ))}
         </div>
         <Source>{viviendaTipologia.source} · {mercadoBigDataVsInegi.source} · {haiv.source}</Source>
+
+        <CrossLinkBar
+          text={<>Esta lectura de oportunidad (transición hacia vertical + co-living) es la premisa detrás del escenario
+          híbrido townhouse + co-living evaluado con TIR consolidada de {haiv.data.tirConsolidada}%.</>}
+          links={[{ label: 'Ver en HBU/HBV →', tabId: 'hbu', variant: 'violet' }]}
+        />
       </section>
 
       {/* ── 10. Inversión & obras ────────────────────────────────────────── */}

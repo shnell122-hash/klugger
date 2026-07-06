@@ -1,0 +1,941 @@
+[
+  {
+    "place_id": "ChIJIxMRwtVE04URy7iCYF4MPOs",
+    "name": "NEW SOHO",
+    "categoria": "competencia",
+    "subcat": "multifamiliar_renta",
+    "lat": 20.5839357,
+    "lng": -100.3930926,
+    "dist_predio_m": 485,
+    "rating": 4.3,
+    "user_ratings": 24,
+    "price_level": null,
+    "vicinity": "Av. Constituyentes 57, Cimatario, 76030 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJuXNVfcxF04URUNaWWclc-Uw",
+    "name": "Latitud La Victoria Querétaro",
+    "categoria": "competencia",
+    "subcat": "multifamiliar_renta",
+    "lat": 20.5841156,
+    "lng": -100.3804852,
+    "dist_predio_m": 888,
+    "rating": 4.5,
+    "user_ratings": 732,
+    "price_level": null,
+    "vicinity": "Av. Constituyentes 40, zona dos extendida, Mercurio, 76046 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJl_85eXRb04UR7IcCODR2FQs",
+    "name": "Departamento",
+    "categoria": "competencia",
+    "subcat": "multifamiliar_renta",
+    "lat": 20.591769,
+    "lng": -100.38609,
+    "dist_predio_m": 1092,
+    "rating": 5,
+    "user_ratings": 2,
+    "price_level": null,
+    "vicinity": "Av. Luis Pasteur Sur 48B, La Santa Cruz, Centro, 76000 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "lodging",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJH2L6df9b04URbaa3gxrd0jE",
+    "name": "Andador Progreso by Domi Housing",
+    "categoria": "competencia",
+    "subcat": "multifamiliar_renta",
+    "lat": 20.5921478,
+    "lng": -100.386953,
+    "dist_predio_m": 1114,
+    "rating": 5,
+    "user_ratings": 7,
+    "price_level": null,
+    "vicinity": "Progreso 14, La Santa Cruz, Centro, 76020 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "lodging",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJO8kXY0hb04URTsAzi3erLyk",
+    "name": "Renta Depas y Lofts Queretaro",
+    "categoria": "competencia",
+    "subcat": "multifamiliar_renta",
+    "lat": 20.5916239,
+    "lng": -100.381032,
+    "dist_predio_m": 1316,
+    "rating": 3,
+    "user_ratings": 2,
+    "price_level": null,
+    "vicinity": "av zaragoza ote 161, Centro Histórico, La Cruz, 76020 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJwQQaX79F04URdcy3Ir-pWpE",
+    "name": "Renta Departamentos Querétaro Centro Histórico ARCOS",
+    "categoria": "competencia",
+    "subcat": "multifamiliar_renta",
+    "lat": 20.5916589,
+    "lng": -100.381037,
+    "dist_predio_m": 1319,
+    "rating": 4.3,
+    "user_ratings": 4,
+    "price_level": null,
+    "vicinity": "Calle Ignacio Zaragoza 163 ote, La Santa Cruz, Centro, 76000 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "lodging",
+      "point_of_interest",
+      "real_estate_agency"
+    ]
+  },
+  {
+    "place_id": "ChIJF_nijdVa04UR5wZHdxobGEI",
+    "name": "Casa Petate",
+    "categoria": "competencia",
+    "subcat": "estudiantil",
+    "lat": 20.592951,
+    "lng": -100.3953685,
+    "dist_predio_m": 1371,
+    "rating": 4.4,
+    "user_ratings": 614,
+    "price_level": null,
+    "vicinity": "Mariano Matamoros 20, Centro, 76000 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "lodging",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJk7Yy5y1b04URTJO-xra8_x0",
+    "name": "Casa Antigua by Domi Housing",
+    "categoria": "competencia",
+    "subcat": "multifamiliar_renta",
+    "lat": 20.5949972,
+    "lng": -100.3846972,
+    "dist_predio_m": 1477,
+    "rating": 5,
+    "user_ratings": 37,
+    "price_level": null,
+    "vicinity": "C. 5 de Mayo 136, La Santa Cruz, La Cruz, 76020 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "lodging",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJOajZ5Dlb04URKka8nx-jJjE",
+    "name": "Casa Abierta",
+    "categoria": "competencia",
+    "subcat": "multifamiliar_renta",
+    "lat": 20.5956559,
+    "lng": -100.3877238,
+    "dist_predio_m": 1492,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "C. 16 de Septiembre 73, La Santa Cruz, Centro, 76000 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJuf3wMHBF04UR9DkhOzZQqPQ",
+    "name": "Mas Suites La Pradera",
+    "categoria": "competencia",
+    "subcat": "multifamiliar_renta",
+    "lat": 20.5833225,
+    "lng": -100.4033944,
+    "dist_predio_m": 1525,
+    "rating": 3.5,
+    "user_ratings": 2,
+    "price_level": null,
+    "vicinity": "De La Pradera 14, Col del Prado, 76030 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJrycAJQBb04URMjp-Zb2WUWg",
+    "name": "Mansión Foster para amigos con problemas imaginarios",
+    "categoria": "competencia",
+    "subcat": "estudiantil",
+    "lat": 20.5908311,
+    "lng": -100.4005313,
+    "dist_predio_m": 1549,
+    "rating": 5,
+    "user_ratings": 3,
+    "price_level": null,
+    "vicinity": "Av. del 57 22_4, Centro, 76000 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJq6oGHspE04URsw0liU2l3s0",
+    "name": "DEPARTAMENTO",
+    "categoria": "competencia",
+    "subcat": "multifamiliar_renta",
+    "lat": 20.5843235,
+    "lng": -100.3733306,
+    "dist_predio_m": 1625,
+    "rating": 4.5,
+    "user_ratings": 2,
+    "price_level": null,
+    "vicinity": "C. Químicos 217, El Marques, 76047 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "lodging",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJH14xAwBb04URmFBLxLs8e1c",
+    "name": "COLIVING",
+    "categoria": "competencia",
+    "subcat": "coliving",
+    "lat": 20.5955881,
+    "lng": -100.381498,
+    "dist_predio_m": 1663,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Rcda. de Noche Buena 35, La Santa Cruz, Centro, 76020 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJoaLUFO1b04UR72OCLySHSMQ",
+    "name": "Casa Iris Coliving",
+    "categoria": "competencia",
+    "subcat": "coliving",
+    "lat": 20.5966836,
+    "lng": -100.3975043,
+    "dist_predio_m": 1841,
+    "rating": 4.9,
+    "user_ratings": 21,
+    "price_level": null,
+    "vicinity": "Navidad 24, Centro, 76000 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "lodging",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJP6cH3k9b04UR7r4YZu2usgU",
+    "name": "Casa Rosa by Domi Housing",
+    "categoria": "competencia",
+    "subcat": "multifamiliar_renta",
+    "lat": 20.5929067,
+    "lng": -100.3730154,
+    "dist_predio_m": 2023,
+    "rating": 5,
+    "user_ratings": 4,
+    "price_level": null,
+    "vicinity": "Av. Santo Domingo 504, Carretas, 76050 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "lodging",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ-bcwCwBF04URAslOQfvrwEg",
+    "name": "El Castillo",
+    "categoria": "competencia",
+    "subcat": "estudiantil",
+    "lat": 20.5863686,
+    "lng": -100.4116752,
+    "dist_predio_m": 2426,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Av. 5 de Febrero 132, Niños Heroes, 76010 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ-TRUGwJb04URBvSZ14lrYwY",
+    "name": "Renta de Jesús",
+    "categoria": "competencia",
+    "subcat": "multifamiliar_renta",
+    "lat": 20.6055324,
+    "lng": -100.3993538,
+    "dist_predio_m": 2810,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Fraternidad 43, San Roque, 76150 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ-SQ8vAFb04URnigZfTWtiwY",
+    "name": "Rentas",
+    "categoria": "competencia",
+    "subcat": "multifamiliar_renta",
+    "lat": 20.588139,
+    "lng": -100.4157475,
+    "dist_predio_m": 2882,
+    "rating": 3.7,
+    "user_ratings": 6,
+    "price_level": null,
+    "vicinity": "Zihuapan 15, C.E.A., 76010 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJB1tuYDhb04UROEnYSxLq5_8",
+    "name": "Siete7",
+    "categoria": "competencia",
+    "subcat": "estudiantil",
+    "lat": 20.6083751,
+    "lng": -100.3938588,
+    "dist_predio_m": 2950,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "De La Paz 77, La Paz, 76168 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJrW351E1b04URK4ZJzu3SG7w",
+    "name": "Torre Gaviota Residencial",
+    "categoria": "competencia",
+    "subcat": "multifamiliar_renta",
+    "lat": 20.596461,
+    "lng": -100.3636382,
+    "dist_predio_m": 3056,
+    "rating": 4.6,
+    "user_ratings": 30,
+    "price_level": null,
+    "vicinity": "Senda del Carruaje 56, Milenio III, 76060 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ_zY9gUdF04URfqAsQ8WVcww",
+    "name": "Amueblados",
+    "categoria": "competencia",
+    "subcat": "multifamiliar_renta",
+    "lat": 20.5733848,
+    "lng": -100.4180878,
+    "dist_predio_m": 3207,
+    "rating": 3.3,
+    "user_ratings": 24,
+    "price_level": null,
+    "vicinity": "Hacienda Escolásticas 477, Jardines de la Hacienda, 76180 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest",
+      "real_estate_agency"
+    ]
+  },
+  {
+    "place_id": "ChIJ_QCYFo1F04URauVRJI0v04E",
+    "name": "Departamentos Escolásticas",
+    "categoria": "competencia",
+    "subcat": "multifamiliar_renta",
+    "lat": 20.5733951,
+    "lng": -100.4181247,
+    "dist_predio_m": 3210,
+    "rating": 4.3,
+    "user_ratings": 3,
+    "price_level": null,
+    "vicinity": "Hacienda Escolásticas 477, Jardines de la Hacienda, 76180 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest",
+      "real_estate_agency"
+    ]
+  },
+  {
+    "place_id": "ChIJedhkvpFb04UR29uLXB7rFcc",
+    "name": "Habiteé Urban Dorms",
+    "categoria": "competencia",
+    "subcat": "estudiantil",
+    "lat": 20.6107753,
+    "lng": -100.3996583,
+    "dist_predio_m": 3365,
+    "rating": 5,
+    "user_ratings": 8,
+    "price_level": null,
+    "vicinity": "C. Felipe Ángeles 249, Tecnologico, 76158 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJkb8dLEdb04URmVSnmYunHYA",
+    "name": "Condominio Sierrazul",
+    "categoria": "competencia",
+    "subcat": "multifamiliar_renta",
+    "lat": 20.6066653,
+    "lng": -100.3691602,
+    "dist_predio_m": 3395,
+    "rating": 4.5,
+    "user_ratings": 103,
+    "price_level": null,
+    "vicinity": "Priv. del Marqués de la Villa del Villar del Águila 400, hacienda el campanario, 76146 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJia0zLLNb04URSd5xVbP_G0I",
+    "name": "Kali Homes",
+    "categoria": "competencia",
+    "subcat": "estudiantil",
+    "lat": 20.6122469,
+    "lng": -100.4009776,
+    "dist_predio_m": 3566,
+    "rating": 4.2,
+    "user_ratings": 25,
+    "price_level": null,
+    "vicinity": "Estadística 131, Tecnologico, 76158 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJF8abcAxb04URKzN3mxdwqxs",
+    "name": "La Gota Residencial",
+    "categoria": "competencia",
+    "subcat": "multifamiliar_renta",
+    "lat": 20.6144288,
+    "lng": -100.3899577,
+    "dist_predio_m": 3577,
+    "rating": 4.2,
+    "user_ratings": 31,
+    "price_level": null,
+    "vicinity": "Prol. Corregidora Nte. 1001, Plaza del Parque, 76169 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ80PhW91a04URHF6BjYS3HgY",
+    "name": "Residencia ITESM Campus Queretaro",
+    "categoria": "competencia",
+    "subcat": "estudiantil",
+    "lat": 20.6116133,
+    "lng": -100.4048366,
+    "dist_predio_m": 3665,
+    "rating": 4.6,
+    "user_ratings": 82,
+    "price_level": null,
+    "vicinity": "Epigmenio González 500, San Pablo, 76130 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ0WWQjPJb04URN1mY_XyNk7E",
+    "name": "Residencias I",
+    "categoria": "competencia",
+    "subcat": "estudiantil",
+    "lat": 20.6123803,
+    "lng": -100.4038398,
+    "dist_predio_m": 3696,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Epigmenio González 500, Tecnologico, 76130 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJr50Wwyhb04UReEv0-6GyI2U",
+    "name": "Cuartos en renta Hércules",
+    "categoria": "competencia",
+    "subcat": "multifamiliar_renta",
+    "lat": 20.606151,
+    "lng": -100.3615457,
+    "dist_predio_m": 3884,
+    "rating": 3.7,
+    "user_ratings": 3,
+    "price_level": null,
+    "vicinity": "Cedros s/n, Hercules, 76069 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJC8fZbnVF04UR-N_RDw1qi8c",
+    "name": "Koloria Residence",
+    "categoria": "competencia",
+    "subcat": "multifamiliar_renta",
+    "lat": 20.5579114,
+    "lng": -100.358484,
+    "dist_predio_m": 4158,
+    "rating": 4.2,
+    "user_ratings": 13,
+    "price_level": null,
+    "vicinity": "Av. Paseo del Sur 9805, 76090 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ5fD4uVtd04URcPkkhgvUep0",
+    "name": "MILENIO III 43",
+    "categoria": "competencia",
+    "subcat": "multifamiliar_renta",
+    "lat": 20.5956179,
+    "lng": -100.3460579,
+    "dist_predio_m": 4688,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Senda de La Inspiración 43, Milenio III, 76060 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJFSDn0tVb04URx99oY3WeliY",
+    "name": "WENSTEF Casa Del Parque",
+    "categoria": "competencia",
+    "subcat": "estudiantil",
+    "lat": 20.6261646,
+    "lng": -100.3988749,
+    "dist_predio_m": 4992,
+    "rating": 5,
+    "user_ratings": 3,
+    "price_level": null,
+    "vicinity": "Sabiduría 111, El Parque, 76148 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "lodging",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJqSAkI2Ba04URGh-nZu1BYUg",
+    "name": "Departamentos",
+    "categoria": "competencia",
+    "subcat": "multifamiliar_renta",
+    "lat": 20.6361421,
+    "lng": -100.4201876,
+    "dist_predio_m": 6823,
+    "rating": 3.3,
+    "user_ratings": 23,
+    "price_level": null,
+    "vicinity": "San Angel 1200, Desarrollo San Ángel, Av. Paseo Constitución 908, San Pablo, 76125 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJda83jg9F04UREkn9qf6HwT4",
+    "name": "Quinta 42 - Co-Living Adultos",
+    "categoria": "competencia",
+    "subcat": "coliving",
+    "lat": 20.5137188,
+    "lng": -100.4017185,
+    "dist_predio_m": 7741,
+    "rating": 5,
+    "user_ratings": 40,
+    "price_level": null,
+    "vicinity": "Paseo de Centenario Sur 42 El Condado, 76922 Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJEVnS7OJb04URYsFmbGrtO7M",
+    "name": "Coliving Qro",
+    "categoria": "competencia",
+    "subcat": "coliving",
+    "lat": 20.6538229,
+    "lng": -100.4013398,
+    "dist_predio_m": 8062,
+    "rating": 4.7,
+    "user_ratings": 36,
+    "price_level": null,
+    "vicinity": "De la Lealtad, Nacional, 76148 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "lodging",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJKxLtZkxd04URAwj9e_-5BO4",
+    "name": "Mex Casas",
+    "categoria": "competencia",
+    "subcat": "multifamiliar_renta",
+    "lat": 20.6459599,
+    "lng": -100.3459548,
+    "dist_predio_m": 8367,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Rosas Viejas 132, El Refugio, 76146 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest",
+      "real_estate_agency"
+    ]
+  },
+  {
+    "place_id": "ChIJI6uFnhhb04URKAayXzraTIg",
+    "name": "Co-living Casa Pedregal",
+    "categoria": "competencia",
+    "subcat": "coliving",
+    "lat": 20.6623772,
+    "lng": -100.3999371,
+    "dist_predio_m": 8982,
+    "rating": 5,
+    "user_ratings": 3,
+    "price_level": null,
+    "vicinity": "76148, Paseos del Pedregal, 76148 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "lodging",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJCZ9Y__lb04URs6JDLBGbxsg",
+    "name": "WENSTEF Habitaciones & Casas",
+    "categoria": "competencia",
+    "subcat": "estudiantil",
+    "lat": 20.6650376,
+    "lng": -100.3983976,
+    "dist_predio_m": 9257,
+    "rating": 5,
+    "user_ratings": 7,
+    "price_level": null,
+    "vicinity": "Granito 3220,Condominio Sauda, Paseos del Pedregal, 76148 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "lodging",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ-SRgM7hC04URIs8_ViQLE3s",
+    "name": "Rinconada Cetto",
+    "categoria": "competencia",
+    "subcat": "estudiantil",
+    "lat": 20.5829326,
+    "lng": -100.2796602,
+    "dist_predio_m": 11360,
+    "rating": 4.4,
+    "user_ratings": 33,
+    "price_level": null,
+    "vicinity": "El Marques, 76246 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJTScMmI5Z04URXbgrjz5mWk4",
+    "name": "Departamentos Moncho",
+    "categoria": "competencia",
+    "subcat": "multifamiliar_renta",
+    "lat": 20.7099265,
+    "lng": -100.4388455,
+    "dist_predio_m": 15120,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Nuevo Juriquilla, 76230 Juriquilla, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJuYKItxK7LIQR2YEMqyMhfW4",
+    "name": "Renta de Habitaciones H&H",
+    "categoria": "competencia",
+    "subcat": "estudiantil",
+    "lat": 20.5382365,
+    "lng": -100.8208908,
+    "dist_predio_m": 45253,
+    "rating": 4,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Hortensia 14, Valle Hermoso, 38010 Celaya, Gto., México",
+    "types": [
+      "establishment",
+      "lodging",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ469JCwAL04URpWSsMD36eI8",
+    "name": "Renta de habitaciones, exclusivas para mujeres estudiantes",
+    "categoria": "competencia",
+    "subcat": "estudiantil",
+    "lat": 20.3765883,
+    "lng": -99.95163629999999,
+    "dist_predio_m": 50957,
+    "rating": 5,
+    "user_ratings": 26,
+    "price_level": null,
+    "vicinity": "Cerro de La Estrella 31, Jacarandas de Banthi, 76805 San Juan del Río, Qro., México",
+    "types": [
+      "establishment",
+      "lodging",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJHeJsJ9B1K4QRNd3DmF0122I",
+    "name": "The Next Dorm - Household & Lodge",
+    "categoria": "competencia",
+    "subcat": "estudiantil",
+    "lat": 21.0218866,
+    "lng": -101.257965,
+    "dist_predio_m": 102724,
+    "rating": 5,
+    "user_ratings": 20,
+    "price_level": null,
+    "vicinity": "Carrica 2B, Centro, 36000 Guanajuato, Gto., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJC6sv6nsL0YURA4nqCJN-0GQ",
+    "name": "Residencia Estudiantil San Miguel en Pachuca",
+    "categoria": "competencia",
+    "subcat": "estudiantil",
+    "lat": 20.1467493,
+    "lng": -98.81380689999999,
+    "dist_predio_m": 171176,
+    "rating": 5,
+    "user_ratings": 12,
+    "price_level": null,
+    "vicinity": "Carretera a, Av. Benito Juárez, 42162 San Juan Tilcuautla, Hgo., México",
+    "types": [
+      "establishment",
+      "lodging",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJzQBFxqQB0oURjB1Jhrc65AA",
+    "name": "Arquitectura Student Housing",
+    "categoria": "competencia",
+    "subcat": "estudiantil",
+    "lat": 19.4047566,
+    "lng": -99.2601294,
+    "dist_predio_m": 176216,
+    "rating": 5,
+    "user_ratings": 13,
+    "price_level": null,
+    "vicinity": "Arquitectura Manzana 015, Lomas Anahuac, 52786 Naucalpan de Juárez, Méx., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJU3v_9Nz50YURk1iXbpxgKmk",
+    "name": "Ruums Residencia Estudiantil",
+    "categoria": "competencia",
+    "subcat": "estudiantil",
+    "lat": 19.5189508,
+    "lng": -99.1274395,
+    "dist_predio_m": 177026,
+    "rating": 3.2,
+    "user_ratings": 36,
+    "price_level": null,
+    "vicinity": "Av. Río de los Remedios 14, San Juan y Guadalupe Ticoman, Gustavo A. Madero, 07350 Ciudad de México, CDMX, México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJgSfZ6Pn_0YUR2LBC97Iv9Gw",
+    "name": "Covive: Coliving Roma Norte CDMX - Casa Río de Janeiro",
+    "categoria": "competencia",
+    "subcat": "coliving",
+    "lat": 19.4222726,
+    "lng": -99.1620893,
+    "dist_predio_m": 181839,
+    "rating": 4.7,
+    "user_ratings": 54,
+    "price_level": null,
+    "vicinity": "Jalapa 24-A, Roma Nte., Cuauhtémoc, 06700 Ciudad de México, CDMX, México",
+    "types": [
+      "establishment",
+      "lodging",
+      "point_of_interest",
+      "real_estate_agency"
+    ]
+  },
+  {
+    "place_id": "ChIJdxtqqTD_0YURyk4EPc9PMJY",
+    "name": "Residencia Universitaria Femenina",
+    "categoria": "competencia",
+    "subcat": "estudiantil",
+    "lat": 19.4204676,
+    "lng": -99.1618989,
+    "dist_predio_m": 181996,
+    "rating": 4.1,
+    "user_ratings": 37,
+    "price_level": null,
+    "vicinity": "Jalapa 67, Roma Nte., Cuauhtémoc, 06700 Ciudad de México, CDMX, México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJuzC1TY0B0oURfjJSOhLX3jg",
+    "name": "Smart Residences | Residencia Universitaria en México",
+    "categoria": "competencia",
+    "subcat": "estudiantil",
+    "lat": 19.364822,
+    "lng": -99.19441259999999,
+    "dist_predio_m": 184134,
+    "rating": 4.1,
+    "user_ratings": 14,
+    "price_level": null,
+    "vicinity": "Insurgentes Mixcoac, Benito Juárez, 03920 Ciudad de México, CDMX, México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJyZm63oX_0YURHJ_Pd1VKGJE",
+    "name": "Residencia Universitaria Panamericana (RUP)",
+    "categoria": "competencia",
+    "subcat": "estudiantil",
+    "lat": 19.37372,
+    "lng": -99.18407099999999,
+    "dist_predio_m": 184143,
+    "rating": 4.7,
+    "user_ratings": 35,
+    "price_level": null,
+    "vicinity": "Cda. Augusto Rodin 473, Insurgentes Mixcoac, Benito Juárez, 03920 Ciudad de México, CDMX, México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ3wcFNF8BzoURFe3cwCROesw",
+    "name": "Casa del Estudiante UNAM",
+    "categoria": "competencia",
+    "subcat": "estudiantil",
+    "lat": 19.3345013,
+    "lng": -99.1769013,
+    "dist_predio_m": 187864,
+    "rating": 4.2,
+    "user_ratings": 37,
+    "price_level": null,
+    "vicinity": "Ingeniería 9, Copilco Universidad, Coyoacán, 04360 Ciudad de México, CDMX, México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ8egEHf-xKIQRYW0TQpy8cKM",
+    "name": "Student Housing Guadalajara - Casa Mexico",
+    "categoria": "competencia",
+    "subcat": "estudiantil",
+    "lat": 20.6778211,
+    "lng": -103.353829,
+    "dist_predio_m": 308735,
+    "rating": 3.7,
+    "user_ratings": 14,
+    "price_level": null,
+    "vicinity": "C. Independencia 775, Centro, 44100 Guadalajara, Jal., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ9S60sk6uKIQRg94NmnvX5Y4",
+    "name": "Student Housing Guadalajara",
+    "categoria": "competencia",
+    "subcat": "estudiantil",
+    "lat": 20.7023679,
+    "lng": -103.3874854,
+    "dist_predio_m": 312314,
+    "rating": 4.4,
+    "user_ratings": 8,
+    "price_level": null,
+    "vicinity": "Victoria 1809, Providencia, 44639 Guadalajara, Jal., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJaULB9ZP8cQ0R-oMDLl9HU5A",
+    "name": "Residencia Students xD",
+    "categoria": "competencia",
+    "subcat": "estudiantil",
+    "lat": 37.1744326,
+    "lng": -3.6060855,
+    "dist_predio_m": 9213416,
+    "rating": 4.2,
+    "user_ratings": 187,
+    "price_level": null,
+    "vicinity": "C. Obispo Hurtado, 12, Centro, 18003 Granada, España",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  }
+]
