@@ -1,3 +1,8 @@
+---
+description: Plan multi-agente con asignación por modelo (SEGURIDAD → CALIDAD → COSTO). Descompone un objetivo en tareas/olas y asigna cada una al tier correcto (TÚ/Opus/Sonnet/Haiku/Fable).
+argument-hint: <objetivo> [--lanzar]
+---
+
 # /masterplan — Plan multi-agente con asignación por modelo
 
 Descompone un objetivo en tareas y subtareas, asigna **cada una al tipo de agente/modelo correcto** usando toda la flota disponible de forma eficiente, y produce un plan ejecutable (opcionalmente lo lanza).
