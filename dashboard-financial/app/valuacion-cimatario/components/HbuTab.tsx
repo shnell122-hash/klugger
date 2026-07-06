@@ -451,16 +451,17 @@ export default function HbuTab() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {HBU_SCENARIOS.map((s) => (
                 <div key={s.key} className="rounded-xl overflow-hidden border border-[#1e1e2e] bg-[#111118]">
-                  <video
-                    src={s.video}
-                    poster={s.poster}
-                    controls
-                    muted
-                    loop={!prefersReducedMotion}
-                    playsInline
-                    className="w-full bg-[#0a0a0f]"
-                    style={{ maxHeight: 220, objectFit: 'cover', display: 'block' }}
-                  />
+                  <div className="aspect-video w-full overflow-hidden rounded-xl bg-[#0a0a0f]">
+                    <video
+                      src={s.video}
+                      poster={s.poster}
+                      controls
+                      muted
+                      loop={!prefersReducedMotion}
+                      playsInline
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
                   <div className="px-3 py-2">
                     <div className="text-xs font-medium text-gray-200">{s.label}</div>
                     <div className="text-[10px] text-gray-500 mt-0.5">{s.desc}</div>
@@ -501,9 +502,9 @@ export default function HbuTab() {
               Adyacentes (radio ~120 m){adyacentesOcultos > 0 && <span className="normal-case font-normal text-gray-500"> — mostrando {adyacentesVisibles.length} de {adyacentesTotal}</span>}
             </div>
             <div className="overflow-auto rounded-xl border border-[#1e1e2e]">
-              <table className="w-full text-xs">
+              <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-[10px] text-gray-500 bg-[#0a0a0f]">
+                  <tr className="text-xs text-gray-400 bg-[#0a0a0f]">
                     <th className="text-left py-2 px-3">Nombre</th>
                     <th className="text-left py-2 px-3">Tipo principal</th>
                   </tr>
@@ -512,7 +513,7 @@ export default function HbuTab() {
                   {adyacentesVisibles.map((a: any, i: number) => (
                     <tr key={i} className="bg-[#111118]">
                       <td className="py-2 px-3 text-gray-200">{a.name}</td>
-                      <td className="py-2 px-3 text-gray-400">{mainPlaceType(a.types ?? [])}</td>
+                      <td className="py-2 px-3 text-gray-300">{mainPlaceType(a.types ?? [])}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -531,8 +532,8 @@ export default function HbuTab() {
                   <div className="text-[10px] text-gray-500 mb-1">{label}</div>
                   <div className="flex flex-wrap gap-1.5">
                     {items.map((it: any, i: number) => (
-                      <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-[#7c3aed]/15 text-[#a78bfa] border border-[#7c3aed]/30">
-                        {it.name} <span className="text-gray-400">· {it.dist_approx_m} m</span>
+                      <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs whitespace-nowrap bg-[#2a1a52] text-[#d8c4f9] border border-[#7c3aed]/50">
+                        {it.name} <span className="text-[#b9a3e0]">· {it.dist_approx_m} m</span>
                       </span>
                     ))}
                   </div>

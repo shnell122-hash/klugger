@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
-  ResponsiveContainer,
+  ResponsiveContainer, LabelList,
 } from 'recharts';
 import apiCostsRaw from '../data/api-costs.json';
 import KPICard from './KPICard';
@@ -30,8 +30,14 @@ const ENTRIES = apiCostsRaw as ApiCostEntry[];
 // Tope de presupuesto para FAL (fal.ai) mencionado en el objetivo del tab.
 // Si en el futuro se agregan más presupuestos por API, esto se vuelve un
 // Record<string, number> — por ahora un solo tope justifica mantenerlo simple.
+//
+// FAL/fal.ai puede aparecer en el dataset con varios nombres de `api` (un
+// modelo por línea, p.ej. "FAL flux/schnell" y "FAL kling-video 1.6 std
+// i2v") — todos cuentan contra el mismo tope. El match es por PREFIJO
+// case-insensitive, no por nombre exacto, para no perder gasto silenciosamente
+// cuando se agregue un modelo FAL nuevo al JSON.
 const FAL_BUDGET_USD = 5;
-const FAL_API_NAME = 'FAL flux/schnell';
+const FAL_PREFIX = 'FAL';
 
 // ── Paleta compartida (tokens del design system, no hex sueltos) ────────────
 const C = {
@@ -53,6 +59,14 @@ function fmtUSD(n: number, decimals = 2): string {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   }).format(n);
+}
+
+// Montos <$0.10 pierden toda significancia con 2 decimales (p.ej. $0.012
+// redondea a "$0.01", casi indistinguible de $0.00 frente a un total como
+// $1.99). Para esos casos se muestran 3 decimales; el resto usa el formato
+// estándar de 2 — consistente y sin perder precisión donde importa.
+function fmtUSDSmart(n: number): string {
+  return fmtUSD(n, Math.abs(n) > 0 && Math.abs(n) < 0.1 ? 3 : 2);
 }
 
 function fmtDate(iso: string): string {
@@ -84,7 +98,7 @@ export default function CostosTab() {
   // Todo el trabajo de agregación se deriva una sola vez de ENTRIES (módulo
   // estático, no cambia en runtime) — useMemo con [] evita recalcular en
   // cada render sin necesidad de re-derivar dependencias.
-  const { totalUsd, totalUnits, apiCount, byApi, cumulative, sortedEntries, falSpent } = useMemo(() => {
+  const { totalUsd, totalUnits, apiCount, byApi, cumulative, sortedEntries, falSpent, falApiNames } = useMemo(() => {
     const sorted = [...ENTRIES].sort((a, b) => a.date.localeCompare(b.date));
 
     const totalUsd = sorted.reduce((sum, e) => sum + e.cost_usd, 0);
@@ -112,11 +126,22 @@ export default function CostosTab() {
         return { day, dayCost, acumulado: Math.round(running * 10000) / 10000 };
       });
 
-    const falSpent = byApiMap.get(FAL_API_NAME) ?? 0;
+    // Suma TODAS las líneas cuyo `api` empiece con "FAL" (case-insensitive),
+    // no solo un nombre exacto — el dataset trae un `api` distinto por
+    // modelo (flux/schnell, kling-video, etc.) y todos gastan del mismo
+    // presupuesto de fal.ai.
+    let falSpent = 0;
+    const falApiNames: string[] = [];
+    for (const [api, cost] of byApiMap) {
+      if (api.toUpperCase().startsWith(FAL_PREFIX)) {
+        falSpent += cost;
+        falApiNames.push(api);
+      }
+    }
 
     return {
       totalUsd, totalUnits, apiCount: byApiMap.size, byApi, cumulative,
-      sortedEntries: sorted, falSpent,
+      sortedEntries: sorted, falSpent, falApiNames,
     };
   }, []);
 
@@ -157,9 +182,11 @@ export default function CostosTab() {
           monto absoluto (el KPI solo muestra %). */}
       <div className="bg-[#111118] rounded-2xl p-4 border border-[#1e1e2e]">
         <div className="flex items-center justify-between text-sm mb-2">
-          <span className="text-gray-400">Presupuesto FAL/fal.ai ({FAL_API_NAME})</span>
+          <span className="text-gray-400">
+            Presupuesto FAL/fal.ai {falApiNames.length > 0 && `(${falApiNames.join(' + ')})`}
+          </span>
           <span className="font-mono tabular-nums">
-            {fmtUSD(falSpent)} <span className="text-gray-500">/ {fmtUSD(FAL_BUDGET_USD, 0)}</span>
+            {fmtUSDSmart(falSpent)} <span className="text-gray-500">/ {fmtUSD(FAL_BUDGET_USD, 0)}</span>
           </span>
         </div>
         <div className="h-2.5 bg-[#1e1e2e] rounded-full overflow-hidden">
@@ -176,17 +203,23 @@ export default function CostosTab() {
       {/* Desglose por API + serie acumulada */}
       <div className="grid md:grid-cols-2 gap-4">
         <ChartCard title="Desglose de gasto por API">
-          <ResponsiveContainer width="100%" height={260} debounce={50}>
-            <BarChart data={byApi} margin={{ left: 8, right: 12 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" />
-              <XAxis dataKey="api" tick={AXIS_TICK} interval={0} angle={-15} textAnchor="end" height={50} />
-              <YAxis tick={AXIS_TICK} tickFormatter={(v) => `$${v}`} width={48} />
+          {/* Barras horizontales: los nombres de `api` son largos ("FAL
+              kling-video 1.6 std i2v", "Google Places / Maps") y en un eje-X
+              vertical se encimaban/truncaban. Con layout="vertical" el
+              nombre va en el eje Y (categoría), con ancho fijo para que
+              quepa completo y legible. */}
+          <ResponsiveContainer width="100%" height={Math.max(220, byApi.length * 56)} debounce={50}>
+            <BarChart data={byApi} layout="vertical" margin={{ left: 8, right: 48, top: 4, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" horizontal={false} />
+              <XAxis type="number" tick={AXIS_TICK} tickFormatter={(v) => `$${v}`} />
+              <YAxis type="category" dataKey="api" tick={AXIS_TICK} width={140} />
               <Tooltip
                 contentStyle={{ background: '#111118', border: '1px solid #1e1e2e', borderRadius: 8, fontSize: 12 }}
-                formatter={(v: number) => fmtUSD(v)}
+                formatter={(v: number) => fmtUSDSmart(v)}
               />
-              <Bar dataKey="cost_usd" name="Costo (USD)" radius={[4, 4, 0, 0]} animationDuration={300} animationEasing="ease-out">
+              <Bar dataKey="cost_usd" name="Costo (USD)" radius={[0, 4, 4, 0]} animationDuration={300} animationEasing="ease-out">
                 {byApi.map((_, i) => <Cell key={i} fill={SERIES_COLORS[i % SERIES_COLORS.length]} />)}
+                <LabelList dataKey="cost_usd" position="right" formatter={(v: number) => fmtUSDSmart(v)} style={{ fill: '#9ca3af', fontSize: 11 }} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -222,7 +255,9 @@ export default function CostosTab() {
               <div className="text-3xl font-mono font-bold tabular-nums text-[var(--brand-violet-light)]">
                 {cumulative.length === 1 ? fmtUSD(cumulative[0].acumulado) : fmtUSD(0)}
               </div>
-              <div className="text-xs text-gray-500">Todo el gasto registrado cae en un solo día — sin serie que graficar aún.</div>
+              <div className="text-xs text-gray-500 max-w-xs">
+                El seguimiento por día iniciará al registrarse gasto en fechas distintas.
+              </div>
             </div>
           )}
         </ChartCard>
@@ -232,14 +267,18 @@ export default function CostosTab() {
       <section className="space-y-3">
         <h3 className="text-xl font-semibold">Detalle de llamadas</h3>
         <div className="overflow-x-auto rounded-2xl border border-[#1e1e2e] bg-[#111118]">
-          <table className="w-full text-sm">
+          {/* table-fixed + anchos explícitos: fuerza a "Operación" (la única
+              columna sin ancho fijo, toma el resto) a envolver texto en vez
+              de forzar overflow-x en toda la tabla — así el contenido largo
+              se lee completo sin scroll horizontal ni truncado. */}
+          <table className="w-full text-sm table-fixed">
             <thead className="bg-[#0a0a0f] text-gray-400">
               <tr>
-                <th className="px-3 py-2 text-left">Fecha</th>
-                <th className="px-3 py-2 text-left">API</th>
+                <th className="px-3 py-2 text-left w-20">Fecha</th>
+                <th className="px-3 py-2 text-left w-40">API</th>
                 <th className="px-3 py-2 text-left">Operación</th>
-                <th className="px-3 py-2 text-right">Unidades</th>
-                <th className="px-3 py-2 text-right">Costo</th>
+                <th className="px-3 py-2 text-right w-20">Unidades</th>
+                <th className="px-3 py-2 text-right w-24">Costo</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1e1e2e]">
@@ -247,14 +286,14 @@ export default function CostosTab() {
                 <tr key={`${e.date}-${idx}`} className="bg-[#0f0f15] hover:bg-[#1a1a22]">
                   <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{fmtDate(e.date)}</td>
                   <td className="px-3 py-2 text-xs">
-                    <span className="px-2 py-0.5 rounded-full bg-[#1e1e2e] text-gray-300 whitespace-nowrap">{e.api}</span>
+                    <span className="inline-block px-2 py-0.5 rounded-full bg-[#1e1e2e] text-gray-300 whitespace-normal break-words leading-tight" title={e.api}>{e.api}</span>
                   </td>
-                  <td className="px-3 py-2 text-xs text-gray-300">
+                  <td className="px-3 py-2 text-xs text-gray-300 whitespace-normal break-words" title={e.operation}>
                     {e.operation}
                     {e.note && <div className="text-[10px] text-gray-500 mt-0.5">{e.note}</div>}
                   </td>
                   <td className="px-3 py-2 text-right font-mono text-xs tabular-nums">{e.units}</td>
-                  <td className="px-3 py-2 text-right font-mono text-xs tabular-nums text-[var(--brand-violet-light)]">{fmtUSD(e.cost_usd, e.cost_usd < 0.01 ? 4 : 2)}</td>
+                  <td className="px-3 py-2 text-right font-mono text-xs tabular-nums text-[var(--brand-violet-light)]">{fmtUSDSmart(e.cost_usd)}</td>
                 </tr>
               )) : (
                 <tr><td colSpan={5} className="px-3 py-6 text-center text-gray-500">Sin registros de costos aún.</td></tr>
