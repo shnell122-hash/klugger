@@ -41,7 +41,7 @@ const P0: { n: number; title: string; status: string; doc: string; detail: strin
     status: 'Resuelto',
     doc: 'Doc 2 + Doc 8',
     detail:
-      'Dictamen de uso de suelo DUS202104552 (Dirección de Desarrollo Urbano de Querétaro), superficie 659 m². Densidad 300 hab/ha; el dictamen confirma que 12 niveles es viable (excede lo del uso de suelo base). Normatividad por zonificación transcrita (COS/CUS/altura).',
+      'Dictamen de uso de suelo DUS202104552 (Dirección de Desarrollo Urbano de Querétaro), superficie 659 m². COS 0.60, CUS 2.4 → 4 niveles / 14 m de altura; 3 departamentos por nivel = 12 departamentos totales (zonificación H3, 300 hab/ha). Normatividad transcrita.',
   },
   {
     n: 4,
