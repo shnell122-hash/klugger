@@ -1,8 +1,8 @@
 {
   "generated_at_note": "sin timestamp en los cálculos (determinismo); ver este campo solo como metadato de ejecución",
-  "n_comps_input": 1439,
+  "n_comps_input": 1418,
   "n_comps_valid": 1418,
-  "n_comps_discarded_invalid": 21,
+  "n_comps_discarded_invalid": 0,
   "poi_discarded_outlier": {
     "anclas": {
       "n_in": 312,

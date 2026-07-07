@@ -8,9 +8,9 @@
       "equipamiento.json",
       "inversion-proyectos.json"
     ],
-    "n_comps_input": 1439,
+    "n_comps_input": 1418,
     "n_comps_valid": 1418,
-    "n_comps_invalid": 21,
+    "n_comps_invalid": 0,
     "weights": {
       "S1": 0.3,
       "S2": 0.3,
