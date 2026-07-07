@@ -56,3 +56,19 @@ Los P0 de DD que el `MASTERPLAN-GTM-DESARROLLADORES.md` marcaba como *"el mayor 
 - **Aprobar reconciliación `main`↔`testing`** (irreversible).
 - **Aprobar el GTM** (dossier/outreach) ahora que el DD ya no bloquea.
 - (Opcional) rotar la machine identity de Infisical usada en la sesión.
+
+---
+
+## Hallazgos (ejecución — timestamps UTC)
+
+- **~02:00** IPRoyal (bloqueo heredado de v8) **resuelto**: las credenciales del proxy estaban en el **comentario** de `IP_ROYAL_LA_API_TOKEN` (no en `IP_ROYAL`, que era el token equivocado → 401). Proxy `geo.iproyal.com:12321`, salida residencial MX, rotando IP. Validado: Lamudi detalle vía proxy → HTTP 200 con ld+json + geo.
+- **~02:00** Conectividad establecida **Mac → turazive (jumphost, `sugus` 10.8.0.2) → dev-2 (10.8.0.13)** vía ProxyJump; Infisical (Vilar-infra `a9fa59c9…`, env=staging) accesible.
+- **~02:20** Data-quality: el "~811 comps por enriquecer" era info **pre-v8 obsoleta**. El dataset ya estaba enriquecido (1,439/1,439 con address). Los 21 "sin coords" resultaron **fuera de mercado** (Durango, Chihuahua, Pedro Escobedo). Excluidos por la guarda ≤50 km de `SCORING-SPEC §0.2` → **1,439 → 1,418** comps QRO-metro limpios. Re-scoring desplegado (`265a7a9`); validación vs spec §6 OK.
+- **~03:30** DD: `due-dilligence1.md` = **8 documentos** que cierran los 6 P0 (escritura 4,652 / DUS202104552 CUS / FUS202000221 fusión / predial 1121400 / folios RPP / factibilidades).
+- **~03:37** Tab **📋 Due Diligence** implementado (`DueDiligenceTab.tsx`, autoría inline por entorno cross-host), cableado al nav al final. Build **verde**; deploy `994916a` **success**; `/valuacion-cimatario/` **HTTP 200**.
+- **~03:48** QA: verificación por grep de chunks **no concluyente** (el componente carga on-demand vía runtime de webpack, no está en el HTML inicial). Pruebas positivas del ship: build verde + Action success + 200. **Pendiente**: QA visual con Gemini/puppeteer (PIN 1206) para confirmar render en pantalla.
+
+## Decisiones tomadas en la ejecución
+- Excluir los 21 out-of-market en vez de geocodificarlos a la fuerza (evita meter ruido de otros estados al mapa/scoring). Alineado con la guarda del propio modelo.
+- Autoría inline del tab DD (no subagente Sonnet): el `Agent` tool corre en la Mac (rama `main`, sin el código del dashboard); el dashboard vive en `testing`/clone dev-2 → delegar tenía más fricción que valor para un solo componente.
+- Inmuebles24/Vivanuncios: **no** perseguidos (403 DataDome aun vía proxy); marcados como sub-ola de Playwright, no indispensable.
