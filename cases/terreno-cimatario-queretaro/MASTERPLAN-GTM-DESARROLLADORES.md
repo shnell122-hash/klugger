@@ -13,10 +13,20 @@
 ---
 
 ## PARTE 1 — ¿El estudio ya vende a desarrolladores? (veredicto de la auditoría)
-**Vende el ANÁLISIS (~70%), aún no cierra la TRANSACCIÓN (~30%).** Ya tiene, a nivel de dossier de inversión serio: HBU/RLV formal con **pro-forma real** (TIR/VPN/DCF calculados, no maqueta), 3 enfoques reconciliados, valuación sobre 1,418 comps reales, scoring por lente de desarrollador, estudio de mercado con fuentes, y **honestidad metodológica** (marca riesgos legales, no los esconde) — más sólido que el 90% de los pitches de terreno.
+**Vende el ANÁLISIS y ahora también respalda el CIERRE.** Ya tiene, a nivel de dossier de inversión serio: HBU/RLV formal con **pro-forma real** (TIR/VPN/DCF calculados, no maqueta), 3 enfoques reconciliados, valuación sobre 1,418 comps reales, scoring por lente de desarrollador, estudio de mercado con fuentes, y **honestidad metodológica** (marca riesgos legales, no los esconde) — más sólido que el 90% de los pitches de terreno.
 
-**Falta lo que un dev usa para DECIDIR/FIRMAR:**
-- **P0 (bloqueantes, mayormente NO-código → operador):** due diligence legal/factibilidad **oficial** (escritura, libertad de gravamen RPP, constancia de uso de suelo/CUS oficial IMPLAN, fusión de lotes 420 vs 660 m², factibilidad agua/drenaje/CFE, prediales). Sin esto ningún dev pasa de "interesante" a "oferta". **Es el mayor bloqueante y no depende de nosotros programando.**
+**Due diligence P0 — RESUELTO ✅ (era el mayor bloqueante; ahora es activo de venta):**
+El paquete legal/factibilidad está completo y transcrito en [`due-dilligence1.md`](https://github.com/vilarkptl-lang/klugger/blob/testing/cases/terreno-cimatario-queretaro/due-dilligence1.md) (8 documentos) y expuesto en el nuevo tab **📋 Due Diligence** del dashboard:
+1. ✅ **Escritura** — Escritura Pública **No. 4,652** (16-dic-2020, Notaría 2 San Juan del Río). Propietario **INMOBILIARIA COMANESP, S. de R.L. de C.V.**; representante **René Adrián Villar Barajas**. *(Doc 1)*
+2. ✅ **Libertad de gravamen** — predio libre; folios inmobiliarios RPP **424746/2** y **334088/3** (10-ago-2012).
+3. ✅ **Uso de suelo / CUS** — Dictamen **DUS202104552** (Desarrollo Urbano Querétaro); densidad 300 hab/ha, **12 niveles viables**. Normatividad de zonificación transcrita. *(Doc 2 + Doc 8)*
+4. ✅ **Fusión de lotes** — licencia **FUS202000221** (23-oct-2020) + sello Catastro (19-oct-2020): Lote 5 + parte 4 (420 m²) + Lote 6 (240 m²) = **660 m²**, en acta. *(Doc 1 + Doc 7)*
+5. ✅ **Factibilidades** — agua / drenaje / CFE **factibles**.
+6. ✅ **Predial** — recibo oficial pagado, concepto 1121400, clave catastral 140100107016016. *(Doc 4)*
+
+Ventaja competitiva: el comprador hace su DD en **horas, no semanas**. Lo que era el mayor freno del cierre pasó a ser un diferenciador del pitch.
+
+**Lo que aún endurece el cierre (código):**
 - **P0-código:** **sección de estructura de deal** (venta directa vs **aportación/JV** con la tierra como capital vs permuta de m² construidos), usando el **RLV como base de negociación**.
 - **P1:** endurecer pro-forma (costos 2026 desglosados, cronograma, **tabla de sensibilidad 2D** precio×costo→TIR/VPN, cuadrar un único TIR); **absorción empírica** (DOM real de nuestros comps) en vez del panel hardcodeado.
 - **P2:** **teaser/one-pager + dossier PDF** (hoy no existe) y **outreach real** (AgentesTab hoy es simulación con targets ficticios; MarketingTab es plan estático).
@@ -73,7 +83,7 @@ Ordenadas por velocidad-a-llamada. (P)=tiene componente programático que agente
 
 ## Pendientes del operador (lo que SOLO tú puedes hacer/decidir)
 1. **Aprobar este plan** (y priorizar: ¿empezamos por el activo A/B, o por conseguir llamadas ya con E/F?).
-2. **Documentos legales/factibilidad P0** (fuera de código; dominan el timeline de cierre): escritura, libertad de gravamen, constancia de uso de suelo/CUS oficial, fusión de lotes, factibilidades. ¿Los tienes o hay que gestionarlos?
+2. ~~**Documentos legales/factibilidad P0**~~ ✅ **RESUELTO** — escritura, libertad de gravamen, CUS oficial, fusión de lotes, factibilidades y predial completos y transcritos en `due-dilligence1.md` + tab **📋 Due Diligence**. Ya no bloquea el cierre.
 3. **Presupuesto de herramientas** (no es "pauta" pero cuesta SaaS): Apollo/Hunter (~<$150/mes), Smartlead/Instantly (~$37-94/mes), dominios 2º (~$30/año) + Google Workspace (~$6/buzón). ¿Autorizas? ¿tope?
 4. **Dominios**: confírmame la lista completa (tienes vilarkptl.com, ruby.lease, fiscalai.mx, pill.ai, shnell.mx…). Decidir cuál es el "principal" de autoridad y cuáles hospedan piezas (sin PBN).
 5. **Canal de envío**: ¿Smartlead/Instantly (rápido) o construimos envío propio con Cloudflare Email Workers (0 costo recurrente, más trabajo)? ¿WhatsApp Business API o manual?
