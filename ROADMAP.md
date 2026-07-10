@@ -1,6 +1,6 @@
 # ROADMAP — Plataforma Klugger (proptech HBU/HBV + buscador federado, México)
 
-> **Documento vivo. Versión 3.0 · 2026-07-09.**
+> **Documento vivo. Versión 3.1 · 2026-07-09.** (v3.1 = reconciliación hecho/pendiente §I.0 + prioridades del operador §I.0b: sitios de agentes/upload/ingesta → NL search → metodología → ingesta de transcripciones; + DB y estudio de estilos por usuario.)
 > **Orden de prioridad, no negociable: SEGURIDAD → CALIDAD → COSTO** (convención `/masterplan`).
 > Este roadmap sube de altitud: de *"dashboard de valuación Cimatario"* (v2.0) a la **plataforma Klugger**.
 > **Parte I** (nueva) = estrategia y ejecución de la plataforma, sintetizada de `estudios_mercado/` (`estudioPROPTECH.md`, `PROPTECHcomplemento.md`, `domain.md`).
@@ -10,6 +10,56 @@
 ---
 
 # PARTE I — Plataforma Klugger (estrategia + ejecución por fases)
+
+## I.0 Estado real — reconciliación hecho vs pendiente (2026-07-09)
+
+> **Corrección del operador (punto #1):** el roadmap listaba como pendiente **mucho del caso Cimatario que YA está hecho** — incluidas **visualizaciones generadas por el agente Gemini Flash a partir de fotos del frontend**. Este es el estado real.
+
+**Cimatario (caso ancla) — ✅ HECHO:**
+- Dashboard desplegado en `testing`/staging (`klugger.shnell.mx`) con **9 tabs**: Valuación · Estudio de Mercado · HBU/HBV · Base de Datos · Ranking · Marketing · Agentes · Costos · **Due Diligence**.
+- **Datos reales:** 1,418 comps de Lamudi (enriquecidos vía proxy IPRoyal MX, geocodificados, limpios ≤50 km). Reemplazó el dataset 82% sintético.
+- **Scoring geoespacial:** 7 subscores, growth surface, 3 lentes (dev/comprador/inversionista), amenazas, mapa con iconografía (dots=propiedades, íconos=ancla/POI).
+- **FinObra 3D** (3 massings), ledger de costos API, valuación + pro-forma.
+- **Due Diligence:** 6 P0 resueltos (escritura 4,652, libertad de gravamen, CUS, fusión, factibilidades, predial) + tab con ficha registral.
+- **QA visual con Gemini Flash** (screenshots del frontend) + visualizaciones generadas.
+- **CUS reconciliado:** uso **H2/PPD (CUS 1.8, 3 niveles)**; dictamen H3 (12 deptos) observado como error municipal.
+- `methodology.md` v1 + `MethodologyAnalysis.md` (crítica de 3 rondas Opus/Grok/Gemini/Fable).
+- **23 PDFs de literatura académica** subidos + transcritos a Markdown (Gemini Flash, chunking adaptativo).
+
+**Cimatario — ⏳ PENDIENTE (gatea el marketing):**
+- `METHODOLOGY.md` **v2** (rework de `MethodologyAnalysis.md`): ajuste $/m² por tamaño de lote, reconciliación absoluta IVS 105, hedónico espacial (SAR/SEM/MGWR por AICc), pesos formales (BWM + entropía) + PCA, validación IAAO (COD/PRD/PRB/hold-out), factor list-to-sale, fiscalidad/estructura de capital.
+- **Scraping completo multi-fuente** (Inmuebles24 vía Apify/Piloterr, Propiedades.com, Vivanuncios) — la metodología exige +fuentes que solo Lamudi.
+- **Nuevos modelos de cálculo** derivados de la metodología v2.
+- **Ingesta de las 23 transcripciones** → alimenta la metodología v2.
+- **Marketing no convencional Cimatario** — **DESPUÉS** de cerrar la metodología.
+- Riesgo binario: **factibilidad de agua CEA** (emergencia hídrica feb-2025).
+
+**Plataforma Klugger — ⬜ NO EMPEZADO (nuevo):** sitios de agentes + subida de inmuebles + agente de ingesta · búsqueda NL · buscador federado · multi-tenant · **DB (Postgres/pgvector/Mongo)** · **estudio de estilos por tipo de usuario**.
+
+## I.0b Prioridades inmediatas (orden del operador · semana del 2026-07-09)
+
+> **Handoff (punto #2):** a partir del **domingo** el operador definirá qué parte del roadmap se **delega a agentes** (handoff). Por ahora todo se ejecuta internamente. Este bloque refina y **reordena** la Fase 0 de §I.4.
+
+**Orden de ejecución (dictado por el operador):**
+
+| # | Prioridad | Qué incluye | Habilitadores |
+|---|-----------|-------------|---------------|
+| **1** | 🔴 **Sitios personalizados de agentes + subida de inmuebles + agente de ingesta** *(lo más urgente — los agentes quieren subir sus bienes YA)* | Que el agente suba inmuebles y que el **agente de ingesta (visión VLM)** funcione bien. **Personalización mínima aceptable** — el foco es buen servicio y upload funcional, no el nivel de customización. | Multi-tenant básico + **DB (Postgres)** + agente de ingesta VLM (Gemini Flash) |
+| **2** | 🟠 **Búsqueda de inmuebles con lenguaje natural** *(el "efecto sorpresa" para el consumidor)* | Buscador NL sobre el inventario subido/agregado. | **pgvector** sobre Postgres + embeddings multilingües |
+| **3** | 🟠 **Masterplan dedicado SOLO a metodología Cimatario** | Reconciliar metodología con nuevos hallazgos + **scraping completo multi-fuente** + **nuevos modelos de cálculo** → **luego** marketing no convencional Cimatario. | Depende de #4 (transcripciones) |
+| **4** | 🟡 **Masterplan para ingerir todas las transcripciones** (Gemini Flash) | Mejora valuación/modelos/metodología; **alimenta el #3**. | 23 transcripciones ya en `literatura/transcripciones/` |
+
+**Workstreams transversales que faltaban en el roadmap (agregados):**
+
+- **Base de datos (faltaba el "cuándo"):** **Postgres + pgvector** es el habilitador del punto 1 y 2 (no una fase aparte). Postgres = fuente de verdad (inventario, agentes, usuarios); **pgvector** = búsqueda semántica NL; **Mongo/JSONB solo** para datos verdaderamente no estructurados (fotos/metadata cruda de ingesta) — si no, consolidar en Postgres JSONB para reducir superficie operativa (per `estudioPROPTECH.md §E`). **Se implementa dentro del punto 1.**
+
+- **Estudio de mercado de estilos/colores por subproducto y tipo de usuario (nuevo — falta):** la tecnología es de punta, pero **falta la capa de estilos/branding por audiencia**. Requerimientos del operador:
+  | Audiencia / subproducto | Estilo | Racional |
+  |-------------------------|--------|----------|
+  | **Valuaciones / estudios** (uso prolongado, lectura densa) | **Tema oscuro** — se mantiene | No hay problema formal; las pestañas ya comunican bien |
+  | **Desarrolladores / insights** | **Toggle día/noche estilo Claude** (a decisión del usuario) | Usuarios técnicos que eligen |
+  | **Personas físicas / compradores** | **Versión CLARA y amigable** | Hoy la plataforma está hecha para "leer el monolito"; para el consumidor final se necesita **animaciones, prototipos, arte y elementos que remitan a ciudad, equipamiento y valuación** — comunicación visual, no densidad de datos |
+  → Es un **estudio de mercado a realizar** (referencias de estilo por segmento) + su implementación como sistema de theming por tenant. Entra como workstream de la Fase 0/1 de plataforma.
 
 ## I.1 Tesis estratégica (de los estudios de mercado)
 
@@ -100,7 +150,7 @@
 # PARTE II — Caso ancla Cimatario (detalle técnico del dashboard)
 
 > Contenido heredado de v2.0. Es el **caso de estudio publicable** (Fase 0, tarea 0.5) y la base del producto HBU (tarea 0.1). Deploy: `klugger.shnell.mx` (rama `testing` → Cloudflare Pages).
-> **Actualización 2026-07-09:** el conflicto de potencial (fila 11) está **resuelto** — el uso es **H2/PPD (CUS 1.8, 3 niveles)**; el dictamen H3 (CUS 2.4, 4 niveles/12 deptos) fue observado como error por el municipio. Ver `methodology.md` y el tab Due Diligence. Riesgo binario nuevo: **factibilidad de agua CEA** (emergencia hídrica feb-2025).
+> ⚠️ **La tabla de hallazgos de abajo es de v2.0 (2026-06-30) y está MAYORMENTE RESUELTA.** El estado real y actual del caso Cimatario vive en **§I.0** (arriba): datos reales (1,418 comps), scoring, DD, visualizaciones Gemini Flash, CUS reconciliado a H2, etc. — todo ✅. Lee la tabla de abajo como *histórico del diagnóstico inicial*, no como pendientes. Lo único vigente como pendiente es lo listado en §I.0 "Cimatario — PENDIENTE" (metodología v2, scraping multi-fuente, nuevos modelos, marketing) y el riesgo binario **CEA de agua**.
 
 ---
 
