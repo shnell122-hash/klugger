@@ -84,29 +84,22 @@ Escala (rem): display 3/2.25/1.75 · body 1/0.875/0.75 · line-height 1.5 cuerpo
 | 1 | **Paquete de design tokens** (`tokens.css` / `tokens.ts` con primitivos + semánticos + los 3 temas) | **SONNET** | 1 | 0.1, 0.3 | tokens compilables; 3 temas conmutan por `data-theme` |
 | 2 | **Componentes base tematizados** (botón, card, input, KPI, nav, tabla) usando solo tokens | **SONNET** + Haiku | 2 | 1 | componentes renderizan en los 3 temas sin hardcode |
 | 3 | **Guía de estilo viva** (Storybook o página `/style`) mostrando tokens + los 3 temas + do/don't del logo | **SONNET** | 2 ∥ | 1 | guía navegable desplegada |
-| 4 | **Capa de motion/arte para consumidor** (hero con degradado, ilustración ciudad/equipamiento, animaciones de valuación) | **SONNET** (impl) + Fable (arte) | 3 | 0.2, 2, 5 | landing consumidor con la capa visual amigable |
-| **5** | **CREACIÓN de arte generado** (fal.ai) — producir los assets reales, ver §V | **TÚ** (fal keys) + Fable (dir. arte) + Sonnet (post/integración) | 3 | 0.1, 0.2 | assets en `public/assets/` fieles al brandbook; aprobados por operador |
+| 4 | **Integración de arte + capa de motion** para consumidor (montar el arte que entregue el operador: hero, ilustraciones, animaciones; wiring con tokens/tema) | **SONNET** (impl) | 3 | 2, 5 | landing consumidor con el arte del operador montado y optimizado |
+| **5** | **CREACIÓN del arte** (dirección estética + producción) — **fuera del alcance del agente**, ver §V | **OPERADOR (humano)** + su proceso multi-IA / diseñadores | — | 0.1 | assets aprobados entregados al repo |
 
-## V. Creación de arte — dirección y assets (fal.ai)
+## V. Creación de arte — responsabilidad del operador (NO del agente)
 
-> La plataforma para **personas físicas** exige arte propio (el brandbook es de 2017 y no trae ilustración de producto). Se **genera con IA** (fal.ai, ya en Infisical secreto `Fal.ai`) bajo dirección de arte, no se compra stock. Costo trivial (~$0.02/imagen flux; ~$0.30/video kling).
+> **Decisión (2026-07-10):** la **creación de arte la lidera german**, no el agente. El diseño estético es una **cuestión cultural y de criterio humano** que el agente no domina; una sola IA comete errores y no capta el "sentir" de la marca/mercado. german usa su **proceso multi-IA** (varias herramientas cruzadas) + su ojo. El agente **no** genera el arte de producción.
+>
+> **Lo que el agente SÍ hace (plomería técnica):**
+> - Provee el **sistema de tokens** y el **theming** (§II-III) para que el arte encaje en la paleta/tipografía.
+> - Deja **slots de integración** listos (rutas `public/assets/`, componentes con props de imagen/animación, soporte SVG/WebP/Lottie).
+> - **Optimiza y wirea** el arte que german entregue (comprimir, responsive, lazy-load, dark/light variants).
+> - (Opcional, si german lo pide) genera *bocetos desechables* con fal.ai solo como referencia rápida — nunca como arte final.
 
-**Dirección de arte (anclada al brandbook):**
-- **Estilo:** minimalista, geométrico, limpio; coherente con el logo zorro+bombilla.
-- **Paleta:** verdes `#2ED666`/`#29BF5C` + azul del degradado + neutros; degradado verde→azul como firma.
-- **Motivos:** ciudad (skyline QRO/genérico), equipamiento urbano (parques, transporte, comercio), valuación (mapas, datos, crecimiento), el **zorro** como mascota/spot.
-- **Reproducibilidad:** control de **seed** en fal.ai para consistencia y A/B; misma seed → mismo estilo entre piezas.
+**Contrato de entrega (para que el agente pueda integrar):** el arte aprobado llega como SVG (vectorial, para logo/íconos/ilustración plana) o WebP/PNG (para fondos/render), + Lottie/MP4 para animación, nombrados por uso (`hero-consumer`, `illus-ciudad`, `zorro-vacio`, etc.). Con eso el agente los monta en la tarea 4.
 
-**Inventario de assets a crear:**
-| Grupo | Piezas | Herramienta |
-|-------|--------|-------------|
-| **Hero / fondos** | 2-3 fondos con degradado verde→azul + textura sutil (landing consumidor) | fal.ai flux (image) |
-| **Ilustraciones de sección** | ciudad, equipamiento, valuación/HBU, búsqueda — set coherente (~6-10) | fal.ai flux |
-| **Iconografía** | set de íconos de producto (buscar, subir, valuar, alertas) en estilo de línea geométrica | fal.ai flux / vectorizar |
-| **Mascota (zorro)** | spot illustrations del zorro en poses/estados (bienvenida, vacío, éxito, cargando) | fal.ai flux (referencia = logo) |
-| **Animaciones** | 2-3 loops (hero, "valuando", "buscando") | fal.ai video (kling) o Lottie |
-
-**Flujo:** dirección (Fable) → prompts + seed → generación (fal.ai) → **revisión del operador** (gate humano, el arte comunica la marca) → vectorización/optimización → `public/assets/` → integración (Sonnet, tarea 4). Todo lo generado con IA se marca como tal; el arte final aprobado por german antes de shipping.
+**Dirección de arte (referencia para german, no instrucción al agente):** minimalista/geométrico coherente con el logo zorro+bombilla; paleta verdes `#2ED666`/`#29BF5C` + azul del degradado; motivos de ciudad/equipamiento/valuación; el zorro como mascota. (El brandbook 2017 no trae ilustración de producto → hay que crearla.)
 
 ## Reglas de paralelización
 - Ola 0: validar azul (TÚ) ∥ research de arte (Sonnet/Fable) ∥ licencia de fuente — disjuntos.
@@ -118,12 +111,12 @@ Escala (rem): display 3/2.25/1.75 · body 1/0.875/0.75 · line-height 1.5 cuerpo
 2. `tokens.css`/`tokens.ts` compila; los 3 temas conmutan por `data-theme` sin hardcode de color.
 3. Componentes base renderizan correctos en dark / toggle / light.
 4. Guía de estilo viva desplegada; do/don't del logo presentes.
-5. Landing de consumidor con degradado + arte de ciudad/equipamiento + micro-interacciones.
-6. **Arte generado (§V) aprobado por el operador** y colocado en `public/assets/`, fiel al brandbook.
+5. Landing de consumidor con el **arte del operador** montado + micro-interacciones sobre los tokens.
+6. Los tokens/temas encajan con el arte entregado (paleta y tipografía consistentes).
 
 ## Pendientes del operador
-- **Validar el azul** propuesto del degradado (o dar el valor original si lo tienes).
+- **CREAR el arte** (§V) — es tu responsabilidad (proceso multi-IA + criterio humano); el agente solo lo integra. Entregar según el contrato de §V.
+- **Validar el azul** propuesto del degradado (o dar el valor original si lo tienes) — necesario para cerrar los tokens.
 - **Licencia de Nexa Black** (comercial) para web, o aprobar alternativa libre (Montserrat/Sora) para display.
+- **Logo en vectorial (SVG)** — el brandbook es PDF; se necesita el SVG del imagotipo para usarlo nítido en la UI.
 - Confirmar **librería de motion** (Framer Motion + Lottie recomendado).
-- Fuente de verdad del logo en vectorial (SVG) — el brandbook es PDF; necesitamos el SVG del imagotipo para dar al zorro como referencia de generación y usarlo nítido en la UI.
-- **Aprobar el arte generado** (§V, gate humano): fal.ai produce, tú validas antes de shipping. Presupuesto fal ~centavos por pieza (holgado bajo el tope existente).
