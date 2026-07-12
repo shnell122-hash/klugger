@@ -75,12 +75,7 @@
 **Siguiente:** Sesión 3 tras aprobación.
 
 ### Sesión 3: Nuevo navbar item "Estudio de mercado" + gráficas interactivas exhaustivas (Punto 5)
-**Status:** ✅ COMPLETADA (2026-06-30) — tab `'estudio'` "📈 Estudio de Mercado" con `EstudioMercadoTab()`:
-LineChart demografía estado+municipio 2020-2030 (ReferenceLines 2023/2026) + 8 KPI cards; BarChart POI/movilidad
-(8 destinos); Co-living exhaustivo (24 comparables del MD con filtro segmento + búsqueda + sort, BarChart con
-ReferenceLines promedio informal $3,837 / institucional $8,950, tabla con amenidades literales); conclusiones
-literales + link HBU + export JSON. Datos exactos de transcripcionEstudioMercado2023.md, cero alucinaciones.
-Live en klugger.shnell.mx (deploy vía GitHub Actions → Cloudflare Pages, branch main).
+**Status:** PENDIENTE
 
 **Entregables:**
 - Nuevo item en navbar/tabs: `'estudio-mercado'` con label **"📈 Estudio de Mercado"** (mover o deprecate el viejo "marketing + Estudio" si overlap; mantener "HBU/HBV" y "Agentes" ).
@@ -174,10 +169,12 @@ python public/assets/finobra-hero-3d-v2.py
 ```
 
 ## Status general actual (actualizar al final de cada sesión)
+**Data restaurada (2026-07-05):** Base de datos real (1025 entradas de Lamudi sin fakes) ya restaurada desde dev-2 y commiteada (commit `413caa6`). `terrenos_enriched.json` (1025 enriquecidas con lat/lng, offer_price, dirección, floor_size), `terrenos_full_real.json` (659 comps venta), `terrenos_excluidos.json` (366 renta/ruido). Reemplaza el dataset 82% inventado. Pendiente: wire de datos reales al dashboard (Tarea 10).
+
 - [x] Sesión 1 completada + push (map cleanup, target pin, zones; code restored + verified compile; live after manual launch)
-- [ ] Sesión 2 completada + push
-- [ ] Sesión 3 completada + push
-- [ ] Sesión 4 completada + push
+- [ ] Sesión 2 completada + push (Framer eliminado, 3D mejorado, GIF generado)
+- [ ] Sesión 3 completada + push (Nuevo tab Estudio de Mercado, gráficas interactivas)
+- [ ] Sesión 4 completada + push (Pulido zonas/mapeo, integraciones cruzadas)
 - [ ] Sesión 5 completada + push + dashboard "muy profesional y presentable"
 
 **Próxima acción del usuario:** Revisar live tras cada entrega (hard refresh + navegar tabs), aprobar o dar feedback específico para la sesión actual. Seguiremos este microroadmap hasta que el dashboard quede impecable y de muy alta calidad.

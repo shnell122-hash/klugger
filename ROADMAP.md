@@ -1,22 +1,156 @@
-# ROADMAP — Dashboard de Valuación Cimatario (Klugger)
+# ROADMAP — Plataforma Klugger (proptech HBU/HBV + buscador federado, México)
 
-> **Documento vivo.** Versión 2.0 · Fecha: 2026-06-30
-> Estudio profesional de Highest & Best Use/Value para el terreno de
-> **Lic. Carlos Septién García 53, Col. Cimatario, Querétaro** (asking **$7,000,000 MXN**).
-> Deploy: `klugger.shnell.mx` (rama `testing` → Cloudflare Pages).
+> **Documento vivo. Versión 3.1 · 2026-07-09.** (v3.1 = reconciliación hecho/pendiente §I.0 + prioridades del operador §I.0b: sitios de agentes/upload/ingesta → NL search → metodología → ingesta de transcripciones; + DB y estudio de estilos por usuario.)
+> **Orden de prioridad, no negociable: SEGURIDAD → CALIDAD → COSTO** (convención `/masterplan`).
+> Este roadmap sube de altitud: de *"dashboard de valuación Cimatario"* (v2.0) a la **plataforma Klugger**.
+> **Parte I** (nueva) = estrategia y ejecución de la plataforma, sintetizada de `estudios_mercado/` (`estudioPROPTECH.md`, `PROPTECHcomplemento.md`, `domain.md`).
+> **Parte II** (heredada de v2.0) = el **caso ancla Cimatario** con su detalle técnico del dashboard.
+> **Nota de marca:** los estudios usan indistintamente "Kluger" (1 G) y "Klugger" (2 G); el repo/producto es **Klugger**. La grafía definitiva del dominio (`klugger.mx` vs `kluger.mx`) es decisión de operador pendiente (§I.5).
 
-## Índice
+---
 
-1. [Resumen ejecutivo de hallazgos](#1-resumen-ejecutivo-de-hallazgos)
-2. [Data backbone — el estudio de mercado real (2023 + listing 2026)](#2-data-backbone)
-3. [Metodología HBU/HBV completa](#3-metodología-hbuhbv-completa)
-4. [Fix de la regresión](#4-fix-de-la-regresión)
-5. [Auditoría y rediseño de las calculadoras de margen](#5-calculadoras-de-margen)
-6. [Micro-mapeo cuadra por cuadra](#6-micro-mapeo-cuadra-por-cuadra)
-7. [Skills de FinObra + animaciones de edificios en contexto](#7-skills-de-finobra)
-8. [Marketing no convencional + más scrapers](#8-marketing--scrapers)
-9. [Plan de ejecución por fases](#9-plan-por-fases)
-10. [Riesgos · Verificación · Entrega](#10-riesgos-verificación-entrega)
+# PARTE I — Plataforma Klugger (estrategia + ejecución por fases)
+
+## I.0 Estado real — reconciliación hecho vs pendiente (2026-07-09)
+
+> **Corrección del operador (punto #1):** el roadmap listaba como pendiente **mucho del caso Cimatario que YA está hecho** — incluidas **visualizaciones generadas por el agente Gemini Flash a partir de fotos del frontend**. Este es el estado real.
+
+**Cimatario (caso ancla) — ✅ HECHO:**
+- Dashboard desplegado en `testing`/staging (`klugger.shnell.mx`) con **9 tabs**: Valuación · Estudio de Mercado · HBU/HBV · Base de Datos · Ranking · Marketing · Agentes · Costos · **Due Diligence**.
+- **Datos reales:** 1,418 comps de Lamudi (enriquecidos vía proxy IPRoyal MX, geocodificados, limpios ≤50 km). Reemplazó el dataset 82% sintético.
+- **Scoring geoespacial:** 7 subscores, growth surface, 3 lentes (dev/comprador/inversionista), amenazas, mapa con iconografía (dots=propiedades, íconos=ancla/POI).
+- **FinObra 3D** (3 massings), ledger de costos API, valuación + pro-forma.
+- **Due Diligence:** 6 P0 resueltos (escritura 4,652, libertad de gravamen, CUS, fusión, factibilidades, predial) + tab con ficha registral.
+- **QA visual con Gemini Flash** (screenshots del frontend) + visualizaciones generadas.
+- **CUS reconciliado:** uso **H2/PPD (CUS 1.8, 3 niveles)**; dictamen H3 (12 deptos) observado como error municipal.
+- `methodology.md` v1 + `MethodologyAnalysis.md` (crítica de 3 rondas Opus/Grok/Gemini/Fable).
+- **23 PDFs de literatura académica** subidos + transcritos a Markdown (Gemini Flash, chunking adaptativo).
+
+**Cimatario — ⏳ PENDIENTE (gatea el marketing):**
+- `METHODOLOGY.md` **v2** (rework de `MethodologyAnalysis.md`): ajuste $/m² por tamaño de lote, reconciliación absoluta IVS 105, hedónico espacial (SAR/SEM/MGWR por AICc), pesos formales (BWM + entropía) + PCA, validación IAAO (COD/PRD/PRB/hold-out), factor list-to-sale, fiscalidad/estructura de capital.
+- **Scraping completo multi-fuente** (Inmuebles24 vía Apify/Piloterr, Propiedades.com, Vivanuncios) — la metodología exige +fuentes que solo Lamudi.
+- **Nuevos modelos de cálculo** derivados de la metodología v2.
+- **Ingesta de las 23 transcripciones** → alimenta la metodología v2.
+- **Marketing no convencional Cimatario** — **DESPUÉS** de cerrar la metodología.
+- Riesgo binario: **factibilidad de agua CEA** (emergencia hídrica feb-2025).
+
+**Plataforma Klugger — ⬜ NO EMPEZADO (nuevo):** sitios de agentes + subida de inmuebles + agente de ingesta · búsqueda NL · buscador federado · multi-tenant · **DB (Postgres/pgvector/Mongo)** · **estudio de estilos por tipo de usuario**.
+
+## I.0b Prioridades inmediatas (orden del operador · semana del 2026-07-09)
+
+> **Handoff (punto #2):** a partir del **domingo** el operador definirá qué parte del roadmap se **delega a agentes** (handoff). Por ahora todo se ejecuta internamente. Este bloque refina y **reordena** la Fase 0 de §I.4.
+
+**Orden de ejecución (dictado por el operador):**
+
+| # | Prioridad | Qué incluye | Habilitadores |
+|---|-----------|-------------|---------------|
+| **1** | 🔴 **Sitios personalizados de agentes + subida de inmuebles + agente de ingesta** *(lo más urgente — los agentes quieren subir sus bienes YA)* | Que el agente suba inmuebles y que el **agente de ingesta (visión VLM)** funcione bien. **Personalización mínima aceptable** — el foco es buen servicio y upload funcional, no el nivel de customización. | Multi-tenant básico + **DB (Postgres)** + agente de ingesta VLM (Gemini Flash) |
+| **2** | 🟠 **Búsqueda de inmuebles con lenguaje natural** *(el "efecto sorpresa" para el consumidor)* | Buscador NL sobre el inventario subido/agregado. | **pgvector** sobre Postgres + embeddings multilingües |
+| **3** | 🟠 **Masterplan dedicado SOLO a metodología Cimatario** | Reconciliar metodología con nuevos hallazgos + **scraping completo multi-fuente** + **nuevos modelos de cálculo** → **luego** marketing no convencional Cimatario. | Depende de #4 (transcripciones) |
+| **4** | 🟡 **Masterplan para ingerir todas las transcripciones** (Gemini Flash) | Mejora valuación/modelos/metodología; **alimenta el #3**. | 23 transcripciones ya en `literatura/transcripciones/` |
+
+**Workstreams transversales que faltaban en el roadmap (agregados):**
+
+- **Base de datos (faltaba el "cuándo"):** **Postgres + pgvector** es el habilitador del punto 1 y 2 (no una fase aparte). Postgres = fuente de verdad (inventario, agentes, usuarios); **pgvector** = búsqueda semántica NL; **Mongo/JSONB solo** para datos verdaderamente no estructurados (fotos/metadata cruda de ingesta) — si no, consolidar en Postgres JSONB para reducir superficie operativa (per `estudioPROPTECH.md §E`). **Se implementa dentro del punto 1.**
+
+- **Estudio de mercado de estilos/colores por subproducto y tipo de usuario (nuevo — falta):** la tecnología es de punta, pero **falta la capa de estilos/branding por audiencia**. Requerimientos del operador:
+  | Audiencia / subproducto | Estilo | Racional |
+  |-------------------------|--------|----------|
+  | **Valuaciones / estudios** (uso prolongado, lectura densa) | **Tema oscuro** — se mantiene | No hay problema formal; las pestañas ya comunican bien |
+  | **Desarrolladores / insights** | **Toggle día/noche estilo Claude** (a decisión del usuario) | Usuarios técnicos que eligen |
+  | **Personas físicas / compradores** | **Versión CLARA y amigable** | Hoy la plataforma está hecha para "leer el monolito"; para el consumidor final se necesita **animaciones, prototipos, arte y elementos que remitan a ciudad, equipamiento y valuación** — comunicación visual, no densidad de datos |
+  → Es un **estudio de mercado a realizar** (referencias de estilo por segmento) + su implementación como sistema de theming por tenant. Entra como workstream de la Fase 0/1 de plataforma.
+
+## I.1 Tesis estratégica (de los estudios de mercado)
+
+- **Océano azul defendible: HBU/HBV low-cost.** Nadie en México ofrece un estudio de *Highest & Best Use* automatizado a precio de avalúo. Las consultoras (CBRE/Colliers/Cushman/4S) cobran premium (~$10K USD, semanas); el avalúo tradicional ($3–15K MXN) **no** da mejor-uso. Klugger llena ese hueco exacto. **El pipeline de valuación auditado (IVS/RICS/IAAO, 1,418 comps) es el moat.**
+- **Buscador federado (metabuscador link-out), NO marketplace con BD propia.** Se lanza **YA sin base de datos**, patrón Trovit/Mitula/Nestoria: agrega listados de portales, **cita y enlaza a la fuente** (no clona), y forma la BD propia como subproducto del onboarding de agentes.
+- **Búsqueda por lenguaje natural en México = mar azul/morado, no rojo.** Zillow **no opera aquí**; su NL search/ChatGPT es solo EE.UU. Corrección clave sobre el estudio previo.
+- **Restricción de bootstrap (dura):** el VC proptech en México cayó −90% (ene-2025); los modelos capital-intensivos murieron (Flat→Clau, La Haus, Habi contraída, Benvi). **NO iBuyer, NO garantía de renta, NO marketing pagado hasta validar CAC orgánico.**
+- **Orden de monetización:** (1) **HBU/HBV** (cash inmediato) → (2) **SaaS de agentes** (trae inventario, rompe el chicken-and-egg) → (3) **búsqueda comprador** (demanda, gratis) → (4) **datos para desarrolladores** → (5) **banca/adjudicados** (18+ meses, nunca foco de fase 1).
+
+## I.2 Los 5 segmentos + matriz de océano
+
+| Segmento | Producto Klugger | Océano | Prioridad | Cómo monetiza |
+|----------|------------------|--------|-----------|----------------|
+| **Dueño de terreno** | HBU/HBV low-cost en 3 tiers | 🔵 Azul | **P0** | $2.5–6K MXN reporte · $8–15K certificado con valuador aliado |
+| **Agente** (informal, 80–90%) | Sitio IA hiperpersonalizado + extensión de importación + insights | 🟣 Morado | **P0** | $600–1,200 MXN/mes (arbitraje vs Luxury Presence $300–1,500 USD) |
+| **Comprador/inquilino** | Buscador federado NL + alertas multicanal | 🔵 Azul (MX) | **P1** | Gratis; lead calificado al agente / verificación anti-fraude puntual |
+| **Desarrollador** | Estudios de zona / HBU por polígono, mid-market | 🔵 Azul | **P1** | $15–40K MXN por polígono o suscripción (vs 4S/REDI, por debajo) |
+| **Casa habitación** (venta/renta) | **Acelerador** (staging IA fal.ai, pricing, distribución) — NO estudio HBU | — | **P1** | Servicio de aceleración; el pipeline da precio de mercado, no HBU |
+| **Banca / adjudicados** | Docs cifrados, intermediación | 🔵 Azul lejano | **P3** | Enterprise; empezar por adjudicados (Zöku ya validó) |
+
+## I.3 Arquitectura y **decisión de branches** (responde la pregunta del operador)
+
+**Recomendación directa: NO crear un branch de git por tipo de usuario.** Un branch de larga vida por segmento es un antipatrón aquí:
+
+1. **El core es compartido.** El pipeline HBU/HBV es el mismo para los 5 segmentos. Un branch por segmento **forkearía el core** → divergencia y merge-hell permanente (justo el dolor `main`↔`testing` que ya tienes, ×5).
+2. **Los estudios prescriben monolito modular** (`estudioPROPTECH.md §E`: "monolito modular, NO microservicios" para 1–3 devs). Branch-por-segmento contradice eso.
+3. **Los segmentos son módulos/rutas, no codebases.** El eje correcto de separación es **rutas/módulos dentro de una app** (`/hbu`, `/agentes`, `/buscador`, `/desarrolladores`), **feature-flags**, y **multi-tenant con subdominios** (Next.js multi-tenant — sitios de agentes en subdominio propio). No ramas.
+4. **Git branches = cortas y por unidad de trabajo** (`feat/hbu-tiers`, `feat/agent-sites`), mergeadas rápido a `testing` → deploy. No permanentes por audiencia.
+
+**Qué hacer en su lugar:**
+- **Un codebase** (monolito modular) con segmentos como módulos/rutas + multi-tenant por subdominio.
+- **Feature branches cortas** por work-item; para trabajo paralelo de varios agentes/devs → **git worktrees** (aislamiento sin divergencia permanente; ver `/masterplan` → *using-git-worktrees*).
+- **Primero reconciliar `main`↔`testing`** (pendiente heredado) antes de sumar más ramas.
+- **Cuándo SÍ separar (repo/branch propio):** solo si un segmento se vuelve un producto independiente con su release cadence y equipo (p. ej. banca en Fase 3, o `ruby.lease` como producto de renta). No ahora.
+
+**Stack (justificado en los estudios):** Postgres + **pgvector** (búsqueda semántica) → Typesense/Meilisearch solo si la latencia lo exige · Next.js multi-tenant self-host en Hetzner (10–20× más barato que Vercel a escala) · VLMs económicos (Gemini Flash) para ingesta con visión · **Telegram gratis** como canal primario de alertas (WhatsApp solo en ventana de servicio) · Celery+Redis+Postgres JSONB · monolito modular.
+
+**Modelo legal (crítico, gate de seguridad):** **link-out estricto** — datos fácticos + thumbnail + enlace a la fuente; **nunca** cachear fotos/textos con copyright; **nunca** iniciar sesión ni crear cuentas en portales (lección hiQ/Bright Data); **respetar robots.txt + rate limits**; **T&C y aviso de privacidad LFPDPPP propios**; minimizar almacenamiento de datos personales de anunciantes. Inmuebles24 usa Cloudflare Bot Management (no DataDome) → preferir feeds/onboarding directo del agente sobre scraping frágil.
+
+## I.4 Fases de ejecución (tabla `/masterplan` — owner/modelo · ola · deps · verificación)
+
+**Fase 0 — Validación + lanzamiento bootstrap (0–6 meses). Megalópolis: CDMX, Edomex, Querétaro, Puebla, Morelos.**
+
+| # | Tarea | Owner/Modelo | Ola | Deps | Verificación (prueba positiva) |
+|---|-------|--------------|-----|------|--------------------------------|
+| 0.1 | **Empaquetar HBU en 3 tiers** ($0 teaser / $2.5–6K reporte / $8–15K certificado) desde el pipeline Cimatario | TÚ + Sonnet (UI) | 0 | Parte II | 3 tiers vendibles; 5–10 estudios vendidos/mes |
+| 0.2 | **Buscador federado link-out** (scrapers user-side + NL + alertas Telegram) | TÚ (red/legal) + Sonnet | 0 ∥ | modelo legal §I.3 | busca multiportal, cita fuente, 0 login, robots.txt ok |
+| 0.3 | **Generador de sitios de agente + extensión de importación** | Sonnet + Haiku | 0 ∥ | multi-tenant | agente sube su inventario; sitio en subdominio con SEO |
+| 0.4 | **Onboarding de los ~1,000 inmuebles comprometidos** | TÚ + Haiku (ingesta VLM) | 1 | 0.3 | 1,000 ingeridos limpios (dedup por IA) |
+| 0.5 | **PR del caso Cimatario** (caso de estudio HBU auditado) publicable | Fable (copy) + Haiku | 0 ∥ | Parte II | artículo + LinkedIn; prueba social |
+
+*Métricas de éxito Fase 0:* 5–10 HBU vendidos · 1,000 inmuebles · 20–30 agentes activos · error de valuación <10% vs cierres · **SOM $50–200K MXN/mes** sin ads.
+
+**Fase 1 — Portal de insights para agentes + SEO programático (6–18 meses).**
+
+| # | Tarea | Owner/Modelo | Verificación |
+|---|-------|--------------|--------------|
+| 1.1 | **pSEO por colonia/calle** con datos propios (schema, long-tail hiperlocal) — palanca #1 | Sonnet (gen) + Haiku (volumen) | páginas con datos únicos (no thin content); tráfico orgánico creciente |
+| 1.2 | **Portal de insights** (¿cómo me diferencio?, rankings de nicho) — datos como producto | Sonnet | agentes convierten a plan de pago; retención |
+| 1.3 | **GEO** (citación en ChatGPT/Perplexity/AI Overviews): BLUF, Q&A, schema, E-E-A-T | Sonnet + Fable | citación medible en motores generativos |
+| 1.4 | **Verificación anti-fraude con IA** (diferenciador de confianza) | Opus (diseño) + Sonnet | flag de listados fraudulentos/duplicados |
+
+**Fase 2 — Expansión nacional + marketplace híbrido (agregado + propio).**
+**Fase 3 — Banca/adjudicados (empezar por adjudicados, Zöku validó) + LatAm.** Solo con tracción; no diluir el core antes de dominar México.
+
+## I.5 Dominio, marca y legal (pendientes de operador)
+
+- **Dominio:** registrar **`klugger.mx`** (Akky, ~$689 MXN, **promo vence 31-jul-2026**) + `getklugger.com`; typo-defense `kluger.mx` con 301. **Verificar disponibilidad real en whois.mx/carrito antes de anunciar.** Solo `ruby.lease` tiene encaje temático legítimo (renta).
+- **Marca IMPI:** búsqueda fonética profesional (no solo MARCANET) → registrar "Klugger" nominativa + mixta en **clases 36 (inmobiliario) y 42 (software)** (~$3,126 MXN/clase). ⚠️ Umbral: si aparece "Kluger/Klugger" vigente en clase 36/42, **detener gasto de branding** y evaluar renombrar.
+- **NO montar PBN** (los dominios del fundador comparten WHOIS = footprint penalizable). Sustituir por topical authority en 1 dominio + digital PR + linkable assets (calculadoras, índice de precios Klugger).
+
+## I.6 Marketing costo-cero (orden de prioridad)
+
+1. **pSEO por colonia** (datos propios). 2. **Onboarding de agentes** (efecto red, inventario gratis). 3. **Facebook Marketplace + grupos** (segmentar a compradores, no a agentes). 4. **Video corto orgánico** (TikTok/Reels). 5. **GEO/schema**. 6. **PR del caso Cimatario**. **No gastar en ads hasta que el costo por cita calificada orgánica sea medible.**
+
+## I.7 Gate de verificación (Fase 0) + Pendientes del operador
+
+**Gate:** (a) 3 tiers HBU vendibles con ≥5 ventas/mes; (b) buscador federado cita fuente y respeta robots.txt/T&C; (c) 1,000 inmuebles ingeridos limpios; (d) sitio de agente en subdominio con SEO; (e) 0 datos personales de anunciantes redistribuidos.
+
+**Pendientes del operador:**
+- **Reconciliar `main`↔`testing`** antes de escalar la arquitectura (bloquea limpieza multi-tenant).
+- Registrar `klugger.mx` **antes del 31-jul-2026**; verificar disponibilidad + búsqueda de marca 36/42.
+- Aprobar el modelo legal link-out (idealmente con abogado MX de PI/datos antes de escalar).
+- Confirmar el `METHODOLOGY.md v2` (fase v12, en curso) — el pipeline HBU es el moat; su rigor sostiene todo el pricing premium.
+
+---
+
+# PARTE II — Caso ancla Cimatario (detalle técnico del dashboard)
+
+> Contenido heredado de v2.0. Es el **caso de estudio publicable** (Fase 0, tarea 0.5) y la base del producto HBU (tarea 0.1). Deploy: `klugger.shnell.mx` (rama `testing` → Cloudflare Pages).
+> ⚠️ **La tabla de hallazgos de abajo es de v2.0 (2026-06-30) y está MAYORMENTE RESUELTA.** El estado real y actual del caso Cimatario vive en **§I.0** (arriba): datos reales (1,418 comps), scoring, DD, visualizaciones Gemini Flash, CUS reconciliado a H2, etc. — todo ✅. Lee la tabla de abajo como *histórico del diagnóstico inicial*, no como pendientes. Lo único vigente como pendiente es lo listado en §I.0 "Cimatario — PENDIENTE" (metodología v2, scraping multi-fuente, nuevos modelos, marketing) y el riesgo binario **CEA de agua**.
 
 ---
 
@@ -24,7 +158,7 @@
 
 | # | Hallazgo | Severidad | Evidencia |
 |---|----------|-----------|-----------|
-| 1 | **Base de datos 82% inventada.** `terrenos_full.json` = 176 reales + 824 filas `"Terreno simulado"` (links `example.com`, precios secuenciales). Los m² que alimentan scatter/regresión/distribución vienen **solo** de las filas falsas. | 🔴 Crítico | `terrenos_full.json`; import `ValuacionDashboard.tsx:16` |
+| 1 | **Base de datos 82% inventada.** `terrenos_full.json` = 176 reales + 824 filas `"Terreno simulado"` (links `example.com`, precios secuenciales). Los m² que alimentan scatter/regresión/distribución vienen **solo** de las filas falsas. **[REEMPLAZADO 2026-07-05: commit `413caa6` restaura 1025 entradas reales de Lamudi (terrenos_enriched.json, terrenos_full_real.json, terrenos_excluidos.json). Pendiente: wire de datos reales al dashboard (Tarea 10).]** | 🔴→✅ Resuelto en datos | `terrenos_full.json` → `terrenos_enriched.json` (1025 reales); import `ValuacionDashboard.tsx:16` pendiente actualizar |
 | 2 | **Regresión corre sobre datos falsos** → pendiente ≈ 0 (precios ~4.3M independientes del tamaño). Los bins del histograma están **hardcodeados** alrededor del clúster fabricado (`'4.1-4.3M (clúster)'`). El `modelLine` (ppm × m²) tapa la OLS rota. | 🔴 Crítico | `ValuacionDashboard.tsx:377-444` |
 | 3 | **Calculadora de margen con bug COS/CUS:** `buildCost` usa `customCOS` (0.6 → 396 m²) en vez de `customCUS` (2.4 → 1584 m²) → subvalúa construcción ~4× e infla el ROI. `netToDev` mezcla venta única + 4 años de renta arbitrarios, sin costo de suelo/comisiones/financiamiento. | 🔴 Crítico | `ValuacionDashboard.tsx:1145-1155` |
 | 4 | **Token Mapbox hardcodeado** en fuente commiteada y bundleado al cliente, pese a que CI ya inyecta `NEXT_PUBLIC_MAPBOX_TOKEN`. | 🔴 Crítico | `MapboxMap.tsx:9` |
