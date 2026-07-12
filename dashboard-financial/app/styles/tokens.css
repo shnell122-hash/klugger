@@ -1,0 +1,83 @@
+/* Klugger — Design tokens (paleta definitiva)
+ * Fuente de verdad: estudios_mercado/paleta-definitiva.md + R2 brand/paleta-definitiva.png
+ * Oficiales del brandbook = intocables. Paleta mundo/arte = del hero CDMX v1.
+ * Uso: importar en app/globals.css (`@import "./styles/tokens.css";`) al construir la Ola 0.
+ * Temas por [data-theme]: valuacion (dark) · dev (toggle) · consumer (light).
+ */
+
+:root {
+  /* ---- Primitivos oficiales de marca (NO tocar) ---- */
+  --k-green-1: #2ED666;   /* primario */
+  --k-green-2: #29BF5C;   /* secundario */
+  --k-gray:    #3B3B3B;   /* texto/neutro */
+  --k-blue:    #2E9BD6;   /* extremo azul del degradado (validar) */
+  --k-light:   #F4F6F5;   /* fondo claro */
+  --k-gradient: linear-gradient(90deg, var(--k-green-2), var(--k-blue));
+
+  /* ---- Primitivos de mundo/arte (hero CDMX v1) ---- */
+  --k-art-earth:   #DCCAB4;
+  --k-art-stone:   #918771;
+  --k-art-grass:   #B4D94B;
+  --k-art-sky:     #7CD6FF;
+  --k-art-forest:  #335E2C;
+  --k-art-slate:   #566757;
+  --k-art-cream:   #FAF0DA;
+  --k-art-ink:     #343631;
+  --k-art-water:   #57C6E8;
+  --k-art-sand:    #C9B496;
+
+  /* ---- Semánticos por defecto = tema consumer (light/amigable) ---- */
+  --bg:        var(--k-light);
+  --surface:   #FFFFFF;
+  --text:      var(--k-gray);
+  --text-muted:#6B7A72;
+  --border:    #E2E7E4;
+  --accent:    var(--k-green-1);
+  --accent-2:  var(--k-green-2);
+  --link:      var(--k-blue);
+  --gradient:  var(--k-gradient);
+}
+
+/* Valuaciones — dark fijo (dashboard analítico/funcional) */
+:root[data-theme="valuacion"] {
+  --bg:        #14181B;
+  --surface:   #1C2226;
+  --text:      #E6ECEA;
+  --text-muted:#93A19B;
+  --border:    #2A3237;
+  --accent:    var(--k-green-1);
+  --accent-2:  var(--k-green-2);
+  --link:      var(--k-blue);
+}
+
+/* Desarrolladores — base dark del toggle día/noche */
+:root[data-theme="dev"] {
+  --bg:        #14181B;
+  --surface:   #1C2226;
+  --text:      #E6ECEA;
+  --text-muted:#93A19B;
+  --border:    #2A3237;
+  --accent:    var(--k-green-1);
+  --accent-2:  var(--k-blue);
+  --link:      var(--k-blue);
+}
+/* dev en modo día */
+:root[data-theme="dev"][data-mode="light"] {
+  --bg:        var(--k-light);
+  --surface:   #FFFFFF;
+  --text:      var(--k-gray);
+  --text-muted:#6B7A72;
+  --border:    #E2E7E4;
+}
+
+/* Personas físicas — light/amigable (== default, explícito por claridad) */
+:root[data-theme="consumer"] {
+  --bg:        var(--k-light);
+  --surface:   #FFFFFF;
+  --text:      var(--k-gray);
+  --text-muted:#6B7A72;
+  --border:    #E2E7E4;
+  --accent:    var(--k-green-1);
+  --accent-2:  var(--k-green-2);
+  --link:      var(--k-blue);
+}
