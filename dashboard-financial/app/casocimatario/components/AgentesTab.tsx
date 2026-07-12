@@ -26,7 +26,7 @@ export default function AgentesTab() {
     let items: Array<{ kind: string; text: string }> = [];
     if (type === 'posts') {
       items = [
-        { kind: 'Post FB/IG', text: `Terreno Cimatario 660m² CUS 2.4 → 12 unidades. Asking ${asking} (valor modelo ${adjusted}). ROI developer 35-45%. Ver simulación FinObra y dashboard: /valuacion-cimatario #Cimatario #Desarrollo` },
+        { kind: 'Post FB/IG', text: `Terreno Cimatario 660m² CUS 2.4 → 12 unidades. Asking ${asking} (valor modelo ${adjusted}). ROI developer 35-45%. Ver simulación FinObra y dashboard: /casocimatario #Cimatario #Desarrollo` },
         { kind: 'Carrusel 4 slides', text: `1. El terreno 2. El potencial CUS 2.4 3. Comps vs nuestro asking 4. Contacto + link dashboard. Listo para 3 plataformas.` },
         { kind: 'LinkedIn', text: `Oportunidad JV / adquisición en Cimatario (QRO). Lote 660m² permite 12u. Modelo valúa 7.48M. Detalles en dashboard interactivo.` },
       ];

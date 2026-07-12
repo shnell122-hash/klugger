@@ -17,8 +17,11 @@
     "@xyflow/react": "^12.3.6",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
+    "@gsap/react": "^2.1.2",
     "framer-motion": "^11.12.0",
+    "gsap": "^3.13.0",
     "leaflet": "^1.9.4",
+    "lottie-react": "^2.4.1",
     "mapbox-gl": "^3.25.0",
     "next": "15.3.1",
     "react": "^19.0.0",
@@ -26,7 +29,9 @@
     "react-leaflet": "^5.0.0",
     "recharts": "^2.14.1",
     "socket.io-client": "^4.7.5",
-    "three": "^0.185.0"
+    "sonner": "^1.7.4",
+    "three": "^0.185.0",
+    "vaul": "^1.1.2"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
