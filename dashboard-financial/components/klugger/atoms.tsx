@@ -2,6 +2,7 @@
 // Klugger — átomos del sistema (K0). Estilos en app/style/klugger.css; motion en lib/motion.ts.
 import { motion } from "framer-motion";
 import { pressTap, pressTransition } from "@/lib/motion";
+import { Icon, UI } from "./icons";
 import type { ReactNode } from "react";
 
 type BtnVariant = "primary" | "secondary" | "ghost" | "gradient" | "danger";
@@ -59,7 +60,7 @@ export function Skeleton({ w = "100%", h = 16, radius }: { w?: number | string; 
 export function ChatPill({ placeholder = "Pregúntale a Klugger: “2 rec bajo $20k cerca de Metro Chabacano, buena plusvalía”" }: { placeholder?: string }) {
   return (
     <div className="kpill">
-      <span aria-hidden style={{ fontSize: 18 }}>🔎</span>
+      <Icon as={UI.Search} size={18} label="Buscar" />
       <input placeholder={placeholder} aria-label="Búsqueda en lenguaje natural" />
       <Button size="sm" variant="gradient">Buscar</Button>
     </div>
@@ -67,15 +68,17 @@ export function ChatPill({ placeholder = "Pregúntale a Klugger: “2 rec bajo $
 }
 
 const THEMES = [
-  { id: "consumer", label: "☀️ Consumidor" },
-  { id: "dev", label: "🌓 Desarrollador" },
-  { id: "valuacion", label: "🌑 Valuación" },
+  { id: "consumer", label: "Consumidor", icon: UI.Sun },
+  { id: "dev", label: "Desarrollador", icon: UI.SunMoon },
+  { id: "valuacion", label: "Valuación", icon: UI.Moon },
 ] as const;
 export function ThemeSwitcher({ value, onChange }: { value: string; onChange: (t: string) => void }) {
   return (
     <div className="kstyle-row" role="tablist" aria-label="Tema">
       {THEMES.map((t) => (
-        <Chip key={t.id} active={value === t.id} onClick={() => onChange(t.id)}>{t.label}</Chip>
+        <Chip key={t.id} active={value === t.id} onClick={() => onChange(t.id)}>
+          <Icon as={t.icon} size={15} /> {t.label}
+        </Chip>
       ))}
     </div>
   );
