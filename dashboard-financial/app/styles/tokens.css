@@ -5,7 +5,20 @@
  * Temas por [data-theme]: valuacion (dark) · dev (toggle) · consumer (light).
  */
 
+/* ---- Tipografía de marca ---- */
+@font-face {
+  font-family: "Nexa Black";
+  src: url("/fonts/nexa-black.ttf") format("truetype");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
+  /* ---- Tipografía (display = Nexa Black; body = Open Sans) ---- */
+  --k-font-display: "Nexa Black", "Montserrat", system-ui, sans-serif;
+  --k-font-body: "Open Sans", system-ui, -apple-system, sans-serif;
+
   /* ---- Primitivos oficiales de marca (NO tocar) ---- */
   --k-green-1: #2ED666;   /* primario */
   --k-green-2: #29BF5C;   /* secundario */

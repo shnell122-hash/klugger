@@ -27,5 +27,11 @@ export const ART_PALETTE = {
   sand: "#C9B496",
 } as const;
 
+/** Tipografía de marca. Display = Nexa Black (repo: public/fonts/nexa-black.ttf). */
+export const FONTS = {
+  display: '"Nexa Black", "Montserrat", system-ui, sans-serif',
+  body: '"Open Sans", system-ui, -apple-system, sans-serif',
+} as const;
+
 /** Temas por audiencia (resueltos vía [data-theme]). */
 export type KluggerTheme = "consumer" | "valuacion" | "dev";
