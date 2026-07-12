@@ -58,11 +58,11 @@ export function Skeleton({ w = "100%", h = 16, radius }: { w?: number | string; 
 /** Chat pill "Ask Klugger" — búsqueda NL (patrón Zillow AI Mode). */
 export function ChatPill({ placeholder = "Pregúntale a Klugger: “2 rec bajo $20k cerca de Metro Chabacano, buena plusvalía”" }: { placeholder?: string }) {
   return (
-    <motion.div className="kpill" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}>
+    <div className="kpill">
       <span aria-hidden style={{ fontSize: 18 }}>🔎</span>
       <input placeholder={placeholder} aria-label="Búsqueda en lenguaje natural" />
       <Button size="sm" variant="gradient">Buscar</Button>
-    </motion.div>
+    </div>
   );
 }
 

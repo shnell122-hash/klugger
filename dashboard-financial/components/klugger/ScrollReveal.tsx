@@ -16,7 +16,8 @@ export function ScrollReveal({ children, y = 24 }: { children: ReactNode; y?: nu
       gsap.utils.toArray<HTMLElement>("[data-reveal]").forEach((el) => {
         gsap.from(el, {
           opacity: 0, y, duration: 0.5, ease: "power3.out",
-          scrollTrigger: { trigger: el, start: "top 85%", toggleActions: "play none none none" },
+          immediateRender: false, // no ocultar hasta que el trigger dispare → nunca queda atrapado en opacity:0
+          scrollTrigger: { trigger: el, start: "top 90%", toggleActions: "play none none none" },
         });
       });
     },

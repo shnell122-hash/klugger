@@ -1,11 +1,10 @@
 "use client";
 // Klugger — guía viva del sistema (/style). Ola K0 del MASTERPLAN-CATALOGO.
 // Scope aislado: no toca el dashboard financiero (usa data-theme propio).
+// Entrada de secciones = CSS (klugger.css: kfadeup) → siempre visible. Framer solo para interacciones.
 import "./klugger.css";
 import { useState } from "react";
 import { Toaster, toast } from "sonner";
-import { motion } from "framer-motion";
-import { fadeUp, stagger } from "@/lib/motion";
 import { Button, Toggle, Badge, Chip, Skeleton, ChatPill, ThemeSwitcher } from "@/components/klugger/atoms";
 import { ScrollReveal } from "@/components/klugger/ScrollReveal";
 
@@ -14,10 +13,10 @@ const BRAND = ["#2ED666", "#29BF5C", "#3B3B3B", "#2E9BD6", "#F4F6F5"];
 
 function Sec({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <motion.section className="kstyle-sec" variants={fadeUp} data-reveal>
+    <section className="kstyle-sec">
       <h2>{title}</h2>
       {children}
-    </motion.section>
+    </section>
   );
 }
 
@@ -30,18 +29,18 @@ export default function StyleGuide() {
   return (
     <div className="klugger-scope" data-theme={theme}>
       <Toaster position="bottom-right" theme={theme === "consumer" ? "light" : "dark"} />
-      <motion.div className="kstyle-wrap" variants={stagger()} initial="hidden" animate="show">
-        <motion.header variants={fadeUp} className="kstyle-row" style={{ justifyContent: "space-between" }}>
+      <div className="kstyle-wrap">
+        <header className="kstyle-row" style={{ justifyContent: "space-between" }}>
           <div>
             <h1 style={{ fontSize: 30, margin: 0 }}>Klugger — Sistema de diseño</h1>
             <p style={{ color: "var(--text-muted)", marginTop: 6 }}>Guía viva · Ola K0 · craft de animación nivel Emil Kowalski</p>
           </div>
           <ThemeSwitcher value={theme} onChange={setTheme} />
-        </motion.header>
+        </header>
 
         <Sec title="Hero (v1 canónico)">
           <div className="khero">
-            <img src="/assets/hero-cdmx-v1.jpg" alt="Mapa hero CDMX low-poly (v1 canónico)" loading="lazy" />
+            <img src="/assets/hero-cdmx-v1.jpg" alt="Mapa hero CDMX low-poly (v1 canónico)" />
           </div>
           <div style={{ marginTop: 16 }}>
             <ChatPill />
@@ -130,7 +129,7 @@ export default function StyleGuide() {
             </div>
           </ScrollReveal>
         </Sec>
-      </motion.div>
+      </div>
     </div>
   );
 }

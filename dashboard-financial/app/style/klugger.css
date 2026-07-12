@@ -68,6 +68,17 @@
 
 /* ---- utilidades del /style ---- */
 .kstyle-wrap { max-width: 1100px; margin: 0 auto; padding: 40px 24px 120px; }
+
+/* Entrada por CSS (bulletproof: siempre corre y SIEMPRE termina visible; no depende de hidratación). */
+@keyframes kfadeup { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+.kstyle-wrap > * { opacity: 1; animation: kfadeup .5s var(--ease-out) both; }
+.kstyle-wrap > *:nth-child(1) { animation-delay: .00s; }
+.kstyle-wrap > *:nth-child(2) { animation-delay: .06s; }
+.kstyle-wrap > *:nth-child(3) { animation-delay: .12s; }
+.kstyle-wrap > *:nth-child(4) { animation-delay: .18s; }
+.kstyle-wrap > *:nth-child(5) { animation-delay: .24s; }
+.kstyle-wrap > *:nth-child(6) { animation-delay: .30s; }
+.kstyle-wrap > *:nth-child(n+7) { animation-delay: .36s; }
 .kstyle-sec { margin-top: 48px; }
 .kstyle-sec > h2 { font-size: 22px; margin-bottom: 16px; }
 .kstyle-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
