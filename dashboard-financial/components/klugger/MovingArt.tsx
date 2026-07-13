@@ -104,7 +104,7 @@ export function FoxMascot() {
   return (
     <div className="kmascot">
       <div className="kmascot__stage">
-        <motion.img src="/assets/klugger-isotipo.svg" alt={`Mascota — ${STATES[s].label}`} width={120} height={120} animate={STATES[s].anim as TargetAndTransition} />
+        <motion.img src="/assets/klugger-isotipo.svg" alt={`Mascota — ${STATES[s].label}`} width={120} height={120} animate={STATES[s].anim as unknown as TargetAndTransition} />
       </div>
       <div className="kstyle-row" style={{ justifyContent: "center" }}>
         {(Object.keys(STATES) as StateKey[]).map((k) => (
