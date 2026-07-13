@@ -1,0 +1,51 @@
+[
+  {
+    "tipo": "competencia_cercana",
+    "severidad": "baja",
+    "evidencia_numerica": {
+      "n": 1,
+      "d_min_m": 485,
+      "refs": [
+        {
+          "name": "NEW SOHO",
+          "place_id": "ChIJIxMRwtVE04URy7iCYF4MPOs",
+          "d_m": 485
+        }
+      ]
+    }
+  },
+  {
+    "tipo": "saturacion_submercado",
+    "severidad": "alta",
+    "evidencia_numerica": {
+      "sat_percentil": 90.7,
+      "k_sat": 0.24
+    }
+  },
+  {
+    "tipo": "dependencia_una_ancla",
+    "severidad": "media",
+    "evidencia_numerica": {
+      "subcat_dominante": "supermercado",
+      "share": 0.402,
+      "nearest_by_subcat": {
+        "supermercado": 401,
+        "hospital": 543,
+        "plaza_mall": 717,
+        "universidad": 732,
+        "corporativo": 2708
+      }
+    }
+  },
+  {
+    "tipo": "precio_sobre_banda",
+    "severidad": "media",
+    "evidencia_numerica": {
+      "ppm": 10606,
+      "p50": 7693,
+      "p75": 9500,
+      "p90": 12668,
+      "percentil": 83.1
+    }
+  }
+]

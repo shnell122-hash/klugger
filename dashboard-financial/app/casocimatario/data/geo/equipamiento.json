@@ -1,0 +1,2337 @@
+[
+  {
+    "place_id": "ChIJWXkAatFE04UR_fgRObUwqOs",
+    "name": "Secundaria Instituto Plancarte",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.5819394,
+    "lng": -100.3880486,
+    "dist_predio_m": 85,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Florencio Rosas 1, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJV9zuRtFE04URKFBTvcDoZeo",
+    "name": "Colegio Plancartino",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.5818419,
+    "lng": -100.3880433,
+    "dist_predio_m": 91,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "76030, Florencio Rosas 8, Cimatario, Santiago de Querétaro",
+    "types": [
+      "primary_school",
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJSUHtDd9F04URP1ik36Z2REw",
+    "name": "Parque Carlos Septien G",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.5829958,
+    "lng": -100.3892092,
+    "dist_predio_m": 91,
+    "rating": 4.9,
+    "user_ratings": 10,
+    "price_level": null,
+    "vicinity": "Calle Carlos Septién García 41, Cimatario, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJh2pzq1VF04URufm0S8FmxH0",
+    "name": "Parque principal de cimatario",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.5831627,
+    "lng": -100.3892939,
+    "dist_predio_m": 112,
+    "rating": 4.6,
+    "user_ratings": 337,
+    "price_level": null,
+    "vicinity": "Calle Carlos Septién García 33, Cimatario, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ4W_1Z9FE04UR1TlB0BFWi7w",
+    "name": "GEO Dental Querétaro - Ortodoncia, Endodoncia, Rehabilitación o Prótesis dental",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5827245,
+    "lng": -100.3876907,
+    "dist_predio_m": 124,
+    "rating": 4.8,
+    "user_ratings": 250,
+    "price_level": null,
+    "vicinity": "Prolongación Corregidora Sur No. 38, Cimatario, Santiago de Querétaro",
+    "types": [
+      "dentist",
+      "doctor",
+      "health",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJY9D9XndF04URygMBO1vJJyA",
+    "name": "Parque canino",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.5832459,
+    "lng": -100.389433,
+    "dist_predio_m": 127,
+    "rating": 4,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Calle Carlos Septién García 33, Cimatario, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJf0DAR7hF04URu3MPwuDiu8M",
+    "name": "El Relicario",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.5805156,
+    "lng": -100.388196,
+    "dist_predio_m": 205,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Calle Arroyo Seco, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJDa2P9NZE04URniZm17L5k7A",
+    "name": "Dr. Martín Gallegos Duarte, Oftalmólogo. MGD Oftálmica Visual",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5815235,
+    "lng": -100.3916611,
+    "dist_predio_m": 311,
+    "rating": 3.8,
+    "user_ratings": 23,
+    "price_level": null,
+    "vicinity": "Calle Fray Sebastián de Aparicio 21, Cimatario, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJsUzl-NBE04UR4L6DFQ3DSbo",
+    "name": "Robles Garay Mayra Itzel Dra",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5802303,
+    "lng": -100.3864406,
+    "dist_predio_m": 334,
+    "rating": 4.6,
+    "user_ratings": 13,
+    "price_level": null,
+    "vicinity": "Prolongación Corregidora Sur 117, Aragon, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ_VeZftZE04URF3wg9__jO_A",
+    "name": "Parque Fray Cimatario",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.5828325,
+    "lng": -100.3921447,
+    "dist_predio_m": 355,
+    "rating": 4.4,
+    "user_ratings": 108,
+    "price_level": null,
+    "vicinity": "76030, Calle Motolinia 39, Cimatario, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJU0zFXtZE04UR8R3xvndz3io",
+    "name": "Diagnostico Cardiologico De Queretaro",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5813719,
+    "lng": -100.3920989,
+    "dist_predio_m": 359,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Calle Fray Sebastián de Aparicio 29, Cimatario, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJN9OvtNNE04URIsIYe9bGt7E",
+    "name": "Plaza Cristóbal Colón",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.585158,
+    "lng": -100.3870987,
+    "dist_predio_m": 365,
+    "rating": 4.5,
+    "user_ratings": 2,
+    "price_level": null,
+    "vicinity": "Central 12B, zona dos extendida, Centro, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJqxlvkdBE04UR5o7235Tzvoc",
+    "name": "CEPESAM",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5787428,
+    "lng": -100.3871866,
+    "dist_predio_m": 427,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "General Lázaro Cárdenas 216, Estrella, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJE4m4HgBF04URWfj8TTrBFNQ",
+    "name": "Andador Estrella",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.5784977,
+    "lng": -100.3880218,
+    "dist_predio_m": 428,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "General Lázaro Cárdenas, zona dos extendida, Estrella, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJX0kxLpJF04URHbVAOpNk-zA",
+    "name": "Andador parque colonia Cimatario",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.582587,
+    "lng": -100.3930153,
+    "dist_predio_m": 442,
+    "rating": 4.7,
+    "user_ratings": 20,
+    "price_level": null,
+    "vicinity": "Cimatario, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJx8Kz2NVE04URccY85xBIcmw",
+    "name": "Dr. Pies Sanos",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5832663,
+    "lng": -100.3929125,
+    "dist_predio_m": 444,
+    "rating": 4.4,
+    "user_ratings": 9,
+    "price_level": null,
+    "vicinity": "Fray Pedro de Gante 23, Cimatario, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJUzigPulF04URhY4UF9GWkZA",
+    "name": "Plaza de la Familia",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.5867088,
+    "lng": -100.3872779,
+    "dist_predio_m": 517,
+    "rating": 4.6,
+    "user_ratings": 17,
+    "price_level": null,
+    "vicinity": "Avenida Constituyentes, Centro, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJZakaDgBF04URiR44y6b65Pg",
+    "name": "Área común José Sotelo",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.578915,
+    "lng": -100.3845269,
+    "dist_predio_m": 580,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "José Sotelo SN, zona dos extendida, Valle Alameda, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJWzEC79RE04URiUfIp7xUroQ",
+    "name": "Dentista Hector Luciano Carreño Romero",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5871323,
+    "lng": -100.3910352,
+    "dist_predio_m": 589,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Manuel Tolsa 15, Centro, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJdYlWLNZE04URHaluGCqUfYk",
+    "name": "Psicólogo Sergio Cisneros",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5803014,
+    "lng": -100.3941907,
+    "dist_predio_m": 604,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Calle Eusebio Francisco Kino 76, Cimatario, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJr3qYaABF04UR-oDo_mOY5r0",
+    "name": "alameda hidalgo",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.5878139,
+    "lng": -100.3879732,
+    "dist_predio_m": 622,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Centro, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJmbMTY-1F04UR04Y4b07yZgM",
+    "name": "Parque Mercurio",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.5846422,
+    "lng": -100.3833707,
+    "dist_predio_m": 622,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Encarnación Cabrera, zona dos extendida, Mercurio, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJl6xHcgBF04URIMphHh3CM1c",
+    "name": "Dolores de Ajuchitláncito Pedro Escobedo",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.585863,
+    "lng": -100.384181,
+    "dist_predio_m": 623,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Alameda, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ5TxGvSNb04UR1Ar3RxwJj5g",
+    "name": "Auditivos Urquieta - Querétaro",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5872508,
+    "lng": -100.3848198,
+    "dist_predio_m": 690,
+    "rating": 4.1,
+    "user_ratings": 25,
+    "price_level": null,
+    "vicinity": "Plaza Lecaroz, Avenida Constituyentes 7, Alameda, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "health",
+      "point_of_interest",
+      "store"
+    ]
+  },
+  {
+    "place_id": "ChIJvYvMnM1E04URjC-F39kxAO4",
+    "name": "Óptica Okulux suc Galerías Constituyentes",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5847931,
+    "lng": -100.3823458,
+    "dist_predio_m": 726,
+    "rating": 4.9,
+    "user_ratings": 126,
+    "price_level": null,
+    "vicinity": "Avenida Constituyentes 34-Local 6, zona dos extendida, Mercurio, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "health",
+      "point_of_interest",
+      "store"
+    ]
+  },
+  {
+    "place_id": "ChIJ6cr_N85E04URZE34bsUQcvk",
+    "name": "Cendi Bertha Vön Glumer",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.5815275,
+    "lng": -100.3818347,
+    "dist_predio_m": 728,
+    "rating": 3,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Calle a 110, El Laurel, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJZ5jeCwBF04URq6tOoUuVsyI",
+    "name": "Alameda",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.58879319999999,
+    "lng": -100.3898881,
+    "dist_predio_m": 734,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJPwoINgBF04URIpUagNvYBhs",
+    "name": "Contender",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.58879319999999,
+    "lng": -100.3898881,
+    "dist_predio_m": 734,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJs4AQi35F04URi228WUkHLxU",
+    "name": "Navex park",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.58879319999999,
+    "lng": -100.3898881,
+    "dist_predio_m": 734,
+    "rating": 4,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Autopista México - Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJGbTpCwBF04URf70JzwubVNo",
+    "name": "Pensativos compare",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.5888184,
+    "lng": -100.3898876,
+    "dist_predio_m": 737,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJt_KWztRE04URsbv8vTS0lsc",
+    "name": "Preescolar Adolfo Lopez Mateos",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.5889068,
+    "lng": -100.3910982,
+    "dist_predio_m": 776,
+    "rating": 4.7,
+    "user_ratings": 9,
+    "price_level": null,
+    "vicinity": "Zaragoza Num. 10 Poniente, Santiago De Queretaro, Calle Ignacio Zaragoza No.10, Centro, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ47-txDNF04URi_bUaxdFJo0",
+    "name": "Centro De Endodoncia",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5823969,
+    "lng": -100.381222,
+    "dist_predio_m": 787,
+    "rating": 4.7,
+    "user_ratings": 36,
+    "price_level": null,
+    "vicinity": "1RA Calle del Laurel 123, zona dos extendida, El Laurel, Santiago de Querétaro",
+    "types": [
+      "dentist",
+      "doctor",
+      "health",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJE-4Qs6pb04URMCvEDGPFn6M",
+    "name": "Preescolar Colegio Montessori Shanti De Queretaro",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.5870244,
+    "lng": -100.3826405,
+    "dist_predio_m": 829,
+    "rating": 4,
+    "user_ratings": 10,
+    "price_level": null,
+    "vicinity": "Avenida De Las Artes Num. 59, Santiago De Queretaro, Calle de las Artes, San Francisquito, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJzzRImipF04URyduvIJWeqeo",
+    "name": "Salud Digna",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5866414,
+    "lng": -100.3954198,
+    "dist_predio_m": 844,
+    "rating": 3.4,
+    "user_ratings": 929,
+    "price_level": null,
+    "vicinity": "Calle Ignacio Zaragoza 15, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "health",
+      "point_of_interest",
+      "store"
+    ]
+  },
+  {
+    "place_id": "ChIJhUSNsNtE04UR5BjbgY9Bo68",
+    "name": "Clínica Dental Prevé",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5817653,
+    "lng": -100.3806125,
+    "dist_predio_m": 853,
+    "rating": 5,
+    "user_ratings": 3,
+    "price_level": null,
+    "vicinity": "Sierra de Bucareli 118, Villas del Sol, Santiago de Querétaro",
+    "types": [
+      "dentist",
+      "doctor",
+      "health",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJH_-3ps1E04URo_gcKWXndr8",
+    "name": "Colegio De Bachilleres Del Estado De Querétaro",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.5865925,
+    "lng": -100.3816758,
+    "dist_predio_m": 882,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Avenida Constituyentes 35 Ote, San Francisquito, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ7TmgKCtb04URI565c0IZGiI",
+    "name": "Secundaria J. Guadalupe Velazquez",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.5897456,
+    "lng": -100.3917979,
+    "dist_predio_m": 888,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "José María Arteaga Num. 11, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ563ZsipF04URcOgP4le_HfA",
+    "name": "Centro Multidisciplinario Queretano de Psicología",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5887998,
+    "lng": -100.395577,
+    "dist_predio_m": 1013,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Calle Melchor Ocampo 19, Centro, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJz46uuStF04URCt6ygORV3go",
+    "name": "Villarreal Sosa Everardo Dr",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5843783,
+    "lng": -100.3984494,
+    "dist_predio_m": 1033,
+    "rating": 3.8,
+    "user_ratings": 13,
+    "price_level": null,
+    "vicinity": "Calle del Carrizal 36, El Carrizal, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ90lehMVE04URbKyoTv1ho80",
+    "name": "Preescolar Montessori Chiaravalle De Queretaro",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.5773987,
+    "lng": -100.3802224,
+    "dist_predio_m": 1043,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Paseo de los Cisnes 119, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJPTkc3StF04UR-5qR-EtF48Q",
+    "name": "UCO Prepa Contemporánea",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.5835771,
+    "lng": -100.398872,
+    "dist_predio_m": 1060,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Calle Ignacio Pérez 54, Sur, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJGbA6uc5E04UR7R-2lna9ReU",
+    "name": "Unidad Deportiva Joséfa Ortiz de Domínguez",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.5846207,
+    "lng": -100.3787826,
+    "dist_predio_m": 1073,
+    "rating": 4.1,
+    "user_ratings": 167,
+    "price_level": null,
+    "vicinity": "Sierra de Zimapán Sn, Centro, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJYZLLJfJb04URwkzT-Y-kpck",
+    "name": "Parque De Los Besos",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.5920357,
+    "lng": -100.3875155,
+    "dist_predio_m": 1093,
+    "rating": 4.8,
+    "user_ratings": 24,
+    "price_level": null,
+    "vicinity": "Progreso 4, Centro, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJOwB_pytb04UR5P5k8531Pt4",
+    "name": "Queretaro Plaza Principal",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.5921311,
+    "lng": -100.3910337,
+    "dist_predio_m": 1121,
+    "rating": 4.7,
+    "user_ratings": 10,
+    "price_level": null,
+    "vicinity": "Andador Libertad 32-11, Centro, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJp3Zb88xE04URKKDujQO3K40",
+    "name": "Naoli Observatorio",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.587321,
+    "lng": -100.3793929,
+    "dist_predio_m": 1127,
+    "rating": 3.5,
+    "user_ratings": 6,
+    "price_level": null,
+    "vicinity": "Polar 113, Observatorio, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJJV5lUNRa04UR5qSONmhnpwk",
+    "name": "Gordillo Huerta Ma Vanessa",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5886349,
+    "lng": -100.3972325,
+    "dist_predio_m": 1128,
+    "rating": 5,
+    "user_ratings": 3,
+    "price_level": null,
+    "vicinity": "Calle Ezequiel Montes 32, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJMXiOS8lE04URVD7vX87sSm8",
+    "name": "Primaria Eduardo Claparede",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.5828777,
+    "lng": -100.3776085,
+    "dist_predio_m": 1165,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Sierra de Tilaco 128, Santiago de Querétaro",
+    "types": [
+      "primary_school",
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJsaQa7StF04URrz8N2vCMQc8",
+    "name": "Dr Daniel Saldívar Garza",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5844187,
+    "lng": -100.3998887,
+    "dist_predio_m": 1180,
+    "rating": 4.4,
+    "user_ratings": 12,
+    "price_level": null,
+    "vicinity": "Calle Ignacio Zaragoza, Villas del Refugio, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJyYq6jytb04URr-mP8yZS56U",
+    "name": "Guía de turistas de la ciudad de Querétaro",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.592996,
+    "lng": -100.3896406,
+    "dist_predio_m": 1195,
+    "rating": 4.7,
+    "user_ratings": 30774,
+    "price_level": null,
+    "vicinity": "plaza de armas centro de la ciudad, Andador Libertad 62, Centro, Santiago de Querétaro",
+    "types": [
+      "tourist_attraction",
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJf2OsGj9F04URSSa7JgvsAGg",
+    "name": "Dr Jose Corona Aguilar",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5844064,
+    "lng": -100.4000413,
+    "dist_predio_m": 1196,
+    "rating": 4.1,
+    "user_ratings": 62,
+    "price_level": null,
+    "vicinity": "Calle Privada Ignacio Zaragoza 16, Villas del Refugio, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJDZ9EJS1b04URmp6ln14PTHI",
+    "name": "Dr Juan Jose Gomez Gomez",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.58431209999999,
+    "lng": -100.400114,
+    "dist_predio_m": 1201,
+    "rating": 5,
+    "user_ratings": 5,
+    "price_level": null,
+    "vicinity": "Hospital H+ Consultorio 904 en, Calle Privada Ignacio Zaragoza 16, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ4ye0WC1b04UR_72qgn2IE9g",
+    "name": "Preescolar Enrique Pestalozzi",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.592297,
+    "lng": -100.384114,
+    "dist_predio_m": 1216,
+    "rating": 4.3,
+    "user_ratings": 3,
+    "price_level": null,
+    "vicinity": "Calle Manuel Acuña 1, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJN0eiZl5b04URsFxJMzan7_Y",
+    "name": "Plaza del arbolito",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.5920156,
+    "lng": -100.3941636,
+    "dist_predio_m": 1219,
+    "rating": 3.7,
+    "user_ratings": 3,
+    "price_level": null,
+    "vicinity": "Jardín De Santa Clara, Calle Francisco I. Madero 42, Centro, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJq-UvmS1b04URBfxekvYNrmE",
+    "name": "Plaza de Los Fundadores",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.5928118,
+    "lng": -100.3847804,
+    "dist_predio_m": 1243,
+    "rating": 4.6,
+    "user_ratings": 8566,
+    "price_level": null,
+    "vicinity": "Prolongacion Independencia Sur n, Centro, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJbYVnTCpb04URgq_xOaioU60",
+    "name": "Jardín Zenea",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.5930315,
+    "lng": -100.3921082,
+    "dist_predio_m": 1245,
+    "rating": 4.6,
+    "user_ratings": 37179,
+    "price_level": null,
+    "vicinity": "Calle 16 de Septiembre 8-24, Centro, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJLbuwdD5F04URW7S23WC0-nA",
+    "name": "Natalis Querétaro Ultrasonidos en el Embarazo",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5841702,
+    "lng": -100.4006564,
+    "dist_predio_m": 1254,
+    "rating": 4.1,
+    "user_ratings": 18,
+    "price_level": null,
+    "vicinity": "Planta Baja, Hospital TEC, Calle Privada Ignacio Zaragoza 100-Torre 3, Centro, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJD4Z039Ra04URansF2yrJFUc",
+    "name": "Clínica del Pie",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5899496,
+    "lng": -100.3976297,
+    "dist_predio_m": 1255,
+    "rating": 1,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Calle Ezequiel Montes 8, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJNfEugtVa04UR7bX2gSAcLlc",
+    "name": "Jardín Guerrero",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.5920124,
+    "lng": -100.3950388,
+    "dist_predio_m": 1263,
+    "rating": 4.7,
+    "user_ratings": 21310,
+    "price_level": null,
+    "vicinity": "Calle Vicente Guerrero 3, Centro, Santiago de Querétaro",
+    "types": [
+      "tourist_attraction",
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJYyPONN9E04UR7uc8Lgz4mds",
+    "name": "Tortillería La Oriental",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.5712729,
+    "lng": -100.39311,
+    "dist_predio_m": 1304,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Calle 25 404, Santiago de Querétaro",
+    "types": [
+      "secondary_school",
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ8W54WWBb04URogF-UQXelGI",
+    "name": "Evento AcarrsTx",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.5905484,
+    "lng": -100.3977091,
+    "dist_predio_m": 1307,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Calle Ezequiel Montes, Centro, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJzVij7mpb04URG_l05zdvYDs",
+    "name": "Centro",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.5923214,
+    "lng": -100.3953552,
+    "dist_predio_m": 1310,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Calle Vicente Guerrero Norte 11, Centro, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJGcKtz0tF04URo6ccci0R_CA",
+    "name": "Preparatoria CU.SVA",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.5886815,
+    "lng": -100.3995963,
+    "dist_predio_m": 1332,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Calle José María Pino Suárez 106, Centro, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJcRKL5tRa04UR1AukeovmQ-Y",
+    "name": "Burgueño Dental Center",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.59043999999999,
+    "lng": -100.3982114,
+    "dist_predio_m": 1337,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "76000, Calle Francisco I. Madero 102, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ45Ca6dRa04URIGef3kWHX_0",
+    "name": "Instituto De Hermanas Catequistas de Maria Santisima",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.5905463,
+    "lng": -100.3987925,
+    "dist_predio_m": 1390,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Calle Francisco I. Madero 120, Centro, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ-dct8tVa04URN3oDSaUgUY8",
+    "name": "Jada Contadores Publicos Sc",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5935356,
+    "lng": -100.3951639,
+    "dist_predio_m": 1417,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Hidalgo 29, Centro, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJR7VN1i5b04URYO9FWYc0Ibc",
+    "name": "Instituto ISCCA",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.595447,
+    "lng": -100.387832,
+    "dist_predio_m": 1468,
+    "rating": 4.5,
+    "user_ratings": 33,
+    "price_level": null,
+    "vicinity": "Calle Ignacio Manuel Altamirano Norte 22-B, Centro Histórico, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJn_bZwNVa04URYvaVXMGOGNE",
+    "name": "J.N. Federico Froebel",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.59342699999999,
+    "lng": -100.396385,
+    "dist_predio_m": 1471,
+    "rating": 5,
+    "user_ratings": 3,
+    "price_level": null,
+    "vicinity": "Hidalgo Poniente 48, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJn_bZwNVa04URGssMp4Vdlbk",
+    "name": "Primaria Josefa Ortiz De Dominguez",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.5934872,
+    "lng": -100.3963826,
+    "dist_predio_m": 1476,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Poniente, Hidalgo 48, Centro, Santiago de Querétaro",
+    "types": [
+      "primary_school",
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJKcfHyCxF04URHhaPsoWE3Ck",
+    "name": "G.V. Scuba",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.58798549999999,
+    "lng": -100.4018771,
+    "dist_predio_m": 1504,
+    "rating": 5,
+    "user_ratings": 9,
+    "price_level": null,
+    "vicinity": "Sostenes Rocha 38, Centro, Santiago de Querétaro",
+    "types": [
+      "travel_agency",
+      "school",
+      "store",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ7TmgKCtb04URpYH9hZ--MOk",
+    "name": "Instituto 5 De Mayo A.C.",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.59581949999999,
+    "lng": -100.3900314,
+    "dist_predio_m": 1512,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Próspero C. Vega 17, Centro, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJuYuOedRa04URjjjflbfDodY",
+    "name": "Rivera Solorio Eliseo",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.592136,
+    "lng": -100.400006,
+    "dist_predio_m": 1602,
+    "rating": 4.7,
+    "user_ratings": 13,
+    "price_level": null,
+    "vicinity": "Hidalgo 103, Centro, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJS1HhVShb04URy5e1Ul5-qsc",
+    "name": "Dientes & Co - Av Universidad",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5980171,
+    "lng": -100.3919399,
+    "dist_predio_m": 1781,
+    "rating": 4.6,
+    "user_ratings": 49,
+    "price_level": null,
+    "vicinity": "interior 55, Avenida Universidad 50-Oriente, Universidad, Santiago de Querétaro",
+    "types": [
+      "dentist",
+      "doctor",
+      "health",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJx4gdmTFb04URlGItvGEocKc",
+    "name": "Alcocer Alcocer Manuel Dr",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5969208,
+    "lng": -100.3811589,
+    "dist_predio_m": 1812,
+    "rating": 1,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Avenida Circunvalación 6, Centro, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJyVK-udNa04UR5DYHcUPphbI",
+    "name": "Ultrasonido Diagnóstico Y Rayos X",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5926306,
+    "lng": -100.4023763,
+    "dist_predio_m": 1824,
+    "rating": 4.4,
+    "user_ratings": 12,
+    "price_level": null,
+    "vicinity": "Calle José Ma. Morelos 172, Centro, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJwW5SVWxb04URDFsQCthyut0",
+    "name": "AB FÉNIX INSTITUTO",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.5924374,
+    "lng": -100.4028921,
+    "dist_predio_m": 1853,
+    "rating": 4.9,
+    "user_ratings": 7,
+    "price_level": null,
+    "vicinity": "Calle José Ma. Morelos 196, Centro, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJmc25PShb04URoqXYdcti_60",
+    "name": "Osornio Nuñez Abraham",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5992826,
+    "lng": -100.3935286,
+    "dist_predio_m": 1954,
+    "rating": 5,
+    "user_ratings": 3,
+    "price_level": null,
+    "vicinity": "Calle Corregidora 274, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJs7cMZihb04URKoeeEQ1i5WE",
+    "name": "Primaria Colegio Latinoamericano",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.5996858,
+    "lng": -100.3925021,
+    "dist_predio_m": 1974,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Calle Otoño 18, Santiago de Querétaro",
+    "types": [
+      "primary_school",
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJh_9nAjFb04URvDnPG25TLw8",
+    "name": "Grupo Médico Arista",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5987735,
+    "lng": -100.380947,
+    "dist_predio_m": 2008,
+    "rating": 4.8,
+    "user_ratings": 5,
+    "price_level": null,
+    "vicinity": "Calle el Sol 9, San Javier, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJvUHrOtFa04URXpG7Ef8gqA8",
+    "name": "Liceo Corregidora",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.5966015,
+    "lng": -100.4011247,
+    "dist_predio_m": 2046,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Avenida Universidad 172, El Retablo, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJPzIcmkpb04URc8FnwnCAvEQ",
+    "name": "Parque Monjes",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.5923324,
+    "lng": -100.372086,
+    "dist_predio_m": 2067,
+    "rating": 4.4,
+    "user_ratings": 11,
+    "price_level": null,
+    "vicinity": "Parque Monjes, Carretas, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJj0OXodda04UR94u48A5CFCY",
+    "name": "Inforware SA de CV",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.5993122,
+    "lng": -100.3970452,
+    "dist_predio_m": 2080,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Calle Cuauhtémoc 11, Centro, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJGxv2TNda04URz1JODNVoG8U",
+    "name": "NUTRIÓLOGA CAROLINA HARZBECHER",
+    "categoria": "equipamiento",
+    "subcat": "salud",
+    "lat": 20.5993011,
+    "lng": -100.4002515,
+    "dist_predio_m": 2238,
+    "rating": 4.8,
+    "user_ratings": 31,
+    "price_level": null,
+    "vicinity": "Estío 44, Las Rosas, Santiago de Querétaro",
+    "types": [
+      "doctor",
+      "health",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJk1horSVb04URnU5xoC2Lq3s",
+    "name": "Esc. Prim. República Federal Y Del Senado",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.60486939999999,
+    "lng": -100.3869959,
+    "dist_predio_m": 2519,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Marte, Las Hadas, Santiago de Querétaro",
+    "types": [
+      "primary_school",
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJG5kjF-RE04UR1sn1xvIqqcw",
+    "name": "Grupo RENUEVAME 4 y 5.",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.55898909999999,
+    "lng": -100.3879727,
+    "dist_predio_m": 2591,
+    "rating": 5,
+    "user_ratings": 2,
+    "price_level": null,
+    "vicinity": "Rebozo 117, Arte Mexicano, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ4zdkFcVa04URj56P_c61JX8",
+    "name": "Parque Alcanfores Norte",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.6022462,
+    "lng": -100.4046944,
+    "dist_predio_m": 2770,
+    "rating": 4.3,
+    "user_ratings": 2229,
+    "price_level": null,
+    "vicinity": "Gustavo Adolfo Bécquer, Parque los Alcanfores Sección Norte, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJqVGEgiNb04URbfJ9u-jud6w",
+    "name": "Patinerama",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.6076604,
+    "lng": -100.386318,
+    "dist_predio_m": 2834,
+    "rating": 4.5,
+    "user_ratings": 1317,
+    "price_level": null,
+    "vicinity": "Avenida Corregidora Norte, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJz3UtjCBb04URrmTw60FtygA",
+    "name": "Instituto Luca Paciolli, S.C.",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.6089594,
+    "lng": -100.3935266,
+    "dist_predio_m": 3008,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Calle del Porvenir 76, Santiago de Querétaro",
+    "types": [
+      "primary_school",
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJvbdf-sFa04URREkVm6O45yc",
+    "name": "Áreas Verdes Sintéticas",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.6112469,
+    "lng": -100.4092173,
+    "dist_predio_m": 3860,
+    "rating": 4,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Privada de Camino Real, Prolongación Tecnológico, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJO6g0Suha04URkUpIGfmi2iA",
+    "name": "PrepaTec",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.6132495,
+    "lng": -100.4084401,
+    "dist_predio_m": 4006,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Epigmenio González 500, San Pablo, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJdw1NReJa04URfuom-DEXIgs",
+    "name": "Departamento Deporte Adaptado, INDEREQ",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.6180075,
+    "lng": -100.3938884,
+    "dist_predio_m": 4009,
+    "rating": 4.5,
+    "user_ratings": 8351,
+    "price_level": null,
+    "vicinity": "Prolongación Bernardo Quintana 75, Villas del Parque, Santiago de Querétaro",
+    "types": [
+      "park",
+      "gym",
+      "point_of_interest",
+      "health"
+    ]
+  },
+  {
+    "place_id": "ChIJS1gwVeta04URtMzQw-NGKRk",
+    "name": "Colegio Gran Bretaña",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.6130295,
+    "lng": -100.4117251,
+    "dist_predio_m": 4171,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "San Joaquín 5, San Pablo, Santiago de Querétaro",
+    "types": [
+      "primary_school",
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJJ0n9P-Ra04UR90B_GKKU4bk",
+    "name": "Universidad Internacional de Querétaro UNIQ",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.619288,
+    "lng": -100.4014091,
+    "dist_predio_m": 4320,
+    "rating": 4.2,
+    "user_ratings": 61,
+    "price_level": null,
+    "vicinity": "Avenida Peñuelas 20, San Pedrito Peñuelas I, Santiago de Querétaro",
+    "types": [
+      "university",
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJlQrRQs5E04UR1l-p51YFQaY",
+    "name": "Usebeq Mis Primero Pasos",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.615321,
+    "lng": -100.412617,
+    "dist_predio_m": 4433,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Calle 1 Privada Corregidora #22, San Pablo, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJay-wieVa04URu-WvvxVXwas",
+    "name": "Plaza Alamilla",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.6199614,
+    "lng": -100.4052054,
+    "dist_predio_m": 4526,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Calle Rio Culiacan, Desarrollo San Pablo, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJO2lddNRE04URJczRnMvC8eo",
+    "name": "FotoQuerétaro",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.6228721,
+    "lng": -100.3926394,
+    "dist_predio_m": 4532,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "José María Truchuelo 10, Constituyentes, Santiago de Querétaro",
+    "types": [
+      "university",
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ_____9Ra04URPK6ZIHNqpQU",
+    "name": "CZ 05 Centro INEA",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.6211335,
+    "lng": -100.4059154,
+    "dist_predio_m": 4674,
+    "rating": 3.9,
+    "user_ratings": 22,
+    "price_level": null,
+    "vicinity": "Avenida Pie de la Cuesta 413, Desarrollo San Pablo, Santiago de Querétaro",
+    "types": [
+      "secondary_school",
+      "primary_school",
+      "school",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJGcFZseJa04URlBjYXDchG7I",
+    "name": "Centro Educativo Madai Maternal, Preescolar y Primaria",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.62382149999999,
+    "lng": -100.3956965,
+    "dist_predio_m": 4675,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Avenida Paseo de la Constitución 90, El Parque, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJrx6yLf1a04URVzI6eMfh0No",
+    "name": "Colegio Arte, Cultura Y Espíritu",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.6239593,
+    "lng": -100.3974442,
+    "dist_predio_m": 4722,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Avenida Paseo de la Constitución 143, Oriente, Santiago de Querétaro",
+    "types": [
+      "primary_school",
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ57ydY_ta04URozzyYyQljjU",
+    "name": "Escuela Primaria y Preescolar Evergreen",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.6259467,
+    "lng": -100.4002748,
+    "dist_predio_m": 5001,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Avenida Paseo de la Constitución 412, San Pedrito Peñuelas I, Santiago de Querétaro",
+    "types": [
+      "primary_school",
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJG3LQ6PBa04URekXjJ41G2Q8",
+    "name": "Municipio de Querétaro",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.6278896,
+    "lng": -100.4086684,
+    "dist_predio_m": 5478,
+    "rating": 4.4,
+    "user_ratings": 794,
+    "price_level": null,
+    "vicinity": "Tlaloc, Acceso 62 a 31, Desarrollo San Pablo, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJyWhzCbpb04UR_DQAhXqckLQ",
+    "name": "Parque San Pablo I",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.6300396,
+    "lng": -100.4041786,
+    "dist_predio_m": 5548,
+    "rating": 3.9,
+    "user_ratings": 7,
+    "price_level": null,
+    "vicinity": "Amalia Solorzano, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJI7pt0vBa04URXmZEDOmZln4",
+    "name": "Placebo de Dan López",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.6290481,
+    "lng": -100.4081039,
+    "dist_predio_m": 5576,
+    "rating": 5,
+    "user_ratings": 3,
+    "price_level": null,
+    "vicinity": "San Pablo II, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJkzUOK41a04URcaj3QhO2TvU",
+    "name": "Colegio Alma Reed",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.6256064,
+    "lng": -100.4172465,
+    "dist_predio_m": 5656,
+    "rating": 5,
+    "user_ratings": 9,
+    "price_level": null,
+    "vicinity": "Prolongación Ometecutli 202, Movimiento Obrero, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJsca_qSJb04URV5Z0mpZgD2c",
+    "name": "Ens Universalis Desarrollo Integral S.C.",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.6299808,
+    "lng": -100.4106334,
+    "dist_predio_m": 5771,
+    "rating": 5,
+    "user_ratings": 3,
+    "price_level": null,
+    "vicinity": "Avenida Paseo de la Constitución 1043, Cipreses, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJcfyRmfVa04URS2hkhtvyKhc",
+    "name": "Colegio Mano Amiga Querétaro",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.6293512,
+    "lng": -100.412664,
+    "dist_predio_m": 5795,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Avenida Cerro Sombrerete 1100, San Pablo, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJF20YspVb04URAvQVVAsQ4t4",
+    "name": "Parque Amanecer",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.6296022,
+    "lng": -100.413802,
+    "dist_predio_m": 5871,
+    "rating": 5,
+    "user_ratings": 4,
+    "price_level": null,
+    "vicinity": "Sin nombre No. 874 MZ5LT38, Altos de San Pablo, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJS3vGDoxb04URR5NDOiunE8A",
+    "name": "Loba Park",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.6297212,
+    "lng": -100.4135866,
+    "dist_predio_m": 5873,
+    "rating": 4,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Manzana 5 #40, Altos de San Pablo, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ37e57jtb04URB2yhqVLb_3c",
+    "name": "canchas",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.6296003,
+    "lng": -100.4144943,
+    "dist_predio_m": 5904,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Altos de San Pablo, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJey_N9vha04URkIi8o2ZCLSM",
+    "name": "CENDI Izcalotl",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.6341046,
+    "lng": -100.4030397,
+    "dist_predio_m": 5951,
+    "rating": 3.8,
+    "user_ratings": 48,
+    "price_level": null,
+    "vicinity": "Avenida Prolongación Cuauhtémoc Num. 997, Desarrollo San Pablo, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ2ehevURb04URpYLec137h2E",
+    "name": "Santa Maria Magdalena",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.6358033,
+    "lng": -100.4042516,
+    "dist_predio_m": 6166,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Circuito Unidad Cívica 128-120, Anexo a la Ecología, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJZWrsAGNb04URF2DHEG6wIWc",
+    "name": "Parque Nuevo Horizonte",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.6357595,
+    "lng": -100.4062728,
+    "dist_predio_m": 6219,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Aurora 15, Nuevo Horizonte, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ27YUCkpb04UR8JbQEinXkVs",
+    "name": "Parque y ejercicios Aurora",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.6358356,
+    "lng": -100.4063089,
+    "dist_predio_m": 6229,
+    "rating": 3.5,
+    "user_ratings": 11,
+    "price_level": null,
+    "vicinity": "Aurora 101, Nuevo Horizonte, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJZ9oFTgBb04URQ3vCQVkIUxU",
+    "name": "Parque alberquitas",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.6360503,
+    "lng": -100.4063728,
+    "dist_predio_m": 6253,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Aurora 15, Nuevo Horizonte, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ8ZdMwkNb04UR22NS2N9HCiU",
+    "name": "Parque Unidad Cívica",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.6369653,
+    "lng": -100.4036477,
+    "dist_predio_m": 6275,
+    "rating": 4.3,
+    "user_ratings": 10,
+    "price_level": null,
+    "vicinity": "Avenida Prolongación Cuauhtémoc 439, Anexo a la Ecología, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJcXynDQBb04URAdvMC24A6cM",
+    "name": "Parque Balcon Cipres",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.6339653,
+    "lng": -100.4130965,
+    "dist_predio_m": 6280,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Balcones de San Pablo, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJob_vGVha04URpNndgQ2bkyI",
+    "name": "Preparatoria IQH",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.6363768,
+    "lng": -100.407008,
+    "dist_predio_m": 6308,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "76160, Calle 1 109, Nuevo Horizonte, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ88YPy1Va04URLsJp1eI3SD4",
+    "name": "colegio educación y patria (preparatoria y secundaria)",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.638539,
+    "lng": -100.399151,
+    "dist_predio_m": 6349,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Calle Cocineras 63, San Pedrito Peñuelas I, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJAQBAAVda04URBicV8CMblPc",
+    "name": "Jardinera",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.6387004,
+    "lng": -100.4034003,
+    "dist_predio_m": 6456,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Condominio Aristoteles 2061, Anexo a la Ecología, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJv--IeFda04UR1KsOQdR7zH4",
+    "name": "CETis 16",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.6386811,
+    "lng": -100.4056776,
+    "dist_predio_m": 6514,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Avenida Pie de la Cuesta 1048, Anexo a la Ecología, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJiW7dFQBb04URAGVyi3mXth4",
+    "name": "Parque Balcones de San Pablo",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.6361761,
+    "lng": -100.4134955,
+    "dist_predio_m": 6522,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Balcones de San Pablo, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ___P41la04URRCn57jVIdF4",
+    "name": "Jardineras",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.6401428,
+    "lng": -100.406165,
+    "dist_predio_m": 6684,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Pie de La Cuesta 1709, Los Robles, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJU2uNQ0Jb04UR2yUjpJcKKj8",
+    "name": "Parque Misión Bucareli",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.6393767,
+    "lng": -100.4127082,
+    "dist_predio_m": 6820,
+    "rating": 4.4,
+    "user_ratings": 17,
+    "price_level": null,
+    "vicinity": "Media Luna, Misión Bucareli Sur, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJH_v_m_xa04URnhFVYuOypak",
+    "name": "Escuela Secundaria Evergreen",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.64184389999999,
+    "lng": -100.4080741,
+    "dist_predio_m": 6921,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Boulevard de la Nación 180, Misión Bucareli Norte, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJl9FKGy1b04URBdfllTbfCqQ",
+    "name": "Requerida por la asociación",
+    "categoria": "equipamiento",
+    "subcat": "parque",
+    "lat": 20.6414723,
+    "lng": -100.4098436,
+    "dist_predio_m": 6938,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Boulevard de la Nación 331, Jardines de la Alborada, Santiago de Querétaro",
+    "types": [
+      "park",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ3cBIqE9a04URHMEfzxDWSLs",
+    "name": "Escuela Secundaria General Arqueles Vela",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.6497133,
+    "lng": -100.4036707,
+    "dist_predio_m": 7657,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Lagrimas Num. 701, Santiago De Queretaro, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ2WW-u8pE04URaZ89DyuGtyM",
+    "name": "CIQ Capacitacion Integral de Queretaro",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.6509557,
+    "lng": -100.4045608,
+    "dist_predio_m": 7811,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Pie de la cuesta ·2301 A, Lomas de San Pedrito, Santiago de Querétaro",
+    "types": [
+      "secondary_school",
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJA0cs9VBa04URghcDCKkEyTM",
+    "name": "COBAQ Plantel 17 Constitución de 1917",
+    "categoria": "equipamiento",
+    "subcat": "educacion",
+    "lat": 20.6480097,
+    "lng": -100.4163617,
+    "dist_predio_m": 7853,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Avenida Cerro Sombrerete s/n, El Vergel, Santiago de Querétaro",
+    "types": [
+      "school",
+      "point_of_interest",
+      "establishment"
+    ]
+  }
+]

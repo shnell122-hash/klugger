@@ -1,6 +1,5 @@
 import { api, type BankingAccount, type EmpresaCuentaFull } from '@/lib/api';
 
-export const dynamic = 'force-dynamic';
 
 function maskClabe(s: string | null) {
   if (!s) return null;

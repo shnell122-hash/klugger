@@ -1,0 +1,103 @@
+/* Klugger — Design tokens (paleta definitiva)
+ * Fuente de verdad: estudios_mercado/paleta-definitiva.md + R2 brand/paleta-definitiva.png
+ * Oficiales del brandbook = intocables. Paleta mundo/arte = del hero CDMX v1.
+ * Uso: importar en app/globals.css (`@import "./styles/tokens.css";`) al construir la Ola 0.
+ * Temas por [data-theme]: valuacion (dark) · dev (toggle) · consumer (light).
+ */
+
+/* ---- Tipografía de marca ---- */
+@font-face {
+  font-family: "Nexa Black";
+  src: url("/fonts/nexa-black.ttf") format("truetype");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* ---- Tipografía (display = Nexa Black; body = Open Sans) ---- */
+  --k-font-display: "Nexa Black", "Montserrat", system-ui, sans-serif;
+  --k-font-body: "Open Sans", system-ui, -apple-system, sans-serif;
+
+  /* ---- Primitivos oficiales de marca (NO tocar) ---- */
+  --k-green-1: #2ED666;   /* primario */
+  --k-green-2: #29BF5C;   /* secundario */
+  --k-gray:    #3B3B3B;   /* texto/neutro */
+  /* Azul de marca: --k-blue = activo. Variantes A–D disponibles para elegir. */
+  --k-blue-a:  #2E9BD6;   /* A · medio equilibrado (activo por defecto) */
+  --k-blue-b:  #1E9FE0;   /* B · brillante cyan-cielo (tech) */
+  --k-blue-c:  #29C1D6;   /* C · turquesa/cian (distintivo) */
+  --k-blue-d:  #1E6FB5;   /* D · profundo confianza (banca/datos) */
+  --k-blue:    var(--k-blue-a);  /* ← cambiar aquí para intercambiar el azul activo */
+  --k-light:   #F4F6F5;   /* fondo claro */
+  --k-gradient: linear-gradient(90deg, var(--k-green-2), var(--k-blue));
+
+  /* ---- Primitivos de mundo/arte (hero CDMX v1) ---- */
+  --k-art-earth:   #DCCAB4;
+  --k-art-stone:   #918771;
+  --k-art-grass:   #B4D94B;
+  --k-art-sky:     #7CD6FF;
+  --k-art-forest:  #335E2C;
+  --k-art-slate:   #566757;
+  --k-art-cream:   #FAF0DA;
+  --k-art-ink:     #343631;
+  --k-art-water:   #57C6E8;
+  --k-art-sand:    #C9B496;
+
+  /* ---- Motion (Emil Kowalski — ux-research/04) ---- */
+  --ease-out:    cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-quick: 100ms; --dur-hover: 150ms; --dur-base: 250ms; --dur-slow: 350ms;
+  /* ---- Forma ---- */
+  --radius-sm: 8px; --radius: 12px; --radius-lg: 20px;
+  --shadow-1: 0 1px 2px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.05);
+  --shadow-2: 0 10px 34px rgba(0,0,0,.12);
+}
+/* NOTA: los semánticos (--bg/--surface/--text/…) NO se definen en :root para no
+   pisar el dashboard financiero; solo viven dentro de [data-theme]. El scope Klugger
+   (ruta /style, futura plataforma) siempre lleva data-theme. */
+
+/* Valuaciones — dark fijo (dashboard analítico/funcional) */
+[data-theme="valuacion"] {
+  --bg:        #14181B;
+  --surface:   #1C2226;
+  --text:      #E6ECEA;
+  --text-muted:#93A19B;
+  --border:    #2A3237;
+  --accent:    var(--k-green-1);
+  --accent-2:  var(--k-green-2);
+  --link:      var(--k-blue);
+}
+
+/* Desarrolladores — base dark del toggle día/noche */
+[data-theme="dev"] {
+  --bg:        #14181B;
+  --surface:   #1C2226;
+  --text:      #E6ECEA;
+  --text-muted:#93A19B;
+  --border:    #2A3237;
+  --accent:    var(--k-green-1);
+  --accent-2:  var(--k-blue);
+  --link:      var(--k-blue);
+}
+/* dev en modo día */
+[data-theme="dev"][data-mode="light"] {
+  --bg:        var(--k-light);
+  --surface:   #FFFFFF;
+  --text:      var(--k-gray);
+  --text-muted:#6B7A72;
+  --border:    #E2E7E4;
+}
+
+/* Personas físicas — light/amigable (== default, explícito por claridad) */
+[data-theme="consumer"] {
+  --bg:        var(--k-light);
+  --surface:   #FFFFFF;
+  --text:      var(--k-gray);
+  --text-muted:#6B7A72;
+  --border:    #E2E7E4;
+  --accent:    var(--k-green-1);
+  --accent-2:  var(--k-green-2);
+  --link:      var(--k-blue);
+}

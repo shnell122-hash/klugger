@@ -1,7 +1,6 @@
 import { api } from '@/lib/api';
 import ScoresClient from './ScoresClient';
 
-export const dynamic = 'force-dynamic';
 
 export default async function ScoresPage() {
   let data = null;

@@ -1,7 +1,6 @@
 import { api } from '@/lib/api';
 import ComisionistasClient from './ComisionistasClient';
 
-export const dynamic = 'force-dynamic';
 
 export default async function ComisionistasPage() {
   let comisionistas: import('@/lib/api').Comisionista[] = [], opTypes: import('@/lib/api').OperationType[] = [];

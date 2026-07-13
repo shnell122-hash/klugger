@@ -1,0 +1,114 @@
+{
+  "generated_at_note": "sin timestamp en los cálculos (determinismo); ver este campo solo como metadato de ejecución",
+  "n_comps_input": 1418,
+  "n_comps_valid": 1418,
+  "n_comps_discarded_invalid": 0,
+  "poi_discarded_outlier": {
+    "anclas": {
+      "n_in": 312,
+      "n_kept": 312,
+      "discarded_far": 0,
+      "discarded_null": 0
+    },
+    "competencia": {
+      "n_in": 54,
+      "n_kept": 41,
+      "discarded_far": 13,
+      "discarded_null": 0
+    },
+    "consumo": {
+      "n_in": 163,
+      "n_kept": 163,
+      "discarded_far": 0,
+      "discarded_null": 0
+    },
+    "equipamiento": {
+      "n_in": 127,
+      "n_kept": 127,
+      "discarded_far": 0,
+      "discarded_null": 0
+    },
+    "inversion": {
+      "n_in": 13,
+      "n_kept": 11,
+      "discarded_far": 0,
+      "discarded_null": 2
+    }
+  },
+  "growth_included": true,
+  "growth_amount_weighted": true,
+  "ppm_bands": {
+    "min": 314,
+    "p10": 3803,
+    "p25": 5557,
+    "mediana": 7693,
+    "p75": 9500,
+    "p90": 12668,
+    "p95": 15021,
+    "max": 108000
+  },
+  "predio_percentiles_por_lente": {
+    "desarrollador": 94.99,
+    "comprador": 93.02,
+    "inversionista": 93.72
+  },
+  "predio_score_por_lente": {
+    "desarrollador": 72.61,
+    "comprador": 72.75,
+    "inversionista": 74.42
+  },
+  "mejor_lente": "inversionista",
+  "top10_por_score": [
+    {
+      "link": "https://www.lamudi.com.mx/detalle/41032-73-35c61c853c3f-60fd-66efecc6-97c4-3af1",
+      "score": 87.97,
+      "rank": 1
+    },
+    {
+      "link": "https://www.lamudi.com.mx/detalle/41032-73-3bcce6df0ae6-5bcd-78db3eac-bc32-36be",
+      "score": 87.97,
+      "rank": 2
+    },
+    {
+      "link": "https://www.lamudi.com.mx/detalle/41032-73-63324ec84d88-666c-be09e20a-840d-3d21",
+      "score": 87.97,
+      "rank": 3
+    },
+    {
+      "link": "https://www.lamudi.com.mx/detalle/41032-73-6b46778d4765-6428-f666c90e-a16a-37c0",
+      "score": 87.97,
+      "rank": 4
+    },
+    {
+      "link": "https://www.lamudi.com.mx/detalle/41032-73-8e145e4e66ce-fadb-19a0c42-b30b-79b5",
+      "score": 87.97,
+      "rank": 5
+    },
+    {
+      "link": "https://www.lamudi.com.mx/detalle/41032-73-cc9b64b8fe10-c816-f7c3dc51-ba3c-379e",
+      "score": 87.85,
+      "rank": 6
+    },
+    {
+      "link": "https://www.lamudi.com.mx/detalle/41032-73-ff2c3ff2fa7b-2747-1967f90-a5c1-72fd",
+      "score": 87.85,
+      "rank": 7
+    },
+    {
+      "link": "https://www.lamudi.com.mx/detalle/41032-73-31bbcd58f1b3-5baa-19c556a-8aee-770c",
+      "score": 87.69,
+      "rank": 8
+    },
+    {
+      "link": "https://www.lamudi.com.mx/detalle/41032-73-2098810a4911-e787-19bb886-805c-7c39",
+      "score": 87.4,
+      "rank": 9
+    },
+    {
+      "link": "https://www.lamudi.com.mx/detalle/41032-73-2aba8b28fad7-aa31-1980b2c-ab5c-75d8",
+      "score": 86.97,
+      "rank": 10
+    }
+  ],
+  "n_threats": 4
+}

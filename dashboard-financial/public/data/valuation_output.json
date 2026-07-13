@@ -1,0 +1,179 @@
+{
+  "generated_at": "2026-06-23T01:42:47.159681Z",
+  "target": {
+    "m2": 660.0,
+    "asking_price": 7000000.0,
+    "asking_ppm": 10606.0,
+    "cus": 2.4,
+    "cos": 0.6,
+    "potential_units": 12,
+    "location": "Lic. Carlos Septien 53, Cimatario, Querétaro (CP 76030)"
+  },
+  "comps_stats": {
+    "n": 12,
+    "median_ppm": 7705.0,
+    "mean_ppm": 7167.0,
+    "min_ppm": 4200.0,
+    "max_ppm": 9167.0,
+    "lamudi_market_ppm": 6433.0
+  },
+  "models": {
+    "base_median": 5085448,
+    "adjusted_median": 7475608,
+    "base_mean": 4729990,
+    "adjusted_mean": 6953086,
+    "lamudi_base": 4245780,
+    "lamudi_adjusted": 6241297,
+    "potential_multiplier": 1.4,
+    "zone_premium": 1.05,
+    "formula": "precio = m2 * mediana_ppm * multiplier_CUS_dev * multiplier_zona",
+    "consensus_low": 6877560,
+    "consensus_high": 8073657
+  },
+  "price_vector": [
+    {
+      "price": 2550000.0,
+      "size_m2": 300.0,
+      "price_per_m2": 8500.0,
+      "title": "Terreno plano 300m2 fracc seguro",
+      "location": "Cumbres del Cimatario, Qro",
+      "link": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+      "notes": "Frente area verde, vigilancia 24h",
+      "implied_for_target": 5610000,
+      "delta_vs_asking": -1390000,
+      "pct_vs_asking": -19.9
+    },
+    {
+      "price": 1136500.0,
+      "size_m2": 234.0,
+      "price_per_m2": 4856.8376068376065,
+      "title": "Lote Club Golf El Encino 234m2",
+      "location": "Cumbres del Cimatario",
+      "link": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+      "notes": "24% bajo promedio",
+      "implied_for_target": 3205513,
+      "delta_vs_asking": -3794487,
+      "pct_vs_asking": -54.2
+    },
+    {
+      "price": 2750000.0,
+      "size_m2": 300.0,
+      "price_per_m2": 9166.666666666666,
+      "title": "Terreno 300m2 frente area verde",
+      "location": "Cumbres del Cimatario",
+      "link": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+      "notes": "Muy poca pendiente, amenidades fracc",
+      "implied_for_target": 6050000,
+      "delta_vs_asking": -950000,
+      "pct_vs_asking": -13.6
+    },
+    {
+      "price": 2550000.0,
+      "size_m2": 322.0,
+      "price_per_m2": 7919.2546583850935,
+      "title": "Excelente terreno La Biznaga 323m2",
+      "location": "Cumbres del Cimatario",
+      "link": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+      "notes": "Vista a ciudad y reserva",
+      "implied_for_target": 5226708,
+      "delta_vs_asking": -1773292,
+      "pct_vs_asking": -25.3
+    },
+    {
+      "price": 2650000.0,
+      "size_m2": 335.0,
+      "price_per_m2": 7910.44776119403,
+      "title": "Terreno 336m2 La Biznaga",
+      "location": "Cumbres del Cimatario",
+      "link": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+      "notes": "Hermosa vista, cerca Centro Sur",
+      "implied_for_target": 5220896,
+      "delta_vs_asking": -1779104,
+      "pct_vs_asking": -25.4
+    },
+    {
+      "price": 1200000.0,
+      "size_m2": 160.0,
+      "price_per_m2": 7500.0,
+      "title": "Lote Mayant Cimatario 160m2",
+      "location": "Cimatario / Huimilpan",
+      "link": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+      "notes": "Vistas caniada, seguridad 24/7",
+      "implied_for_target": 4950000,
+      "delta_vs_asking": -2050000,
+      "pct_vs_asking": -29.3
+    },
+    {
+      "price": 756000.0,
+      "size_m2": 180.0,
+      "price_per_m2": 4200.0,
+      "title": "Oportunidad El Encino 180m2",
+      "location": "Cumbres del Cimatario",
+      "link": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+      "notes": "34% bajo promedio",
+      "implied_for_target": 2772000,
+      "delta_vs_asking": -4228000,
+      "pct_vs_asking": -60.4
+    },
+    {
+      "price": 1350000.0,
+      "size_m2": 300.0,
+      "price_per_m2": 4500.0,
+      "title": "Lote 300m2 Villas del Sur",
+      "location": "Villas del Sur (cerca Cimatario)",
+      "link": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+      "notes": "Zona habitacional/parque",
+      "implied_for_target": 2970000,
+      "delta_vs_asking": -4030000,
+      "pct_vs_asking": -57.6
+    },
+    {
+      "price": 2600000.0,
+      "size_m2": 285.0,
+      "price_per_m2": 9122.807017543859,
+      "title": "Terreno habitacional 285m2 Villas del Sur",
+      "location": "Villas del Sur, Qro",
+      "link": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+      "notes": "Centrico cerca Alameda",
+      "implied_for_target": 6021053,
+      "delta_vs_asking": -978947,
+      "pct_vs_asking": -14.0
+    },
+    {
+      "price": 2225000.0,
+      "size_m2": 250.0,
+      "price_per_m2": 8900.0,
+      "title": "Terreno Mallorca 250m2 frente Parque Cimatario",
+      "location": "Mallorca Residence, Cimatario",
+      "link": "https://www.inmuebles24.com/terrenos-en-venta-en-cimatario.html",
+      "notes": "Amenidades, 20min centro",
+      "implied_for_target": 5874000,
+      "delta_vs_asking": -1126000,
+      "pct_vs_asking": -16.1
+    },
+    {
+      "price": 3200000.0,
+      "size_m2": 500.0,
+      "price_per_m2": 6400.0,
+      "title": "Lote plusvalia 500m2 zona crecimiento",
+      "location": "Cimatario area",
+      "link": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+      "notes": "Potencial desarrollo",
+      "implied_for_target": 4224000,
+      "delta_vs_asking": -2776000,
+      "pct_vs_asking": -39.7
+    },
+    {
+      "price": 2950000.0,
+      "size_m2": 420.0,
+      "price_per_m2": 7023.809523809524,
+      "title": "Terreno 420m2 Cimatario consolidado",
+      "location": "Cimatario, Qro",
+      "link": "https://www.inmuebles24.com/terrenos-en-venta-en-cimatario.html",
+      "notes": "Alta plusvalia",
+      "implied_for_target": 4635714,
+      "delta_vs_asking": -2364286,
+      "pct_vs_asking": -33.8
+    }
+  ]
+}

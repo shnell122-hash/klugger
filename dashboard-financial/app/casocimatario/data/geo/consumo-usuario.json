@@ -1,0 +1,3022 @@
+[
+  {
+    "place_id": "ChIJL_8L5NNE04UR7FSa4odoZVI",
+    "name": "Forever Fit",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.583804,
+    "lng": -100.3881956,
+    "dist_predio_m": 181,
+    "rating": 4.7,
+    "user_ratings": 51,
+    "price_level": null,
+    "vicinity": "Prolongación Corregidora Sur 18, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJhXx8JoNF04URfWj6bG8KKK4",
+    "name": "Workplace by Vattax",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.5792807,
+    "lng": -100.3893087,
+    "dist_predio_m": 338,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "zona dos extendida, Cimatario, 76030 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJsytbntNE04URbfu_cpGVCt4",
+    "name": "Hotel Mirabel Querétaro",
+    "categoria": "consumo",
+    "subcat": "restaurante",
+    "lat": 20.58573359999999,
+    "lng": -100.3883479,
+    "dist_predio_m": 387,
+    "rating": 4.4,
+    "user_ratings": 4762,
+    "price_level": null,
+    "vicinity": "Avenida Constituyentes 2-Oriente, Centro, Santiago de Querétaro",
+    "types": [
+      "lodging",
+      "restaurant",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJs8bPDY5F04URCiFPdvYmM_Y",
+    "name": "JOSEGE | café ¿de especialidad?",
+    "categoria": "consumo",
+    "subcat": "cafe_especialidad",
+    "lat": 20.5838775,
+    "lng": -100.392849,
+    "dist_predio_m": 459,
+    "rating": 4.9,
+    "user_ratings": 113,
+    "price_level": null,
+    "vicinity": "C. Motolinia 12a, Cimatario, 76030 Santiago de Querétaro, Qro., México",
+    "types": [
+      "cafe",
+      "establishment",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ_6VywtVE04URSfEY9jMgIn0",
+    "name": "Wingstop Constituyentes Querétaro",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.5842324,
+    "lng": -100.3930335,
+    "dist_predio_m": 493,
+    "rating": 3.8,
+    "user_ratings": 1200,
+    "price_level": 2,
+    "vicinity": "Avenida Constituyentes 57, Cimatario, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "restaurant",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJe-pCZNBE04URMxgZ3KhVc6E",
+    "name": "BAR LA ROCA",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.5786819,
+    "lng": -100.3857269,
+    "dist_predio_m": 511,
+    "rating": 4.2,
+    "user_ratings": 788,
+    "price_level": 2,
+    "vicinity": "Prolongación Corregidora Sur 163, Valle Alameda, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "restaurant",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJC5VUg9RE04URg5pnxZNCs9g",
+    "name": "Hotel Amberes de Queretaro",
+    "categoria": "consumo",
+    "subcat": "restaurante",
+    "lat": 20.5869981,
+    "lng": -100.3893803,
+    "dist_predio_m": 529,
+    "rating": 4.2,
+    "user_ratings": 3720,
+    "price_level": null,
+    "vicinity": "Prolongación Corregidora Sur 188, Santiago de Querétaro",
+    "types": [
+      "lodging",
+      "restaurant",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ2Qt9WIJa04URiLPQCn2vciw",
+    "name": "Hotel Mercury Inn",
+    "categoria": "consumo",
+    "subcat": "restaurante",
+    "lat": 20.5770584,
+    "lng": -100.3884452,
+    "dist_predio_m": 581,
+    "rating": 4.6,
+    "user_ratings": 3931,
+    "price_level": null,
+    "vicinity": "Lateral de la, Autopista México - Querétaro 2105, Cimatario, Santiago de Querétaro",
+    "types": [
+      "lodging",
+      "restaurant",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJK1xU1tFE04URHN1ddZj8QSk",
+    "name": "Hotel Mirage",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.5807695,
+    "lng": -100.3832945,
+    "dist_predio_m": 595,
+    "rating": 4.5,
+    "user_ratings": 4881,
+    "price_level": null,
+    "vicinity": "Avenida Luis Pasteur Sur 277, Mercurio, Santiago de Querétaro",
+    "types": [
+      "lodging",
+      "bar",
+      "restaurant",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJhYz2jilF04UR0LNXAWdNlQA",
+    "name": "Pedra Bar",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.5824109,
+    "lng": -100.396575,
+    "dist_predio_m": 811,
+    "rating": 4.5,
+    "user_ratings": 71,
+    "price_level": null,
+    "vicinity": "Avenida Constituyentes 101, Casa Blanca, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ12xiyNJE04UR8quMoin3HsQ",
+    "name": "Rincón Colonial",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.5887848,
+    "lng": -100.3849888,
+    "dist_predio_m": 825,
+    "rating": 4.2,
+    "user_ratings": 416,
+    "price_level": 2,
+    "vicinity": "Calle de las Artes esquina, con Industria, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "restaurant",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJb-n51FJF04URuPmW7fdaKnU",
+    "name": "Regus Queretaro Constituyentes",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.5831785,
+    "lng": -100.3967329,
+    "dist_predio_m": 834,
+    "rating": 4.2,
+    "user_ratings": 107,
+    "price_level": null,
+    "vicinity": "Av. Constituyentes 120, El Carrizal, 76030 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest",
+      "real_estate_agency"
+    ]
+  },
+  {
+    "place_id": "ChIJE-AvmylF04URNwcyzF9qYQI",
+    "name": "Argentilia Querétaro",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.5820892,
+    "lng": -100.3970316,
+    "dist_predio_m": 859,
+    "rating": 4.6,
+    "user_ratings": 3919,
+    "price_level": 3,
+    "vicinity": "Avenida Constituyentes 59, Casa Blanca, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "restaurant",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJK5z1FNhE04URFHW6MwXNsho",
+    "name": "Aerocomidas",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.5759306,
+    "lng": -100.3935644,
+    "dist_predio_m": 863,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Crr Mex Queretaro 200, Casa Blanca, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "restaurant",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJSYMppc1E04URY3JXbcWb8dE",
+    "name": "Sanborns Querétaro La Victoria",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.5858628,
+    "lng": -100.38107,
+    "dist_predio_m": 897,
+    "rating": 4.2,
+    "user_ratings": 3288,
+    "price_level": null,
+    "vicinity": "Avenida Constituyentes, zona dos extendida, Mercurio, Santiago de Querétaro",
+    "types": [
+      "department_store",
+      "pharmacy",
+      "bakery",
+      "bar"
+    ]
+  },
+  {
+    "place_id": "ChIJX1kIUMxE04UR91QoLHmw30M",
+    "name": "Chili's La Victoria Querétaro",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.5853021,
+    "lng": -100.3806833,
+    "dist_predio_m": 908,
+    "rating": 4.1,
+    "user_ratings": 1658,
+    "price_level": 2,
+    "vicinity": "Avenida Constituyentes Oriente 40-A, Villas del Sol, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "restaurant",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ981xrHZb04UR0-wadSoxx-4",
+    "name": "El Apapacho BARRA | Café de Especialidad",
+    "categoria": "consumo",
+    "subcat": "cafe_especialidad",
+    "lat": 20.5911101,
+    "lng": -100.3880047,
+    "dist_predio_m": 986,
+    "rating": 4.9,
+    "user_ratings": 420,
+    "price_level": null,
+    "vicinity": "Av Reforma Ote 70, Centro, 76000 Santiago de Querétaro, Qro., México",
+    "types": [
+      "cafe",
+      "establishment",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJXXb9bVJb04URfqVmzcd3__A",
+    "name": "Works Coworking",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.5833165,
+    "lng": -100.3984822,
+    "dist_predio_m": 1016,
+    "rating": 4.7,
+    "user_ratings": 73,
+    "price_level": null,
+    "vicinity": "C. Ignacio Pérez sur #49, El Carrizal, 76030 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJE64uos5E04URdPI2M5AQQGY",
+    "name": "Gente Personal Training Center",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.5834663,
+    "lng": -100.3790334,
+    "dist_predio_m": 1024,
+    "rating": 4.5,
+    "user_ratings": 117,
+    "price_level": null,
+    "vicinity": "Sierra de Zimapán 20, Villas del Sol, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJvR86D8VE04URgV0I1qCu7gg",
+    "name": "Adragic Xpress",
+    "categoria": "consumo",
+    "subcat": "restaurante",
+    "lat": 20.5758801,
+    "lng": -100.3809996,
+    "dist_predio_m": 1078,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Paseo de los Enamorados 101_2, Balaustradas, Santiago de Querétaro",
+    "types": [
+      "cafe",
+      "meal_delivery",
+      "restaurant",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJSZBxnwZF04UR1sVJvVna7t8",
+    "name": "Espacios Ejecutivos Querétaro",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.5756368,
+    "lng": -100.3810001,
+    "dist_predio_m": 1096,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "P.º de los Enamorados 155-3, zona dos extendida, Balaustradas, 76079 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJPYNpvChF04UROOE5Kgmjhq0",
+    "name": "Fly Gym Academy",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.5778194,
+    "lng": -100.3984607,
+    "dist_predio_m": 1123,
+    "rating": 4.7,
+    "user_ratings": 81,
+    "price_level": null,
+    "vicinity": "Heriberto Allera 48, Casa Blanca, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJL2sCdNNa04URG3MgcPSFKhU",
+    "name": "Orbita CoWorks",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.5847851,
+    "lng": -100.3993246,
+    "dist_predio_m": 1132,
+    "rating": 4.6,
+    "user_ratings": 112,
+    "price_level": null,
+    "vicinity": "C. Ignacio Pérez Sur 28, El Carrizal, 76030 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest",
+      "store"
+    ]
+  },
+  {
+    "place_id": "ChIJ18T2CFaulIYRLzskM_p9XJY",
+    "name": "Hotel Hidalgo",
+    "categoria": "consumo",
+    "subcat": "restaurante",
+    "lat": 20.5921185,
+    "lng": -100.3925615,
+    "dist_predio_m": 1163,
+    "rating": 4.3,
+    "user_ratings": 2267,
+    "price_level": null,
+    "vicinity": "Calle Francisco I. Madero 11, Centro, Santiago de Querétaro",
+    "types": [
+      "lodging",
+      "restaurant",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJQzLuSClF04URe8rGvhpH7kY",
+    "name": "The Wings",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.5818376,
+    "lng": -100.4000718,
+    "dist_predio_m": 1176,
+    "rating": 4.5,
+    "user_ratings": 1913,
+    "price_level": 2,
+    "vicinity": "Avenida Tecnológico 134, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "restaurant",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJh-DdvzRb04URXb7czjrBrL0",
+    "name": "El Apapacho CASA TOSTADORA | •ventanita•",
+    "categoria": "consumo",
+    "subcat": "cafe_especialidad",
+    "lat": 20.5928658,
+    "lng": -100.3888211,
+    "dist_predio_m": 1178,
+    "rating": 5,
+    "user_ratings": 82,
+    "price_level": null,
+    "vicinity": "And. Libertad 47, Centro, 76000 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJL1Ll3Stb04URjoNHCFXjcrY",
+    "name": "Hotel Mesón de Santa Rosa",
+    "categoria": "consumo",
+    "subcat": "restaurante",
+    "lat": 20.5928746,
+    "lng": -100.3893062,
+    "dist_predio_m": 1180,
+    "rating": 4.1,
+    "user_ratings": 977,
+    "price_level": null,
+    "vicinity": "Avenida Luis Pasteur Sur 17, Centro, Santiago de Querétaro",
+    "types": [
+      "lodging",
+      "restaurant",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ-yocUSpb04URbi_GN95koN4",
+    "name": "Vips Querétaro Centro",
+    "categoria": "consumo",
+    "subcat": "restaurante",
+    "lat": 20.5925204,
+    "lng": -100.3919352,
+    "dist_predio_m": 1185,
+    "rating": 3.8,
+    "user_ratings": 4268,
+    "price_level": 2,
+    "vicinity": "Calle Francisco I. Madero Ote. 2, Santiago de Querétaro",
+    "types": [
+      "meal_delivery",
+      "restaurant",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ4Tk1qy5F04URYy1MIQbKDGw",
+    "name": "La Caja Popular",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.5824064,
+    "lng": -100.400192,
+    "dist_predio_m": 1188,
+    "rating": 4.7,
+    "user_ratings": 2038,
+    "price_level": null,
+    "vicinity": "Planta Alta, Avenida Tecnológico 125-Sur, Centro, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJxfy77P9b04URbIt-XkyLypY",
+    "name": "Kao | Casa de Café",
+    "categoria": "consumo",
+    "subcat": "cafe_especialidad",
+    "lat": 20.5928181,
+    "lng": -100.3861429,
+    "dist_predio_m": 1204,
+    "rating": 4.9,
+    "user_ratings": 160,
+    "price_level": null,
+    "vicinity": "C. Independencia 108, La Santa Cruz, La Cruz, 76020 Santiago de Querétaro, Qro., México",
+    "types": [
+      "cafe",
+      "establishment",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ1bqPEyxb04URxxcjFfV_FLs",
+    "name": "Wicklow Irish Pub Centro",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.5930555,
+    "lng": -100.3904869,
+    "dist_predio_m": 1212,
+    "rating": 4.4,
+    "user_ratings": 3320,
+    "price_level": 2,
+    "vicinity": "Andador 5 de Mayo 16-Planta Alta, Centro, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "restaurant",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ3chRrS1b04URaexj2wsDFmw",
+    "name": "Carranza 50 Terraza & Grill",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.5930346,
+    "lng": -100.3862707,
+    "dist_predio_m": 1225,
+    "rating": 4.5,
+    "user_ratings": 2426,
+    "price_level": 2,
+    "vicinity": "Calle Venustiano Carranza 50, Centro, Santiago de Querétaro",
+    "types": [
+      "restaurant",
+      "bar",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJHUDoVcpF04URJY4lU5V6olc",
+    "name": "Biuro Working Place",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.5824657,
+    "lng": -100.4006364,
+    "dist_predio_m": 1234,
+    "rating": 4.7,
+    "user_ratings": 21,
+    "price_level": null,
+    "vicinity": "Av Tecnológico 102-int. 04, San Angel, 76030 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest",
+      "real_estate_agency"
+    ]
+  },
+  {
+    "place_id": "ChIJ1baVZ8Fb04URsh1SDNw6wuw",
+    "name": "Tuyo Café de especialidad",
+    "categoria": "consumo",
+    "subcat": "cafe_especialidad",
+    "lat": 20.5911021,
+    "lng": -100.395991,
+    "dist_predio_m": 1235,
+    "rating": 4.8,
+    "user_ratings": 849,
+    "price_level": null,
+    "vicinity": "C. Francisco I. Madero 97B, Centro Histórico, Centro, 76000 Santiago de Querétaro, Qro., México",
+    "types": [
+      "cafe",
+      "establishment",
+      "food",
+      "meal_takeaway"
+    ]
+  },
+  {
+    "place_id": "ChIJ3457pS9b04URPsdI3zWazJI",
+    "name": "Kaluna Wurstpalast",
+    "categoria": "consumo",
+    "subcat": "restaurante",
+    "lat": 20.5928163,
+    "lng": -100.3849413,
+    "dist_predio_m": 1238,
+    "rating": 4.4,
+    "user_ratings": 227,
+    "price_level": null,
+    "vicinity": "Manuel Gutiérrez Nájera 34, La Cruz, Santiago de Querétaro",
+    "types": [
+      "restaurant",
+      "food",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJWcsLeNVa04URDAGHIVBWyBs",
+    "name": "Diktatur",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.5918008,
+    "lng": -100.3953437,
+    "dist_predio_m": 1260,
+    "rating": 4,
+    "user_ratings": 9510,
+    "price_level": 1,
+    "vicinity": "Calle Vicente Guerrero 5, Centro, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "restaurant",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJbZ8_ojNF04URGQ33dJw_ob0",
+    "name": "Gudwey",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.5936385,
+    "lng": -100.3887503,
+    "dist_predio_m": 1263,
+    "rating": 4.2,
+    "user_ratings": 1770,
+    "price_level": 2,
+    "vicinity": "Calle 5 de Mayo 46, Centro, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "restaurant",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ5Qz4cw9b04UR9f4buidohM4",
+    "name": "Café Xuuka · Oaxaca en Querétaro",
+    "categoria": "consumo",
+    "subcat": "cafe_especialidad",
+    "lat": 20.5908599,
+    "lng": -100.3969883,
+    "dist_predio_m": 1281,
+    "rating": 4.8,
+    "user_ratings": 939,
+    "price_level": null,
+    "vicinity": "C. Francisco I. Madero 74, Centro, 76000 Santiago de Querétaro, Qro., México",
+    "types": [
+      "cafe",
+      "establishment",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJTb5SmH5P04UR2UpCjruRlzk",
+    "name": "Restautante y Antojería Tacos del 57",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.5932634,
+    "lng": -100.3926763,
+    "dist_predio_m": 1287,
+    "rating": 4,
+    "user_ratings": 763,
+    "price_level": null,
+    "vicinity": "Centro, Calle 16 de Septiembre #27-int 1, Centro Histórico, Santiago de Querétaro",
+    "types": [
+      "restaurant",
+      "bar",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ8_W_7itb04URd8lOnBuZx3I",
+    "name": "Manceba",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.5938663,
+    "lng": -100.3899259,
+    "dist_predio_m": 1294,
+    "rating": 4.1,
+    "user_ratings": 4373,
+    "price_level": 1,
+    "vicinity": "Avenida Prolongación Luis Pasteur Sur 10, Centro, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJLf8Uly1b04URIk-V9p1tU1I",
+    "name": "Querétaro Rico Fundadores",
+    "categoria": "consumo",
+    "subcat": "restaurante",
+    "lat": 20.5932556,
+    "lng": -100.3846361,
+    "dist_predio_m": 1295,
+    "rating": 4.4,
+    "user_ratings": 2908,
+    "price_level": 1,
+    "vicinity": "Calle Independencia 109, La Cruz, Santiago de Querétaro",
+    "types": [
+      "restaurant",
+      "food",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJl4sthCxF04UR0JCm7weauoI",
+    "name": "Gimnasio Smart Fit - Zaragoza",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.585899,
+    "lng": -100.400707,
+    "dist_predio_m": 1305,
+    "rating": 4.3,
+    "user_ratings": 1022,
+    "price_level": null,
+    "vicinity": "Calle Ignacio Zaragoza 150, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJTdAJWgBb04URhWF5bnlYzPk",
+    "name": "Maquiavelo. Casa de Café & Trattoria | Pizza Artesanal | Café de Especialidad | Masa Madre",
+    "categoria": "consumo",
+    "subcat": "cafe_especialidad",
+    "lat": 20.5939983,
+    "lng": -100.3876123,
+    "dist_predio_m": 1309,
+    "rating": 4.8,
+    "user_ratings": 412,
+    "price_level": null,
+    "vicinity": "C. 5 de Mayo 76, La Santa Cruz, Centro, 76020 Santiago de Querétaro, Qro., México",
+    "types": [
+      "cafe",
+      "establishment",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ0SHrESxF04URwItDQLVi900",
+    "name": "Subway Tecnológico",
+    "categoria": "consumo",
+    "subcat": "restaurante",
+    "lat": 20.5840411,
+    "lng": -100.4014243,
+    "dist_predio_m": 1330,
+    "rating": 3.9,
+    "user_ratings": 401,
+    "price_level": 2,
+    "vicinity": "Avenida Tecnológico 96-Local 3, Centro, Santiago de Querétaro",
+    "types": [
+      "restaurant",
+      "food",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJrdX76sVE04URI2Az6GkO_JQ",
+    "name": "Vicos Cantina Restaurante",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.5772565,
+    "lng": -100.3767927,
+    "dist_predio_m": 1367,
+    "rating": 4.4,
+    "user_ratings": 760,
+    "price_level": 2,
+    "vicinity": "Avenida Luis Vega Monrroy 701, Plazas del Sol 1ra Sección, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "restaurant",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ81mXObhb04UR5I_a9LbqATE",
+    "name": "Casa del Emprendedor SEJUVE",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.5927955,
+    "lng": -100.381377,
+    "dist_predio_m": 1401,
+    "rating": 4.2,
+    "user_ratings": 10,
+    "price_level": null,
+    "vicinity": "La Santa Cruz, La Cruz, 76020 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJSZ3TodNa04URVPFv7V6sDhE",
+    "name": "Cervecería 25 & 50 Centro",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.594273,
+    "lng": -100.3931448,
+    "dist_predio_m": 1409,
+    "rating": 3.9,
+    "user_ratings": 1777,
+    "price_level": 2,
+    "vicinity": "con, Hidalgo, Calle Benito Juárez Norte 1, Centro, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "restaurant",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ5wDN8YJb04URxja4ndexMdI",
+    "name": "Koffein",
+    "categoria": "consumo",
+    "subcat": "cafe_especialidad",
+    "lat": 20.5934047,
+    "lng": -100.3956608,
+    "dist_predio_m": 1430,
+    "rating": 4.7,
+    "user_ratings": 413,
+    "price_level": null,
+    "vicinity": "Calle Vicente Guerrero Nte. 10, Centro, 76000 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJnSxesNVa04URR6W3H9dx9Hc",
+    "name": "MO17 Hotel Boutique",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.5927023,
+    "lng": -100.3968641,
+    "dist_predio_m": 1432,
+    "rating": 4.4,
+    "user_ratings": 405,
+    "price_level": null,
+    "vicinity": "entre Hidalgo y Balvanera, Calle Melchor Ocampo 17, Centro, Santiago de Querétaro",
+    "types": [
+      "cafe",
+      "lodging",
+      "bar",
+      "restaurant"
+    ]
+  },
+  {
+    "place_id": "ChIJ7-CPCC9b04URupWr-Pb7LiU",
+    "name": "La Carreta Bar",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.595095,
+    "lng": -100.385698,
+    "dist_predio_m": 1461,
+    "rating": 4.2,
+    "user_ratings": 343,
+    "price_level": null,
+    "vicinity": "Calle Manuel Gutierrez Najera #1C Norte, Centro, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "restaurant",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJQ8miYtNa04URnTLFBDQzsFE",
+    "name": "Tacos Del 57 Oficial",
+    "categoria": "consumo",
+    "subcat": "restaurante",
+    "lat": 20.5910396,
+    "lng": -100.39926,
+    "dist_predio_m": 1462,
+    "rating": 4.3,
+    "user_ratings": 1420,
+    "price_level": 2,
+    "vicinity": "Avenida del 57 19, Centro, Santiago de Querétaro",
+    "types": [
+      "restaurant",
+      "food",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ6VHgfClb04URBaH3xlJqhBI",
+    "name": "Casa Aspeytia Hotel Boutique",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.5952573,
+    "lng": -100.3914044,
+    "dist_predio_m": 1469,
+    "rating": 4.6,
+    "user_ratings": 1289,
+    "price_level": null,
+    "vicinity": "Avenida Prolongación Luis Pasteur Sur Nte 25, Centro, Santiago de Querétaro",
+    "types": [
+      "lodging",
+      "bar",
+      "restaurant",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJK65kfClb04URhiX2t0ubJco",
+    "name": "Terraza La Grupa",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.5952876,
+    "lng": -100.3914349,
+    "dist_predio_m": 1473,
+    "rating": 4.5,
+    "user_ratings": 2384,
+    "price_level": 2,
+    "vicinity": "Avenida Prolongación Luis Pasteur Sur 25-Norte, Centro Histórico, Centro, Santiago de Querétaro",
+    "types": [
+      "restaurant",
+      "cafe",
+      "bar",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJTY2IHFBb04URBFzecOkN1_E",
+    "name": "MAXIMILIANO CANTINA GAY",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.5950474,
+    "lng": -100.3926074,
+    "dist_predio_m": 1475,
+    "rating": 3.5,
+    "user_ratings": 221,
+    "price_level": 2,
+    "vicinity": "Calle José Ma. Morelos 4 Ote, Centro Histórico, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ5f2kfU9b04URujTpdJsrqgA",
+    "name": "Kōmi Coffee Spot",
+    "categoria": "consumo",
+    "subcat": "cafe_especialidad",
+    "lat": 20.596059,
+    "lng": -100.3873975,
+    "dist_predio_m": 1539,
+    "rating": 5,
+    "user_ratings": 98,
+    "price_level": null,
+    "vicinity": "C. 16 de Septiembre 83, La Santa Cruz, Centro, 76030 Santiago de Querétaro, Qro., México",
+    "types": [
+      "cafe",
+      "establishment",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJxTDwWGlb04URmVgYguKLiWk",
+    "name": "Capital 93 Café",
+    "categoria": "consumo",
+    "subcat": "cafe_especialidad",
+    "lat": 20.5935434,
+    "lng": -100.3979275,
+    "dist_predio_m": 1573,
+    "rating": 4.8,
+    "user_ratings": 385,
+    "price_level": null,
+    "vicinity": "C. José Ma. Morelos 73, Centro, 76000 Santiago de Querétaro, Qro., México",
+    "types": [
+      "cafe",
+      "establishment",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJG1Y5gDFb04URwgioXnpPlhA",
+    "name": "Fit corner",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.5940029,
+    "lng": -100.3803205,
+    "dist_predio_m": 1574,
+    "rating": 4.7,
+    "user_ratings": 25,
+    "price_level": null,
+    "vicinity": "Avenida Circunvalación 46, Centro, Santiago de Querétaro",
+    "types": [
+      "spa",
+      "gym",
+      "point_of_interest",
+      "health"
+    ]
+  },
+  {
+    "place_id": "ChIJUYsDji5b04URGr-u-MtMmO0",
+    "name": "Hotel Boutique Mesón de la Merced",
+    "categoria": "consumo",
+    "subcat": "restaurante",
+    "lat": 20.5963805,
+    "lng": -100.3870147,
+    "dist_predio_m": 1579,
+    "rating": 4.4,
+    "user_ratings": 463,
+    "price_level": null,
+    "vicinity": "Calle 16 de Septiembre 95, Centro, Santiago de Querétaro",
+    "types": [
+      "art_gallery",
+      "clothing_store",
+      "lodging",
+      "restaurant"
+    ]
+  },
+  {
+    "place_id": "ChIJ8T97MtRa04URqpyMJWInZEQ",
+    "name": "Parque casa de yoga",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.593836,
+    "lng": -100.397723,
+    "dist_predio_m": 1587,
+    "rating": 5,
+    "user_ratings": 18,
+    "price_level": null,
+    "vicinity": "Calle José Ma. Morelos 74, Centro, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJyW8CrA1b04UR1dkqIbkaaF0",
+    "name": "Khato Coffee Shop",
+    "categoria": "consumo",
+    "subcat": "cafe_especialidad",
+    "lat": 20.5937453,
+    "lng": -100.3796604,
+    "dist_predio_m": 1590,
+    "rating": 4.9,
+    "user_ratings": 48,
+    "price_level": null,
+    "vicinity": "colonia independencia, C. Independencia Manzana colonia, Jardines de Queretaro, 76020 Santiago de Querétaro, Qro., México",
+    "types": [
+      "cafe",
+      "establishment",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJDwkpFytF04URUi5GZYpnj2k",
+    "name": "PequeGym \"Centro de estimulación y desarrollo infantil\"",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.5919394,
+    "lng": -100.4003969,
+    "dist_predio_m": 1617,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "76000, Hidalgo 143 A, Centro, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJzadKty9b04URBMFD1bicDSM",
+    "name": "Gym",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.5969319,
+    "lng": -100.3862812,
+    "dist_predio_m": 1650,
+    "rating": 3.9,
+    "user_ratings": 155,
+    "price_level": null,
+    "vicinity": "Manuel Gutiérrez Nájera 53, La Santa Cruz, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ-UvN1itb04URfsjuY7cCTaw",
+    "name": "secreto.espacio creativo",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.5970088,
+    "lng": -100.3920293,
+    "dist_predio_m": 1673,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Calle Pasteur Nte. 51, Centro Histórico, Centro, 76000 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ00eOcpdb04URlnIY9OTHmmk",
+    "name": "Atelier de la Tierra",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.5970088,
+    "lng": -100.3920293,
+    "dist_predio_m": 1673,
+    "rating": 4,
+    "user_ratings": 4,
+    "price_level": null,
+    "vicinity": "Calle Pasteur Nte. 51, Centro, 76000 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJKbGqp3tF04URMA7y_xUqX50",
+    "name": "Café de Aquí Querétaro (Café de especialidad)",
+    "categoria": "consumo",
+    "subcat": "cafe_especialidad",
+    "lat": 20.5895049,
+    "lng": -100.3745602,
+    "dist_predio_m": 1685,
+    "rating": 4.5,
+    "user_ratings": 149,
+    "price_level": null,
+    "vicinity": "Bolivia 69, Plaza de las Americas, 76048 Santiago de Querétaro, Qro., México",
+    "types": [
+      "cafe",
+      "establishment",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJNWIN8mRF04URauj3Tnys6sE",
+    "name": "Startpoint Madero",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.5878693,
+    "lng": -100.4041318,
+    "dist_predio_m": 1714,
+    "rating": 4.5,
+    "user_ratings": 11,
+    "price_level": null,
+    "vicinity": "Av Tecnológico 2-int 106, Niños Heroes, 76010 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest",
+      "real_estate_agency"
+    ]
+  },
+  {
+    "place_id": "ChIJjwcubKZb04URkd_dhw4ixTA",
+    "name": "Luz Verde Hub",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.5967529,
+    "lng": -100.3944593,
+    "dist_predio_m": 1715,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Calle Mariano Escobedo 16-9, Centro, 76000 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJF5wp5DRb04URfH14n4f3eXU",
+    "name": "Padme Yoga Spa",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.5918122,
+    "lng": -100.3755675,
+    "dist_predio_m": 1737,
+    "rating": 4.7,
+    "user_ratings": 51,
+    "price_level": null,
+    "vicinity": "Avenida Plateros 226, Carretas, Santiago de Querétaro",
+    "types": [
+      "spa",
+      "gym",
+      "point_of_interest",
+      "health"
+    ]
+  },
+  {
+    "place_id": "ChIJ-xzHK9Za04UR66Zoi-1MUpU",
+    "name": "Club Libertadores",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.5978131,
+    "lng": -100.3949369,
+    "dist_predio_m": 1843,
+    "rating": 4.7,
+    "user_ratings": 20,
+    "price_level": null,
+    "vicinity": "Avenida Universidad 13, Centro Histórico, Centro, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJh62K2zFF04URrwByPYF6aI0",
+    "name": "Plaza Camelinas Hotel",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.5803335,
+    "lng": -100.4064249,
+    "dist_predio_m": 1849,
+    "rating": 4.4,
+    "user_ratings": 7425,
+    "price_level": null,
+    "vicinity": "Avenida 5 de Febrero 28, La Capilla, Santiago de Querétaro",
+    "types": [
+      "lodging",
+      "bar",
+      "restaurant",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJfbtiWShb04UR9r9Y1HdhWl8",
+    "name": "Paseo del Río",
+    "categoria": "consumo",
+    "subcat": "restaurante",
+    "lat": 20.59882589999999,
+    "lng": -100.3920449,
+    "dist_predio_m": 1871,
+    "rating": 5,
+    "user_ratings": 2,
+    "price_level": null,
+    "vicinity": "Avenida Universidad 29, San Sebastian, Santiago de Querétaro",
+    "types": [
+      "restaurant",
+      "food",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJU1qALJhb04URWK8S2eJNOx8",
+    "name": "Nómada Café",
+    "categoria": "consumo",
+    "subcat": "cafe_especialidad",
+    "lat": 20.5970756,
+    "lng": -100.3792305,
+    "dist_predio_m": 1923,
+    "rating": 4.8,
+    "user_ratings": 72,
+    "price_level": null,
+    "vicinity": "C. Juan Caballero y Osio 242, San Javier, 76020 Santiago de Querétaro, Qro., México",
+    "types": [
+      "cafe",
+      "establishment",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJT9kRsHlQ04URXwQMFuXCSh4",
+    "name": "Korpus GYM",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.59561099999999,
+    "lng": -100.4016225,
+    "dist_predio_m": 1996,
+    "rating": 4.4,
+    "user_ratings": 110,
+    "price_level": null,
+    "vicinity": "76000 Nicolás Campa 117, Calle Ingenieros 55, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJS_EvRM1a04URH-EUI_H1XaQ",
+    "name": "Iron Gym Querétaro",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.5891047,
+    "lng": -100.4069534,
+    "dist_predio_m": 2038,
+    "rating": 4.2,
+    "user_ratings": 302,
+    "price_level": null,
+    "vicinity": "Calle Agustín Melgar 40, Niños Heroes, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ4UVGNDJF04URMMYgtG_ALNU",
+    "name": "Holiday Inn Express & Suites Querétaro",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.5834781,
+    "lng": -100.408492,
+    "dist_predio_m": 2056,
+    "rating": 4.6,
+    "user_ratings": 1489,
+    "price_level": null,
+    "vicinity": "Avenida 5 de Febrero 110 Bis, Niños Heroes, Santiago de Querétaro",
+    "types": [
+      "lodging",
+      "gym",
+      "point_of_interest",
+      "health"
+    ]
+  },
+  {
+    "place_id": "ChIJY2fBPZZb04URJWeod4yxuww",
+    "name": "Punto 180",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.600737,
+    "lng": -100.3822388,
+    "dist_predio_m": 2163,
+    "rating": 5,
+    "user_ratings": 8,
+    "price_level": null,
+    "vicinity": "Av. Universidad Oriente. 180, Centro, 76020 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ--iZfKVb04URzd6_mEvlvUQ",
+    "name": "CAFELE UNIVERSIDAD",
+    "categoria": "consumo",
+    "subcat": "cafe_especialidad",
+    "lat": 20.6007521,
+    "lng": -100.3822587,
+    "dist_predio_m": 2164,
+    "rating": 4.9,
+    "user_ratings": 1217,
+    "price_level": null,
+    "vicinity": "Av. Universidad ote 180, Centro, 76020 Santiago de Querétaro, Qro., México",
+    "types": [
+      "cafe",
+      "establishment",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJo3diK1Vb04URPl344wG67R4",
+    "name": "Panthorix",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.6008193,
+    "lng": -100.3966204,
+    "dist_predio_m": 2217,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "C. Héroe de Nacozari 25B, Centro, 76000 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ162BJtha04URh3ZRveObr2c",
+    "name": "KROW",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.6009561,
+    "lng": -100.3965933,
+    "dist_predio_m": 2231,
+    "rating": 4.5,
+    "user_ratings": 317,
+    "price_level": null,
+    "vicinity": "C. Héroe de Nacozari 25B, Centro, 76000 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ0QK3bDFF04URVbTvsgZbViI",
+    "name": "Wolfpack - 5 de Febrero",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.5827902,
+    "lng": -100.4105623,
+    "dist_predio_m": 2268,
+    "rating": 4.7,
+    "user_ratings": 130,
+    "price_level": null,
+    "vicinity": "Cedros 38, Prados de La Capilla, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ6UjcWZZb04UR8XByrHgwhl8",
+    "name": "Delgu Café",
+    "categoria": "consumo",
+    "subcat": "cafe_especialidad",
+    "lat": 20.5999327,
+    "lng": -100.4004279,
+    "dist_predio_m": 2307,
+    "rating": 4.7,
+    "user_ratings": 24,
+    "price_level": null,
+    "vicinity": "Estío 60, Las Rosas, 76164 Santiago de Querétaro, Qro., México",
+    "types": [
+      "cafe",
+      "establishment",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJy-UlODZb04UR8vqOynX-eKk",
+    "name": "Robinson´s Crash",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.598434,
+    "lng": -100.373464,
+    "dist_predio_m": 2402,
+    "rating": 4.2,
+    "user_ratings": 770,
+    "price_level": 2,
+    "vicinity": "Prolongación Bernardo Quintana 12 A, Calesa, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "restaurant",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ26OFg7pb04URNmMf8JBmIZo",
+    "name": "Molienda Coffee Lab & Bread",
+    "categoria": "consumo",
+    "subcat": "cafe_especialidad",
+    "lat": 20.5922582,
+    "lng": -100.368268,
+    "dist_predio_m": 2407,
+    "rating": 4.6,
+    "user_ratings": 170,
+    "price_level": null,
+    "vicinity": "Prol. Bernardo Quintana 164, Carretas, 76060 Santiago de Querétaro, Qro., México",
+    "types": [
+      "cafe",
+      "establishment",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJfdd7HzZb04URZk3gngTZ8UU",
+    "name": "HOT POWERYOGA Arcos",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.597568,
+    "lng": -100.3724118,
+    "dist_predio_m": 2407,
+    "rating": 2.9,
+    "user_ratings": 8,
+    "price_level": null,
+    "vicinity": "Prolongación Bernardo Quintana No. 4-int. 3, Calesa 2da Sección, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ4STdGeJE04URjXmxr1WIwlU",
+    "name": "Centro Acuático Nader",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.5590676,
+    "lng": -100.393284,
+    "dist_predio_m": 2623,
+    "rating": 4.4,
+    "user_ratings": 276,
+    "price_level": null,
+    "vicinity": "Calle Antonio Carranza 17A, Reforma Agraria 5ta Sección, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJjS2YgzlF04URf-fsRILWuw8",
+    "name": "Impulsium EMS Center Jardines de la Hacienda",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.5733806,
+    "lng": -100.4121755,
+    "dist_predio_m": 2628,
+    "rating": 4.8,
+    "user_ratings": 40,
+    "price_level": null,
+    "vicinity": "Hacienda Grande 1007, Jardines de la Hacienda, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJq2nLBjtb04URSdXpUVDZydI",
+    "name": "Troop Indoor Cyling",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.6049672,
+    "lng": -100.3810652,
+    "dist_predio_m": 2648,
+    "rating": 4.8,
+    "user_ratings": 72,
+    "price_level": null,
+    "vicinity": "Avenida Industrialización 12, Alamos 2da Sección, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ9btWFTZb04URlAumHG-1aIs",
+    "name": "Sushi Itto Álamos",
+    "categoria": "consumo",
+    "subcat": "restaurante",
+    "lat": 20.6056103,
+    "lng": -100.3822618,
+    "dist_predio_m": 2682,
+    "rating": 4.1,
+    "user_ratings": 1652,
+    "price_level": 2,
+    "vicinity": "Avenida Industrialización 7-Local 110, alamos, Santiago de Querétaro",
+    "types": [
+      "restaurant",
+      "food",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJKwSGFjxF04URRSithuNasWM",
+    "name": "Ninety Coffee - Cafetería de Especialidad",
+    "categoria": "consumo",
+    "subcat": "cafe_especialidad",
+    "lat": 20.569,
+    "lng": -100.4105,
+    "dist_predio_m": 2700,
+    "rating": 4.3,
+    "user_ratings": 763,
+    "price_level": 2,
+    "vicinity": "Blvd. Hacienda del Jacal 409, Jardines de la Hacienda, 76180 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "food",
+      "point_of_interest",
+      "store"
+    ]
+  },
+  {
+    "place_id": "ChIJnZygD_lb04UR6DxxXfVBwUI",
+    "name": "IZA Business Centers Torre 57",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.5798,
+    "lng": -100.362898,
+    "dist_predio_m": 2709,
+    "rating": 4.5,
+    "user_ratings": 320,
+    "price_level": null,
+    "vicinity": "Acceso a La Central 300-Piso 14, Centro Sur, 76090 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest",
+      "real_estate_agency"
+    ]
+  },
+  {
+    "place_id": "ChIJzcx2lK5F04URCOjicQcIPWw",
+    "name": "Sensorio café de especialidad",
+    "categoria": "consumo",
+    "subcat": "cafe_especialidad",
+    "lat": 20.5724811,
+    "lng": -100.412976,
+    "dist_predio_m": 2744,
+    "rating": 4.5,
+    "user_ratings": 104,
+    "price_level": null,
+    "vicinity": "Blvrd Jardines de la Hacienda 906, Jardines de la Hacienda, 76180 Santiago de Querétaro, Qro., México",
+    "types": [
+      "cafe",
+      "establishment",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJffIh7vdF04URJk-W7BXijhY",
+    "name": "Casa Majuk",
+    "categoria": "consumo",
+    "subcat": "cafe_especialidad",
+    "lat": 20.5724497,
+    "lng": -100.4129762,
+    "dist_predio_m": 2745,
+    "rating": 4.9,
+    "user_ratings": 22,
+    "price_level": null,
+    "vicinity": "Blvrd Jardines de la Hacienda 906, Jardines de la Hacienda, 76180 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJYT7Ppklb04URHNzqpEuV_gY",
+    "name": "The WorkHub Álamos | CoWork y Oficinas",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.6063806,
+    "lng": -100.3823569,
+    "dist_predio_m": 2763,
+    "rating": 4.6,
+    "user_ratings": 17,
+    "price_level": null,
+    "vicinity": "Calle Cto. Alamos 68, Alamos 2da Secc, 76160 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJIdxMf_pF04UR5uNwq2qZKpk",
+    "name": "Cowork Intercenter Premier Vista Dorada",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.5902114,
+    "lng": -100.3634455,
+    "dist_predio_m": 2781,
+    "rating": 5,
+    "user_ratings": 14,
+    "price_level": null,
+    "vicinity": "Av. Loma Pinal de Amoles 320-Piso PH, Vista Dorada, 76060 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "finance",
+      "point_of_interest",
+      "post_office"
+    ]
+  },
+  {
+    "place_id": "ChIJr9E9Hc1F04URjwULl-sPF7Q",
+    "name": "Conexión Vital Querétaro",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.5749315,
+    "lng": -100.4150037,
+    "dist_predio_m": 2849,
+    "rating": 5,
+    "user_ratings": 15,
+    "price_level": null,
+    "vicinity": "Prol. Av. Zaragoza, Jardines de la Hacienda, 76180 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJzWmZgz5F04UR8dHiQLMXzyY",
+    "name": "HOT POWER YOGA JARDINES",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.5678409,
+    "lng": -100.4118006,
+    "dist_predio_m": 2884,
+    "rating": 4.4,
+    "user_ratings": 7,
+    "price_level": null,
+    "vicinity": "Boulevard Hacienda del Jacal, Jardines de la Hacienda, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJE1ndTnhF04URl654smFQ49M",
+    "name": "Coworking Querétaro - Aldea",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.5725099,
+    "lng": -100.3630357,
+    "dist_predio_m": 2892,
+    "rating": 4.4,
+    "user_ratings": 10,
+    "price_level": null,
+    "vicinity": "Central Park Torre 1 Piso 6B, Centro Sur, 76090 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJCWHuUpNE04UR8qMEx9kLXSo",
+    "name": "Edge Centro Sur Crossfit",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.5608107,
+    "lng": -100.3728075,
+    "dist_predio_m": 2909,
+    "rating": 4.8,
+    "user_ratings": 58,
+    "price_level": null,
+    "vicinity": "Plaza Comercial, Avenida del Parque 1139, La Alhambra, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJB1dnu95E04URziRwxgz41Zk",
+    "name": "Restaurante KereTaco",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.6092479,
+    "lng": -100.3857474,
+    "dist_predio_m": 3016,
+    "rating": 4.3,
+    "user_ratings": 240,
+    "price_level": null,
+    "vicinity": "Calle Circuito Jardín sur 15, Alamos 3ra Sección, Santiago de Querétaro",
+    "types": [
+      "restaurant",
+      "bar",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJy-yp_pRb04URb89NWrXnxa8",
+    "name": "Proyecto 7 Coworking - Sede Álamos - Querétaro",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.608073,
+    "lng": -100.3794136,
+    "dist_predio_m": 3030,
+    "rating": 4.6,
+    "user_ratings": 27,
+    "price_level": null,
+    "vicinity": "Avenida del Olmo #2, Colonia Álamos 2a Sección Despacho 202 , piso 2, Álamos, 76160 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJx8RK7xNb04URA6-rmuwmAT0",
+    "name": "NOBLE Barra de Café",
+    "categoria": "consumo",
+    "subcat": "cafe_especialidad",
+    "lat": 20.6093087,
+    "lng": -100.3818617,
+    "dist_predio_m": 3091,
+    "rating": 4.7,
+    "user_ratings": 228,
+    "price_level": null,
+    "vicinity": "Circuito Alamos # 94 Colonia Alamos Segunda Sección, Alamos, 76160 Santiago de Querétaro, Qro., México",
+    "types": [
+      "cafe",
+      "establishment",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJs_VdhqRE04URAzEqjHTTl-c",
+    "name": "B2Works",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.5734945,
+    "lng": -100.3595254,
+    "dist_predio_m": 3198,
+    "rating": 4.8,
+    "user_ratings": 11,
+    "price_level": null,
+    "vicinity": "Plaza Q7001, Blvd. Bernardo Quintana 7001-Int. 216, Centro Sur, 76090 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJhQmMYAlb04URq_szpNfR9gs",
+    "name": "Terra Mano l Café de especialidad",
+    "categoria": "consumo",
+    "subcat": "cafe_especialidad",
+    "lat": 20.5970598,
+    "lng": -100.3604635,
+    "dist_predio_m": 3375,
+    "rating": 4.8,
+    "user_ratings": 315,
+    "price_level": null,
+    "vicinity": "Plaza Master, Camino Real de Carretas 167-Local 8, Milenio III, 76060 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJx5CqTz1b04URAMJnnNbQCXc",
+    "name": "Sports World Bernardo Quintana",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.6123874,
+    "lng": -100.3828834,
+    "dist_predio_m": 3404,
+    "rating": 4,
+    "user_ratings": 505,
+    "price_level": null,
+    "vicinity": "Prolongación Bernardo Quintana 518, Arboledas, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJCzisuB5b04URvDmfy2FBl2E",
+    "name": "Hacienda Laborcilla",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.6129347,
+    "lng": -100.388559,
+    "dist_predio_m": 3409,
+    "rating": 4.5,
+    "user_ratings": 11266,
+    "price_level": 3,
+    "vicinity": "Prolongación Corregidora Norte 911 bis, Quinta la Laborcilla, Santiago de Querétaro",
+    "types": [
+      "restaurant",
+      "bar",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ8SoXid5a04URRy5iTdgz7SY",
+    "name": "Alfa Omega Fitness Gym",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.6117179,
+    "lng": -100.3999513,
+    "dist_predio_m": 3474,
+    "rating": 4.6,
+    "user_ratings": 106,
+    "price_level": null,
+    "vicinity": "Felipe Angeles 225, Los Pirules, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJjws30cZa04URhCa_YcGfLgY",
+    "name": "Global Training",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.6048732,
+    "lng": -100.4137742,
+    "dist_predio_m": 3617,
+    "rating": 4.8,
+    "user_ratings": 73,
+    "price_level": null,
+    "vicinity": "Sobre avenida EPIGMENIO GONZÁLES, Avenida Epigmenio Gonzales #1025 Fraccionamiento Industrial La Montaña, Autopista México - Querétaro Local 3, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ05DPyBhb04URd1mFgIsGWjc",
+    "name": "Chili's Boulevares",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.6148283,
+    "lng": -100.3877104,
+    "dist_predio_m": 3621,
+    "rating": 4.3,
+    "user_ratings": 1669,
+    "price_level": 2,
+    "vicinity": "Prolongación Bernardo Quintana 4100, Col. Álamos 3era Sección, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "restaurant",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJb2r4yuBa04URtHWzLdzBMC4",
+    "name": "Wolfpack Tec",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.6132547,
+    "lng": -100.4000524,
+    "dist_predio_m": 3639,
+    "rating": 4.8,
+    "user_ratings": 152,
+    "price_level": null,
+    "vicinity": "Epigmenio González 3A, San Pablo Tecnologico, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJwW5SVWxb04URC_JigWrz8lQ",
+    "name": "Grand Fiesta Americana Querétaro",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.6153843,
+    "lng": -100.3890299,
+    "dist_predio_m": 3682,
+    "rating": 4.6,
+    "user_ratings": 4018,
+    "price_level": null,
+    "vicinity": "Prolongación Bernardo Quintana 4050, Plaza Boulevares, Santiago de Querétaro",
+    "types": [
+      "spa",
+      "bar",
+      "lodging",
+      "restaurant"
+    ]
+  },
+  {
+    "place_id": "ChIJC3Z9Vx5b04URno1NDVtHAA0",
+    "name": "Sanborns Parque Querétaro",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.61563,
+    "lng": -100.3922875,
+    "dist_predio_m": 3727,
+    "rating": 4.2,
+    "user_ratings": 6732,
+    "price_level": 2,
+    "vicinity": "Prolongación Corregidora Norte.691 CENTRO COMERCIAL COL, PARQUE INDUSTRIAL, Plaza del Parque, Santiago de Querétaro",
+    "types": [
+      "department_store",
+      "pharmacy",
+      "bakery",
+      "bar"
+    ]
+  },
+  {
+    "place_id": "ChIJm4qEIU5F04URYVOrpPSDSVk",
+    "name": "TOP SUR Cowork & Terraza",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.5521141,
+    "lng": -100.3700071,
+    "dist_predio_m": 3882,
+    "rating": 4.6,
+    "user_ratings": 15,
+    "price_level": null,
+    "vicinity": "Calle Lib. Sur-Poniente 334, Villas del Cimatario, Bosques de las Lomas, 76087 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJQVUodsJa04URK5BOPdevuRo",
+    "name": "Ké-chelas",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.6113447,
+    "lng": -100.4097917,
+    "dist_predio_m": 3902,
+    "rating": 4.1,
+    "user_ratings": 1379,
+    "price_level": 2,
+    "vicinity": "Prolongación Tecnológico 700, San Pablo, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "restaurant",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJdw1NReJa04URfuom-DEXIgs",
+    "name": "Departamento Deporte Adaptado, INDEREQ",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.6180075,
+    "lng": -100.3938884,
+    "dist_predio_m": 4009,
+    "rating": 4.5,
+    "user_ratings": 8351,
+    "price_level": null,
+    "vicinity": "Prolongación Bernardo Quintana 75, Villas del Parque, Santiago de Querétaro",
+    "types": [
+      "park",
+      "gym",
+      "point_of_interest",
+      "health"
+    ]
+  },
+  {
+    "place_id": "ChIJ08LTuuZa04URthu2-1MR7GU",
+    "name": "Querétaro 2000 Estacionamiento",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.6171969,
+    "lng": -100.4011781,
+    "dist_predio_m": 4092,
+    "rating": 4.5,
+    "user_ratings": 1298,
+    "price_level": null,
+    "vicinity": "Prolongación Bernardo Quintana s/n, Parque Queretaro 2000, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJoRGReQ5b04UR-E-tX4m1Xa8",
+    "name": "Startpoint Bernardo Quintana",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.6184234,
+    "lng": -100.4016952,
+    "dist_predio_m": 4238,
+    "rating": 4.7,
+    "user_ratings": 20,
+    "price_level": null,
+    "vicinity": "Av. Peñuelas 12, Parque Queretaro 2000, 76140 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJpX6P0eha04URCYMlmN3pdPk",
+    "name": "Gimnasio Smart Fit - Bernardo Quintana",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.617044,
+    "lng": -100.408145,
+    "dist_predio_m": 4360,
+    "rating": 4.4,
+    "user_ratings": 1462,
+    "price_level": null,
+    "vicinity": "Prolongación Bernardo Quintana 4032, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJj7vj-gdd04URMVuIeITQork",
+    "name": "COGUORK - RENTA DE OFICINAS",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.5954371,
+    "lng": -100.3472608,
+    "dist_predio_m": 4563,
+    "rating": 4.6,
+    "user_ratings": 36,
+    "price_level": null,
+    "vicinity": "Senda de La Inspiración 19, Milenio III, 76060 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJbQih14Jb04UR8cQbaHHYVJI",
+    "name": "The Coffee",
+    "categoria": "consumo",
+    "subcat": "cafe_especialidad",
+    "lat": 20.6150894,
+    "lng": -100.3623366,
+    "dist_predio_m": 4571,
+    "rating": 4.9,
+    "user_ratings": 301,
+    "price_level": null,
+    "vicinity": "La Reserva, Hacienda el Campanario 109, 76146 Santiago de Querétaro, Qro., México",
+    "types": [
+      "bakery",
+      "cafe",
+      "establishment",
+      "food"
+    ]
+  },
+  {
+    "place_id": "ChIJbaBnC7Fd04URhkIpH8s-gNk",
+    "name": "el27 Coworking",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.5955922,
+    "lng": -100.3467414,
+    "dist_predio_m": 4620,
+    "rating": 4.7,
+    "user_ratings": 38,
+    "price_level": null,
+    "vicinity": "Senda de La Inspiración 27, Milenio III, 76060 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ4YhU0chb04URMHeA2qP48BI",
+    "name": "G_Work Space",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.6151697,
+    "lng": -100.3612041,
+    "dist_predio_m": 4650,
+    "rating": 4.4,
+    "user_ratings": 10,
+    "price_level": null,
+    "vicinity": "Av. Campanario 109, El Campanario, 76146 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJK-CM_vdF04URlEo8eEULmnU",
+    "name": "The Quantum Crack Coffee Roasters®",
+    "categoria": "consumo",
+    "subcat": "cafe_especialidad",
+    "lat": 20.5598515,
+    "lng": -100.4316364,
+    "dist_predio_m": 5111,
+    "rating": 5,
+    "user_ratings": 21,
+    "price_level": null,
+    "vicinity": "Blvd. Hacienda del Jacal 953-17, Casa Magna, 76910 Santiago de Querétaro, Qro., México",
+    "types": [
+      "cafe",
+      "establishment",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJV_58h5pb04URGV28eZlXheY",
+    "name": "PREPARADOS MICHELADAS",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.6297191,
+    "lng": -100.4060227,
+    "dist_predio_m": 5572,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Jacinto Canek 109A, Amalia Solorzano, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ8ZYgRfda04URaQy9WufwIz0",
+    "name": "Queretaro Fitness Boxing Club",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.6303124,
+    "lng": -100.4069185,
+    "dist_predio_m": 5665,
+    "rating": 4.6,
+    "user_ratings": 150,
+    "price_level": null,
+    "vicinity": "76160, Avenida Pie de la Cuesta 1025, Rivera y Tamayo, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJVa5QuXpb04UR2pnbO8CGoKI",
+    "name": "GYM Perfect Body Queretaro",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.6303317,
+    "lng": -100.4068595,
+    "dist_predio_m": 5665,
+    "rating": 4.2,
+    "user_ratings": 19,
+    "price_level": null,
+    "vicinity": "Plaza El Faro, Avenida Pie de la Cuesta 1207, Pie de la cuesta, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJsQiiJHpb04UR1A4iO01rB8I",
+    "name": "Hasta el Alba, Canta Bar",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.6310949,
+    "lng": -100.4069368,
+    "dist_predio_m": 5748,
+    "rating": 4.4,
+    "user_ratings": 115,
+    "price_level": null,
+    "vicinity": "Avenida Pie de la Cuesta 1207-Local 12 A, Desarrollo San Pablo, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJH90mZwBb04URxgLzIjwFOIo",
+    "name": "Cheve",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.6288622,
+    "lng": -100.4145936,
+    "dist_predio_m": 5835,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Tlacael Manzana 7 Lote 3, La Esperanza, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ-1-4u1pb04UR-vPm8XEQ6O4",
+    "name": "Vicos Cantina Pie de la Cuesta",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.6323691,
+    "lng": -100.4057817,
+    "dist_predio_m": 5844,
+    "rating": 3.6,
+    "user_ratings": 47,
+    "price_level": null,
+    "vicinity": "Avenida Pie de la Cuesta 1440 Col, Amalia Solorzano, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJY_AaSgBb04URMx0jkQLXC4c",
+    "name": "La Guajolota",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.6322693,
+    "lng": -100.4063571,
+    "dist_predio_m": 5852,
+    "rating": 4.8,
+    "user_ratings": 8,
+    "price_level": null,
+    "vicinity": "Valle de Santiago 104, Valle de San Pablo, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ76lOp-5b04URnbc3yCX1fmY",
+    "name": "Los Manríquez 2",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.6323947,
+    "lng": -100.4061486,
+    "dist_predio_m": 5859,
+    "rating": 3.3,
+    "user_ratings": 16,
+    "price_level": null,
+    "vicinity": "Avenida Pie de la Cuesta, Valle de San Pablo, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJbaM4gPda04URZpCNJdxLr3A",
+    "name": "Querétaro MI CHEVE",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.6324017,
+    "lng": -100.4061261,
+    "dist_predio_m": 5859,
+    "rating": 4,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Valle de San Pablo, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJGf1ANThb04URzt_w1L-kdxc",
+    "name": "Casa Guerrero - cheve y Mezcal",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.6324214,
+    "lng": -100.4061267,
+    "dist_predio_m": 5861,
+    "rating": 4.3,
+    "user_ratings": 8,
+    "price_level": null,
+    "vicinity": "Avenida Pie de la Cuesta, Valle de San Pablo, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ7aDDJQBb04URLbiezPibUPo",
+    "name": "Hércules",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.631424,
+    "lng": -100.4108403,
+    "dist_predio_m": 5928,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Ciprés Mexicano 105, Cipreses, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJE_dBAQBb04URP30nuTGXz44",
+    "name": "Parque de calistenia y movilidad",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.6314576,
+    "lng": -100.412526,
+    "dist_predio_m": 6001,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "Cipreses, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJQZFaZfha04URedsHHZt-HhQ",
+    "name": "CoolSpaces Coworking y Oficinas",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.6347814,
+    "lng": -100.4033034,
+    "dist_predio_m": 6031,
+    "rating": 4.9,
+    "user_ratings": 136,
+    "price_level": null,
+    "vicinity": "Av. Técnicos 248, Los Sabinos, 76148 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJaWGU5Pda04URqdWP1fV8apA",
+    "name": "La Jugada Squash",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.6348302,
+    "lng": -100.4067531,
+    "dist_predio_m": 6136,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Arcoiris 103, Nuevo Horizonte, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJH6wit_Va04URF2L5BsSEifg",
+    "name": "CypressGym Qro",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.6325645,
+    "lng": -100.4132308,
+    "dist_predio_m": 6144,
+    "rating": 4.5,
+    "user_ratings": 62,
+    "price_level": null,
+    "vicinity": "Avenida Cerro Sombrerete 1006, Cipreses, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJT8Plqi1b04URK8owOBqwGrs",
+    "name": "Inna Pole fit",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.6351504,
+    "lng": -100.4079886,
+    "dist_predio_m": 6210,
+    "rating": 4.9,
+    "user_ratings": 21,
+    "price_level": null,
+    "vicinity": "Calle Tecnicos 125, Nuevo Horizonte, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJbQQ2Px1b04UROZB2MtZyx60",
+    "name": "INTRA TRAINING STUDIO",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.6359832,
+    "lng": -100.4056035,
+    "dist_predio_m": 6223,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Avenida Pie de la Cuesta 1496-L16, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJU8vGOABb04URD93qQ9YqPyY",
+    "name": "EpicTraining Studio",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.6362061,
+    "lng": -100.4058674,
+    "dist_predio_m": 6255,
+    "rating": null,
+    "user_ratings": null,
+    "price_level": null,
+    "vicinity": "Privada Cuesta Azul 1500_52, Anexo a la Ecología, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJoxB2n4db04URAppwKwP9G7A",
+    "name": "Vórtice EAC",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.6359082,
+    "lng": -100.4076056,
+    "dist_predio_m": 6277,
+    "rating": 4.8,
+    "user_ratings": 15,
+    "price_level": null,
+    "vicinity": "Resplandor 119, Nuevo Horizonte, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJkbopPZhb04URrV3wMKxBzsU",
+    "name": "Cardumen Marisquería",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.6349903,
+    "lng": -100.4115759,
+    "dist_predio_m": 6323,
+    "rating": 4.8,
+    "user_ratings": 5,
+    "price_level": null,
+    "vicinity": "Monte video 8, Latinoamericana, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJqQJeuJ1a04URS73ie0nGzLk",
+    "name": "Rebel Wings Sendero",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.6171608,
+    "lng": -100.4375305,
+    "dist_predio_m": 6387,
+    "rating": 3.9,
+    "user_ratings": 5114,
+    "price_level": 2,
+    "vicinity": "Plaza Uno, Avenida Revolución 81-Local 5B, El Sol, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "restaurant",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ837l8fFR04URz3P_Zuk-ZtQ",
+    "name": "Cafe Catedral",
+    "categoria": "consumo",
+    "subcat": "cafe_especialidad",
+    "lat": 20.6146877,
+    "lng": -100.4400711,
+    "dist_predio_m": 6441,
+    "rating": 4.8,
+    "user_ratings": 16,
+    "price_level": null,
+    "vicinity": "Bosques de Mezquite 105A, El Sol, 76113 Santiago de Querétaro, Qro., México",
+    "types": [
+      "cafe",
+      "establishment",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJrdQnQk5b04URsTvVucWaaf0",
+    "name": "Go Fit Querétaro, S.A. de C.V",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.6381588,
+    "lng": -100.4061129,
+    "dist_predio_m": 6470,
+    "rating": 4.1,
+    "user_ratings": 61,
+    "price_level": null,
+    "vicinity": "Frente al CETIS 16, Avenida Pie de la Cuesta 1695-Local 5, Los Robles, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJvyJ0zPNa04URm7lw6nokiRY",
+    "name": "Guerreros Boxing (escuela de boxeo)",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.6354946,
+    "lng": -100.4141216,
+    "dist_predio_m": 6479,
+    "rating": 4.6,
+    "user_ratings": 46,
+    "price_level": null,
+    "vicinity": "Avenida Cerro Sombrerete 1124, San Pablo, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ7567u8Nb04UR7DlMsyxhYNs",
+    "name": "Salon de eventos Mireles",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.6362997,
+    "lng": -100.4178695,
+    "dist_predio_m": 6727,
+    "rating": 3.7,
+    "user_ratings": 22,
+    "price_level": null,
+    "vicinity": "Avenida Paseo Constitución 908, San Pablo, Santiago de Querétaro",
+    "types": [
+      "night_club",
+      "bar",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJQTpe7lBb04URtWEZX0MkOb0",
+    "name": "Salón Cano",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.637256,
+    "lng": -100.4162364,
+    "dist_predio_m": 6748,
+    "rating": 3,
+    "user_ratings": 2,
+    "price_level": null,
+    "vicinity": "Colinas de Michoacán 120, Santiago de Querétaro",
+    "types": [
+      "night_club",
+      "bar",
+      "point_of_interest",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJK8HGxeJb04URkTP2C8UFZqI",
+    "name": "NÓMADA / Entrenamiento - Fisioterapia - Social Club",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.6412461,
+    "lng": -100.4107293,
+    "dist_predio_m": 6944,
+    "rating": 5,
+    "user_ratings": 23,
+    "price_level": null,
+    "vicinity": "Boulevard de la Nación 331-Local - 2, Desarrollo Centro Norte, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJ3RB-nSJb04URwZpVWw5aoOg",
+    "name": "Estudio de danza y entrenamiento ballet",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.6402878,
+    "lng": -100.4146102,
+    "dist_predio_m": 6988,
+    "rating": 4.8,
+    "user_ratings": 21,
+    "price_level": null,
+    "vicinity": "Avenida Cerro Sombrerete 1080, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJa6snz09a04URhwp-Q_1m6Y8",
+    "name": "Sport Fitness Gym",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.6483778,
+    "lng": -100.4040311,
+    "dist_predio_m": 7520,
+    "rating": 4.3,
+    "user_ratings": 164,
+    "price_level": null,
+    "vicinity": "Avenida Belén 543, Lomas de San Pedrito, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJu4re2tJE04UR5bF0cnnDFjs",
+    "name": "Hacienda Los Laureles Restaurante Y Banquetes",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.6409094,
+    "lng": -100.4291052,
+    "dist_predio_m": 7754,
+    "rating": 4.5,
+    "user_ratings": 3975,
+    "price_level": 3,
+    "vicinity": "5 Carretera México-San Luis Potosí, Km. 8 5, Jurica, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "restaurant",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJtTqKguZF04URNxVPDQ7VT9k",
+    "name": "Daywork Coworking/Oficinas",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.5254751,
+    "lng": -100.435961,
+    "dist_predio_m": 8001,
+    "rating": 4.9,
+    "user_ratings": 19,
+    "price_level": null,
+    "vicinity": "P.º Revolución 26, Panorama, 76904 El Pueblito, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ2eAFyklb04URWRxeF5UbMxQ",
+    "name": "7 Zone Entrenamiento Militar para Civiles",
+    "categoria": "consumo",
+    "subcat": "gimnasio",
+    "lat": 20.6529316,
+    "lng": -100.4043283,
+    "dist_predio_m": 8021,
+    "rating": 4.4,
+    "user_ratings": 10,
+    "price_level": null,
+    "vicinity": "De La Patria 511, Unidad nacional, Santiago de Querétaro",
+    "types": [
+      "gym",
+      "point_of_interest",
+      "health",
+      "establishment"
+    ]
+  },
+  {
+    "place_id": "ChIJpaxmhAld04URVL9gYtqA7J4",
+    "name": "VC Coworking - Domicilio Fiscal Virtual, Oficinas en renta y CoWorking",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.6437587,
+    "lng": -100.3471591,
+    "dist_predio_m": 8094,
+    "rating": 5,
+    "user_ratings": 33,
+    "price_level": null,
+    "vicinity": "Campo Real 988, El Refugio, 76146 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJY06HjpVR04URaAQgdFkpqcI",
+    "name": "Workingzone",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.6352963,
+    "lng": -100.4480439,
+    "dist_predio_m": 8532,
+    "rating": 5,
+    "user_ratings": 4,
+    "price_level": null,
+    "vicinity": "Av. de la Piedra 1406, Cosmos, 76110 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest",
+      "real_estate_agency"
+    ]
+  },
+  {
+    "place_id": "ChIJyxrYqCZd04URoh0I0PVUtDI",
+    "name": "Emora Café",
+    "categoria": "consumo",
+    "subcat": "cafe_especialidad",
+    "lat": 20.6526249,
+    "lng": -100.3406319,
+    "dist_predio_m": 9290,
+    "rating": 5,
+    "user_ratings": 16,
+    "price_level": null,
+    "vicinity": "Calle Cálao 1. 76269 La Pradera, La Pradera, 76269 Santiago de Querétaro, Qro., México",
+    "types": [
+      "cafe",
+      "establishment",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJAQAArPZE04URehTFSCvXQA0",
+    "name": "Taberna El Quillo – Restaurante Español en Querétaro | Cocina Española Tradicional",
+    "categoria": "consumo",
+    "subcat": "bar",
+    "lat": 20.6575781,
+    "lng": -100.4318226,
+    "dist_predio_m": 9496,
+    "rating": 4.8,
+    "user_ratings": 1951,
+    "price_level": 3,
+    "vicinity": "San Luis Potosí - Santiago de Querétaro 135, Jurica, Santiago de Querétaro",
+    "types": [
+      "bar",
+      "restaurant",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJDcaUhKRZ04URXrP4xFWxS8E",
+    "name": "Spaces Paseo de la Republica",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.6838744,
+    "lng": -100.4341119,
+    "dist_predio_m": 12242,
+    "rating": 5,
+    "user_ratings": 1,
+    "price_level": null,
+    "vicinity": "San Luis Potosí - Santiago de Querétaro 13020-1 & 16 pisos, 76230 Juriquilla, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest",
+      "real_estate_agency"
+    ]
+  },
+  {
+    "place_id": "ChIJyejecRFd04URl0kWZRdZdbU",
+    "name": "Work Loft Coworking",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.6833911,
+    "lng": -100.3258161,
+    "dist_predio_m": 13014,
+    "rating": 4.9,
+    "user_ratings": 9,
+    "price_level": null,
+    "vicinity": "Av Paseo Tuna 18A local 217, 76269 Zibatá, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJdShoTABX04URF0EJF59sBKQ",
+    "name": "Irreverente Taller de pan y café",
+    "categoria": "consumo",
+    "subcat": "cafe_especialidad",
+    "lat": 20.6915946,
+    "lng": -100.4412754,
+    "dist_predio_m": 13327,
+    "rating": 4.9,
+    "user_ratings": 11,
+    "price_level": null,
+    "vicinity": "Anillo Vial Fray Junípero Serra 2301-LOCALES 4, Santa Fé, 76230 Juriquilla, Qro., México",
+    "types": [
+      "cafe",
+      "establishment",
+      "food",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJ_VW5cbpZ04URh0CfBsZS_gQ",
+    "name": "Punto 7 Coworking",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.6944428,
+    "lng": -100.4392996,
+    "dist_predio_m": 13535,
+    "rating": 5,
+    "user_ratings": 6,
+    "price_level": null,
+    "vicinity": "Av. de las Ciencias 200-200, 12, CUMBRES DEL LAGO, 76230 Juriquilla, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  },
+  {
+    "place_id": "ChIJcRs8SqdX04URa-r-kurD098",
+    "name": "LinkWork Querétaro",
+    "categoria": "consumo",
+    "subcat": "coworking",
+    "lat": 20.6912722,
+    "lng": -100.4468381,
+    "dist_predio_m": 13542,
+    "rating": 5,
+    "user_ratings": 35,
+    "price_level": null,
+    "vicinity": "Anillo Vial Fray Junípero Serra 3101, Santa Fé, 76100 Juriquilla, Juriquilla Santa Fe, Supermanzana Residencial, Santa Fé, 76100 Santiago de Querétaro, Qro., México",
+    "types": [
+      "establishment",
+      "point_of_interest"
+    ]
+  }
+]

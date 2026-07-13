@@ -1,0 +1,110 @@
+[
+  {
+    "id": 1,
+    "price": 2550000,
+    "size_m2": 300,
+    "title": "Terreno plano 300m2 fracc seguro",
+    "location": "Cumbres del Cimatario, Qro",
+    "link": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "notes": "Frente area verde, vigilancia 24h"
+  },
+  {
+    "id": 2,
+    "price": 1136500,
+    "size_m2": 234,
+    "title": "Lote Club Golf El Encino 234m2",
+    "location": "Cumbres del Cimatario",
+    "link": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "notes": "24% bajo promedio"
+  },
+  {
+    "id": 3,
+    "price": 2750000,
+    "size_m2": 300,
+    "title": "Terreno 300m2 frente area verde",
+    "location": "Cumbres del Cimatario",
+    "link": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "notes": "Muy poca pendiente, amenidades fracc"
+  },
+  {
+    "id": 4,
+    "price": 2550000,
+    "size_m2": 322,
+    "title": "Excelente terreno La Biznaga 323m2",
+    "location": "Cumbres del Cimatario",
+    "link": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "notes": "Vista a ciudad y reserva"
+  },
+  {
+    "id": 5,
+    "price": 2650000,
+    "size_m2": 335,
+    "title": "Terreno 336m2 La Biznaga",
+    "location": "Cumbres del Cimatario",
+    "link": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "notes": "Hermosa vista, cerca Centro Sur"
+  },
+  {
+    "id": 6,
+    "price": 1200000,
+    "size_m2": 160,
+    "title": "Lote Mayant Cimatario 160m2",
+    "location": "Cimatario / Huimilpan",
+    "link": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "notes": "Vistas caniada, seguridad 24/7"
+  },
+  {
+    "id": 7,
+    "price": 756000,
+    "size_m2": 180,
+    "title": "Oportunidad El Encino 180m2",
+    "location": "Cumbres del Cimatario",
+    "link": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "notes": "34% bajo promedio"
+  },
+  {
+    "id": 8,
+    "price": 1350000,
+    "size_m2": 300,
+    "title": "Lote 300m2 Villas del Sur",
+    "location": "Villas del Sur (cerca Cimatario)",
+    "link": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "notes": "Zona habitacional/parque"
+  },
+  {
+    "id": 9,
+    "price": 2600000,
+    "size_m2": 285,
+    "title": "Terreno habitacional 285m2 Villas del Sur",
+    "location": "Villas del Sur, Qro",
+    "link": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "notes": "Centrico cerca Alameda"
+  },
+  {
+    "id": 10,
+    "price": 2225000,
+    "size_m2": 250,
+    "title": "Terreno Mallorca 250m2 frente Parque Cimatario",
+    "location": "Mallorca Residence, Cimatario",
+    "link": "https://www.inmuebles24.com/terrenos-en-venta-en-cimatario.html",
+    "notes": "Amenidades, 20min centro"
+  },
+  {
+    "id": 11,
+    "price": 3200000,
+    "size_m2": 500,
+    "title": "Lote plusvalia 500m2 zona crecimiento",
+    "location": "Cimatario area",
+    "link": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "notes": "Potencial desarrollo"
+  },
+  {
+    "id": 12,
+    "price": 2950000,
+    "size_m2": 420,
+    "title": "Terreno 420m2 Cimatario consolidado",
+    "location": "Cimatario, Qro",
+    "link": "https://www.inmuebles24.com/terrenos-en-venta-en-cimatario.html",
+    "notes": "Alta plusvalia"
+  }
+]

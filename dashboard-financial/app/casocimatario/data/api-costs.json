@@ -1,0 +1,83 @@
+[
+  {
+    "date": "2026-07-05T20:00:00Z",
+    "api": "Google Geocoding",
+    "operation": "geocode 179 comps + validación predio",
+    "units": 182,
+    "unit_cost_usd": 0.005,
+    "cost_usd": 0.91,
+    "note": "179 comps sin coords → 74 calle + 105 colonia"
+  },
+  {
+    "date": "2026-07-05T20:15:00Z",
+    "api": "FAL flux/schnell",
+    "operation": "4 renders HBU (validación + 3 escenarios)",
+    "units": 4,
+    "unit_cost_usd": 0.003,
+    "cost_usd": 0.012,
+    "note": "hibrido/vertical/horizontal + test"
+  },
+  {
+    "date": "2026-07-05T21:49:00Z",
+    "api": "FAL kling-video 1.6 std i2v",
+    "operation": "3 videos HBU (image-to-video 5s)",
+    "units": 3,
+    "unit_cost_usd": 0.30,
+    "cost_usd": 0.90,
+    "note": "hibrido/vertical/horizontal desde renders; 5s c/u"
+  },
+  {
+    "date": "2026-07-05T21:45:00Z",
+    "api": "Google Places / Maps",
+    "operation": "topología colindancias (reverse geocode + nearby x5 + StreetView metadata x4)",
+    "units": 6,
+    "unit_cost_usd": 0.028,
+    "cost_usd": 0.17,
+    "note": "colindancias predio + anclas (univ/hospital/mall/super); SV metadata sin costo"
+  },
+  {
+    "date": "2026-07-06T04:30:00Z",
+    "api": "Google Places / Maps",
+    "operation": "v7 mapeo inteligente: nearby+textsearch (anclas 312, competencia 54, consumo 163, equipamiento 127)",
+    "units": 57,
+    "unit_cost_usd": 0.032,
+    "cost_usd": 1.82,
+    "note": "capas geo del mapa multicapa"
+  },
+  {
+    "date": "2026-07-06T04:35:00Z",
+    "api": "Google Geocoding",
+    "operation": "v7 geocode comps enriquecidos (scraper metro) + proyectos de inversión",
+    "units": 200,
+    "unit_cost_usd": 0.005,
+    "cost_usd": 1.00,
+    "note": "estimado; comps sin coords del listing + 11 proyectos"
+  },
+  {
+    "date": "2026-07-06T04:36:00Z",
+    "api": "Google Street View Static",
+    "operation": "v7 fachadas del predio (4 orientaciones N/E/S/O)",
+    "units": 4,
+    "unit_cost_usd": 0.007,
+    "cost_usd": 0.03,
+    "note": "predio_streetview_{0,90,180,270}.jpg"
+  },
+  {
+    "date": "2026-07-06T04:40:00Z",
+    "api": "IPRoyal residential proxy",
+    "operation": "v7 scraping Lamudi zona metro (enriquecer 537->852 comps reales)",
+    "units": 1,
+    "unit_cost_usd": 0.05,
+    "cost_usd": 0.05,
+    "note": "estimado por ancho de banda (~pocos MB via geo.iproyal.com MX)"
+  },
+  {
+    "date": "2026-07-06T05:30:00Z",
+    "api": "Google Geocoding",
+    "operation": "v8 top-up: geocode 231 comps sin coords (dataset 852->1,439)",
+    "units": 231,
+    "unit_cost_usd": 0.005,
+    "cost_usd": 1.16,
+    "note": "210 geocodificados, 21 sin ubicar; total 1,418/1,439 con coords"
+  }
+]

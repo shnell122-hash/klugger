@@ -1,7 +1,6 @@
 import { api } from '@/lib/api';
 import ComisionesClient from './ComisionesClient';
 
-export const dynamic = 'force-dynamic';
 
 export default async function ComisionesPage() {
   let todas: import('@/lib/api').Comision[] = [], comisionistas: import('@/lib/api').Comisionista[] = [];

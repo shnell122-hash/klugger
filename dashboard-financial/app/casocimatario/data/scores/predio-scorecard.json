@@ -1,0 +1,71 @@
+{
+  "predio": {
+    "lat": 20.5822759,
+    "lng": -100.3887838,
+    "size_m2": 660,
+    "asking": 7000000,
+    "ppm": 10606
+  },
+  "surface": 88.38,
+  "subscores": {
+    "S1": 16.93,
+    "S2": 88.38,
+    "S3": 95.98,
+    "S4": 96.26,
+    "S5": 98.38,
+    "S6": 39.32,
+    "S7": 99.01
+  },
+  "raw": {
+    "k_ancla": 24.05,
+    "k_consumo": 8.29,
+    "k_equip": 15.25,
+    "k_sat": 0.24,
+    "k_val": 2.41,
+    "k_growth": 2.68
+  },
+  "lentes": {
+    "desarrollador": {
+      "score": 72.61,
+      "percentil": 94.99,
+      "ranking_en_537": 72,
+      "weakest": "S1",
+      "weakest_label": "valor ($/m² relativo)",
+      "gap_top_decil_pts": 0,
+      "veredicto": "Score 72.6/100, percentil 95.0 de 537. Punto más débil: valor ($/m² relativo) (16.9 pts)."
+    },
+    "comprador": {
+      "score": 72.75,
+      "percentil": 93.02,
+      "ranking_en_537": 100,
+      "weakest": "S6",
+      "weakest_label": "competencia neta",
+      "gap_top_decil_pts": 0,
+      "veredicto": "Score 72.8/100, percentil 93.0 de 537. Punto más débil: competencia neta (39.3 pts).",
+      "safety_is_proxy": true
+    },
+    "inversionista": {
+      "score": 74.42,
+      "percentil": 93.72,
+      "ranking_en_537": 90,
+      "weakest": "S1",
+      "weakest_label": "valor ($/m² relativo)",
+      "gap_top_decil_pts": 0,
+      "veredicto": "El predio es más atractivo para el perfil inversionista (score 74.4/100, percentil 93.7 de 537). Su punto más débil bajo este lente es valor ($/m² relativo) (16.9 pts). Para entrar al top-decil necesitaría subir ~0.0 pts, principalmente vía valor ($/m² relativo).",
+      "liquidity_is_proxy": true,
+      "liquidity_n_comps_1500m": 75
+    }
+  },
+  "veredicto_texto": "El predio es más atractivo para el perfil inversionista (score 74.4/100, percentil 93.7 de 537). Su punto más débil bajo este lente es valor ($/m² relativo) (16.9 pts). Para entrar al top-decil necesitaría subir ~0.0 pts, principalmente vía valor ($/m² relativo).",
+  "para_quien_es_mejor": "inversionista",
+  "modifiers": {
+    "topo_modifier_applied": false,
+    "value_pts": 0
+  },
+  "flags": {
+    "growth_included": true,
+    "growth_amount_weighted": true,
+    "safety_is_proxy": true,
+    "liquidity_is_proxy": true
+  }
+}
