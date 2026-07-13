@@ -12,6 +12,9 @@ import { Logo } from "@/components/klugger/Logo";
 import { Segmented, SearchBar, Navbar, BottomNav, Popover, Accordion, Pagination } from "@/components/klugger/molecules";
 import { CommandPalette, useCommandK } from "@/components/klugger/CommandPalette";
 import { FilterDrawer } from "@/components/klugger/FilterDrawer";
+import { AVMWidget } from "@/components/klugger/AVM";
+import { PriceHistory } from "@/components/klugger/PriceHistory";
+import { PropertyCard, VerificationPanel, Shortlist, MapFirst, type Prop } from "@/components/klugger/organisms";
 
 const ZONAS = [
   { icon: UI.Building2, name: "Condesa", dato: "▲ 6.4% plusvalía · $58k/m²" },
@@ -24,6 +27,13 @@ const ZONAS = [
 
 const ART = ["#DCCAB4", "#918771", "#B4D94B", "#7CD6FF", "#335E2C", "#566757", "#FAF0DA", "#343631", "#57C6E8", "#C9B496"];
 const BRAND = ["#2ED666", "#29BF5C", "#3B3B3B", "#2E9BD6", "#F4F6F5"];
+
+const PROPS: Prop[] = [
+  { id: "a", titulo: "Departamento en Condesa", zona: "Condesa", precio: 6_450_000, rec: 2, m2: 82, verificado: true, plus: 6.4, tint: ["#B4D94B", "#7CD6FF", "#DCCAB4"] },
+  { id: "b", titulo: "Casa en Coyoacán", zona: "Coyoacán", precio: 8_900_000, rec: 3, m2: 140, verificado: true, nuevo: true, tint: ["#DCCAB4", "#C9B496", "#566757"] },
+  { id: "c", titulo: "Loft en Roma Norte", zona: "Roma", precio: 5_200_000, rec: 1, m2: 58, verificado: false, plus: 4.1, tint: ["#57C6E8", "#B4D94B", "#FAF0DA"] },
+  { id: "d", titulo: "PH en Polanco", zona: "Polanco", precio: 7_100_000, rec: 2, m2: 96, verificado: true, tint: ["#918771", "#DCCAB4", "#7CD6FF"] },
+];
 
 function Sec({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -41,6 +51,7 @@ export default function StyleGuide() {
   const [loading, setLoading] = useState(true);
   const [seg, setSeg] = useState<"Comprar" | "Rentar" | "Vender">("Comprar");
   const [cmdOpen, setCmdOpen] = useState(false);
+  const [pin, setPin] = useState<string | null>(null);
   useCommandK(setCmdOpen);
 
   return (
@@ -227,6 +238,31 @@ export default function StyleGuide() {
           <div style={{ width: 320, margin: "0 auto", border: "1px solid var(--border)", borderRadius: 28, overflow: "hidden", boxShadow: "var(--shadow-2)" }}>
             <div style={{ height: 200, background: "linear-gradient(160deg, color-mix(in srgb, var(--accent) 12%, var(--surface)), var(--surface))", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 13 }}>contenido de la app</div>
             <BottomNav />
+          </div>
+        </Sec>
+
+        <Sec title="Organismos · Mapa map-first (D1) + Cards (C1) — card↔pin linking">
+          <p style={{ color: "var(--text-muted)", marginBottom: 12 }}>El mapa es el filtro. Pasa el cursor sobre un pin o una card: se resaltan enlazados. (Mapa mock; el real es Mapbox GL con capas.)</p>
+          <div className="ksplit">
+            <MapFirst active={pin} onHover={setPin} />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              {PROPS.map((p) => <PropertyCard key={p.id} p={p} active={pin === p.id} onHover={setPin} />)}
+            </div>
+          </div>
+        </Sec>
+
+        <Sec title="Organismos · AVM “Valuar” (D4) + Historial de precio (D6)">
+          <p style={{ color: "var(--text-muted)", marginBottom: 12 }}>Regla de honestidad: siempre rango de confianza + factores ponderados + “por qué”, nunca un precio cerrado.</p>
+          <div className="ksplit">
+            <AVMWidget />
+            <PriceHistory />
+          </div>
+        </Sec>
+
+        <Sec title="Organismos · Verificación itemizada (D5) + Shortlist colaborativa (D7)">
+          <div className="ksplit">
+            <VerificationPanel />
+            <Shortlist />
           </div>
         </Sec>
 
