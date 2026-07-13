@@ -117,9 +117,9 @@
 ## Tabla `/masterplan` de construcción (tras tu curación del catálogo)
 | # | Ola | Contenido | Owner/Modelo | Verificación |
 |---|---|---|---|---|
-| K0 | 0 | Fundacionales A3–A6 + **átomos B** + primitivas de animación Emil + instalar GSAP/Sonner/Vaul/Lottie | Sonnet + Opus (perf) | átomos en `/style`, 3 temas, <300ms |
-| K1 | 1 | **Moléculas C** (nav, tab-bar, search, filtros, drawer, toast, tabs) | Sonnet + Haiku | `/style` completo; a11y AA |
-| K2 | 2 | **Organismos D** (mapa, ficha, AVM, verificación, shortlist, copiloto) | Opus (AVM/verif/seguridad) + Sonnet | smoke tests de dominio |
+| K0 | 0 | Fundacionales A3–A6 + **átomos B** + primitivas de animación Emil + instalar GSAP/Sonner/Vaul/Lottie | Sonnet + Opus (perf) | átomos en `/style`, 3 temas, <300ms | ✅ **hecho** (deploy) |
+| K1 | 1 | **Moléculas C** (nav, tab-bar, search, filtros, drawer, toast, tabs) | Sonnet + Haiku | `/style` completo; a11y AA | ✅ **hecho** — navbar+bottom-nav+segmented+searchbar+drawer Vaul+⌘K+popover/accordion/paginación (commit 0870ed0, deploy) |
+| K2 | 2 | **Organismos D** (mapa, ficha, AVM, verificación, shortlist, copiloto) | Opus (AVM/verif/seguridad) + Sonnet | smoke tests de dominio | ✅ **hecho** — AVM (rango+factores) · verificación itemizada · card↔pin map-first · historial precio · shortlist (commit 77d6e93, deploy). Pendiente: copiloto agente (D8), data-room (D9), tour 3D (D3), galería/lightbox (D2) |
 | K3 | 3 | **Arte en movimiento F** (GSAP/ScrollTrigger/Lottie/video) cableando assets de R2 | Sonnet + operador (arte) | scroll-story fluido 60fps; reduced-motion |
 | K4 | ∥ | **Guía viva `/style`** con TODO el catálogo + specs de animación | Sonnet + Haiku | página `/style` navegable |
 
