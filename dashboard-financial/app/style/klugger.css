@@ -244,6 +244,57 @@
 .kprop__title { font-size: 14px; font-weight: 600; margin-top: 2px; }
 .kprop__meta { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--text-muted); margin-top: 4px; }
 
+/* ═══════════════ ORGANISMOS K2 (pendientes: D2/D3/D8/D9) ═══════════════ */
+
+/* D2 · Galería / Lightbox */
+.kgal__grid { display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: 76px; gap: 8px; }
+.kgal__thumb { position: relative; border: none; border-radius: var(--radius-sm); cursor: pointer; overflow: hidden; transition: transform var(--dur-hover) var(--ease-out); }
+.kgal__thumb:hover { transform: scale(1.03); }
+.kgal__thumb[data-lead="true"] { grid-column: span 2; grid-row: span 2; }
+.kgal__count { position: absolute; left: 10px; bottom: 10px; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: #06210f; background: color-mix(in srgb, #fff 80%, transparent); padding: 4px 9px; border-radius: 999px; }
+.klight { position: fixed; inset: 0; z-index: 120; display: flex; align-items: center; justify-content: center; gap: 12px; background: rgba(6,10,8,.82); backdrop-filter: blur(4px); }
+.klight__stage { width: min(70vw, 800px); height: min(70vh, 540px); border-radius: var(--radius); box-shadow: var(--shadow-2); }
+.klight__close { position: absolute; top: 18px; right: 18px; display: inline-flex; padding: 10px; border-radius: 999px; border: none; background: rgba(255,255,255,.14); color: #fff; cursor: pointer; }
+.klight__nav { display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 46px; border-radius: 999px; border: none; background: rgba(255,255,255,.14); color: #fff; font-size: 26px; cursor: pointer; }
+.klight__nav:hover { background: rgba(255,255,255,.24); }
+.klight__count { position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%); color: #fff; font-size: 13px; font-weight: 600; background: rgba(0,0,0,.4); padding: 5px 12px; border-radius: 999px; }
+
+/* D3 · Floor plan */
+.kfloor { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+.kfloor__svg { width: 320px; max-width: 100%; aspect-ratio: 1; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); }
+.kfloor__room rect { fill: color-mix(in srgb, var(--text) 5%, var(--surface)); stroke: var(--border); stroke-width: 0.6; cursor: pointer; transition: fill var(--dur-hover) var(--ease-out); }
+.kfloor__room:hover rect { fill: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+.kfloor__room[data-on="true"] rect { fill: color-mix(in srgb, var(--accent) 24%, var(--surface)); stroke: var(--accent); stroke-width: 1; }
+.kfloor__label { font-size: 3.4px; fill: var(--text); text-anchor: middle; dominant-baseline: middle; font-weight: 600; pointer-events: none; }
+.kfloor__info { display: flex; flex-direction: column; gap: 4px; }
+.kfloor__info strong { font-family: var(--k-font-display); font-size: 22px; }
+.kfloor__hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+
+/* D8 · Copiloto */
+.kcopilot { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow-1); display: flex; flex-direction: column; gap: 10px; }
+.kcopilot__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.kcopilot__title { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; font-size: 16px; }
+.kcopilot__item { display: flex; align-items: flex-start; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); }
+.kcopilot__ico { display: inline-flex; padding: 8px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent-2); }
+.kcopilot__body { flex: 1; }
+.kcopilot__t { font-size: 14px; font-weight: 600; }
+.kcopilot__w { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; }
+.kcopilot__actions { display: flex; align-items: center; gap: 6px; }
+.kcopilot__skip { display: inline-flex; padding: 8px; border-radius: 999px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; }
+.kcopilot__skip:hover { background: color-mix(in srgb, var(--text) 8%, transparent); }
+.kcopilot__empty { display: inline-flex; align-items: center; gap: 8px; padding: 16px; color: var(--text-muted); font-size: 14px; }
+
+/* D9 · Data room */
+.kdata { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--shadow-1); display: flex; flex-direction: column; gap: 18px; }
+.kdata__head { display: flex; align-items: center; justify-content: space-between; }
+.kdata__title { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; font-size: 16px; }
+.kdata__audit { border-top: 1px solid var(--border); padding-top: 14px; }
+.kdata__auditttl { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--text-muted); margin-bottom: 8px; }
+.kdata__audit ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.kdata__audit li { font-size: 13px; color: var(--text-muted); }
+.kdata__who { font-weight: 700; color: var(--text); }
+.kdata__when { font-size: 12px; }
+
 /* ---- utilidades del /style ---- */
 .kstyle-wrap { max-width: 1100px; margin: 0 auto; padding: 40px 24px 120px; }
 

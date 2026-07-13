@@ -15,6 +15,7 @@ import { FilterDrawer } from "@/components/klugger/FilterDrawer";
 import { AVMWidget } from "@/components/klugger/AVM";
 import { PriceHistory } from "@/components/klugger/PriceHistory";
 import { PropertyCard, VerificationPanel, Shortlist, MapFirst, type Prop } from "@/components/klugger/organisms";
+import { Gallery, FloorPlan, AgentCopilot, DataRoom } from "@/components/klugger/organisms-k2b";
 
 const ZONAS = [
   { icon: UI.Building2, name: "Condesa", dato: "▲ 6.4% plusvalía · $58k/m²" },
@@ -263,6 +264,20 @@ export default function StyleGuide() {
           <div className="ksplit">
             <VerificationPanel />
             <Shortlist />
+          </div>
+        </Sec>
+
+        <Sec title="Organismos · Galería/Lightbox (D2) + Floor-plan clicable (D3)">
+          <div className="ksplit">
+            <Gallery />
+            <FloorPlan />
+          </div>
+        </Sec>
+
+        <Sec title="Organismos · Copiloto del agente (D8) + Data room cifrado (D9)">
+          <div className="ksplit">
+            <AgentCopilot />
+            <DataRoom />
           </div>
         </Sec>
 
