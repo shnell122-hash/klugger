@@ -8,6 +8,7 @@ import { Toaster, toast } from "sonner";
 import { Button, Toggle, Badge, Chip, Skeleton, ChatPill, ThemeSwitcher } from "@/components/klugger/atoms";
 import { ScrollReveal } from "@/components/klugger/ScrollReveal";
 import { Icon, UI, AnimatedIcon, Emoji } from "@/components/klugger/icons";
+import { Logo } from "@/components/klugger/Logo";
 
 const ZONAS = [
   { icon: UI.Building2, name: "Condesa", dato: "▲ 6.4% plusvalía · $58k/m²" },
@@ -47,6 +48,20 @@ export default function StyleGuide() {
           </div>
           <ThemeSwitcher value={theme} onChange={setTheme} />
         </header>
+
+        <Sec title="Logo">
+          <p style={{ color: "var(--text-muted)", marginBottom: 14 }}>
+            Imagotipo (círculo + zorro) vectorizado · wordmark en <strong>Nexa Black</strong> como texto vivo (hereda el color del tema — en oscuro se vuelve blanco).
+          </p>
+          <div className="kstyle-row" style={{ alignItems: "center", gap: 32, flexWrap: "wrap" }}>
+            <Logo variant="full" height={44} />
+            <Logo variant="mark" height={44} />
+            <Logo variant="wordmark" height={44} />
+          </div>
+          <div style={{ marginTop: 18, padding: "20px 24px", background: "#141414", borderRadius: 12, color: "#fff", display: "inline-flex" }}>
+            <Logo variant="full" height={40} />
+          </div>
+        </Sec>
 
         <Sec title="Hero (v1 canónico)">
           <div className="khero">
