@@ -295,6 +295,39 @@
 .kdata__who { font-weight: 700; color: var(--text); }
 .kdata__when { font-size: 12px; }
 
+/* ═══════════════ ARTE EN MOVIMIENTO (K3 · §F) ═══════════════ */
+
+/* F1/F3 · Hero parallax */
+.khp__frame { position: relative; border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-2); aspect-ratio: 16/7; }
+.khp__img { position: absolute; inset: -6% 0; width: 100%; height: 112%; object-fit: cover; will-change: transform; }
+.khp__pill { position: absolute; left: 20px; bottom: 20px; display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px; border-radius: 999px; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(8px); border: 1px solid var(--border); font-weight: 600; font-size: 14px; box-shadow: var(--shadow-1); }
+
+/* F2 · Fox scroll-story (pinned) */
+.kfox { position: relative; height: 78vh; min-height: 460px; border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-2); }
+.kfox__map { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: saturate(1.05); }
+.kfox__runner { position: absolute; top: 42%; width: 92px; height: 92px; filter: drop-shadow(0 8px 18px rgba(0,0,0,.35)); will-change: transform, left; }
+.kfox__cap { position: absolute; left: 24px; bottom: 26px; display: flex; align-items: baseline; gap: 12px; color: #fff; text-shadow: 0 2px 12px rgba(0,0,0,.5); }
+.kfox__step { font-family: var(--k-font-display); font-weight: 900; font-size: 40px; opacity: .7; }
+.kfox__cap > span:last-child { font-family: var(--k-font-display); font-weight: 900; font-size: 26px; }
+.kfox__hint { position: absolute; top: 18px; right: 20px; font-size: 12px; color: #fff; background: rgba(0,0,0,.35); padding: 5px 12px; border-radius: 999px; }
+
+/* F6 · Line-draw */
+.kdraw { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 24px; }
+.kdraw__cap { font-size: 12px; color: var(--text-muted); }
+
+/* F4 · Mascota */
+.kmascot { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 20px; }
+.kmascot__stage { width: 160px; height: 160px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-lg); background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--accent) 16%, var(--surface)), var(--surface)); border: 1px solid var(--border); }
+.kmascot__note { font-size: 12px; color: var(--text-muted); text-align: center; }
+
+/* F7 · Marquee */
+.kmarq { overflow: hidden; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 12px 0; -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+.kmarq__track { display: inline-flex; gap: 34px; white-space: nowrap; animation: kmarq 26s linear infinite; }
+.kmarq:hover .kmarq__track { animation-play-state: paused; }
+.kmarq__item { display: inline-flex; align-items: center; gap: 6px; font-family: var(--k-font-display); font-weight: 900; font-size: 20px; color: var(--text-muted); }
+@keyframes kmarq { to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .kmarq__track { animation: none; } }
+
 /* ---- utilidades del /style ---- */
 .kstyle-wrap { max-width: 1100px; margin: 0 auto; padding: 40px 24px 120px; }
 

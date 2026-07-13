@@ -16,6 +16,7 @@ import { AVMWidget } from "@/components/klugger/AVM";
 import { PriceHistory } from "@/components/klugger/PriceHistory";
 import { PropertyCard, VerificationPanel, Shortlist, MapFirst, type Prop } from "@/components/klugger/organisms";
 import { Gallery, FloorPlan, AgentCopilot, DataRoom } from "@/components/klugger/organisms-k2b";
+import { HeroParallax, FoxScrollStory, FoxLineDraw, FoxMascot, Marquee } from "@/components/klugger/MovingArt";
 
 const ZONAS = [
   { icon: UI.Building2, name: "Condesa", dato: "▲ 6.4% plusvalía · $58k/m²" },
@@ -281,7 +282,27 @@ export default function StyleGuide() {
           </div>
         </Sec>
 
-        <Sec title="Arte en movimiento (GSAP + ScrollTrigger)">
+        <Sec title="Arte en movimiento · Hero low-poly + parallax (F1/F3)">
+          <HeroParallax />
+        </Sec>
+
+        <Sec title="Arte en movimiento · Marquee de colonias (F7)">
+          <Marquee />
+        </Sec>
+
+        <Sec title="Arte en movimiento · Line-draw del imagotipo (F6) + Mascota-estados (F4)">
+          <div className="ksplit">
+            <div className="kcard" style={{ display: "flex", justifyContent: "center" }}><FoxLineDraw /></div>
+            <div className="kcard"><FoxMascot /></div>
+          </div>
+        </Sec>
+
+        <Sec title="Arte en movimiento · El zorro recorre el mapa (F2 · scroll-story pin+scrub)">
+          <p style={{ color: "var(--text-muted)", marginBottom: 12 }}>Haz scroll: la sección se fija y el zorro cruza el mapa mientras avanza la narrativa (respeta prefers-reduced-motion).</p>
+          <FoxScrollStory />
+        </Sec>
+
+        <Sec title="Arte en movimiento · Reveal on scroll (F8)">
           <p style={{ color: "var(--text-muted)", marginBottom: 12 }}>Cada tarjeta hace reveal al entrar en viewport (respeta prefers-reduced-motion).</p>
           <ScrollReveal>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
