@@ -23,7 +23,12 @@
   --k-green-1: #2ED666;   /* primario */
   --k-green-2: #29BF5C;   /* secundario */
   --k-gray:    #3B3B3B;   /* texto/neutro */
-  --k-blue:    #2E9BD6;   /* extremo azul del degradado (validar) */
+  /* Azul de marca: --k-blue = activo. Variantes A–D disponibles para elegir. */
+  --k-blue-a:  #2E9BD6;   /* A · medio equilibrado (activo por defecto) */
+  --k-blue-b:  #1E9FE0;   /* B · brillante cyan-cielo (tech) */
+  --k-blue-c:  #29C1D6;   /* C · turquesa/cian (distintivo) */
+  --k-blue-d:  #1E6FB5;   /* D · profundo confianza (banca/datos) */
+  --k-blue:    var(--k-blue-a);  /* ← cambiar aquí para intercambiar el azul activo */
   --k-light:   #F4F6F5;   /* fondo claro */
   --k-gradient: linear-gradient(90deg, var(--k-green-2), var(--k-blue));
 

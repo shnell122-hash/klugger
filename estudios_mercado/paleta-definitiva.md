@@ -11,8 +11,17 @@
 | Verde 1 · primario | `#2ED666` | `--k-green-1` / `BRAND.green1` |
 | Verde 2 · secundario | `#29BF5C` | `--k-green-2` / `BRAND.green2` |
 | Gris · texto/neutro | `#3B3B3B` | `--k-gray` / `BRAND.gray` |
-| Azul degradado · **validar** | `#2E9BD6` | `--k-blue` / `BRAND.blue` |
+| Azul marca · **activo = A** | `#2E9BD6` | `--k-blue` (→ `--k-blue-a`) / `BRAND.blue` |
 | Claro · fondo | `#F4F6F5` | `--k-light` / `BRAND.light` |
+
+**Variantes de azul disponibles** (elegir el activo cambiando `--k-blue` en `tokens.css`):
+
+| Var | HEX | Carácter | Token |
+|-----|-----|----------|-------|
+| **A** (activo) | `#2E9BD6` | medio equilibrado | `--k-blue-a` |
+| B | `#1E9FE0` | brillante cyan-cielo (tech) | `--k-blue-b` |
+| C | `#29C1D6` | turquesa/cian (distintivo) | `--k-blue-c` |
+| D | `#1E6FB5` | profundo confianza (banca/datos) | `--k-blue-d` |
 
 **Degradado firma:** `#29BF5C → #2E9BD6` (`--k-gradient` / `BRAND_GRADIENT`). Protagonista en hero de consumidor.
 
