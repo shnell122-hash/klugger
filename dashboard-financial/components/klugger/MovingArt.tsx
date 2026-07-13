@@ -3,7 +3,7 @@
 // Regla: el arte lo crea german (assets en R2/public); aquí se CABLEA con GSAP/Framer.
 // Todo respeta prefers-reduced-motion y usa solo transform/opacity (60fps).
 import { useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, type TargetAndTransition } from "framer-motion";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -104,7 +104,7 @@ export function FoxMascot() {
   return (
     <div className="kmascot">
       <div className="kmascot__stage">
-        <motion.img src="/assets/klugger-isotipo.svg" alt={`Mascota — ${STATES[s].label}`} width={120} height={120} animate={STATES[s].anim as object} />
+        <motion.img src="/assets/klugger-isotipo.svg" alt={`Mascota — ${STATES[s].label}`} width={120} height={120} animate={STATES[s].anim as TargetAndTransition} />
       </div>
       <div className="kstyle-row" style={{ justifyContent: "center" }}>
         {(Object.keys(STATES) as StateKey[]).map((k) => (
