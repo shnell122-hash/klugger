@@ -16,7 +16,7 @@ import { AVMWidget } from "@/components/klugger/AVM";
 import { PriceHistory } from "@/components/klugger/PriceHistory";
 import { PropertyCard, VerificationPanel, Shortlist, MapFirst, type Prop } from "@/components/klugger/organisms";
 import { Gallery, FloorPlan, AgentCopilot, DataRoom } from "@/components/klugger/organisms-k2b";
-import { HeroScrubVideo, FoxLineDraw, FoxMascot, Marquee } from "@/components/klugger/MovingArt";
+import { HeroVideo, FoxLineDraw, FoxMascot, Marquee } from "@/components/klugger/MovingArt";
 
 const ZONAS = [
   { icon: UI.Building2, name: "Condesa", dato: "▲ 6.4% plusvalía · $58k/m²" },
@@ -282,9 +282,9 @@ export default function StyleGuide() {
           </div>
         </Sec>
 
-        <Sec title="Arte en movimiento · El zorro recorre la ciudad (F1+F2 · video scrubbeado por scroll)">
-          <p style={{ color: "var(--text-muted)", marginBottom: 12 }}>Haz scroll: la sección se fija y el video avanza con tu scroll — el zorro recorre CDMX. (prefers-reduced-motion → póster estático.)</p>
-          <HeroScrubVideo />
+        <Sec title="Arte en movimiento · Hero: el zorro y la ciudad (F1+F2+F5 · video autoplay loop)">
+          <p style={{ color: "var(--text-muted)", marginBottom: 12 }}>Video low-poly en loop (funciona en iOS: autoplay muted playsInline). Entrada scroll-triggered; póster de respaldo.</p>
+          <HeroVideo />
         </Sec>
 
         <Sec title="Arte en movimiento · Marquee de colonias (F7)">

@@ -2,7 +2,7 @@
 // Klugger — Arte en movimiento (K3 · MASTERPLAN-CATALOGO §F). TODO scroll-triggered.
 // Regla: el arte lo crea german (assets en R2/public); aquí se CABLEA con GSAP/Framer.
 // prefers-reduced-motion: sin scrub ni loops; se muestra el póster/estado estático.
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, type TargetAndTransition } from "framer-motion";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
@@ -13,32 +13,30 @@ import { FOX_PATHS, FOX_VIEWBOX } from "./foxPaths";
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 const reduced = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-/* ── F1+F2 · Hero: el zorro recorre la ciudad — VIDEO scrubbeado por scroll ── */
-export function HeroScrubVideo() {
+/* ── F1+F2+F5 · Hero: el zorro y la ciudad — VIDEO autoplay+loop (funciona en iOS).
+   El scroll-scrub de video no pinta frames en iOS Safari → se usa autoplay muted loop
+   playsInline (patrón Stripe/Linear). Entrada scroll-triggered (transform/opacity, sí va en iOS). ── */
+export function HeroVideo() {
   const root = useRef<HTMLDivElement>(null);
   const vid = useRef<HTMLVideoElement>(null);
   useGSAP(() => {
-    const v = vid.current;
-    if (!v || reduced()) return; // reduced-motion → póster estático
-    const wire = () => {
-      const dur = v.duration || 6;
-      ScrollTrigger.create({
-        trigger: root.current, start: "top top", end: "+=1600", scrub: 0.4, pin: true,
-        onUpdate: (self) => { v.currentTime = Math.min(dur - 0.05, self.progress * dur); },
-      });
-      ScrollTrigger.refresh();
-    };
-    if (v.readyState >= 1) wire();
-    else v.addEventListener("loadedmetadata", wire, { once: true });
+    if (reduced()) return;
+    gsap.from(root.current, { opacity: 0, y: 24, duration: 0.7, ease: "power3.out", scrollTrigger: { trigger: root.current, start: "top 88%" } });
   }, { scope: root });
+  useEffect(() => {
+    const v = vid.current;
+    if (!v) return;
+    v.muted = true;
+    const p = v.play();
+    if (p && typeof p.catch === "function") p.catch(() => {}); // iOS Low-Power → queda el póster
+  }, []);
   return (
     <div className="khv" ref={root}>
       <div className="khv__stage">
-        <video ref={vid} className="khv__video" src="/assets/klugger-hero.mp4" poster="/assets/klugger-hero-poster.jpg" muted playsInline preload="auto" />
+        <video ref={vid} className="khv__video" src="/assets/klugger-hero.mp4" poster="/assets/klugger-hero-poster.jpg" muted loop autoPlay playsInline preload="auto" />
         <div className="khv__overlay">
           <p className="khv__tag">El zorro conoce la ciudad.<br />Tú también, con Klugger.</p>
         </div>
-        <div className="khv__hint"><Icon as={UI.ChevronDown} size={16} /> scroll para recorrer la ciudad</div>
       </div>
     </div>
   );
@@ -54,9 +52,10 @@ export function FoxLineDraw() {
       const len = p.getTotalLength();
       gsap.set(p, { strokeDasharray: len, strokeDashoffset: len, fillOpacity: 0 });
     });
-    gsap.timeline({ scrollTrigger: { trigger: root.current, start: "top 85%", end: "top 35%", scrub: 0.5 } })
-      .to(paths, { strokeDashoffset: 0, ease: "none", stagger: 0.08 })
-      .to(paths, { fillOpacity: 1, ease: "none", duration: 0.4 }, ">-0.2");
+    // un disparo que COMPLETA al entrar en viewport (nunca queda a medias)
+    gsap.timeline({ scrollTrigger: { trigger: root.current, start: "top 80%", toggleActions: "play none none none" } })
+      .to(paths, { strokeDashoffset: 0, duration: 1.1, ease: "power2.inOut", stagger: 0.08 })
+      .to(paths, { fillOpacity: 1, duration: 0.4, ease: "power1.out" }, "-=0.2");
   }, { scope: root });
   return (
     <div className="kdraw" ref={root}>
