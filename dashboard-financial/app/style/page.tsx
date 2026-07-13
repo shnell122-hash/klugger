@@ -17,6 +17,10 @@ import { PriceHistory } from "@/components/klugger/PriceHistory";
 import { PropertyCard, VerificationPanel, Shortlist, MapFirst, type Prop } from "@/components/klugger/organisms";
 import { Gallery, FloorPlan, AgentCopilot, DataRoom } from "@/components/klugger/organisms-k2b";
 import { HeroVideo, FoxLineDraw, FoxMascot, Marquee } from "@/components/klugger/MovingArt";
+import dynamic from "next/dynamic";
+
+// Canvas WebGL: client-only, nunca prerender en el build estático.
+const HeroWorld3D = dynamic(() => import("@/components/klugger/HeroWorld3D").then((m) => m.HeroWorld3D), { ssr: false });
 
 const ZONAS = [
   { icon: UI.Building2, name: "Condesa", dato: "▲ 6.4% plusvalía · $58k/m²" },
@@ -280,6 +284,11 @@ export default function StyleGuide() {
             <AgentCopilot />
             <DataRoom />
           </div>
+        </Sec>
+
+        <Sec title="Hero 3D NATIVO (spike H1) · WebGL, transparente, scroll → rotación">
+          <p style={{ color: "var(--text-muted)", marginBottom: 12 }}>Prueba de concepto tipo igloo.inc: <strong>geometría WebGL real</strong> (no video), canvas <strong>transparente sin cielo</strong>, el <strong>scroll rota el mundo</strong> (lerp). Placeholder low-poly hasta cablear el GLB del zorro.</p>
+          <HeroWorld3D />
         </Sec>
 
         <Sec title="Arte en movimiento · Hero: el zorro y la ciudad (F1+F2+F5 · video autoplay loop)">
