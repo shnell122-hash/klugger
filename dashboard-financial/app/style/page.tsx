@@ -9,6 +9,9 @@ import { Button, Toggle, Badge, Chip, Skeleton, ChatPill, ThemeSwitcher } from "
 import { ScrollReveal } from "@/components/klugger/ScrollReveal";
 import { Icon, UI, AnimatedIcon, Emoji } from "@/components/klugger/icons";
 import { Logo } from "@/components/klugger/Logo";
+import { Segmented, SearchBar, Navbar, BottomNav, Popover, Accordion, Pagination } from "@/components/klugger/molecules";
+import { CommandPalette, useCommandK } from "@/components/klugger/CommandPalette";
+import { FilterDrawer } from "@/components/klugger/FilterDrawer";
 
 const ZONAS = [
   { icon: UI.Building2, name: "Condesa", dato: "▲ 6.4% plusvalía · $58k/m²" },
@@ -36,6 +39,9 @@ export default function StyleGuide() {
   const [t1, setT1] = useState(true);
   const [chip, setChip] = useState("Precio");
   const [loading, setLoading] = useState(true);
+  const [seg, setSeg] = useState<"Comprar" | "Rentar" | "Vender">("Comprar");
+  const [cmdOpen, setCmdOpen] = useState(false);
+  useCommandK(setCmdOpen);
 
   return (
     <div className="klugger-scope" data-theme={theme}>
@@ -163,6 +169,67 @@ export default function StyleGuide() {
           </div>
         </Sec>
 
+        <Sec title="Moléculas · Navbar (C13) — sticky transparente → sólido">
+          <p style={{ color: "var(--text-muted)", marginBottom: 12 }}>Haz scroll dentro del marco: la barra pasa de transparente a sólida con blur. En móvil colapsa a hamburguesa.</p>
+          <div className="knav-scroll">
+            <Navbar />
+            <div className="knav-scroll__filler">↑ scrollea para ver la barra solidificarse</div>
+          </div>
+        </Sec>
+
+        <Sec title="Moléculas · Buscador (C11) + Segmented (C6)">
+          <div style={{ marginBottom: 16 }}>
+            <Segmented options={["Comprar", "Rentar", "Vender"] as const} value={seg} onChange={setSeg} />
+            <span style={{ marginLeft: 12, fontSize: 13, color: "var(--text-muted)" }}>modo: {seg}</span>
+          </div>
+          <SearchBar onOpenPalette={() => setCmdOpen(true)} />
+        </Sec>
+
+        <Sec title="Moléculas · Filtros (C12) + Drawer Vaul (C4)">
+          <p style={{ color: "var(--text-muted)", marginBottom: 12 }}>Orden budget-first; “Más filtros” abre un bottom-sheet con swipe/damping nativo (arrástralo para cerrar).</p>
+          <div className="kstyle-row">
+            {["Precio", "Recámaras", "Tipo", "m²", "Verificado"].map((c) => (
+              <Chip key={c} active={chip === c} onClick={() => setChip(c)}>{c}</Chip>
+            ))}
+            <FilterDrawer trigger={<button className="kchip" data-active={false}><Icon as={UI.SlidersHorizontal} size={15} /> Más filtros</button>} />
+          </div>
+        </Sec>
+
+        <Sec title="Moléculas · Command palette (C10) — ⌘K / Ctrl-K">
+          <p style={{ color: "var(--text-muted)", marginBottom: 12 }}>Alta frecuencia → aparición instantánea (sin animación de entrada). Navega con ↑↓, Enter, Esc.</p>
+          <Button variant="secondary" onClick={() => setCmdOpen(true)}>
+            <Icon as={UI.Command} size={15} /> Abrir paleta <kbd className="kcmd__kbd" style={{ marginLeft: 4 }}>⌘K</kbd>
+          </Button>
+        </Sec>
+
+        <Sec title="Moléculas · Popover (C2) + Accordion (C7) + Paginación (C9)">
+          <div className="kstyle-row" style={{ alignItems: "flex-start", gap: 24 }}>
+            <Popover trigger={({ toggle, open }) => (
+              <Button variant="secondary" onClick={toggle}>Ordenar por <span style={{ display: "inline-flex", transform: open ? "rotate(180deg)" : "none", transition: "transform .15s" }}><Icon as={UI.ChevronDown} size={15} /></span></Button>
+            )}>
+              {["Relevancia", "Precio: menor a mayor", "Precio: mayor a menor", "Más recientes", "Mayor plusvalía"].map((o) => (
+                <div key={o} className="kpop__row"><Icon as={UI.Check} size={16} /> {o}</div>
+              ))}
+            </Popover>
+            <Pagination total={6} />
+          </div>
+          <div style={{ marginTop: 20, maxWidth: 620 }}>
+            <Accordion items={[
+              { q: "¿Cómo verifica Klugger una propiedad?", a: "Cotejamos título, geolocalización y dueño contra fuentes oficiales; cada ficha muestra qué se verificó y cuándo fue la última re-verificación." },
+              { q: "¿Qué es la valuación (AVM)?", a: "Un estimado de valor con rango de confianza y los factores ponderados que lo explican (ubicación, m², plusvalía de la zona, comparables reales)." },
+              { q: "¿Puedo decidir con alguien más?", a: "Sí: la shortlist es colaborativa — invita a tu co-comprador, voten y comparen en modo “Decidir”." },
+            ]} />
+          </div>
+        </Sec>
+
+        <Sec title="Moléculas · Bottom tab-bar (C14, móvil)">
+          <p style={{ color: "var(--text-muted)", marginBottom: 12 }}>Indicador activo animado (spring). Se oculta en vista mapa. Preview en marco de teléfono:</p>
+          <div style={{ width: 320, margin: "0 auto", border: "1px solid var(--border)", borderRadius: 28, overflow: "hidden", boxShadow: "var(--shadow-2)" }}>
+            <div style={{ height: 200, background: "linear-gradient(160deg, color-mix(in srgb, var(--accent) 12%, var(--surface)), var(--surface))", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 13 }}>contenido de la app</div>
+            <BottomNav />
+          </div>
+        </Sec>
+
         <Sec title="Arte en movimiento (GSAP + ScrollTrigger)">
           <p style={{ color: "var(--text-muted)", marginBottom: 12 }}>Cada tarjeta hace reveal al entrar en viewport (respeta prefers-reduced-motion).</p>
           <ScrollReveal>
@@ -180,6 +247,7 @@ export default function StyleGuide() {
           </ScrollReveal>
         </Sec>
       </div>
+      <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} />
     </div>
   );
 }

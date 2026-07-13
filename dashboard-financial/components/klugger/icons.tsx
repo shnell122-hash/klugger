@@ -6,6 +6,8 @@ import type { LucideIcon } from "lucide-react";
 import {
   Search, Sun, SunMoon, Moon, Check, TrendingUp, Heart, Share2, MapPin, Home,
   Bell, Loader2, BadgeCheck, SlidersHorizontal, Building2, Trees, Waves, Store,
+  ChevronDown, ChevronRight, X, Command, ArrowRight, Menu, User, Plus, Minus,
+  MessageSquare, Map as MapIcon, LayoutGrid, CornerDownLeft,
 } from "lucide-react";
 
 /** Wrapper de ícono: tamaño, stroke y a11y consistentes; hereda color (currentColor). */
@@ -14,7 +16,12 @@ export function Icon({ as: As, size = 20, strokeWidth = 2, label }: { as: Lucide
 }
 
 /** Set curado de UI (se expande según se necesite). */
-export const UI = { Search, Sun, SunMoon, Moon, Check, TrendingUp, Heart, Share2, MapPin, Home, Bell, BadgeCheck, SlidersHorizontal, Building2, Trees, Waves, Store };
+export const UI = {
+  Search, Sun, SunMoon, Moon, Check, TrendingUp, Heart, Share2, MapPin, Home,
+  Bell, BadgeCheck, SlidersHorizontal, Building2, Trees, Waves, Store,
+  ChevronDown, ChevronRight, X, Command, ArrowRight, Menu, User, Plus, Minus,
+  MessageSquare, Map: MapIcon, LayoutGrid, Enter: CornerDownLeft,
+};
 
 /** Iconograma animado nativo (Lucide + Framer, transform/opacity 60fps). */
 export function AnimatedIcon({ kind, size = 22 }: { kind: "spin" | "pulse" | "shake" | "draw"; size?: number }) {
