@@ -8,7 +8,6 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Icon, UI } from "./icons";
-import { FOX_PATHS, FOX_VIEWBOX } from "./foxPaths";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 const reduced = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -42,27 +41,24 @@ export function HeroVideo() {
   );
 }
 
-/* ── F6 · Line-draw del imagotipo — stroke-dashoffset atado a scroll (scrub) ── */
+/* ── F6 · Line-draw del imagotipo — VIDEO real (luz dibuja el contorno + zoom in/out).
+   Autoplay+loop (iOS-safe); reproduce cuando entra en viewport. ── */
 export function FoxLineDraw() {
   const root = useRef<HTMLDivElement>(null);
+  const vid = useRef<HTMLVideoElement>(null);
   useGSAP(() => {
-    const paths = gsap.utils.toArray<SVGPathElement>(".kdraw path");
-    if (reduced()) { gsap.set(paths, { strokeDashoffset: 0, fillOpacity: 1 }); return; }
-    paths.forEach((p) => {
-      const len = p.getTotalLength();
-      gsap.set(p, { strokeDasharray: len, strokeDashoffset: len, fillOpacity: 0 });
+    if (reduced()) return;
+    // reproducir al entrar en viewport (scroll-triggered), reiniciar cada vez
+    ScrollTrigger.create({
+      trigger: root.current, start: "top 82%",
+      onEnter: () => { const v = vid.current; if (v) { v.currentTime = 0; v.play?.().catch(() => {}); } },
     });
-    // un disparo que COMPLETA al entrar en viewport (nunca queda a medias)
-    gsap.timeline({ scrollTrigger: { trigger: root.current, start: "top 80%", toggleActions: "play none none none" } })
-      .to(paths, { strokeDashoffset: 0, duration: 1.1, ease: "power2.inOut", stagger: 0.08 })
-      .to(paths, { fillOpacity: 1, duration: 0.4, ease: "power1.out" }, "-=0.2");
   }, { scope: root });
+  useEffect(() => { const v = vid.current; if (v) { v.muted = true; v.play?.().catch(() => {}); } }, []);
   return (
     <div className="kdraw" ref={root}>
-      <svg viewBox={FOX_VIEWBOX} width={150} height={150} fill="currentColor" stroke="currentColor" strokeWidth={6} strokeLinejoin="round" style={{ color: "var(--accent-2)" }}>
-        {FOX_PATHS.map((d, i) => <path key={i} d={d} />)}
-      </svg>
-      <span className="kdraw__cap">line-draw del imagotipo · scroll dibuja el contorno</span>
+      <video ref={vid} className="kdraw__video" src="/assets/klugger-linedraw.mp4" poster="/assets/klugger-linedraw-poster.jpg" muted loop autoPlay playsInline preload="auto" />
+      <span className="kdraw__cap">el contorno de Klugger se dibuja (loader / intro de marca)</span>
     </div>
   );
 }
