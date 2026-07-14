@@ -45,7 +45,7 @@ function Trees() {
       const phi = 0.35 + rnd() * 1.15; // evita el polo (zorro) y el fondo
       const theta = rnd() * Math.PI * 2;
       const { pos, quat } = onSphere(phi, theta, 0);
-      const sc = 0.05 + rnd() * 0.05;
+      const sc = 0.12 + rnd() * 0.08;
       return { pos, quat, sc };
     });
   }, []);
@@ -68,10 +68,10 @@ function Trees() {
 }
 
 const LANDMARKS = [
-  { url: "/assets/landmark-estadio.glb", phi: 0.9, theta: 0.4, scale: 0.55 },
-  { url: "/assets/landmark-bellasartes.glb", phi: 1.0, theta: 2.0, scale: 0.5 },
-  { url: "/assets/landmark-catedral.glb", phi: 0.95, theta: 3.5, scale: 0.5 },
-  { url: "/assets/landmark-castillo.glb", phi: 1.0, theta: 5.0, scale: 0.5 },
+  { url: "/assets/landmark-estadio.glb", phi: 0.75, theta: 1.2, scale: 1.0 },
+  { url: "/assets/landmark-bellasartes.glb", phi: 0.8, theta: 2.5, scale: 0.95 },
+  { url: "/assets/landmark-catedral.glb", phi: 0.8, theta: 0.0, scale: 0.95 },
+  { url: "/assets/landmark-castillo.glb", phi: 0.85, theta: 4.2, scale: 0.95 },
 ];
 
 /** Recolorea la textura naranja→verde de marca (giro de tono en canvas, una vez). */
@@ -102,11 +102,13 @@ function Fox({ progress }: { progress: { current: number } }) {
       const m = o as Mesh;
       if (m.isMesh && m.material) {
         const src = m.material as MeshStandardMaterial;
+        if (src.userData?.__tinted) return; // idempotente: no re-tintar (evita verde→azul)
         const mat = src.clone();
         if (mat.map) mat.map = tintGreen(mat.map);
         mat.flatShading = false;
+        mat.userData = { ...(mat.userData ?? {}), __tinted: true };
         m.material = mat;
-        m.castShadow = true; // proyecta sombra sobre el planeta → se ve pegado (nivel Principito)
+        m.castShadow = true;
         m.receiveShadow = true;
       }
     });
