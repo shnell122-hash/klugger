@@ -6,9 +6,73 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useGLTF, useAnimations, Center } from "@react-three/drei";
 import { Suspense, useEffect, useMemo, useRef } from "react";
-import { CanvasTexture, MeshStandardMaterial, type Group, type Mesh, type Texture } from "three";
+import { CanvasTexture, MeshStandardMaterial, Quaternion, Vector3, type Group, type Mesh, type Texture } from "three";
 
 const ZORRO = "/assets/klugger-zorro-anim.glb"; // Fox animado (Khronos/three.js, CC0): Survey/Walk/Run
+const R = 1.25; // radio del planeta
+
+/** Coloca sobre la esfera (φ desde el polo +Y, θ azimut), orientado radial (base en superficie). */
+function onSphere(phi: number, theta: number, lift = 0) {
+  const n = new Vector3(Math.sin(phi) * Math.cos(theta), Math.cos(phi), Math.sin(phi) * Math.sin(theta));
+  const pos = n.clone().multiplyScalar(R + lift);
+  const quat = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), n);
+  return { pos, quat };
+}
+
+/** Landmark real de CDMX (GLB Meshy, draco). Se para sobre la esfera con su base tocando la superficie. */
+function Landmark({ url, phi, theta, scale }: { url: string; phi: number; theta: number; scale: number }) {
+  const { scene } = useGLTF(url, true);
+  useMemo(() => {
+    scene.traverse((o) => {
+      const m = o as Mesh;
+      if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; }
+    });
+  }, [scene]);
+  const { pos, quat } = useMemo(() => onSphere(phi, theta, -0.03), [phi, theta]);
+  return (
+    <group position={pos} quaternion={quat}>
+      <Center bottom scale={scale}><primitive object={scene} /></Center>
+    </group>
+  );
+}
+
+/** Árboles low-poly dispersos (cono + tronco), radiales a la esfera. Scatter determinista. */
+function Trees() {
+  const items = useMemo(() => {
+    let s = 1337;
+    const rnd = () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+    return Array.from({ length: 42 }, () => {
+      const phi = 0.35 + rnd() * 1.15; // evita el polo (zorro) y el fondo
+      const theta = rnd() * Math.PI * 2;
+      const { pos, quat } = onSphere(phi, theta, 0);
+      const sc = 0.05 + rnd() * 0.05;
+      return { pos, quat, sc };
+    });
+  }, []);
+  return (
+    <>
+      {items.map((t, i) => (
+        <group key={i} position={t.pos} quaternion={t.quat} scale={t.sc}>
+          <mesh castShadow position={[0, 0.5, 0]}>
+            <coneGeometry args={[0.7, 1.6, 6]} />
+            <meshStandardMaterial color={i % 3 ? "#2E9E4F" : "#3DBB5B"} flatShading />
+          </mesh>
+          <mesh position={[0, -0.1, 0]}>
+            <cylinderGeometry args={[0.14, 0.14, 0.5, 5]} />
+            <meshStandardMaterial color="#7A5A3A" flatShading />
+          </mesh>
+        </group>
+      ))}
+    </>
+  );
+}
+
+const LANDMARKS = [
+  { url: "/assets/landmark-estadio.glb", phi: 0.9, theta: 0.4, scale: 0.55 },
+  { url: "/assets/landmark-bellasartes.glb", phi: 1.0, theta: 2.0, scale: 0.5 },
+  { url: "/assets/landmark-catedral.glb", phi: 0.95, theta: 3.5, scale: 0.5 },
+  { url: "/assets/landmark-castillo.glb", phi: 1.0, theta: 5.0, scale: 0.5 },
+];
 
 /** Recolorea la textura naranja→verde de marca (giro de tono en canvas, una vez). */
 function tintGreen(tex: Texture): Texture {
@@ -85,19 +149,11 @@ function World({ progress }: { progress: { current: number } }) {
       {/* el mundo rota; el zorro NO (queda arriba caminando en su sitio) */}
       <group ref={world}>
         <mesh receiveShadow castShadow>
-          <icosahedronGeometry args={[1.25, 1]} />
+          <icosahedronGeometry args={[R, 2]} />
           <meshStandardMaterial color="#3DBB5B" flatShading roughness={0.95} />
         </mesh>
-        {Array.from({ length: 10 }).map((_, i) => {
-          const a = (i / 10) * Math.PI * 2;
-          const r = 1.2;
-          return (
-            <mesh key={i} castShadow receiveShadow position={[Math.cos(a) * r, Math.sin(i) * 0.5, Math.sin(a) * r]} rotation={[0, -a, 0]}>
-              <boxGeometry args={[0.18, 0.3 + (i % 3) * 0.15, 0.18]} />
-              <meshStandardMaterial color={i % 2 ? "#E7ECE9" : "#C9B496"} flatShading />
-            </mesh>
-          );
-        })}
+        {LANDMARKS.map((l) => <Landmark key={l.url} {...l} />)}
+        <Trees />
       </group>
       <Fox progress={progress} />
     </group>
