@@ -26,12 +26,13 @@ function tintGreen(tex: Texture): Texture {
   return t;
 }
 
-/** Zorro animado que CAMINA (walk cycle real) sobre el mundo; el mundo rota debajo. */
-function Fox() {
+/** Zorro animado. El walk se DRIVE por la velocidad de scroll (scroll-triggered):
+   scrolleas → camina; te detienes → se queda quieto. */
+function Fox({ progress }: { progress: { current: number } }) {
   const ref = useRef<Group>(null);
+  const last = useRef(0);
   const { scene, animations } = useGLTF(ZORRO);
   const { actions } = useAnimations(animations, ref);
-  // tintar a verde una sola vez
   useMemo(() => {
     scene.traverse((o) => {
       const m = o as Mesh;
@@ -46,9 +47,18 @@ function Fox() {
   }, [scene]);
   useEffect(() => {
     const walk = actions["Walk"];
-    walk?.reset().fadeIn(0.2).play();
-    return () => void walk?.fadeOut(0.2);
+    if (!walk) return;
+    walk.play();
+    walk.timeScale = 0; // arranca quieto; el scroll lo mueve
   }, [actions]);
+  useFrame((_, dt) => {
+    const walk = actions["Walk"];
+    if (!walk) return;
+    const vel = Math.abs(progress.current - last.current) / Math.max(dt, 0.001);
+    last.current = progress.current;
+    const target = Math.min(vel * 9, 3.2);          // velocidad de scroll → velocidad de paso
+    walk.timeScale += (target - walk.timeScale) * Math.min(dt * 8, 1); // suavizado
+  });
   return (
     <group ref={ref} position={[0, 1.62, 0]} rotation={[0, -0.9, 0]}>
       <Center scale={0.011}>
@@ -61,11 +71,10 @@ function Fox() {
 /** Mundo low-poly (placeholder hasta el GLB del mundo). Rota según progress (0→1) del scroll. */
 function World({ progress }: { progress: { current: number } }) {
   const world = useRef<Group>(null);
-  const idle = useRef(0);
-  useFrame((_, dt) => {
+  useFrame(() => {
     if (!world.current) return;
-    idle.current += dt * 0.22; // giro continuo → el terreno se mueve bajo el zorro (camina)
-    world.current.rotation.y = idle.current + progress.current * Math.PI * 2; // + scroll acelera
+    // rotación 100% scroll-triggered: la posición de scroll mapea al giro del mundo
+    world.current.rotation.y = progress.current * Math.PI * 2.5;
   });
   return (
     <group rotation={[-0.35, 0, 0]} position={[0, -0.35, 0]} scale={0.9}>
@@ -86,7 +95,7 @@ function World({ progress }: { progress: { current: number } }) {
           );
         })}
       </group>
-      <Fox />
+      <Fox progress={progress} />
     </group>
   );
 }
