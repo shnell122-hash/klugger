@@ -38,7 +38,7 @@ function World({ progress }: { progress: { current: number } }) {
     world.current.rotation.y += (target - world.current.rotation.y) * Math.min(dt * 3, 1);
   });
   return (
-    <group rotation={[-0.35, 0, 0]}>
+    <group rotation={[-0.35, 0, 0]} position={[0, -0.35, 0]} scale={0.9}>
       {/* el mundo rota; el zorro NO (queda arriba caminando en su sitio) */}
       <group ref={world}>
         <mesh>
@@ -86,7 +86,7 @@ export function HeroWorld3D() {
         className="kworld__canvas"
         gl={{ alpha: true, antialias: true }}   // TRANSPARENTE (sin cielo)
         dpr={[1, 2]}
-        camera={{ position: [0, 0, 4], fov: 35 }}
+        camera={{ position: [0, 0.4, 6.6], fov: 35 }}
       >
         <ambientLight intensity={0.75} />
         <directionalLight position={[3, 5, 2]} intensity={1.6} />
