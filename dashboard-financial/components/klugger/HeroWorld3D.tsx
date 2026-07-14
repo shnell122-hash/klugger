@@ -31,7 +31,7 @@ function Landmark({ url, phi, theta, scale }: { url: string; phi: number; theta:
   const { pos, quat } = useMemo(() => onSphere(phi, theta, -0.03), [phi, theta]);
   return (
     <group position={pos} quaternion={quat}>
-      <Center bottom scale={scale}><primitive object={scene} /></Center>
+      <primitive object={scene} scale={scale} />
     </group>
   );
 }
