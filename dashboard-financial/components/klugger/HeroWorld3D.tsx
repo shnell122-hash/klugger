@@ -26,8 +26,7 @@ function Landmark({ url, phi, theta, scale }: { url: string; phi: number; theta:
     scene.traverse((o) => {
       const m = o as Mesh;
       if (m.isMesh) {
-        const src = m.material as MeshStandardMaterial;
-        if (src?.map) { src.map = null; src.needsUpdate = true; } // DEBUG: quitar textura
+        m.material = new MeshStandardMaterial({ color: "#E4E2DA", flatShading: true, roughness: 1 }); // material simple (swiftshader/perf)
         m.castShadow = true; m.receiveShadow = true;
       }
     });
