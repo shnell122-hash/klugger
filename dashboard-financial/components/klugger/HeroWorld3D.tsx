@@ -42,6 +42,8 @@ function Fox({ progress }: { progress: { current: number } }) {
         if (mat.map) mat.map = tintGreen(mat.map);
         mat.flatShading = false;
         m.material = mat;
+        m.castShadow = true; // proyecta sombra sobre el planeta → se ve pegado (nivel Principito)
+        m.receiveShadow = true;
       }
     });
   }, [scene]);
@@ -80,15 +82,15 @@ function World({ progress }: { progress: { current: number } }) {
     <group rotation={[-0.35, 0, 0]} position={[0, -0.35, 0]} scale={0.9}>
       {/* el mundo rota; el zorro NO (queda arriba caminando en su sitio) */}
       <group ref={world}>
-        <mesh>
+        <mesh receiveShadow castShadow>
           <icosahedronGeometry args={[1.25, 1]} />
-          <meshStandardMaterial color="#3DBB5B" flatShading roughness={0.9} />
+          <meshStandardMaterial color="#3DBB5B" flatShading roughness={0.95} />
         </mesh>
         {Array.from({ length: 10 }).map((_, i) => {
           const a = (i / 10) * Math.PI * 2;
           const r = 1.2;
           return (
-            <mesh key={i} position={[Math.cos(a) * r, Math.sin(i) * 0.5, Math.sin(a) * r]} rotation={[0, -a, 0]}>
+            <mesh key={i} castShadow receiveShadow position={[Math.cos(a) * r, Math.sin(i) * 0.5, Math.sin(a) * r]} rotation={[0, -a, 0]}>
               <boxGeometry args={[0.18, 0.3 + (i % 3) * 0.15, 0.18]} />
               <meshStandardMaterial color={i % 2 ? "#E7ECE9" : "#C9B496"} flatShading />
             </mesh>
@@ -123,13 +125,19 @@ export function HeroWorld3D() {
     <div className="kworld" ref={wrap}>
       <Canvas
         className="kworld__canvas"
+        shadows                                  // sombras → ancla al zorro al mundo (nivel Principito)
         gl={{ alpha: true, antialias: true }}   // TRANSPARENTE (sin cielo)
         dpr={[1, 2]}
         camera={{ position: [0, 0.4, 6.6], fov: 35 }}
       >
-        <ambientLight intensity={0.75} />
-        <directionalLight position={[3, 5, 2]} intensity={1.6} />
-        <directionalLight position={[-4, -2, -3]} intensity={0.4} color="#7CD6FF" />
+        {/* luz cálida y suave, cielo/suelo (mood Principito) */}
+        <hemisphereLight args={["#FFF6E5", "#57C05A", 0.85]} />
+        <directionalLight
+          castShadow position={[3.5, 6, 4]} intensity={2.1} color="#FFF1DC"
+          shadow-mapSize={[2048, 2048]} shadow-bias={-0.0004}
+          shadow-camera-left={-4} shadow-camera-right={4} shadow-camera-top={4} shadow-camera-bottom={-4}
+          shadow-camera-near={0.5} shadow-camera-far={20}
+        />
         <Suspense fallback={null}>
           <World progress={progress} />
         </Suspense>
