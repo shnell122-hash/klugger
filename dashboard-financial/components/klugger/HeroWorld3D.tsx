@@ -5,7 +5,7 @@
 // Cargar SIEMPRE con dynamic(ssr:false) — no debe prerenderizarse en el build estático.
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useGLTF, Center } from "@react-three/drei";
-import { useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import type { Group } from "three";
 
 const ZORRO = "/assets/klugger-zorro.glb";
@@ -91,7 +91,9 @@ export function HeroWorld3D() {
         <ambientLight intensity={0.75} />
         <directionalLight position={[3, 5, 2]} intensity={1.6} />
         <directionalLight position={[-4, -2, -3]} intensity={0.4} color="#7CD6FF" />
-        <World progress={progress} />
+        <Suspense fallback={null}>
+          <World progress={progress} />
+        </Suspense>
       </Canvas>
       <div className="kworld__hint">↕ scrollea — el mundo es geometría WebGL nativa (no video), fondo transparente</div>
     </div>
