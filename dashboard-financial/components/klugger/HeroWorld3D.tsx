@@ -17,12 +17,14 @@ function Fox() {
   useFrame((state) => {
     if (!ref.current) return;
     const t = state.clock.elapsedTime;
-    ref.current.position.y = 1.55 + Math.sin(t * 5) * 0.04;   // trote sutil
-    ref.current.rotation.z = Math.sin(t * 5) * 0.025;
+    ref.current.position.y = 1.16 + Math.abs(Math.sin(t * 5)) * 0.05; // trote: rebote hacia arriba
+    ref.current.rotation.z = Math.sin(t * 10) * 0.02;                 // balanceo de paso
+    ref.current.rotation.x = -0.05 + Math.sin(t * 5) * 0.03;          // cabeceo de trote
   });
+  // bottom≈-1 tras Center+scale → base del zorro apoyada en el polo (r=1.25)
   return (
-    <group ref={ref} position={[0, 1.55, 0]} rotation={[0, -0.6, 0]}>
-      <Center scale={0.9}>
+    <group ref={ref} position={[0, 1.16, 0]} rotation={[0, -0.6, 0]}>
+      <Center scale={0.95}>
         <primitive object={scene} />
       </Center>
     </group>
@@ -32,10 +34,11 @@ function Fox() {
 /** Mundo low-poly (placeholder hasta el GLB del mundo). Rota según progress (0→1) del scroll. */
 function World({ progress }: { progress: { current: number } }) {
   const world = useRef<Group>(null);
+  const idle = useRef(0);
   useFrame((_, dt) => {
     if (!world.current) return;
-    const target = progress.current * Math.PI * 2; // una vuelta al scrollear
-    world.current.rotation.y += (target - world.current.rotation.y) * Math.min(dt * 3, 1);
+    idle.current += dt * 0.22; // giro continuo → el terreno se mueve bajo el zorro (camina)
+    world.current.rotation.y = idle.current + progress.current * Math.PI * 2; // + scroll acelera
   });
   return (
     <group rotation={[-0.35, 0, 0]} position={[0, -0.35, 0]} scale={0.9}>
