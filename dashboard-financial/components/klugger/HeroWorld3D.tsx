@@ -19,21 +19,44 @@ function onSphere(phi: number, theta: number, lift = 0) {
   return { pos, quat };
 }
 
-/** Landmark real de CDMX (GLB Meshy, draco). Se para sobre la esfera con su base tocando la superficie. */
+/** Sube saturación de una textura lavada (Meshy) en canvas, una vez. */
+function boostTexture(tex: Texture): Texture {
+  const img = tex.image as HTMLImageElement | undefined;
+  if (!img || !("width" in img)) return tex;
+  const c = document.createElement("canvas");
+  c.width = img.width; c.height = img.height;
+  const ctx = c.getContext("2d");
+  if (!ctx) return tex;
+  ctx.filter = "saturate(1.7) contrast(1.06)";
+  ctx.drawImage(img, 0, 0);
+  const t = new CanvasTexture(c);
+  t.flipY = tex.flipY; t.colorSpace = tex.colorSpace; t.wrapS = tex.wrapS; t.wrapT = tex.wrapT;
+  t.needsUpdate = true;
+  return t;
+}
+
+/** Landmark real de CDMX (GLB Meshy). Se para sobre la esfera con su base en la superficie. */
 function Landmark({ url, phi, theta, scale }: { url: string; phi: number; theta: number; scale: number }) {
   const { scene } = useGLTF(url);
   useMemo(() => {
     scene.traverse((o) => {
       const m = o as Mesh;
-      if (m.isMesh) {
-        m.material = new MeshStandardMaterial({ color: "#E4E2DA", flatShading: true, roughness: 1 }); // material simple (swiftshader/perf)
+      if (m.isMesh && m.material) {
+        const src = m.material as MeshStandardMaterial;
+        if (!src.userData?.__boosted) {
+          if (src.map) src.map = boostTexture(src.map);
+          src.userData = { ...(src.userData ?? {}), __boosted: true };
+          src.needsUpdate = true;
+        }
         m.castShadow = true; m.receiveShadow = true;
       }
     });
   }, [scene]);
   const { pos, quat } = useMemo(() => onSphere(phi, theta, -0.03), [phi, theta]);
   return (
-    <primitive object={scene} scale={0.4} position={[0, 1.9, 0]} />
+    <group position={pos} quaternion={quat}>
+      <Center bottom scale={scale}><primitive object={scene} /></Center>
+    </group>
   );
 }
 
@@ -69,10 +92,10 @@ function Trees() {
 }
 
 const LANDMARKS = [
-  { url: "/assets/klugger-zorro.glb", phi: 0.75, theta: 1.2, scale: 1.0 },
-  { url: "/assets/landmark-bellasartes.glb", phi: 0.8, theta: 2.5, scale: 0.95 },
-  { url: "/assets/landmark-catedral.glb", phi: 0.8, theta: 0.0, scale: 0.95 },
-  { url: "/assets/landmark-castillo.glb", phi: 0.85, theta: 4.2, scale: 0.95 },
+  { url: "/assets/landmark-estadio.glb", phi: 0.78, theta: 1.2, scale: 0.9 },
+  { url: "/assets/landmark-bellasartes.glb", phi: 0.82, theta: 2.6, scale: 0.85 },
+  { url: "/assets/landmark-catedral.glb", phi: 0.8, theta: 0.0, scale: 0.85 },
+  { url: "/assets/landmark-castillo.glb", phi: 0.85, theta: 4.2, scale: 0.85 },
 ];
 
 /** Recolorea la textura naranja→verde de marca (giro de tono en canvas, una vez). */
@@ -155,8 +178,11 @@ function World({ progress }: { progress: { current: number } }) {
           <icosahedronGeometry args={[R, 2]} />
           <meshStandardMaterial color="#3DBB5B" flatShading roughness={0.95} />
         </mesh>
-        {LANDMARKS.slice(0, 1).map((l) => <Landmark key={l.url} {...l} />)}
-        {/* <Trees /> */}
+        {/* landmarks + árboles en su PROPIO Suspense: si tardan/fallan, el zorro+mundo siguen visibles */}
+        <Suspense fallback={null}>
+          {LANDMARKS.map((l) => <Landmark key={l.url} {...l} />)}
+          <Trees />
+        </Suspense>
       </group>
       <Fox progress={progress} />
     </group>
@@ -186,7 +212,7 @@ export function HeroWorld3D() {
     <div className="kworld" ref={wrap}>
       <Canvas
         className="kworld__canvas"
-        /* shadows OFF (test swiftshader) */
+        shadows                                  // sombras → ancla al zorro al mundo (nivel Principito)
         gl={{ alpha: true, antialias: true }}   // TRANSPARENTE (sin cielo)
         dpr={[1, 2]}
         camera={{ position: [0, 0.4, 6.6], fov: 35 }}
