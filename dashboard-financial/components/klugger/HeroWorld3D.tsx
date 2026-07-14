@@ -186,7 +186,7 @@ export function HeroWorld3D() {
     <div className="kworld" ref={wrap}>
       <Canvas
         className="kworld__canvas"
-        shadows                                  // sombras → ancla al zorro al mundo (nivel Principito)
+        /* shadows OFF (test swiftshader) */
         gl={{ alpha: true, antialias: true }}   // TRANSPARENTE (sin cielo)
         dpr={[1, 2]}
         camera={{ position: [0, 0.4, 6.6], fov: 35 }}
