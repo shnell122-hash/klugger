@@ -4,27 +4,54 @@
 // El scroll controla la rotación del mundo (lerp, 60fps). Placeholder low-poly hasta tener el GLB.
 // Cargar SIEMPRE con dynamic(ssr:false) — no debe prerenderizarse en el build estático.
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useGLTF, Center } from "@react-three/drei";
-import { Suspense, useEffect, useRef } from "react";
-import type { Group } from "three";
+import { useGLTF, useAnimations, Center } from "@react-three/drei";
+import { Suspense, useEffect, useMemo, useRef } from "react";
+import { CanvasTexture, MeshStandardMaterial, type Group, type Mesh, type Texture } from "three";
 
-const ZORRO = "/assets/klugger-zorro.glb";
+const ZORRO = "/assets/klugger-zorro-anim.glb"; // Fox animado (Khronos/three.js, CC0): Survey/Walk/Run
 
-/** Zorro real (GLB de Meshy). Camina "en su lugar" arriba del mundo (bob), mientras el mundo rota debajo. */
+/** Recolorea la textura naranja→verde de marca (giro de tono en canvas, una vez). */
+function tintGreen(tex: Texture): Texture {
+  const img = tex.image as HTMLImageElement | undefined;
+  if (!img || !("width" in img)) return tex;
+  const c = document.createElement("canvas");
+  c.width = img.width; c.height = img.height;
+  const ctx = c.getContext("2d");
+  if (!ctx) return tex;
+  ctx.filter = "hue-rotate(95deg) saturate(1.15)"; // naranja(~30°) → verde(~125°)
+  ctx.drawImage(img, 0, 0);
+  const t = new CanvasTexture(c);
+  t.flipY = tex.flipY; t.colorSpace = tex.colorSpace; t.wrapS = tex.wrapS; t.wrapT = tex.wrapT;
+  t.needsUpdate = true;
+  return t;
+}
+
+/** Zorro animado que CAMINA (walk cycle real) sobre el mundo; el mundo rota debajo. */
 function Fox() {
   const ref = useRef<Group>(null);
-  const { scene } = useGLTF(ZORRO);
-  useFrame((state) => {
-    if (!ref.current) return;
-    const t = state.clock.elapsedTime;
-    ref.current.position.y = 1.5 + Math.abs(Math.sin(t * 5)) * 0.05; // trote: rebote hacia arriba
-    ref.current.rotation.z = Math.sin(t * 10) * 0.02;                 // balanceo de paso
-    ref.current.rotation.x = -0.05 + Math.sin(t * 5) * 0.03;          // cabeceo de trote
-  });
-  // bottom≈-1 tras Center+scale → base del zorro apoyada en el polo (r=1.25)
+  const { scene, animations } = useGLTF(ZORRO);
+  const { actions } = useAnimations(animations, ref);
+  // tintar a verde una sola vez
+  useMemo(() => {
+    scene.traverse((o) => {
+      const m = o as Mesh;
+      if (m.isMesh && m.material) {
+        const src = m.material as MeshStandardMaterial;
+        const mat = src.clone();
+        if (mat.map) mat.map = tintGreen(mat.map);
+        mat.flatShading = false;
+        m.material = mat;
+      }
+    });
+  }, [scene]);
+  useEffect(() => {
+    const walk = actions["Walk"];
+    walk?.reset().fadeIn(0.2).play();
+    return () => void walk?.fadeOut(0.2);
+  }, [actions]);
   return (
-    <group ref={ref} position={[0, 1.5, 0]} rotation={[0, -0.6, 0]}>
-      <Center scale={0.95}>
+    <group ref={ref} position={[0, 1.26, 0]} rotation={[0, -0.7, 0]}>
+      <Center scale={0.016}>
         <primitive object={scene} />
       </Center>
     </group>
