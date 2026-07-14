@@ -50,8 +50,8 @@ function Fox() {
     return () => void walk?.fadeOut(0.2);
   }, [actions]);
   return (
-    <group ref={ref} position={[0, 1.26, 0]} rotation={[0, -0.7, 0]}>
-      <Center scale={0.016}>
+    <group ref={ref} position={[0, 1.62, 0]} rotation={[0, -0.9, 0]}>
+      <Center scale={0.011}>
         <primitive object={scene} />
       </Center>
     </group>
