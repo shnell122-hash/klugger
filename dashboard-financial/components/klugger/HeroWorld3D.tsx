@@ -4,30 +4,47 @@
 // El scroll controla la rotación del mundo (lerp, 60fps). Placeholder low-poly hasta tener el GLB.
 // Cargar SIEMPRE con dynamic(ssr:false) — no debe prerenderizarse en el build estático.
 import { Canvas, useFrame } from "@react-three/fiber";
+import { useGLTF, Center } from "@react-three/drei";
 import { useEffect, useRef } from "react";
 import type { Group } from "three";
 
-/** Mundo + zorro low-poly (placeholder). Rota según progress (0→1) del scroll. */
+const ZORRO = "/assets/klugger-zorro.glb";
+
+/** Zorro real (GLB de Meshy). Camina "en su lugar" arriba del mundo (bob), mientras el mundo rota debajo. */
+function Fox() {
+  const ref = useRef<Group>(null);
+  const { scene } = useGLTF(ZORRO);
+  useFrame((state) => {
+    if (!ref.current) return;
+    const t = state.clock.elapsedTime;
+    ref.current.position.y = 1.55 + Math.sin(t * 5) * 0.04;   // trote sutil
+    ref.current.rotation.z = Math.sin(t * 5) * 0.025;
+  });
+  return (
+    <group ref={ref} position={[0, 1.55, 0]} rotation={[0, -0.6, 0]}>
+      <Center scale={0.9}>
+        <primitive object={scene} />
+      </Center>
+    </group>
+  );
+}
+
+/** Mundo low-poly (placeholder hasta el GLB del mundo). Rota según progress (0→1) del scroll. */
 function World({ progress }: { progress: { current: number } }) {
   const world = useRef<Group>(null);
-  const fox = useRef<Group>(null);
   useFrame((_, dt) => {
-    const k = Math.min(dt * 3, 1);
-    if (world.current) {
-      const target = progress.current * Math.PI * 2; // una vuelta completa al scrollear
-      world.current.rotation.y += (target - world.current.rotation.y) * k;
-    }
-    if (fox.current) fox.current.rotation.y += dt * 0.8; // el zorro gira suave sobre el mundo
+    if (!world.current) return;
+    const target = progress.current * Math.PI * 2; // una vuelta al scrollear
+    world.current.rotation.y += (target - world.current.rotation.y) * Math.min(dt * 3, 1);
   });
   return (
     <group rotation={[-0.35, 0, 0]}>
+      {/* el mundo rota; el zorro NO (queda arriba caminando en su sitio) */}
       <group ref={world}>
-        {/* planeta low-poly */}
-        <mesh castShadow>
+        <mesh>
           <icosahedronGeometry args={[1.25, 1]} />
           <meshStandardMaterial color="#3DBB5B" flatShading roughness={0.9} />
         </mesh>
-        {/* edificios low-poly repartidos */}
         {Array.from({ length: 10 }).map((_, i) => {
           const a = (i / 10) * Math.PI * 2;
           const r = 1.2;
@@ -38,33 +55,12 @@ function World({ progress }: { progress: { current: number } }) {
             </mesh>
           );
         })}
-        {/* zorro placeholder (cuerpo + cabeza + orejas) montando el polo */}
-        <group ref={fox} position={[0, 1.35, 0]} scale={0.42}>
-          <mesh position={[0, 0, 0]}>
-            <boxGeometry args={[0.5, 0.35, 1]} />
-            <meshStandardMaterial color="#3DBB5B" flatShading />
-          </mesh>
-          <mesh position={[0, 0.15, 0.6]}>
-            <boxGeometry args={[0.38, 0.34, 0.38]} />
-            <meshStandardMaterial color="#3DBB5B" flatShading />
-          </mesh>
-          <mesh position={[-0.13, 0.42, 0.62]} rotation={[0, 0, 0.2]}>
-            <coneGeometry args={[0.1, 0.24, 4]} />
-            <meshStandardMaterial color="#343631" flatShading />
-          </mesh>
-          <mesh position={[0.13, 0.42, 0.62]} rotation={[0, 0, -0.2]}>
-            <coneGeometry args={[0.1, 0.24, 4]} />
-            <meshStandardMaterial color="#343631" flatShading />
-          </mesh>
-          <mesh position={[0, -0.05, -0.7]} rotation={[0.5, 0, 0]}>
-            <coneGeometry args={[0.14, 0.6, 5]} />
-            <meshStandardMaterial color="#343631" flatShading />
-          </mesh>
-        </group>
       </group>
+      <Fox />
     </group>
   );
 }
+useGLTF.preload(ZORRO);
 
 export function HeroWorld3D() {
   const wrap = useRef<HTMLDivElement>(null);
