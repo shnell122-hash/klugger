@@ -69,7 +69,7 @@ function Trees() {
 }
 
 const LANDMARKS = [
-  { url: "/assets/landmark-estadio.glb", phi: 0.75, theta: 1.2, scale: 1.0 },
+  { url: "/assets/klugger-zorro.glb", phi: 0.75, theta: 1.2, scale: 1.0 },
   { url: "/assets/landmark-bellasartes.glb", phi: 0.8, theta: 2.5, scale: 0.95 },
   { url: "/assets/landmark-catedral.glb", phi: 0.8, theta: 0.0, scale: 0.95 },
   { url: "/assets/landmark-castillo.glb", phi: 0.85, theta: 4.2, scale: 0.95 },
