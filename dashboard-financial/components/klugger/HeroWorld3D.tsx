@@ -17,13 +17,13 @@ function Fox() {
   useFrame((state) => {
     if (!ref.current) return;
     const t = state.clock.elapsedTime;
-    ref.current.position.y = 1.16 + Math.abs(Math.sin(t * 5)) * 0.05; // trote: rebote hacia arriba
+    ref.current.position.y = 1.5 + Math.abs(Math.sin(t * 5)) * 0.05; // trote: rebote hacia arriba
     ref.current.rotation.z = Math.sin(t * 10) * 0.02;                 // balanceo de paso
     ref.current.rotation.x = -0.05 + Math.sin(t * 5) * 0.03;          // cabeceo de trote
   });
   // bottom≈-1 tras Center+scale → base del zorro apoyada en el polo (r=1.25)
   return (
-    <group ref={ref} position={[0, 1.16, 0]} rotation={[0, -0.6, 0]}>
+    <group ref={ref} position={[0, 1.5, 0]} rotation={[0, -0.6, 0]}>
       <Center scale={0.95}>
         <primitive object={scene} />
       </Center>
