@@ -21,7 +21,7 @@ function onSphere(phi: number, theta: number, lift = 0) {
 
 /** Landmark real de CDMX (GLB Meshy, draco). Se para sobre la esfera con su base tocando la superficie. */
 function Landmark({ url, phi, theta, scale }: { url: string; phi: number; theta: number; scale: number }) {
-  const { scene } = useGLTF(url, true);
+  const { scene } = useGLTF(url);
   useMemo(() => {
     scene.traverse((o) => {
       const m = o as Mesh;
