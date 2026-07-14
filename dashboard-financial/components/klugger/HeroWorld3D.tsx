@@ -48,21 +48,23 @@ function Fox({ progress }: { progress: { current: number } }) {
     });
   }, [scene]);
   useEffect(() => {
+    const survey = actions["Survey"];
     const walk = actions["Walk"];
-    if (!walk) return;
-    walk.play();
-    walk.timeScale = 0; // arranca quieto; el scroll lo mueve
+    survey?.reset().play();                 // idle por defecto: parado, mirando (plantado)
+    if (walk) { walk.reset().play(); walk.weight = 0; } // walk listo, oculto hasta scrollear
   }, [actions]);
   useFrame((_, dt) => {
     const walk = actions["Walk"];
-    if (!walk) return;
+    const survey = actions["Survey"];
     const vel = Math.abs(progress.current - last.current) / Math.max(dt, 0.001);
     last.current = progress.current;
-    const target = Math.min(vel * 9, 3.2);          // velocidad de scroll → velocidad de paso
-    walk.timeScale += (target - walk.timeScale) * Math.min(dt * 8, 1); // suavizado
+    const moving = Math.min(vel * 12, 1);   // 0 quieto → 1 scrolleando
+    const k = Math.min(dt * 6, 1);
+    if (walk) walk.weight += (moving - walk.weight) * k;          // crossfade a Walk al scrollear
+    if (survey) survey.weight += (1 - moving - survey.weight) * k; // vuelve a Survey al parar
   });
   return (
-    <group ref={ref} position={[0, 1.62, 0]} rotation={[0, -0.9, 0]}>
+    <group ref={ref} position={[0, 1.5, 0]} rotation={[0, -0.9, 0]}>
       <Center scale={0.011}>
         <primitive object={scene} />
       </Center>
