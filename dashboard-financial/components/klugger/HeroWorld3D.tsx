@@ -41,7 +41,7 @@ function Trees() {
   const items = useMemo(() => {
     let s = 1337;
     const rnd = () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
-    return Array.from({ length: 42 }, () => {
+    return Array.from({ length: 20 }, () => {
       const phi = 0.35 + rnd() * 1.15; // evita el polo (zorro) y el fondo
       const theta = rnd() * Math.PI * 2;
       const { pos, quat } = onSphere(phi, theta, 0);
@@ -194,7 +194,7 @@ export function HeroWorld3D() {
         <hemisphereLight args={["#FFF6E5", "#57C05A", 0.85]} />
         <directionalLight
           castShadow position={[3.5, 6, 4]} intensity={2.1} color="#FFF1DC"
-          shadow-mapSize={[2048, 2048]} shadow-bias={-0.0004}
+          shadow-mapSize={[1024, 1024]} shadow-bias={-0.0004}
           shadow-camera-left={-4} shadow-camera-right={4} shadow-camera-top={4} shadow-camera-bottom={-4}
           shadow-camera-near={0.5} shadow-camera-far={20}
         />
