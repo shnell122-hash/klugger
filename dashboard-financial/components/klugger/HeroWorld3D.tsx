@@ -25,7 +25,11 @@ function Landmark({ url, phi, theta, scale }: { url: string; phi: number; theta:
   useMemo(() => {
     scene.traverse((o) => {
       const m = o as Mesh;
-      if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; }
+      if (m.isMesh) {
+        const src = m.material as MeshStandardMaterial;
+        if (src?.map) { src.map = null; src.needsUpdate = true; } // DEBUG: quitar textura
+        m.castShadow = true; m.receiveShadow = true;
+      }
     });
   }, [scene]);
   const { pos, quat } = useMemo(() => onSphere(phi, theta, -0.03), [phi, theta]);
