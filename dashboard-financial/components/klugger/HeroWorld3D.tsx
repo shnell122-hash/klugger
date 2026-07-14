@@ -30,9 +30,7 @@ function Landmark({ url, phi, theta, scale }: { url: string; phi: number; theta:
   }, [scene]);
   const { pos, quat } = useMemo(() => onSphere(phi, theta, -0.03), [phi, theta]);
   return (
-    <group position={pos} quaternion={quat}>
-      <primitive object={scene} scale={scale} />
-    </group>
+    <primitive object={scene} scale={0.4} position={[0, 1.9, 0]} />
   );
 }
 
@@ -154,7 +152,7 @@ function World({ progress }: { progress: { current: number } }) {
           <icosahedronGeometry args={[R, 2]} />
           <meshStandardMaterial color="#3DBB5B" flatShading roughness={0.95} />
         </mesh>
-        {LANDMARKS.slice(0, 0).map((l) => <Landmark key={l.url} {...l} />)}
+        {LANDMARKS.slice(0, 1).map((l) => <Landmark key={l.url} {...l} />)}
         {/* <Trees /> */}
       </group>
       <Fox progress={progress} />
