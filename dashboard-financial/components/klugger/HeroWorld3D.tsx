@@ -154,8 +154,8 @@ function World({ progress }: { progress: { current: number } }) {
           <icosahedronGeometry args={[R, 2]} />
           <meshStandardMaterial color="#3DBB5B" flatShading roughness={0.95} />
         </mesh>
-        {LANDMARKS.map((l) => <Landmark key={l.url} {...l} />)}
-        <Trees />
+        {LANDMARKS.slice(0, 1).map((l) => <Landmark key={l.url} {...l} />)}
+        {/* <Trees /> */}
       </group>
       <Fox progress={progress} />
     </group>
