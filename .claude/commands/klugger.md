@@ -12,6 +12,15 @@
 
 ---
 
+## Alcance de acceso (operador, 2026-07-14)
+
+| Destino | Acceso | Cómo |
+|---------|--------|------|
+| **staging** (dev-2, `sbx-klugger`) | **shell completo** | vía el **bastión turazive** (jump-only) |
+| **prod** (prod-htz) | **solo deploy por CI/OIDC** — **sin SSH** | GitHub Actions → Infisical por OIDC |
+
+> No hay shell SSH a prod. Cambios a prod solo por el **pipeline OIDC** (sección CI/CD abajo).
+
 ## Qué necesitas (nunca vive en el repo)
 
 - Tu **machine identity de Infisical** (`INFISICAL_CLIENT_ID` / `INFISICAL_CLIENT_SECRET`) —
@@ -39,11 +48,13 @@ export INFISICAL_CLIENT_ID='<tu-client-id>'          # de Infisical, por canal s
 export INFISICAL_CLIENT_SECRET='<tu-client-secret>'
 export INFISICAL_WORKSPACE_ID='<workspace-id>'
 
-# Attach a tu sandbox de klugger en staging (host + llave resueltos de Infisical):
-NAME=<tu-usuario> bash deploy/accesos/connect-sandbox.sh klugger
+# Ruta recomendada — staging vía el bastión turazive (todo resuelto de Infisical, cero IPs):
+bash deploy/accesos/connect-jumphost.sh klugger
+# → baja tu llave (temp, shred) → salto por el bastión → docker exec sbx-klugger → tmux dev
+# salir SIN cerrar: Ctrl-b b d · NUNCA 'exit'
 
-# o probar la ruta completa (bastión → servidores) sin exponer valores:
-bash deploy/accesos/conectar.sh
+# Alterna — VPN directa si tienes el túnel WireGuard arriba:
+NAME=<tu-usuario> bash deploy/accesos/connect-sandbox.sh klugger
 ```
 
 > `connect-sandbox.sh` resuelve `STAGING_SSH_HOST`, `SANDBOX_PREFIX` (→ `sbx-klugger`) y la
