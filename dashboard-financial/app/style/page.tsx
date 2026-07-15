@@ -288,7 +288,7 @@ export default function StyleGuide() {
 
         <Sec title="Hero 3D NATIVO (spike H1) · WebGL, transparente, scroll → rotación">
           <p style={{ color: "var(--text-muted)", marginBottom: 12 }}>Prueba de concepto tipo igloo.inc: <strong>geometría WebGL real</strong> (no video), canvas <strong>transparente sin cielo</strong>, el <strong>scroll rota el mundo</strong> (lerp). Placeholder low-poly hasta cablear el GLB del zorro.</p>
-          <HeroWorld3D />
+          <HeroWorld3D calibrate />
         </Sec>
 
         <Sec title="Arte en movimiento · Hero: el zorro y la ciudad (F1+F2+F5 · video autoplay loop)">
