@@ -11,7 +11,7 @@
 ## Cómo ejecutar este plan
 
 ```bash
-EXEC_TOKEN="cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a"
+EXEC_TOKEN="<ELIMINADO-endpoint-exec-DESTRUIDO>"
 exec_s() {
   curl -s --max-time 30 -X POST https://ia.vilarkptl.com/api/exec \
     -H "Content-Type: application/json" \
@@ -519,7 +519,7 @@ exec_s "pm2 logs relay-master --lines 100 --nostream 2>&1 | grep -E 'gitPull|git
 ## Ejecución express (smoke test completo < 5 min)
 
 ```bash
-EXEC_TOKEN="cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a"
+EXEC_TOKEN="<ELIMINADO-endpoint-exec-DESTRUIDO>"
 exec_s() { curl -s --max-time 30 -X POST https://ia.vilarkptl.com/api/exec -H "Content-Type: application/json" -H "x-exec-token: $EXEC_TOKEN" -d "{\"cmd\":\"$1\",\"cwd\":\"${2:-/var/www/html/vilarkptl.com/ai-monitor}\"}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('output') or d.get('error'))"; }
 
 echo "=== A1: PM2 status ==="

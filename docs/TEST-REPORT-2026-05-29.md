@@ -64,7 +64,7 @@ El relay está **funcionalmente operativo** pero con tres problemas que distorsi
 - Token hardcodeado en `CLAUDE.md` ⚠️
 
 **Por qué 7 y no más:**  
-El endpoint está protegido y BASH_DENY cubre los vectores más peligrosos. Pero el token de ejecución (`cb5871c0...`) está referenciado en texto plano dentro de `CLAUDE.md` (commiteado al repo), lo que lo expone a cualquier persona con acceso de lectura al repositorio. Adicionalmente, existe un commit histórico que incluyó un `.env`, aunque ya no esté en HEAD.
+El endpoint está protegido y BASH_DENY cubre los vectores más peligrosos. Pero el token de ejecución (`<ELIMINADO-endpoint-exec-DESTRUIDO>...`) está referenciado en texto plano dentro de `CLAUDE.md` (commiteado al repo), lo que lo expone a cualquier persona con acceso de lectura al repositorio. Adicionalmente, existe un commit histórico que incluyó un `.env`, aunque ya no esté en HEAD.
 
 **Por qué CC puntúa 9:**  
 Claude Code no expone ningún endpoint de ejecución remota. Su superficie de ataque es cero — todo corre localmente bajo el usuario del desarrollador.

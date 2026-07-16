@@ -23,7 +23,7 @@ Servicio independiente de Node.js corriendo como systemd. **No depende de PM2 ni
 Sobrevive crashes del backend y reinicios del servidor.
 
 ```bash
-EXEC_TOKEN="cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a"
+EXEC_TOKEN="<ELIMINADO-endpoint-exec-DESTRUIDO>"
 EXEC_URL="https://ia.vilarkptl.com/exec-lite"
 
 exec_server() {
@@ -63,7 +63,7 @@ systemctl status exec-lite   # debe mostrar "active (running)"
 Fallback. Solo funciona cuando el proceso `ai-monitor` (PM2) está corriendo.
 
 ```bash
-EXEC_TOKEN="cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a"
+EXEC_TOKEN="<ELIMINADO-endpoint-exec-DESTRUIDO>"
 EXEC_URL="https://ia.vilarkptl.com/api/exec"
 # (misma función exec_server — solo cambiar EXEC_URL)
 ```

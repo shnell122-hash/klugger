@@ -23,7 +23,6 @@ const telegramUsersRouter = require('./routes/telegramUsers');
 const proxyUsageRouter    = require('./routes/proxyUsage');
 const providerCostsRouter = require('./routes/providerCosts');
 const financialRoutes = require('../financial/backend/routes/financial');
-const execRouter      = require('./routes/exec');
 const pool            = require('./db/mysql');
 
 const PORT = process.env.PORT || 3010;
@@ -61,7 +60,6 @@ app.use('/api/telegram',        telegramUsersRouter);
 app.use('/api/proxy-usage',     proxyUsageRouter);
 app.use('/api/provider-costs',  providerCostsRouter);
 app.use('/api/financial',      financialRoutes(pool, io, express));
-app.use('/api/exec',           execRouter);
 
 // Serve screenshots directory (already covered by express.static on /frontend,
 // but also serve under /screenshots for direct access)
