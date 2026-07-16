@@ -1,0 +1,602 @@
+[
+  {
+    "price": "21157890",
+    "size_m2": "3255",
+    "title": "10",
+    "location": "Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-369cf1adea6c-4038-19d6af9-83b9-735e",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:37.822734+00:00"
+  },
+  {
+    "price": "11500",
+    "size_m2": "11500",
+    "title": "6",
+    "location": "Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-45e3c5799411-d6f-19ac13e-b7d3-7b75",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:37.823673+00:00"
+  },
+  {
+    "price": "62091",
+    "size_m2": "5300",
+    "title": "11",
+    "location": "Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-927444541e68-f04c-192621f-bb6b-78d6",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:37.824533+00:00"
+  },
+  {
+    "price": "31806180",
+    "size_m2": "5300",
+    "title": "11",
+    "location": "Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-573653dded34-15c8-1926220-bba2-73d9",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:37.825475+00:00"
+  },
+  {
+    "price": "10920268",
+    "size_m2": "1332",
+    "title": "10",
+    "location": "Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-d167d28c4a3a-2ca8-19d6af9-a84f-74c8",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:37.826282+00:00"
+  },
+  {
+    "price": "4000",
+    "size_m2": "76",
+    "title": "6",
+    "location": "Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-8f99a44ea8fa-7108-19424bf-a681-76f4",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:37.826996+00:00"
+  },
+  {
+    "price": "21157890",
+    "size_m2": "3255",
+    "title": "2",
+    "location": "Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-4a68daa7819e-c4b8-19f0602-a09f-74a3",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:37.830344+00:00"
+  },
+  {
+    "price": "21157890",
+    "size_m2": "3255",
+    "title": "12",
+    "location": "Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-2aba8b28fad7-aa31-1980b2c-ab5c-75d8",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:37.835946+00:00"
+  },
+  {
+    "price": "21157890",
+    "size_m2": "3255",
+    "title": "9",
+    "location": "Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-a2a6b2ae11e5-e9a-19bbf43-9068-7407",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:37.839627+00:00"
+  },
+  {
+    "price": "21157890",
+    "size_m2": "3255",
+    "title": "14",
+    "location": "Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-54d8d93f539b-edd8-1948f37-ad50-7e1d",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:37.843034+00:00"
+  },
+  {
+    "price": "2550000",
+    "size_m2": "45",
+    "title": "2",
+    "location": "Cumbres Del Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-ebaf8a95e05c-617b-1979056-b88c-7545",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:41.208429+00:00"
+  },
+  {
+    "price": "2550000",
+    "size_m2": "45",
+    "title": "7",
+    "location": "Cumbres Del Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-6ef380284803-e9cf-1961ad5-b4b8-7ce1",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:41.213280+00:00"
+  },
+  {
+    "price": "2550000",
+    "size_m2": "45",
+    "title": "7",
+    "location": "Cumbres Del Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-d4a9f391397-d3dd-deec6f5e-9853-3385",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:41.217216+00:00"
+  },
+  {
+    "price": "2550000",
+    "size_m2": "45",
+    "title": "4",
+    "location": "Cumbres Del Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-21e8ca5c46b7-46fa-19d0e53-a4fd-754e",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:41.220236+00:00"
+  },
+  {
+    "price": "2550000",
+    "size_m2": "45",
+    "title": "Destacado 15",
+    "location": "Cumbres Del Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-4d18a4929093-fc39-19c2bae-adbd-796a",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:41.223342+00:00"
+  },
+  {
+    "price": "2550000",
+    "size_m2": "45",
+    "title": "Destacado 5",
+    "location": "Cumbres Del Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-36b81919e435-4070-19f1e19-aa64-7125",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:41.226368+00:00"
+  },
+  {
+    "price": "5000",
+    "size_m2": "45",
+    "title": "Destacado 31",
+    "location": "Cumbres Del Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-d7ae581baf3b-e9b0-19b7cdd-a205-7ce8",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:41.228233+00:00"
+  },
+  {
+    "price": "2550000",
+    "size_m2": "45",
+    "title": "Destacado 7",
+    "location": "Cumbres Del Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-c1a93f095241-433e-19f1e16-93ae-772b",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:41.229649+00:00"
+  },
+  {
+    "price": "1350000",
+    "size_m2": "300",
+    "title": "6",
+    "location": "Cumbres Del Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-d4f299731aa5-c27a-f0d67cba-8bfe-3a82",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:41.231590+00:00"
+  },
+  {
+    "price": "3950",
+    "size_m2": "550",
+    "title": "1",
+    "location": "Cumbres Del Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-884702fd3364-e5ca-8bccb542-9815-3553",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:41.232021+00:00"
+  },
+  {
+    "price": "1350000",
+    "size_m2": "300",
+    "title": "4",
+    "location": "Cumbres Del Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-c2be645ad123-17c6-19f15d6-9996-7084",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:41.235794+00:00"
+  },
+  {
+    "price": "7641168",
+    "size_m2": "29",
+    "title": "4",
+    "location": "Cumbres Del Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-41a7f649716-a263-19df5e0-9b93-7288",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:41.241182+00:00"
+  },
+  {
+    "price": "2711400",
+    "size_m2": "86",
+    "title": "4",
+    "location": "Cumbres Del Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-1d2f22c832f8-931a-19df5e0-baa3-722e",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:41.241584+00:00"
+  },
+  {
+    "price": "3402909",
+    "size_m2": "02",
+    "title": "4",
+    "location": "Cumbres Del Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-c30811ec66d0-8be1-19df5e0-8ac3-782e",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:41.242032+00:00"
+  },
+  {
+    "price": "738000",
+    "size_m2": "162",
+    "title": "9",
+    "location": "Cumbres Del Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-a9531eb888a6-9ef1-19e8b3a-9405-7288",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:41.282220+00:00"
+  },
+  {
+    "price": "1930000",
+    "size_m2": "230",
+    "title": "19",
+    "location": "Cumbres Del Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-3ffc374556ce-9f7c-190e2aa-a15b-7e49",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:41.282753+00:00"
+  },
+  {
+    "price": "1350000",
+    "size_m2": "300",
+    "title": "1",
+    "location": "Cumbres Del Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-dce4546924f1-8471-729f1f4c-a450-32ff",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:41.286853+00:00"
+  },
+  {
+    "price": "3817730",
+    "size_m2": "094",
+    "title": "8",
+    "location": "Cumbres Del Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-c119752411c1-3c4-19a0c4a-af18-762d",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:41.294689+00:00"
+  },
+  {
+    "price": "3800000",
+    "size_m2": "1000",
+    "title": "4",
+    "location": "Cumbres Del Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-de99058ae181-2246-199ce84-952d-71c8",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:41.295364+00:00"
+  },
+  {
+    "price": "1350000",
+    "size_m2": "300",
+    "title": "Destacado 2",
+    "location": "Cumbres Del Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-ff2c3ff2fa7b-2747-1967f90-a5c1-72fd",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cumbres-del-cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:41.299651+00:00"
+  },
+  {
+    "price": "30000000",
+    "size_m2": "300",
+    "title": "Destacado 4",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-213e97c755c4-ea8e-19d9daa-9ad6-7188",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.186616+00:00"
+  },
+  {
+    "price": "4545508",
+    "size_m2": "300",
+    "title": "23",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-4698346addca-d177-197f804-ac86-7cce",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.193134+00:00"
+  },
+  {
+    "price": "1901513",
+    "size_m2": "535",
+    "title": "9",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-e56ea862a5e9-6be2-e3763a0d-b05d-3def",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.193549+00:00"
+  },
+  {
+    "price": "30000000",
+    "size_m2": "300",
+    "title": "24",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-a11929e3e479-81a7-19ba093-a87d-7a37",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.196453+00:00"
+  },
+  {
+    "price": "2986425",
+    "size_m2": "300",
+    "title": "21",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-a6981cb61be0-4322-197fc97-a4a4-74ae",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.202928+00:00"
+  },
+  {
+    "price": "30000000",
+    "size_m2": "300",
+    "title": "13",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-4f14b4ad2a3a-a84e-7528bb17-9e0c-473f",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.205846+00:00"
+  },
+  {
+    "price": "4688534",
+    "size_m2": "400",
+    "title": "15",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-33fa7c90f71e-e6d0-13793952-a1a0-3cb8",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.211958+00:00"
+  },
+  {
+    "price": "8500",
+    "size_m2": "31",
+    "title": "5",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-9b2867fd73b7-400a-197a8cd-951a-7625",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.212432+00:00"
+  },
+  {
+    "price": "5259500",
+    "size_m2": "16750",
+    "title": "8",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-9937490a8c97-931-192bfeb-8c72-7e20",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.212871+00:00"
+  },
+  {
+    "price": "2100000",
+    "size_m2": "41",
+    "title": "9",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-7c8ea2d7329a-c6fa-19c8e1e-8e6a-7285",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.213350+00:00"
+  },
+  {
+    "price": "30000000",
+    "size_m2": "300",
+    "title": "24",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-f3267d359cbd-677e-19ef7a4-8c9b-71c9",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.216387+00:00"
+  },
+  {
+    "price": "30000000",
+    "size_m2": "300",
+    "title": "4",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-688400e65e00-4acc-1902ba1-a997-74c4",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.227052+00:00"
+  },
+  {
+    "price": "30000000",
+    "size_m2": "300",
+    "title": "8",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-b58afa38c2bc-4350-19e28f6-8446-72dd",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.235963+00:00"
+  },
+  {
+    "price": "4100000",
+    "size_m2": "25",
+    "title": "Destacado 2",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-1562c0054c8-7bee-192ce93-83cd-78d1",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.242188+00:00"
+  },
+  {
+    "price": "7300",
+    "size_m2": "",
+    "title": "14",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-1173a6a57dd6-7d89-884d5fc2-b15b-3841",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.242656+00:00"
+  },
+  {
+    "price": "1250000",
+    "size_m2": "1810",
+    "title": "Destacado 4",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-415cf400fe97-1f03-7cfe79bf-aed3-4471",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.243080+00:00"
+  },
+  {
+    "price": "30000000",
+    "size_m2": "300",
+    "title": "11",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-9ed1dc6cd777-a9f5-e2562d55-ba23-495a",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.246068+00:00"
+  },
+  {
+    "price": "30000000",
+    "size_m2": "300",
+    "title": "Destacado 41",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-50248a0419f1-527a-19e2a0b-8a68-7a59",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.254662+00:00"
+  },
+  {
+    "price": "30000000",
+    "size_m2": "300",
+    "title": "11",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-a6ef882c9682-3be3-7c1f5d22-8761-456a",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.263494+00:00"
+  },
+  {
+    "price": "30000000",
+    "size_m2": "300",
+    "title": "12",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-8b84163469a9-abde-19bd8e4-94fa-7152",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.272330+00:00"
+  },
+  {
+    "price": "2180000",
+    "size_m2": "218",
+    "title": "Destacado 5",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-cf8b1720ded9-c8b1-195ac1b-a0fe-7c88",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.278595+00:00"
+  },
+  {
+    "price": "30000000",
+    "size_m2": "300",
+    "title": "21",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-2483d736b136-a379-19dbb52-884a-7a6c",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.281416+00:00"
+  },
+  {
+    "price": "30000000",
+    "size_m2": "300",
+    "title": "6",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-2b94ca3a12bd-1f60-19cc0dd-8f03-7bf3",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.289651+00:00"
+  },
+  {
+    "price": "30000000",
+    "size_m2": "300",
+    "title": "15",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-eefe2de8b1f9-5c-1956416-b7b0-7f2a",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.298544+00:00"
+  },
+  {
+    "price": "30000000",
+    "size_m2": "300",
+    "title": "6",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-3187c428a41e-2440-19c5c79-a4ce-79f2",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.307708+00:00"
+  },
+  {
+    "price": "5500",
+    "size_m2": "57",
+    "title": "Destacado 15",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-6715f4922791-6848-1953f33-8af1-79e6",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.313998+00:00"
+  },
+  {
+    "price": "8659",
+    "size_m2": "67",
+    "title": "22",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-8c051022c80e-81f6-197f22c-8311-7ea8",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.314492+00:00"
+  },
+  {
+    "price": "30000000",
+    "size_m2": "300",
+    "title": "5",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-7b03d0bdfbb7-e5ea-194f54c-9775-785b",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.317454+00:00"
+  },
+  {
+    "price": "8400",
+    "size_m2": "92",
+    "title": "Destacado 28",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-cc87e10d9630-2e26-196add5-94ac-75e4",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.323684+00:00"
+  },
+  {
+    "price": "2690000",
+    "size_m2": "374",
+    "title": "17",
+    "location": "Terreno",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-8fc490e49b29-8d66-18f7c9c-81c3-7744",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:40:47.324146+00:00"
+  }
+]

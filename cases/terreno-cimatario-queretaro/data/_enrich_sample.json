@@ -1,0 +1,86 @@
+[
+  {
+    "price": 21157890,
+    "size_m2": 3255,
+    "title": "10",
+    "location": "Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-369cf1adea6c-4038-19d6af9-83b9-735e",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:42:57.394251+00:00",
+    "meta": {
+      "name": "Lote / Terreno en Venta en Centro HistÃ³rico",
+      "description": "La Porta High Living\nEl Ãºnico Distrito Urbano vertical del bajÃ­o (Macrolote 40)\n\nPrecio $21,157,890.00 MN\nSuperficie: 3255 M2\n\nMacrolotes para uso mixto, ubicados en Blvd. Bernando Quintana  esq. Av. Constituyentes\nDiseÃ±os vanguardistas con macrolotes para desarrollos verticales con servicios de punta. \n\nUso mixto para edificaciÃ³n de:\nâ¢â   â Departamentos\nâ¢â   â Oficinas\nâ¢â   â Hoteles\nâ¢â   â Hospitales\nâ¢â   â Comercios\nâ¢â   â Servicios\n\nUrbanizaciÃ³n y servicios ocultos al pie de cada macrolote\nâ¢â   â Agua potable\nâ¢â   â Drenaje sanitario\nâ¢â   â Gas nat",
+      "street": "Avenida Constituyentes 43-49, Cimatario, Santiago de QuerÃ©taro, QuerÃ©taro, 76030, MEX",
+      "locality": "QuerÃ©taro",
+      "region": "QuerÃ©taro Arteaga",
+      "postal": "",
+      "lat": "20.584381",
+      "lng": "-100.392839",
+      "floor_size": "3255",
+      "floor_unit": "MTK",
+      "offer_price": "21157890",
+      "offer_currency": "MXN",
+      "images": [
+        "https://img.lamudi.com.mx/eyJidWNrZXQiOiJwcmQtbGlmdWxsY29ubmVjdC1iYWNrZW5kLWIyYi1pbWFnZXMiLCJrZXkiOiJpbmdlc3Rlci8wMTlkNmFiMC0zZmVmLTczMTUtODM3MC0zNjljZjFhZGVhMjMvMWM1OTA1NWMwZmFmODJmNGJiNTY1OWFjMDEyYzk4ZDU5ZTM3ZDBhOWQwZWIwN2ZmOTkwMzdmOWIzYzQ3MzJmOC5qcGVnIiwiYnJhbmQiOiJsYW11ZGkiLCJlZGl0cyI6eyJyb3RhdGUiOm51bGwsInJlc2l6ZSI6eyJ3aWR0aCI6OTAwLCJoZWlnaHQiOjY1MCwiZml0IjoiY292ZXIifX19"
+      ]
+    },
+    "_enrich": "ok"
+  },
+  {
+    "price": 31806180,
+    "size_m2": 5300,
+    "title": "11",
+    "location": "Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-573653dded34-15c8-1926220-bba2-73d9",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:42:57.395153+00:00",
+    "meta": {
+      "name": "Lote / Terreno en Venta en Centro HistÃ³rico",
+      "description": "VM - MACROLOTES EN PRE - VENTA DE USOS MIXTOS LA PORTA HIGH LIVING ES UN PROYECTO INMOBILIARIO PARA REALIZAR NEGOCIOS DE ALTUTRA SON SOLO 20 MACROLOTES ( PREGUNTAR POR DISPONIBLIDAD Y PRECIOS ACTUALES) DESDE 5,300 M2 DE SUPERFICIE HASTA 10,160 M2. ES UN DESARROLLO DE USO MIXTO, PARA LA EDIFICACION DE : Departamentos, Oficinas, Hoteles, Plazas comerciales, Servicios.LA PORTA HIGH LIVING SE PROYECTA COMO LA ENTRADA AL QUERETARO DEL MAÃANA A 3 MINUTOS DEL CENTRO HISTORICO DE QUERETARO, UBICADO EN LA INTERSECCION DE BOULEVARD BERNARDO QUINTANA ESQUINA CON AV. CONSTITUYENTES, SE ENCUENTRA CONECTAD",
+      "street": "Avenida Constituyentes 9-9, Cimatario, Santiago de QuerÃ©taro, QuerÃ©taro, 76030, MEX",
+      "locality": "QuerÃ©taro",
+      "region": "QuerÃ©taro Arteaga",
+      "postal": "",
+      "lat": "20.585511",
+      "lng": "-100.389805",
+      "floor_size": "5300",
+      "floor_unit": "MTK",
+      "offer_price": "31806180",
+      "offer_currency": "MXN",
+      "images": [
+        "https://img.lamudi.com.mx/eyJidWNrZXQiOiJwcmQtbGlmdWxsY29ubmVjdC1iYWNrZW5kLWIyYi1pbWFnZXMiLCJrZXkiOiJpbmdlc3Rlci8wMTkyNjFkNy0xNTdmLTczOTAtYmI1OS01NzM2NTNkZGVjZWIvMDNmNmY3MjBjNWFiY2JmYzg5NDZlYWUyOWQyNzBhNTA4ZDBmYzEyMTkwNDc1ZWU0NDc0NTMyYzRlMDY4N2NiNS5qcGVnIiwiYnJhbmQiOiJsYW11ZGkiLCJlZGl0cyI6eyJyb3RhdGUiOm51bGwsInJlc2l6ZSI6eyJ3aWR0aCI6OTAwLCJoZWlnaHQiOjY1MCwiZml0IjoiY292ZXIifX19"
+      ]
+    },
+    "_enrich": "ok"
+  },
+  {
+    "price": 10920268,
+    "size_m2": 1332,
+    "title": "10",
+    "location": "Cimatario",
+    "link": "https://www.lamudi.com.mx/detalle/41032-73-d167d28c4a3a-2ca8-19d6af9-a84f-74c8",
+    "source": "https://www.lamudi.com.mx/queretaro-arteaga/queretaro/cimatario/terreno/for-sale/",
+    "portal": "lamudi",
+    "scraped_at": "2026-07-05T03:42:57.395989+00:00",
+    "meta": {
+      "name": "Lote / Terreno en Venta en Centro HistÃ³rico",
+      "description": "La Porta High Living\nEl Ãºnico Distrito Urbano vertical del bajÃ¬o (Macrolote 53)\n\nPrecio $10,920,268.00 MN\nSuperficie: 1332 M2\n\nMacrolotes para uso mixto, ubicados en Blvd. Bernando Quintana  esq. Av. Constituyentes\nDiseÃ±os vanguardistas con macrolotes para desarrollos verticales con servicios de punta. \n\nUso mixto para edificaciÃ³n de:\nâ¢â   â Departamentos\nâ¢â   â Oficinas\nâ¢â   â Hoteles\nâ¢â   â Hospitales\nâ¢â   â Comercios\nâ¢â   â Servicios\n\nUrbanizaciÃ³n y servicios ocultos al pie de cada macrolote\nâ¢â   â Agua potable\nâ¢â   â Drenaje sanitario\nâ¢â   â Gas nat",
+      "street": "Avenida Constituyentes 43-49, Cimatario, Santiago de QuerÃ©taro, QuerÃ©taro, 76030, MEX",
+      "locality": "QuerÃ©taro",
+      "region": "QuerÃ©taro Arteaga",
+      "postal": "",
+      "lat": "20.584381",
+      "lng": "-100.392839",
+      "floor_size": "1332",
+      "floor_unit": "MTK",
+      "offer_price": "10920268",
+      "offer_currency": "MXN",
+      "images": [
+        "https://img.lamudi.com.mx/eyJidWNrZXQiOiJwcmQtbGlmdWxsY29ubmVjdC1iYWNrZW5kLWIyYi1pbWFnZXMiLCJrZXkiOiJpbmdlc3Rlci8wMTlkNmFiMC0yYzVmLTc0N2YtYTgwNi1kMTY3ZDI4YzQ5ZjEvMTRmMDAyNGQ2ZThhYmEzNGVhNzlmMTljNTg0ODMxNWYzZDg0OTg5YjVlMDRhZjFhOGRjMmEzNDVhYjIxNzMwYi5qcGVnIiwiYnJhbmQiOiJsYW11ZGkiLCJlZGl0cyI6eyJyb3RhdGUiOm51bGwsInJlc2l6ZSI6eyJ3aWR0aCI6OTAwLCJoZWlnaHQiOjY1MCwiZml0IjoiY292ZXIifX19"
+      ]
+    },
+    "_enrich": "ok"
+  }
+]

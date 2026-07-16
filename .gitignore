@@ -42,6 +42,7 @@ relay/package-lock.json
 relay/workspaces/
 B\[*\]
 C\[*\]
+.venv-scraper/
 dashboard-financial/.npmcache
 dashboard-financial/_backups
 dashboard-financial/out
