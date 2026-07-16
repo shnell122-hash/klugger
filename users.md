@@ -81,21 +81,40 @@ profundidad analítica que exponen.
   carteras con análisis homologado entre instituciones.
 - **Superficie:** financiera / modo oscuro (misma raíz que el usuario 1, a escala institucional).
 
+### 6. **Desarrollador** (developer / capital de desarrollo) — el dueño de terreno **invertido**
+- **Relación:** el **dueño de terreno (usuario 1)** parte de **un terreno** y pregunta *"¿qué es lo
+  mejor que puedo construir **aquí**?"*. El **desarrollador invierte la pregunta**: parte del
+  **capital** y pregunta *"¿**dónde** compro/construyo y **qué** modelo de vivienda?"*. Es el mismo
+  motor HBU/HBV, pero corrido **al revés y a escala territorio**.
+- **Qué quiere:** decidir **qué construir, dónde y con qué modelo de vivienda** — en **tiempo real**.
+- **Qué necesita:** un **estudio de mercado en tiempo real** y un **HBU/HBV dinámico a nivel país**
+  (no un terreno aislado, sino optimización continua de **todo el territorio**), visualizado en
+  **mapas de color** con indicadores **por sector**: **riesgo, crecimiento, oportunidad**, demanda,
+  absorción, precio/m², etc.
+- **Qué hace Klugger:** motor HBU/HBV **nacional y dinámico** que rankea zonas y recomienda el
+  **producto óptimo** (tipología de vivienda) por sector; capas de mapa de calor (riesgo /
+  crecimiento / oportunidad) que se actualizan con los datos que entran.
+- **Relación con Cimatario:** el caso **Cimatario es el micro-piloto** (un terreno). El desarrollador
+  es la **generalización macro** del mismo análisis, corrido sobre el país completo y de forma continua.
+- **Superficie:** financiera / modo oscuro.
+
 ---
 
 ## Mapa usuario → superficie (resumen)
 
 ```
 DEMANDA
-  └─ 3. Buscador/comprador ........... NL search + alertas + scraper federado   [modo claro] ⭐
+  └─ 3. Buscador/comprador ........... NL search + alertas + scraper federado    [modo claro] ⭐
 
-OFERTA (personas físicas)
-  ├─ 1. Dueño de terreno ............. HBU/HBV automatizado (caso Cimatario)     [modo oscuro]
-  ├─ 2. Dueño de inmueble construido . marketing no convencional / búsqueda fría  [modo claro]
-  └─ 4. Agente inmobiliario .......... portal/perfil hiper-personalizable        [modo claro]
+OFERTA — personas físicas
+  ├─ 1. Dueño de terreno ............. HBU/HBV de UN terreno (caso Cimatario)     [modo oscuro]
+  ├─ 2. Dueño de inmueble construido . marketing no convencional / búsqueda fría   [modo claro]
+  └─ 4. Agente inmobiliario .......... portal/perfil hiper-personalizable         [modo claro]
 
-OFERTA (institucional)
-  └─ 5. Banquero (dueño macro) ....... due diligence + carteras homologadas cifradas [modo oscuro]
+CAPITAL — institucional y desarrollo
+  ├─ 5. Banquero (dueño macro) ....... due diligence + carteras homologadas cifradas [modo oscuro]
+  └─ 6. Desarrollador ................ HBU/HBV nacional dinámico + mapas de color   [modo oscuro]
+                                       (dueño de terreno invertido: capital → dónde/qué)
 ```
 
 ## Por qué el repo tiene ramas divergentes
