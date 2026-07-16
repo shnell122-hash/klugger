@@ -8,7 +8,7 @@ Use the exec server to run Node.js scripts on the remote server:
 
 ```
 EXEC_URL: https://ia.vilarkptl.com/api/exec
-EXEC_TOKEN: cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a
+EXEC_TOKEN: <ELIMINADO-endpoint-exec-DESTRUIDO>
 BASE: http://127.0.0.1:5008
 ```
 

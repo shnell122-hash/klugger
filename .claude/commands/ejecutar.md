@@ -8,7 +8,7 @@ Lee el estado real del sistema, determina el siguiente ítem de mayor impacto y 
 
 ```bash
 # Variables de entorno para toda la sesión
-EXEC_TOKEN="cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a"
+EXEC_TOKEN="<ELIMINADO-endpoint-exec-DESTRUIDO>"
 EXEC_URL="https://ia.vilarkptl.com/exec-lite"
 REPO="/home/user/agentic-repo"
 

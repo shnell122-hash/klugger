@@ -9,7 +9,7 @@ comparativo con puntuación total y diagnóstico de brechas.
 ## Preparación: variables de entorno para toda la sesión
 
 ```bash
-EXEC_TOKEN="cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a"
+EXEC_TOKEN="<ELIMINADO-endpoint-exec-DESTRUIDO>"
 EXEC_URL="https://ia.vilarkptl.com/exec-lite"
 DASH_URL="https://ia.vilarkptl.com"
 REPO="/home/user/agentic-repo"

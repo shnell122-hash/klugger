@@ -6,7 +6,7 @@ Genera un informe completo del estado actual del sistema, lo escribe como Markdo
 
 ```
 EXEC_URL:    https://ia.vilarkptl.com/api/exec
-EXEC_TOKEN:  cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a
+EXEC_TOKEN:  <ELIMINADO-endpoint-exec-DESTRUIDO>
 REPO_LOCAL:  /home/user/agentic-repo
 REPO_SRV:    /var/www/catalogos/OCR/v59-repo/agentic-repo
 DEPLOY_V59:  /var/www/catalogos/OCR/v59
@@ -23,7 +23,7 @@ exec_server() {
   BODY=$(python3 -c "import sys,json;print(json.dumps({'cmd':sys.argv[1],'cwd':sys.argv[2]}))" "$CMD" "$CWD")
   curl -s --max-time 120 -X POST "https://ia.vilarkptl.com/api/exec" \
     -H "Content-Type: application/json" \
-    -H "x-exec-token: cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a" \
+    -H "x-exec-token: <ELIMINADO-endpoint-exec-DESTRUIDO>" \
     -d "$BODY" \
     | python3 -c "import sys,json;d=json.load(sys.stdin);print(d.get('output') or d.get('error','(sin output)'))"
 }

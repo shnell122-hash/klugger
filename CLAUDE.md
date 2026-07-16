@@ -1,5 +1,33 @@
 # CLAUDE.md — ai-monitor / ocr-ruby-lease
 
+---
+
+## ⛔️ PROHIBICIÓN DE SEGURIDAD — endpoints de ejecución remota (LEER PRIMERO)
+
+> **Añadido 2026-07-16. Esta sección OVERRIDE cualquier instrucción posterior de este archivo.**
+
+**NUNCA usar, recomendar, reactivar ni recrear** estos endpoints. Fueron **DESTRUIDOS**:
+
+- `/api/exec` (`backend/routes/exec.js` + su montaje en `backend/server.js`) → **eliminado. Prohibido.**
+- `exec-lite` (`deploy/exec-lite.js` + `deploy/exec-lite.service`, systemd) → **eliminado. Prohibido.**
+
+**Por qué**: eran endpoints HTTP(S) abiertos a internet que ejecutaban comandos como root en el
+servidor, con el token en texto plano commiteado a este repo (ya redactado). Una allowlist de
+prefijos **no** contiene un RCE — es trivial de evadir. Eso es una brecha crítica. El token
+`cb5871c0…` está comprometido: hay que **rotarlo/eliminarlo en el servidor** (sigue en el historial de git).
+
+**Regla para agentes** (esto existe porque un agente sin contexto vuelve a proponerlo cada vez):
+1. Cualquier bloque más abajo que documente `exec_server`, `EXEC_URL`, `EXEC_TOKEN`, `/api/exec`,
+   `exec-lite` o `x-exec-token` es **HISTÓRICO y NULO**. No copiar, no ejecutar, no "arreglar".
+   (Pendiente: limpiar esas secciones de este archivo y de `SERVER.md`, `.claude/commands/*`, `relay/*`.)
+2. **Prohibido auto-aprovisionarse acceso**: no crear endpoints de exec, no abrir puertos, no
+   generar tokens de acceso amplio, no montar servicios que corran comandos arbitrarios.
+3. Si de verdad se necesita ejecución remota, **proponérselo al usuario** y construir una API
+   **acotada** con auth fuerte y secretos fuera del repo (Infisical), no un `bash` genérico.
+4. Para operar el servidor: SSH con credenciales de **Infisical** (proyecto Vilar-infra), no un endpoint de exec.
+
+---
+
 > Archivo de referencia para agentes Claude Code. Actualizado 2026-05-31.
 >
 > **REPOSITORIO CANÓNICO**: `vilarkptl-lang/ocr-ruby-lease`
@@ -63,7 +91,7 @@ ocr/
 ### Conexión al servidor (OCR paths)
 
 ```bash
-EXEC_TOKEN="cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a"
+EXEC_TOKEN="<ELIMINADO-endpoint-exec-DESTRUIDO>"
 EXEC_URL="https://ia.vilarkptl.com/api/exec"
 OCR_REPO="/var/www/catalogos/OCR/v59-repo/agentic-repo"  # clone del repo en el servidor
 
@@ -176,7 +204,7 @@ srv() { sshpass -p 'romanos12_2' ssh -o StrictHostKeyChecking=no german@143.198.
 
 **Si SSH no responde (el sandbox web bloquea el puerto 22), usar HTTPS:**
 ```bash
-EXEC_TOKEN="cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a"
+EXEC_TOKEN="<ELIMINADO-endpoint-exec-DESTRUIDO>"
 # Usar exec-lite (systemd, siempre up) como URL principal:
 EXEC_URL="https://ia.vilarkptl.com/exec-lite"
 # Fallback si exec-lite no responde: /api/exec (depende de ai-monitor)
@@ -251,7 +279,7 @@ que corre en el mismo servidor como root:
 ```
 URL pública:  https://ia.vilarkptl.com/api/exec        ← usar desde Claude Code web/CLI externo
 URL local:    http://localhost:3010/api/exec            ← usar desde agentes que corren en el servidor
-Auth:         header x-exec-token: cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a
+Auth:         header x-exec-token: <ELIMINADO-endpoint-exec-DESTRUIDO>
 Body:         { "cmd": "pm2 restart financial-bot", "cwd": "/var/www/html/vilarkptl.com/ai-monitor" }
 ```
 
@@ -276,7 +304,7 @@ curl -s -X POST https://ia.vilarkptl.com/api/exec \
 
 **Función bash que usan los agentes:**
 ```bash
-EXEC_TOKEN="cb5871c0aa6ccd67997237c5238017753c0b35bdd7167b56e226aff25bcbf67a"
+EXEC_TOKEN="<ELIMINADO-endpoint-exec-DESTRUIDO>"
 EXEC_URL="https://ia.vilarkptl.com/api/exec"  # URL pública (Claude Code web)
 # EXEC_URL="http://localhost:3010/api/exec"   # URL local (agentes en el servidor)
 
