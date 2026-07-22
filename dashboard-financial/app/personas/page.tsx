@@ -2,6 +2,8 @@
 // Klugger — landing de compra para personas físicas (comprador individual).
 // Buscador + chips + drawer de filtros están conectados a un filtrado real sobre el
 // dataset mock de app/personas/data.ts (no hay backend de propiedades todavía).
+// El buscador/filtros viven en una barra fija (sticky) debajo del navbar, siempre
+// accesibles sin importar en qué sección estés. Un "Ir a:" al inicio salta entre secciones.
 import "../style/klugger.css";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -31,15 +33,23 @@ const SALE_PRICE: PriceConfig = {
 // el catálogo y vaya acotando.
 const INITIAL_FILTERS: PropertyFilters = { ...DEFAULT_FILTERS, precioMax: SALE_PRICE.max, rec: "Todas", tipo: [], uso: "Todos", verificado: false };
 
+const SECTIONS = [
+  { id: "propiedades", label: "Propiedades" },
+  { id: "zonas", label: "Zonas" },
+  { id: "transparencia", label: "Transparencia" },
+  { id: "preguntas", label: "Preguntas" },
+  { id: "contacto", label: "Contacto" },
+];
+
 const FAQ = [
   { q: "¿Cómo verifica Klugger una propiedad?", a: "Cotejamos título, geolocalización y dueño contra fuentes oficiales; cada ficha muestra qué se verificó y cuándo fue la última re-verificación." },
   { q: "¿Qué es la valuación (AVM)?", a: "Un estimado de valor con rango de confianza y los factores ponderados que lo explican (ubicación, m², plusvalía de la zona, comparables reales) — nunca un precio cerrado." },
   { q: "¿Puedo decidir con alguien más?", a: "Sí: la shortlist es colaborativa — invita a tu co-comprador, voten y comparen antes de agendar visita." },
 ];
 
-function Sec({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+function Sec({ id, title, subtitle, children }: { id?: string; title: string; subtitle?: string; children: React.ReactNode }) {
   return (
-    <section className="kstyle-sec">
+    <section id={id} className="kstyle-sec" style={id ? { scrollMarginTop: 220 } : undefined}>
       <h2>{title}</h2>
       {subtitle && <p style={{ color: "var(--text-muted)", marginTop: -4, marginBottom: 16 }}>{subtitle}</p>}
       {children}
@@ -47,6 +57,7 @@ function Sec({ title, subtitle, children }: { title: string; subtitle?: string; 
   );
 }
 
+const goTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 const recMin = (rec: PropertyFilters["rec"]) => (rec === "Todas" ? 0 : parseInt(rec, 10));
 
 export default function PersonasPage() {
@@ -80,69 +91,78 @@ export default function PersonasPage() {
   const pageItems = results.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const pins: MapPin[] = results.map((p) => ({ id: p.id, x: p.mapX, y: p.mapY, precio: `${(p.precio / 1_000_000).toFixed(1)}M` }));
 
+  const hasActiveFilters = Boolean(q || soloPlus || filters.verificado || filters.tipo.length > 0 || filters.uso !== "Todos" || filters.rec !== "Todas" || filters.precioMax < SALE_PRICE.max);
   const clearFilters = () => { setFilters(INITIAL_FILTERS); setSoloPlus(false); setQ(""); };
   const goToProperty = (id: string) => router.push(`/personas/propiedad/${id}/`);
+  const buscar = () => goTo("propiedades");
 
   return (
     <div className="klugger-scope" data-theme="consumer">
       <Toaster position="bottom-right" theme="light" />
-      <Navbar />
+
+      {/* Barra fija: navbar + buscador/filtros, siempre visibles sin importar la sección. */}
+      <div style={{ position: "sticky", top: 0, zIndex: 6, background: "var(--bg)" }}>
+        <Navbar />
+        <div style={{ borderTop: "1px solid var(--border)", background: "var(--surface)", boxShadow: "var(--shadow-1)" }}>
+          <div style={{ maxWidth: 1100, margin: "0 auto", padding: "12px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
+            <SearchBar
+              modes={["Comprar"]}
+              location={q}
+              onLocationChange={setQ}
+              onSubmit={buscar}
+              onOpenPalette={() => setCmdOpen(true)}
+              placeholder="Colonia, delegación o metro — ej. Condesa, Metro Chabacano"
+            />
+            <div className="kstyle-row" style={{ alignItems: "center" }}>
+              <Chip active={filters.verificado} onClick={() => setFilters((f) => ({ ...f, verificado: !f.verificado }))}>
+                <Icon as={UI.BadgeCheck} size={14} /> Solo verificadas
+              </Chip>
+              <Chip active={soloPlus} onClick={() => setSoloPlus((v) => !v)}>
+                <Icon as={UI.TrendingUp} size={14} /> Con plusvalía
+              </Chip>
+              <FilterDrawer
+                trigger={<button className="kchip" data-active={false}><Icon as={UI.SlidersHorizontal} size={15} /> Más filtros</button>}
+                filters={filters}
+                onChange={setFilters}
+                onClear={clearFilters}
+                resultCount={results.length}
+                price={SALE_PRICE}
+              />
+              {hasActiveFilters && <Button variant="ghost" size="sm" onClick={clearFilters}>Limpiar filtros</Button>}
+              <span style={{ marginLeft: "auto", fontSize: 13, color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+                {results.length} propiedad{results.length === 1 ? "" : "es"}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="kstyle-wrap">
         <header>
           <h1 style={{ fontSize: 34, margin: 0 }}>Compra tu próxima propiedad con datos reales</h1>
           <p style={{ color: "var(--text-muted)", marginTop: 8, maxWidth: 560 }}>
             Propiedades verificadas, plusvalía transparente y una shortlist para decidir en familia — sin presión de vendedor.
           </p>
+          <nav aria-label="Ir a sección" className="kstyle-row" style={{ marginTop: 16 }}>
+            <span style={{ fontSize: 13, color: "var(--text-muted)" }}>Ir a:</span>
+            {SECTIONS.map((s) => (
+              <button key={s.id} className="kchip" onClick={() => goTo(s.id)}>{s.label}</button>
+            ))}
+          </nav>
         </header>
 
         <section className="kstyle-sec">
           <div className="khero">
             <img src="/assets/hero-cdmx-v1.jpg" alt="Mapa CDMX — encuentra tu zona ideal para comprar" />
           </div>
-          <div style={{ marginTop: 16 }}>
-            <SearchBar
-              modes={["Comprar"]}
-              location={q}
-              onLocationChange={setQ}
-              onSubmit={() => document.getElementById("resultados")?.scrollIntoView({ behavior: "smooth" })}
-              onOpenPalette={() => setCmdOpen(true)}
-              placeholder="Colonia, delegación o metro — ej. Condesa, Metro Chabacano"
-            />
-          </div>
-        </section>
-
-        <section className="kstyle-sec">
-          <div className="kstyle-row">
+          <div className="kstyle-row" style={{ marginTop: 16 }}>
             <Badge variant="verified"><Icon as={UI.BadgeCheck} size={13} /> Propiedades verificadas</Badge>
             <Badge variant="up"><Icon as={UI.TrendingUp} size={13} /> Plusvalía transparente</Badge>
             <Badge variant="neutral">Decide en familia</Badge>
           </div>
         </section>
 
-        <Sec title="Propiedades en venta para ti" subtitle="El mapa es el filtro: pasa el cursor sobre un pin o una tarjeta para ver el enlace.">
-          <div id="resultados" className="kstyle-row" style={{ marginBottom: 8 }}>
-            <Chip active={filters.verificado} onClick={() => setFilters((f) => ({ ...f, verificado: !f.verificado }))}>
-              <Icon as={UI.BadgeCheck} size={14} /> Solo verificadas
-            </Chip>
-            <Chip active={soloPlus} onClick={() => setSoloPlus((v) => !v)}>
-              <Icon as={UI.TrendingUp} size={14} /> Con plusvalía
-            </Chip>
-            <FilterDrawer
-              trigger={<button className="kchip" data-active={false}><Icon as={UI.SlidersHorizontal} size={15} /> Más filtros</button>}
-              filters={filters}
-              onChange={setFilters}
-              onClear={clearFilters}
-              resultCount={results.length}
-              price={SALE_PRICE}
-            />
-            {(q || soloPlus || filters.verificado || filters.tipo.length > 0 || filters.uso !== "Todos" || filters.rec !== "Todas" || filters.precioMax < SALE_PRICE.max) && (
-              <Button variant="ghost" size="sm" onClick={clearFilters}>Limpiar filtros</Button>
-            )}
-          </div>
-          <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>
-            {results.length === 0 ? "Ninguna propiedad coincide con tu búsqueda." : `${results.length} propiedad${results.length === 1 ? "" : "es"} encontrada${results.length === 1 ? "" : "s"}`}
-          </p>
-
+        <Sec id="propiedades" title="Propiedades en venta para ti" subtitle="El mapa es el filtro: pasa el cursor sobre un pin o una tarjeta para ver el enlace. Ajusta el buscador de arriba para acotar.">
           {results.length === 0 ? (
             <div className="kcard" style={{ padding: 32, textAlign: "center" }}>
               <p style={{ marginBottom: 12 }}>No encontramos propiedades con esos filtros.</p>
@@ -167,7 +187,7 @@ export default function PersonasPage() {
           )}
         </Sec>
 
-        <Sec title="Zonas con datos, no promesas">
+        <Sec id="zonas" title="Zonas con datos, no promesas">
           <ScrollReveal>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
               {ZONAS.map((z, i) => (
@@ -183,20 +203,20 @@ export default function PersonasPage() {
           </ScrollReveal>
         </Sec>
 
-        <Sec title="Transparencia, siempre" subtitle="Verificamos cada propiedad y te dejamos decidir en equipo — sin sellos genéricos.">
+        <Sec id="transparencia" title="Transparencia, siempre" subtitle="Verificamos cada propiedad y te dejamos decidir en equipo — sin sellos genéricos.">
           <div className="ksplit">
             <VerificationPanel />
             <Shortlist />
           </div>
         </Sec>
 
-        <Sec title="Preguntas frecuentes">
+        <Sec id="preguntas" title="Preguntas frecuentes">
           <div style={{ maxWidth: 620 }}>
             <Accordion items={FAQ} />
           </div>
         </Sec>
 
-        <section className="kstyle-sec" style={{ textAlign: "center", padding: "48px 0 24px" }}>
+        <section id="contacto" className="kstyle-sec" style={{ textAlign: "center", padding: "48px 0 24px", scrollMarginTop: 220 }}>
           <Logo variant="mark" height={48} />
           <h2 style={{ marginTop: 16 }}>El zorro conoce la ciudad. Tú también, con Klugger.</h2>
           <p style={{ color: "var(--text-muted)", marginTop: 8, maxWidth: 480, marginLeft: "auto", marginRight: "auto" }}>
