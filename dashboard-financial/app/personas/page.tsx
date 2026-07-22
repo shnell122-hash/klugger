@@ -1,17 +1,18 @@
 "use client";
-// Klugger — landing para personas físicas (compradores/rentistas/vendedores individuales).
+// Klugger — landing de compra para personas físicas (comprador individual).
 // Reusa el sistema de diseño de /style (tema "consumer" = personas físicas, light/amigable).
+// Un solo buscador (SearchBar, que ya trae su propio Comprar/Rentar/Vender) — sin ChatPill
+// ni Segmented duplicados; el resto de la página se compone solo de piezas ya existentes.
 import "../style/klugger.css";
 import { useState } from "react";
 import { Toaster, toast } from "sonner";
-import { Button, Badge, Chip, ChatPill } from "@/components/klugger/atoms";
+import { Button, Badge, Chip } from "@/components/klugger/atoms";
 import { ScrollReveal } from "@/components/klugger/ScrollReveal";
 import { Icon, UI } from "@/components/klugger/icons";
 import { Logo } from "@/components/klugger/Logo";
-import { Segmented, SearchBar, Navbar, Accordion, Pagination } from "@/components/klugger/molecules";
+import { SearchBar, Navbar, Accordion, Pagination } from "@/components/klugger/molecules";
 import { FilterDrawer } from "@/components/klugger/FilterDrawer";
 import { PropertyCard, VerificationPanel, Shortlist, MapFirst, type Prop } from "@/components/klugger/organisms";
-import { Marquee } from "@/components/klugger/MovingArt";
 
 const ZONAS = [
   { icon: UI.Building2, name: "Condesa", dato: "▲ 6.4% plusvalía · $58k/m²" },
@@ -48,7 +49,6 @@ function Sec({ title, subtitle, children }: { title: string; subtitle?: string; 
 }
 
 export default function PersonasPage() {
-  const [seg, setSeg] = useState<"Comprar" | "Rentar" | "Vender">("Comprar");
   const [chip, setChip] = useState("Precio");
   const [pin, setPin] = useState<string | null>(null);
 
@@ -58,27 +58,20 @@ export default function PersonasPage() {
       <Navbar />
       <div className="kstyle-wrap">
         <header>
-          <h1 style={{ fontSize: 34, margin: 0 }}>Encuentra tu próximo hogar, con datos reales</h1>
+          <h1 style={{ fontSize: 34, margin: 0 }}>Compra tu próxima propiedad con datos reales</h1>
           <p style={{ color: "var(--text-muted)", marginTop: 8, maxWidth: 560 }}>
-            Propiedades verificadas, plusvalía transparente y una IA que te ayuda a decidir — sin presión de vendedor.
+            Propiedades verificadas, plusvalía transparente y una shortlist para decidir en familia — sin presión de vendedor.
           </p>
         </header>
 
         <section className="kstyle-sec">
           <div className="khero">
-            <img src="/assets/hero-cdmx-v1.jpg" alt="Mapa CDMX — encuentra tu zona ideal" />
+            <img src="/assets/hero-cdmx-v1.jpg" alt="Mapa CDMX — encuentra tu zona ideal para comprar" />
           </div>
           <div style={{ marginTop: 16 }}>
-            <ChatPill />
+            <SearchBar />
           </div>
         </section>
-
-        <Sec title="¿Qué estás buscando?">
-          <div style={{ marginBottom: 16 }}>
-            <Segmented options={["Comprar", "Rentar", "Vender"] as const} value={seg} onChange={setSeg} />
-          </div>
-          <SearchBar />
-        </Sec>
 
         <section className="kstyle-sec">
           <div className="kstyle-row">
@@ -88,7 +81,7 @@ export default function PersonasPage() {
           </div>
         </section>
 
-        <Sec title="Propiedades para ti" subtitle="El mapa es el filtro: pasa el cursor sobre un pin o una tarjeta para ver el enlace.">
+        <Sec title="Propiedades en venta para ti" subtitle="El mapa es el filtro: pasa el cursor sobre un pin o una tarjeta para ver el enlace.">
           <div className="kstyle-row" style={{ marginBottom: 16 }}>
             {CHIPS.map((c) => (
               <Chip key={c} active={chip === c} onClick={() => setChip(c)}>{c}</Chip>
@@ -105,10 +98,6 @@ export default function PersonasPage() {
             <Pagination total={6} />
           </div>
         </Sec>
-
-        <section className="kstyle-sec">
-          <Marquee />
-        </section>
 
         <Sec title="Zonas con datos, no promesas">
           <ScrollReveal>
@@ -142,13 +131,23 @@ export default function PersonasPage() {
         <section className="kstyle-sec" style={{ textAlign: "center", padding: "48px 0 24px" }}>
           <Logo variant="mark" height={48} />
           <h2 style={{ marginTop: 16 }}>El zorro conoce la ciudad. Tú también, con Klugger.</h2>
-          <div style={{ marginTop: 16 }}>
+          <p style={{ color: "var(--text-muted)", marginTop: 8, maxWidth: 480, marginLeft: "auto", marginRight: "auto" }}>
+            ¿No encontraste lo que buscabas todavía? Un asesor te ayuda, o te avisamos en cuanto algo cruce tu presupuesto.
+          </p>
+          <div className="kstyle-row" style={{ marginTop: 16, justifyContent: "center" }}>
             <Button
               variant="gradient"
               size="lg"
-              onClick={() => toast.success("¡Listo!", { description: "Te avisamos cuando aparezca tu próximo hogar." })}
+              onClick={() => toast.success("Solicitud enviada", { description: "Un asesor Klugger te contactará en breve para ayudarte a comprar." })}
             >
-              Empezar a buscar
+              Hablar con un asesor
+            </Button>
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={() => toast("Alerta creada", { description: "Te avisamos cuando una propiedad cruce tu presupuesto." })}
+            >
+              Crear alerta de precio
             </Button>
           </div>
         </section>
