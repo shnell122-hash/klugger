@@ -27,21 +27,41 @@ export function Segmented<T extends string>({
   );
 }
 
-/* ── C11 · Search bar (hero) — tipo + ubicación + NL + CTA ── */
-export function SearchBar({ onOpenPalette }: { onOpenPalette?: () => void }) {
-  const [tipo, setTipo] = useState<"Comprar" | "Rentar" | "Vender">("Comprar");
+/* ── C11 · Search bar (hero) — tipo + ubicación + NL + CTA ──
+   Controlable: si no se pasan location/mode + sus onChange, cae a estado interno
+   (comportamiento original, usado por /style). */
+export function SearchBar({
+  onOpenPalette, modes = ["Comprar", "Rentar", "Vender"], mode, onModeChange,
+  location, onLocationChange, onSubmit, placeholder = "Colonia, delegación o metro — ej. Condesa, Metro Chabacano",
+}: {
+  onOpenPalette?: () => void;
+  modes?: readonly ("Comprar" | "Rentar" | "Vender")[];
+  mode?: "Comprar" | "Rentar" | "Vender"; onModeChange?: (m: "Comprar" | "Rentar" | "Vender") => void;
+  location?: string; onLocationChange?: (v: string) => void;
+  onSubmit?: () => void; placeholder?: string;
+}) {
+  const [tipoInternal, setTipoInternal] = useState<"Comprar" | "Rentar" | "Vender">(modes[0] ?? "Comprar");
+  const tipo = mode ?? tipoInternal;
+  const setTipo = onModeChange ?? setTipoInternal;
+  const [locInternal, setLocInternal] = useState("");
+  const loc = location ?? locInternal;
+  const setLoc = onLocationChange ?? setLocInternal;
   return (
     <div className="ksearch">
-      <Segmented options={["Comprar", "Rentar", "Vender"] as const} value={tipo} onChange={setTipo} />
+      {modes.length > 1 && <Segmented options={modes} value={tipo} onChange={setTipo} />}
       <div className="ksearch__row">
         <div className="ksearch__field">
           <Icon as={UI.MapPin} size={18} label="Ubicación" />
-          <input className="ksearch__input" placeholder="Colonia, delegación o metro — ej. Condesa, Metro Chabacano" aria-label="Ubicación" />
+          <input
+            className="ksearch__input" placeholder={placeholder} aria-label="Ubicación"
+            value={loc} onChange={(e) => setLoc(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") onSubmit?.(); }}
+          />
         </div>
         <button className="ksearch__nl" onClick={onOpenPalette} title="Búsqueda en lenguaje natural (⌘K)">
           <Icon as={UI.MessageSquare} size={16} /> Preguntar
         </button>
-        <Button variant="gradient"><Icon as={UI.Search} size={16} /> Buscar</Button>
+        <Button variant="gradient" onClick={onSubmit}><Icon as={UI.Search} size={16} /> Buscar</Button>
       </div>
     </div>
   );
@@ -162,16 +182,19 @@ export function Accordion({ items }: { items: { q: string; a: ReactNode }[] }) {
   );
 }
 
-/* ── C9 · Pagination ── */
-export function Pagination({ total = 8 }: { total?: number }) {
-  const [page, setPage] = useState(1);
+/* ── C9 · Pagination — controlable (page/onPageChange); si no se pasan, usa estado interno ── */
+export function Pagination({ total = 8, page: pageProp, onPageChange }: { total?: number; page?: number; onPageChange?: (p: number) => void }) {
+  const [internal, setInternal] = useState(1);
+  const page = pageProp ?? internal;
+  const setPage = onPageChange ?? setInternal;
+  const clamped = Math.min(Math.max(1, total), Math.max(1, page));
   return (
     <div className="kpage">
-      <button className="kpage__btn" disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))} aria-label="Anterior">‹</button>
+      <button className="kpage__btn" disabled={clamped === 1} onClick={() => setPage(Math.max(1, clamped - 1))} aria-label="Anterior">‹</button>
       {Array.from({ length: total }, (_, i) => i + 1).map((n) => (
-        <button key={n} className="kpage__btn" data-active={n === page} onClick={() => setPage(n)}>{n}</button>
+        <button key={n} className="kpage__btn" data-active={n === clamped} onClick={() => setPage(n)}>{n}</button>
       ))}
-      <button className="kpage__btn" disabled={page === total} onClick={() => setPage((p) => Math.min(total, p + 1))} aria-label="Siguiente">›</button>
+      <button className="kpage__btn" disabled={clamped === total} onClick={() => setPage(Math.min(total, clamped + 1))} aria-label="Siguiente">›</button>
     </div>
   );
 }

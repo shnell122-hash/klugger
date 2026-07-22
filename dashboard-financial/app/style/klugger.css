@@ -236,7 +236,8 @@
 .kprop[data-active="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent), var(--shadow-2); }
 .kprop__photo { position: relative; height: 150px; transition: background var(--dur-base) var(--ease-out); }
 .kprop__badges { position: absolute; top: 10px; left: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
-.kprop__fav { position: absolute; top: 8px; right: 8px; display: inline-flex; padding: 7px; border-radius: 999px; border: none; background: color-mix(in srgb, var(--surface) 80%, transparent); backdrop-filter: blur(4px); color: var(--k-gray); cursor: pointer; }
+.kprop__fav { position: absolute; top: 8px; right: 8px; display: inline-flex; padding: 7px; border-radius: 999px; border: none; background: color-mix(in srgb, var(--surface) 80%, transparent); backdrop-filter: blur(4px); color: var(--k-gray); cursor: pointer; transition: color var(--dur-hover) var(--ease-out), transform var(--dur-hover) var(--ease-out); }
+.kprop__fav[data-on="true"] { color: #E0574E; transform: scale(1.08); }
 .kprop__dots { position: absolute; bottom: 8px; left: 0; right: 0; display: flex; justify-content: center; gap: 5px; }
 .kprop__dot { width: 6px; height: 6px; border-radius: 999px; border: none; background: rgba(255,255,255,.55); cursor: pointer; padding: 0; }
 .kprop__dot[data-on="true"] { background: #fff; width: 16px; }
